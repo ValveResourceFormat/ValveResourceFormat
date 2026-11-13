@@ -4,8 +4,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
     /// Scales a renderer's alpha and radius for a whole draw by how the camera sees a control point:
-    /// its distance from the camera and the angle between them, each remapped to 0 to 1 and multiplied
-    /// together, then taken from the minimum to the maximum scale.
+    /// the distance to the camera and the angle between the camera and the control point are each remapped
+    /// to 0 to 1 and multiplied together, and the product interpolates from the minimum to the maximum scale.
     /// </summary>
     /// <remarks>
     /// There is no occlusion query, so the control point always counts as fully in view.

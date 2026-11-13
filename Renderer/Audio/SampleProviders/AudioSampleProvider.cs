@@ -23,11 +23,11 @@ public abstract class AudioSampleProvider : IAudioSampleProvider
     public event Action? OnOver;
 
     /// <summary>
-    /// The provider's reusable node for the <see cref="SampleProviderMulti"/> it plays under. A provider
+    /// Reusable node for the <see cref="SampleProviderMulti"/> this provider plays under. A provider
     /// only ever sits in one mix at a time (the provider tree is fixed: a track provider under its event,
-    /// an event's mix under its parent or the root), so one lazily created node per provider lets
-    /// add/remove cycles - which happen constantly, on every play, retrigger and run-dry - reuse it
-    /// instead of allocating a fresh <see cref="LinkedListNode{T}"/> on every add.
+    /// an event's mix under its parent or the root). One lazily created node per provider avoids
+    /// allocating a <see cref="LinkedListNode{T}"/> on every add, which happens on every play,
+    /// retrigger and run-dry.
     /// </summary>
     internal LinkedListNode<IAudioSampleProvider>? MixNode;
 

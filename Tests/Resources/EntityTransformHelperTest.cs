@@ -120,8 +120,8 @@ namespace Tests.Resources
         ];
 
         /// <summary>
-        /// The frame built straight from a direction has to be the one the angles read off that direction
-        /// would build, since it exists only to skip going through them.
+        /// ForwardDirectionToRotationMatrix has to match EulerAnglesToRotationMatrix of the angles from
+        /// ForwardDirectionToEulerAngles, since it only skips the angles.
         /// </summary>
         [Test]
         public async Task ForwardDirectionToRotationMatrixMatchesGoingThroughAngles()
@@ -145,8 +145,8 @@ namespace Tests.Resources
         }
 
         /// <summary>
-        /// Completing a frame from a bare direction has to put forward on the first row, the same place a
-        /// full rotation puts it, or the two ways of orienting something disagree about which axis is which.
+        /// A frame completed from a direction has to put forward on the first row, as a rotation from
+        /// angles does. Otherwise the two disagree about which axis is which.
         /// </summary>
         [Test]
         public async Task FrameFromDirectionKeepsForwardOnFirstRow()
@@ -173,7 +173,7 @@ namespace Tests.Resources
         }
 
         /// <summary>
-        /// Yaw turns +X toward +Y, and roll and pitch leave forward where a roll about it would.
+        /// Yaw turns +X toward +Y, and roll turns left toward up.
         /// </summary>
         [Test]
         public async Task EulerAnglesToRotationMatrixTurnsTheExpectedAxes()

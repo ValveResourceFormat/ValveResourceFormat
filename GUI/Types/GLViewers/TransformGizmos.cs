@@ -184,7 +184,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        // Where the cursor is on what the active handle moves in: its axis, the screen plane or the plane of its ring
+        // Point under the cursor on the active handle's axis, on the screen plane or on the plane of its ring
         private Vector3? DragPoint(Camera camera, Vector2 mouse)
         {
             var origin = camera.Location;

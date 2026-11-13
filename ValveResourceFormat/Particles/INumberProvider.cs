@@ -49,8 +49,8 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>
         /// Evaluates the input over <paramref name="evaluated"/>, which contains <paramref name="particles"/>,
-        /// as a function that sets it up over those particles does, such as over every live particle.
-        /// Returns the values of <paramref name="particles"/>, each of them reading its own value.
+        /// the span a function sets the input up over, such as every live particle.
+        /// Returns the values of <paramref name="particles"/>, each reading its own value.
         /// </summary>
         Span<float> Fill(ParticleSpan particles, ParticleSpan evaluated, ParticleSystemState renderState)
             => Fill(evaluated, renderState).Slice(particles.Start - evaluated.Start, particles.Length);
@@ -529,9 +529,9 @@ namespace ValveResourceFormat.Particles
     }
 
     /// <summary>
-    /// PF_TYPE_PARTICLE_NUMBER. The particle's place in the collection, counted back from the particle
-    /// count when the order is reversed. Initializers instead read its particle number, and with the
-    /// order reversed count back from the particle count by its place in the batch.
+    /// PF_TYPE_PARTICLE_NUMBER. The particle's index in the collection, or the particle count minus
+    /// the index when the order is reversed. Initializers instead read the particle number, and with
+    /// the order reversed use the particle count minus the index in the batch.
     /// </summary>
     class PerParticleCountNumberProvider : INumberProvider
     {
@@ -608,7 +608,7 @@ namespace ValveResourceFormat.Particles
 
     /// <summary>
     /// PF_TYPE_PARTICLE_ROPE_SEGMENT. The segment position held in X of <see cref="ParticleField.RopeSegmentData"/>,
-    /// or its distance to the segment count in Z when the order is reversed.
+    /// or, when the order is reversed, the distance from that position to the segment count in Z.
     /// </summary>
     class RopeSegmentNumberProvider : INumberProvider
     {
@@ -757,8 +757,8 @@ namespace ValveResourceFormat.Particles
     }
 
     /// <summary>
-    /// PF_TYPE_CONTROL_POINT_SPEED. How far the control point moved since the previous frame, over the
-    /// simulation step being run, so a frame split into several steps reads several times the speed.
+    /// PF_TYPE_CONTROL_POINT_SPEED. How far the control point moved since the previous frame, divided by
+    /// the simulation step being run, so a frame split into several steps reads several times the speed.
     /// </summary>
     class ControlPointSpeedNumberProvider : INumberProvider
     {

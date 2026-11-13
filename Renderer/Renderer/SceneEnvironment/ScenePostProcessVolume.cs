@@ -16,8 +16,8 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/materialsystem2/PostProcessingTonemapParameters_t">PostProcessingTonemapParameters_t</seealso>
     public readonly struct TonemapSettings
     {
-        /// <summary>Gets the exposure bias in log2 stops; converted to linear via exp2 before GPU upload.</summary>
-        public float ExposureBias { get; init; } // converted to linear via exp2. Kept as exposurebias for blending purposes
+        /// <summary>Gets the exposure bias in log2 stops, blended between volumes in stops and converted to linear via exp2 before GPU upload.</summary>
+        public float ExposureBias { get; init; }
 
         /// <summary>Gets the shoulder strength of the Uncharted 2 tonemapping curve.</summary>
         public float ShoulderStrength { get; init; }
@@ -70,7 +70,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             WhitePoint = 4.0f;
         }
 
-        /// <summary>The nearly linear curve the game uses where no post processing gives one, when its game sets it to.</summary>
+        /// <summary>Nearly linear curve, used where no post processing gives a curve and the game opts in.</summary>
         public static TonemapSettings Linear()
         {
             return new TonemapSettings()

@@ -36,7 +36,7 @@ uniform vec3 g_vFogGridSize;
 // Slices sit at near + range * f(s) along the view direction, with s the slice center over the slice count
 uniform vec2 g_vFogNearRange;
 
-// The warp of the slices and one over its log2. Without a warp f is s^2, otherwise ((warp + 1)^s - 1) / warp
+// Slice depth warp, and one over the log2 of the warp. Without a warp f is s^2, otherwise ((warp + 1)^s - 1) / warp
 uniform vec2 g_vFogDepthWarp;
 
 // Scattering scale (xyz unused), fade-in scale and bias
@@ -107,8 +107,8 @@ const int MAX_FOG_BARN_LIGHTS = 64;
 uniform int g_nFogBarnLightCount;
 uniform vec4 g_vFogBarnLight[MAX_FOG_BARN_LIGHTS]; // x: index in the barn light buffer, y: factor for the light's color, z: 1 when the fog shadows the light
 
-// The fog density only exists inside a cube around the camera, and with 8 bit storage so does the baked light, in
-// nested cubes. xyz: center of the cubes, w: half extent of the outermost one, zero or less for no limit
+// The fog density only exists inside a cube around the camera. With 8 bit storage the baked light also only exists
+// inside nested cubes. xyz: center of the cubes, w: half extent of the outermost one, zero or less for no limit
 uniform vec4 g_vFogClipmapCenterExtent;
 
 bool IsInsideFogClipmap(vec3 vPositionWs)
@@ -148,8 +148,8 @@ float GetVolumeFalloff(FogVolume_t volume, vec3 vUnit)
     return 1.0;
 }
 
-// Density of the fog at a position: the strongest volume, and at least the floor. With 8 bit storage it is stored
-// in 8 bits. The volumes also set the strength of the baked light and the tint.
+// Density of the fog at a position: the strongest volume, and at least the floor. With 8 bit storage the density is
+// quantized to 8 bits. The volumes also set the strength of the baked light and the tint.
 float GetFogDensity(vec3 vPositionWs, out float flIndirectStrength, out vec3 vTint)
 {
     bool bIs8Bit = g_nFogLightStorageIs8Bit != 0;
@@ -242,7 +242,7 @@ float GetFogShadowFromTile(sampler2DShadow shadowMap, mat4 matWorldToShadow, vec
     vec3 vNdc = vClipPos.xyz / vClipPos.w;
     vec2 vTexelSize = 1.0 / vec2(textureSize(shadowMap, 0));
 
-    // The tile is taken in by three texels, so the filter stays inside it
+    // The tile edge is inset by three texels, so the filter stays inside the tile
     vec2 vTileEdge = vec2(1.0) - 3.0 * vTexelSize / vOffsetScale.zw;
 
     if (vNdc.z < 0.0 || vNdc.z > 1.0)

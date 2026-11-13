@@ -76,7 +76,7 @@ partial class ModelExtract
                         bodyGroup.Add("hidden_in_tools", true);
                     }
 
-                    // A single choice compiled without its index is what this flag asks for.
+                    // The flag marks a single choice that compiled without an index.
                     if (bodyGroupInfo.Choices is [{ Indexed: false }])
                     {
                         bodyGroup.Add("non_bodygroup_single_choice", true);

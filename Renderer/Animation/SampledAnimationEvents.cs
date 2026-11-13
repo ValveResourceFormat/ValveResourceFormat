@@ -32,9 +32,8 @@ namespace ValveResourceFormat.Renderer
         /// <param name="previousTime">The playback time in seconds before the update.</param>
         /// <param name="newTime">The playback time in seconds after the update.</param>
         /// <param name="finished">
-        /// Marks the final update of a non-looping animation: the range is treated as closed so events authored
-        /// at the exact end still fire, as the end is clamped to the last frame, which a half-open range would
-        /// exclude forever.
+        /// Marks the final update of a non-looping animation. The range is treated as closed, because the end is
+        /// clamped to the last frame and a half-open range would never fire events authored at the exact end.
         /// </param>
         public SampledAnimationEvents(T[] events, float duration, float previousTime, float newTime, bool finished)
         {

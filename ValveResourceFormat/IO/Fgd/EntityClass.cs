@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.IO.Fgd;
 
 /// <summary>
-/// What an entity of a class is in the editor, which decides what of it is drawn besides its helpers.
+/// Kind of an entity class. It decides whether the editor draws a default box when no helper of the class is visual.
 /// </summary>
 public enum EntityClassKind
 {
@@ -29,15 +29,15 @@ public sealed class EntityClass
     /// <summary>Gets the name of the class.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Gets what an entity of the class is.</summary>
+    /// <summary>Gets the kind of the class.</summary>
     public EntityClassKind Kind { get; init; }
 
     /// <summary>Gets the box the class declares entities are drawn as, or <see langword="null"/> where it declares none.</summary>
     public (Vector3 Mins, Vector3 Maxs)? Size { get; init; }
 
     /// <summary>
-    /// Gets the helpers the class is drawn with, in order: the ones it declares, and then one for each of its keys
-    /// that is drawn, which is given the name of the key.
+    /// Gets the helpers the class is drawn with, in order: the ones it declares, then one for each key that is drawn.
+    /// The helper of a key is given the name of the key.
     /// </summary>
     public IReadOnlyList<HelperDeclaration> Helpers { get; init; } = [];
 
@@ -48,8 +48,8 @@ public sealed class EntityClass
     public IReadOnlyList<string> PreviewAnimationKeys { get; init; } = [];
 
     /// <summary>
-    /// Gets the names of the classes the class is based on, directly or through others, of the ones a class of its
-    /// game requires to be placed under.
+    /// Gets the names of the classes the class is based on, directly or through others.
+    /// Only the classes some class of the game requires to be placed under are listed.
     /// </summary>
     public IReadOnlySet<string> BaseClasses { get; init; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -59,14 +59,14 @@ public sealed class EntityClass
     public string? RequiredParentClass { get; init; }
 
     /// <summary>
-    /// Gets the material the meshes of an entity of the class are drawn with in place of the ones of their faces, or
-    /// <see langword="null"/> where they are drawn with their own.
+    /// Gets the material the meshes of an entity of the class are drawn with instead of the materials of their faces, or
+    /// <see langword="null"/> where they keep their own.
     /// </summary>
     public string? AutoApplyMaterial { get; init; }
 
     /// <summary>
-    /// Gets whether the class is the one of a name, or is based on it. Only the classes a class of its game requires
-    /// to be placed under are known to be based on.
+    /// Gets whether the class has the name, or is based on a class of that name. Only the classes some class of the
+    /// game requires to be placed under are known as base classes.
     /// </summary>
     /// <param name="name">Name of the class.</param>
     /// <returns>Whether it is.</returns>

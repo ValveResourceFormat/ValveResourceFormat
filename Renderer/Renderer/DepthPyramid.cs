@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Renderer;
 
 internal sealed class DepthPyramid(RendererContext rendererContext)
 {
-    // The other side follows the viewport aspect
+    // Size of the larger axis. The other axis follows the viewport aspect
     private const int MaxDimension = 512;
 
     private Shader? downsampleShader;

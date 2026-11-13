@@ -27,7 +27,7 @@ uniform float g_flThickness = 1.0;
 uniform float g_flDustForwardScattering = 0.5;
 uniform float g_flShadowSoftness = 1.0;
 
-// What GetMaterial() samples for GetGlassOutput()
+// Written by GetMaterial() and read by GetGlassOutput()
 vec3 glassTintColor = vec3(1.0);
 vec4 glassDust = vec4(0.0);
 vec4 glassBackfaceDust = vec4(0.0);

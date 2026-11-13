@@ -44,7 +44,7 @@ internal sealed class RecoilPattern
                     shotMagnitude = newMagnitude;
                 }
 
-                // and its first few kicks ramp up to full strength
+                // The first few kicks of automatic fire ramp up to full strength
                 if (fullAuto && shot < SuppressionShots)
                 {
                     shotMagnitude *= float.Lerp(SuppressionFactor, 1f, shot / (float)SuppressionShots);

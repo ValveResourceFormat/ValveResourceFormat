@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CFuncMoveLinear">CFuncMoveLinear</seealso>
 public class FuncMoveLinear : BaseToggle
 {
-    /// <summary>What a <c>func_movelinear</c>'s <c>spawnflags</c> mean.</summary>
+    /// <summary>The <c>spawnflags</c> of a <c>func_movelinear</c>.</summary>
     [Flags]
     public enum SpawnFlag : uint
     {

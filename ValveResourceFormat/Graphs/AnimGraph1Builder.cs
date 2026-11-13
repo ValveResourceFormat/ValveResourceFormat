@@ -253,8 +253,8 @@ internal sealed class AnimGraph1Builder : IDisposable
         document.Legend.AddRange(AnimGraphHues.Legend());
 
         // HLA and SteamVR Home ship standalone vanmgrph files in the editor format, and CS2
-        // authors its player graphs the same way in vanmgrph/vsubgrph. The graph is laid out
-        // from its wires like the compiled path; the authored canvas positions are ignored.
+        // authors its player graphs in that format in vanmgrph/vsubgrph. The layout is computed
+        // from the wires, as for a compiled graph; the authored canvas positions are ignored.
         if (IsEditorGraph(animGraphData))
         {
             BuildEditorGraph(document);

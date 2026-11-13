@@ -26,7 +26,7 @@ public partial class GltfModelExporter
         var collisionAttributes = phys.CollisionAttributes;
         var physicsSurfaceNames = phys.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
 
-        // Group shapes by collision attributes and surface properties using simple loops (like ToDmxMesh material grouping)
+        // Group shapes by collision attributes and surface properties
         for (var collisionAttrIndex = 0; collisionAttrIndex < collisionAttributes.Count; collisionAttrIndex++)
         {
             for (var surfacePropIndex = 0; surfacePropIndex < physicsSurfaceNames.Length; surfacePropIndex++)
@@ -36,13 +36,11 @@ public partial class GltfModelExporter
                 var combinedUvs = new List<Vector2>();
                 var combinedIndices = new List<int>();
 
-                // Process all parts and collect shapes with matching collision/surface properties
                 for (var p = 0; p < phys.Parts.Length; p++)
                 {
                     var shape = phys.Parts[p].Shape;
                     var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
-                    // Process sphere shapes with matching properties
                     foreach (var sphere in shape.GetAllSpheres().Where(s => s.CollisionAttributeIndex == collisionAttrIndex && s.SurfacePropertyIndex == surfacePropIndex))
                     {
                         var center = Vector3.Transform(sphere.Shape.Center, pose);
@@ -50,7 +48,6 @@ public partial class GltfModelExporter
                         CreateSphereMesh(combinedVerts, combinedNormals, combinedUvs, combinedIndices, center, radius);
                     }
 
-                    // Process capsule shapes with matching properties
                     foreach (var capsule in shape.GetAllCapsules().Where(c => c.CollisionAttributeIndex == collisionAttrIndex && c.SurfacePropertyIndex == surfacePropIndex))
                     {
                         var center = capsule.Shape.Center;
@@ -60,7 +57,6 @@ public partial class GltfModelExporter
                         CreateCapsuleMesh(combinedVerts, combinedNormals, combinedUvs, combinedIndices, start, end, radius);
                     }
 
-                    // Process hull shapes with matching properties
                     foreach (var hull in shape.GetAllHulls().Where(h => h.CollisionAttributeIndex == collisionAttrIndex && h.SurfacePropertyIndex == surfacePropIndex))
                     {
                         var vertexPositions = hull.Shape.GetVertexPositions();
@@ -70,7 +66,6 @@ public partial class GltfModelExporter
                         TriangulateHull(faces, edges, transformedPositions, combinedVerts, combinedNormals, combinedUvs, combinedIndices);
                     }
 
-                    // Process mesh shapes with matching properties
                     foreach (var mesh in shape.GetAllMeshes().Where(m => m.CollisionAttributeIndex == collisionAttrIndex && m.SurfacePropertyIndex == surfacePropIndex))
                     {
                         var triangles = mesh.Shape.GetTriangles();
@@ -115,9 +110,6 @@ public partial class GltfModelExporter
         }
     }
 
-    /// <summary>
-    /// Transforms an array of vertices by the given pose matrix.
-    /// </summary>
     private static Vector3[] TransformVertices(ReadOnlySpan<Vector3> vertices, Matrix4x4 pose)
     {
         var transformed = new Vector3[vertices.Length];
@@ -128,10 +120,6 @@ public partial class GltfModelExporter
         return transformed;
     }
 
-    /// <summary>
-    /// Triangulates a convex hull using its face and edge data.
-    /// Generates triangle vertices, normals, and UV coordinates using planar projection.
-    /// </summary>
     private static void TriangulateHull(ReadOnlySpan<Face> faces, ReadOnlySpan<HalfEdge> edges, Vector3[] transformedPositions,
         List<Vector3> verts, List<Vector3> normals, List<Vector2> uvs, List<int> indices)
     {
@@ -144,10 +132,6 @@ public partial class GltfModelExporter
         }
     }
 
-    /// <summary>
-    /// Adds triangles from a triangle mesh to the vertex data.
-    /// Generates normals and UV coordinates for each triangle.
-    /// </summary>
     private static void AddTriangles(ReadOnlySpan<Triangle> triangles, Vector3[] transformedPositions,
         List<Vector3> verts, List<Vector3> normals, List<Vector2> uvs, List<int> indices)
     {
@@ -161,9 +145,6 @@ public partial class GltfModelExporter
         }
     }
 
-    /// <summary>
-    /// Adds a single triangle to the vertex data with computed normal and planar UV coordinates.
-    /// </summary>
     private static void AddTriangleWithNormal(Vector3 a, Vector3 b, Vector3 c,
         List<Vector3> verts, List<Vector3> normals, List<Vector2> uvs, List<int> indices)
     {
@@ -178,7 +159,6 @@ public partial class GltfModelExporter
         normals.Add(normal);
         normals.Add(normal);
 
-        // Generate planar UV coordinates using the triangle's normal for projection
         var uvA = GeneratePlanarUV(a, normal);
         var uvB = GeneratePlanarUV(b, normal);
         var uvC = GeneratePlanarUV(c, normal);
@@ -219,15 +199,11 @@ public partial class GltfModelExporter
     internal static Vector3 ComputeNormal(Vector3 a, Vector3 b, Vector3 c)
         => MathUtils.SafeNormalize(MathUtils.TriangleCross(a, b, c), Vector3.UnitZ, 1e-12f);
 
-    /// <summary>
-    /// Generates a procedural sphere mesh with proper normals and spherical UV coordinates.
-    /// </summary>
     private static void CreateSphereMesh(List<Vector3> verts, List<Vector3> normals, List<Vector2> uvs, List<int> indices, Vector3 center, float radius)
     {
         const int latitudeSegments = 16;
         const int longitudeSegments = 16;
 
-        // Generate vertices with spherical coordinates
         var sphereVerts = new List<Vector3>();
         var sphereNormals = new List<Vector3>();
         var sphereUVs = new List<Vector2>();
@@ -249,7 +225,6 @@ public partial class GltfModelExporter
                 var normal = new Vector3(x, y, z);
                 var position = center + normal * radius;
 
-                // Generate spherical UV coordinates
                 var u = (float)lon / longitudeSegments;
                 var v = (float)lat / latitudeSegments;
 
@@ -259,7 +234,6 @@ public partial class GltfModelExporter
             }
         }
 
-        // Generate triangle indices for sphere quads
         var baseIndex = verts.Count;
         verts.AddRange(sphereVerts);
         normals.AddRange(sphereNormals);
@@ -272,12 +246,10 @@ public partial class GltfModelExporter
                 var first = lat * (longitudeSegments + 1) + lon;
                 var second = first + longitudeSegments + 1;
 
-                // First triangle
                 indices.Add(baseIndex + first);
                 indices.Add(baseIndex + second);
                 indices.Add(baseIndex + first + 1);
 
-                // Second triangle
                 indices.Add(baseIndex + second);
                 indices.Add(baseIndex + second + 1);
                 indices.Add(baseIndex + first + 1);
@@ -285,10 +257,6 @@ public partial class GltfModelExporter
         }
     }
 
-    /// <summary>
-    /// Generates a procedural capsule mesh as a cylinder with hemisphere end caps.
-    /// Uses cylindrical UV coordinates for the main body.
-    /// </summary>
     private static void CreateCapsuleMesh(List<Vector3> verts, List<Vector3> normals, List<Vector2> uvs, List<int> indices, Vector3 start, Vector3 end, float radius)
     {
         var length = Vector3.Distance(start, end);
@@ -297,7 +265,6 @@ public partial class GltfModelExporter
         var direction = MathUtils.SafeNormalize(end - start, Vector3.UnitZ, 1e-12f);
         var center = (start + end) * 0.5f;
 
-        // Find perpendicular vectors
         Vector3 right, up;
         if (Math.Abs(direction.Y) < 0.9f)
         {
@@ -315,7 +282,6 @@ public partial class GltfModelExporter
 
         var baseIndex = verts.Count;
 
-        // Generate cylinder vertices
         for (var ring = 0; ring <= rings; ring++)
         {
             var t = (float)ring / rings;
@@ -329,7 +295,6 @@ public partial class GltfModelExporter
                 // Right and up are perpendicular unit vectors, so this is unit length even for a zero radius
                 var normal = right * MathF.Cos(angle) + up * MathF.Sin(angle);
 
-                // Generate cylindrical UV coordinates
                 var u = (float)seg / segments;
                 var v = t;
 
@@ -339,7 +304,6 @@ public partial class GltfModelExporter
             }
         }
 
-        // Generate triangle indices for cylindrical surface
         for (var ring = 0; ring < rings; ring++)
         {
             for (var seg = 0; seg < segments; seg++)
@@ -347,33 +311,25 @@ public partial class GltfModelExporter
                 var current = ring * (segments + 1) + seg;
                 var next = current + segments + 1;
 
-                // First triangle
                 indices.Add(baseIndex + current);
                 indices.Add(baseIndex + next);
                 indices.Add(baseIndex + current + 1);
 
-                // Second triangle
                 indices.Add(baseIndex + next);
                 indices.Add(baseIndex + next + 1);
                 indices.Add(baseIndex + current + 1);
             }
         }
 
-        // Add hemispherical end caps using sphere mesh generation
         CreateSphereMesh(verts, normals, uvs, indices, start, radius);
         CreateSphereMesh(verts, normals, uvs, indices, end, radius);
     }
 
-    /// <summary>
-    /// Generates UV coordinates using planar projection based on the surface normal.
-    /// Chooses the best projection plane based on the dominant normal component for optimal texture mapping.
-    /// </summary>
     private static Vector2 GeneratePlanarUV(Vector3 position, Vector3 normal)
     {
         var absNormal = Vector3.Abs(normal);
         const float uvScale = 0.02f; // Scale factor for reasonable texture tiling
 
-        // Choose the best projection plane based on the dominant normal component
         if (absNormal.Y > absNormal.X && absNormal.Y > absNormal.Z)
         {
             // Project onto XZ plane (for horizontal surfaces like floors/ceilings)
@@ -394,7 +350,6 @@ public partial class GltfModelExporter
     }
 
     /// <summary>
-    /// Creates a GLTF mesh with physics geometry, materials, and textures.
     /// Uses tool textures for collision attributes when available, otherwise falls back to surface property textures.
     /// </summary>
     private Mesh CreatePhysicsMesh(ModelRoot exportedModel, string meshName, List<Vector3> vertices, List<Vector3> normals, List<Vector2> uvs, List<int> indices,
@@ -403,7 +358,6 @@ public partial class GltfModelExporter
         var mesh = exportedModel.CreateMesh(meshName);
         var primitive = mesh.CreatePrimitive();
 
-        // Create vertex buffer
         var positionAccessor = CreateAccessor(exportedModel, vertices.ToArray());
         var normalAccessor = CreateAccessor(exportedModel, normals.ToArray());
         var uvAccessor = CreateAccessor(exportedModel, uvs.ToArray());
@@ -412,10 +366,8 @@ public partial class GltfModelExporter
         primitive.SetVertexAccessor("NORMAL", normalAccessor);
         primitive.SetVertexAccessor("TEXCOORD_0", uvAccessor);
 
-        // Create index buffer
         SetIndices(primitive, PrimitiveType.TRIANGLES, [.. indices]);
 
-        // Create material and texture for physics geometry visualization
         if (ExportMaterials)
         {
             var material = exportedModel.CreateMaterial($"{meshName}_material");
@@ -428,9 +380,9 @@ public partial class GltfModelExporter
 
             var usedToolMaterial = false;
 
-            // A generated texture names what the faces were built from: the class of a volume built from the trigger
-            // material, as every class shares that material, the tools material, or the layers of collision no tools
-            // material compiles to
+            // A generated texture is labelled with the class of a volume that uses the trigger material, because every
+            // class shares that material. Otherwise it is labelled with the tools material, or with the collision layers
+            // when no tools material compiles to them.
             ToolsMaterials.TextureLabel? label;
 
             if (volumeClassname != null && ToolsMaterials.Trigger.Equals(toolMaterialPath, StringComparison.OrdinalIgnoreCase))
@@ -463,25 +415,21 @@ public partial class GltfModelExporter
             }
             else if (toolMaterialPath != null && FileLoader.LoadFileCompiled(toolMaterialPath)?.DataBlock is VMaterial toolMaterial)
             {
-                // Physics meshes have no tangents or detail worth shading, so only its base color is bound
+                // Physics meshes have no tangents or detail worth shading, so only the base color is bound
                 GenerateGLTFMaterialFromRenderMaterial(material, toolMaterial, exportedModel, Vector4.One, baseColorOnly: true);
                 usedToolMaterial = true;
             }
 
-            // If no tool material was used, fall back to auto-generated textures
             if (!usedToolMaterial)
             {
-                // Configure material as opaque with blue-tinted base color for physics visualization
                 material.InitializePBRMetallicRoughness();
                 SetMetallicRoughness(material, new Vector4(0.5f, 0.5f, 1.0f, 1.0f), metallicFactor: 0.0f);
                 material.Alpha = AlphaMode.OPAQUE;
 
-                // Generate texture based on tool texture name or surface property
                 SharpGLTF.Schema2.Texture? texture = null;
 
                 if (toolMaterialPath != null)
                 {
-                    // Use tool material name for fallback auto-generated texture
                     var toolMaterialName = Path.GetFileNameWithoutExtension(toolMaterialPath);
                     var textureName = $"tool_{toolMaterialName}";
 
@@ -493,7 +441,6 @@ public partial class GltfModelExporter
                 }
                 else
                 {
-                    // Use surface property for auto-generated texture
                     var surfaceProperty = physicsSurfaceNames[surfacePropertyIndex];
                     if (!string.IsNullOrEmpty(surfaceProperty))
                     {
@@ -507,7 +454,6 @@ public partial class GltfModelExporter
                     }
                 }
 
-                // Apply texture to material if we have one
                 if (texture != null)
                 {
                     material.FindChannel("BaseColor")?.SetTexture(0, texture);
@@ -520,9 +466,6 @@ public partial class GltfModelExporter
         return mesh;
     }
 
-    /// <summary>
-    /// Adds a texture with a generated image under this name.
-    /// </summary>
     private SharpGLTF.Schema2.Texture AddGeneratedTexture(ModelRoot exportedModel, string textureName, SKBitmap bitmap)
     {
         var image = CreateNewGLTFImage(exportedModel, textureName);

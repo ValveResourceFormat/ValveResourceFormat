@@ -28,7 +28,6 @@ layout(std430, binding = 9) buffer DrawCommandCounts
     uint compactDrawCounts[];
 };
 
-// Each request is a pair of uints: [drawCount, startIndex]
 layout(std430, binding = 15) readonly buffer CompactionRequests
 {
     uint compactRequests[];
@@ -52,7 +51,6 @@ void main()
         startIndex = compactRequests[requestIndex * 2 + 1];
     }
 
-    // Reset per-lane valid draw counter
     if (gl_LocalInvocationID.y == 0)
     {
         g_GroupValidCounts[gl_LocalInvocationID.x] = 0;
@@ -76,7 +74,6 @@ void main()
     memoryBarrierShared();
     barrier();
 
-    // Write final compacted count for this request
     if (isActiveRequest && gl_LocalInvocationID.y == 0 && drawCount != 0)
     {
         compactDrawCounts[requestIndex] = g_GroupValidCounts[gl_LocalInvocationID.x];

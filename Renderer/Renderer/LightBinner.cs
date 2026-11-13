@@ -47,7 +47,7 @@ public sealed class LightBinner(SceneViewState view)
 
     private ReadbackRing? VisibilityReadback;
 
-    /// <summary>What each mask bit meant, per readback slot, since the slot order is rebuilt every frame.</summary>
+    /// <summary>Face slot behind each mask bit, per readback slot, since the slot order is rebuilt every frame.</summary>
     private readonly BarnLightFaceSlot[][] VisibilitySnapshots = new BarnLightFaceSlot[ReadbackRing.Depth][];
     private readonly int[] VisibilitySnapshotCounts = new int[ReadbackRing.Depth];
 
@@ -59,8 +59,8 @@ public sealed class LightBinner(SceneViewState view)
     private bool CullBitsAllVisible;
     private bool Active;
 
-    /// <summary>Gets the sequence of the last readback folded into the lights, which they carry a stamp of
-    /// so one it missed can be told apart from one it found dark.</summary>
+    /// <summary>Gets the sequence number of the last readback folded into the lights. Each light is stamped with it,
+    /// so a light the readback missed can be told apart from one it found dark.</summary>
     public int VisibilitySequence { get; private set; }
 
     private bool visibilityReadbackPending;
@@ -98,7 +98,7 @@ public sealed class LightBinner(SceneViewState view)
     /// <summary>Gets the layout of this scene's masks and the view they were built for. Valid after <see cref="Update"/>.</summary>
     public LightCullConstants CullConstants => Constants;
 
-    /// <summary>What this scene's binner produced for the frame, for the render stats display.</summary>
+    /// <summary>Binner counts and sizes of the frame, for the render stats display.</summary>
     /// <param name="Active">Whether items were binned, as opposed to every mask being filled with ones.</param>
     /// <param name="Faces">Barn light faces that reached a tile.</param>
     /// <param name="FaceSlots">Barn light faces the shading pass iterates.</param>
@@ -112,7 +112,7 @@ public sealed class LightBinner(SceneViewState view)
         bool Active, int Faces, int FaceSlots, int Probes, int ProbeSlots, int HullVertices, int MaskBytes,
         float SliceFar, float SliceWidth);
 
-    /// <summary>Gets what this binner produced for the frame.</summary>
+    /// <summary>Gets the binner statistics of the frame.</summary>
     internal BinnerStats Stats => new(
         Active,
         Feeder.BinnedCount(TiledCullFeeder.BatchBarnLights), Feeder.SlotCount(TiledCullFeeder.BatchBarnLights),
@@ -318,7 +318,7 @@ public sealed class LightBinner(SceneViewState view)
     }
 
     /// <summary>Folds the oldest finished readback into the lights it was measured against, or does
-    /// nothing when none has. What it applies is a ring depth behind, the price of never waiting.</summary>
+    /// nothing when none has. The visibility lags by the ring depth, the price of never waiting.</summary>
     public void PollBarnLightVisibility()
     {
         if (VisibilityReadback == null || !VisibilityReadback.TryConsume(out var slot, out var words))

@@ -65,8 +65,8 @@ public sealed class PlayerEntity : BaseEntity
     /// <inheritdoc/>
     protected override void PhysicsSimulate(float tickInterval)
     {
-        // Resets key latches inside player movement, if a key is presseed,
-        // unpressed and pressed again in within 3 frames the tick will see it as one press.
+        // Resets key latches inside player movement. A key pressed, released and pressed again
+        // within 3 frames is seen as one press by the tick.
         Buttons = Controller.ConsumeButtons();
 
         // The controller owns the position, nothing to integrate

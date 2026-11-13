@@ -8,7 +8,7 @@
 
 #define D_SKINNING 0
 
-// The values of D_SKINNING, as MeshSkinning has them
+// The values of D_SKINNING, matching the MeshSkinning enum
 #define SKINNING_EIGHT_BONES 3
 #define SKINNING_TWO_BONES 4
 

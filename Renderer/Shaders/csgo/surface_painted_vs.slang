@@ -3,9 +3,9 @@
 #ifndef VRF_SURFACE_PAINTED_VS_INCLUDE
 #define VRF_SURFACE_PAINTED_VS_INCLUDE
 
-// Vertex shader of a lit surface that is drawn from its mesh as is, with the vertex paint used as stored
-// when its features file declares F_VERTEX_COLOR or F_PAINT_VERTEX_COLORS.
-// The shader includes its features file and declares g_vColorTint first, see surface_base_vs.slang.
+// Vertex shader of a lit surface drawn from the mesh as is, with the vertex paint used as stored
+// when the features file of the shader declares F_VERTEX_COLOR or F_PAINT_VERTEX_COLORS.
+// The shader includes that features file and declares g_vColorTint first, see surface_base_vs.slang.
 
 #include "../common/surface_base_vs.slang"
 #include "../common/surface_model_tint_vs.slang"

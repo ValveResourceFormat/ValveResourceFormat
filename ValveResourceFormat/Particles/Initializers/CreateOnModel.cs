@@ -3,8 +3,8 @@ using ValveResourceFormat.Particles.Utils;
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
-    /// Places new particles at random points inside the hitboxes, or the bones, of the model its model
-    /// input reads, recording the box and the point's place in it for the functions that keep
+    /// Places new particles at random points inside the hitboxes, or the bones, of the model given by the
+    /// model input, recording the box and the point's place in it for the functions that keep
     /// particles on the model. Particles can inherit the velocity of their box.
     /// </summary>
     /// <remarks>

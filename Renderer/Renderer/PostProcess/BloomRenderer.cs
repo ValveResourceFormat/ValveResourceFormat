@@ -205,8 +205,8 @@ public class BloomRenderer
     }
 
     /// <summary>
-    /// Fills a mip of the chain with a box downsample of the mip above it, the first mip already holds the
-    /// thresholded scene, then blurs it horizontally into the output and vertically back.
+    /// Fills a mip of the chain with a box downsample of the mip above it. The first mip already holds the
+    /// thresholded scene. The mip is then blurred horizontally into the output and vertically back.
     /// </summary>
     private void RenderDownsampleAndBlur(int level)
     {

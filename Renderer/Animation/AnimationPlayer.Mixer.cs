@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Renderer
             public string MaskName { get; set; } = string.Empty;
 
             /// <summary>
-            /// Gets or sets what recomputes this clip's <see cref="Weight"/> and <see cref="Time"/> from
+            /// Gets or sets the driver that recomputes this clip's <see cref="Weight"/> and <see cref="Time"/> from
             /// another clip's cycle. Null for a clip that plays on its own.
             /// </summary>
             public ClipDriver? Driver { get; set; }
@@ -172,8 +172,8 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Registers a pose parameter a blend sequence positions its animations along, with its live
-        /// value at zero normalized into range.
+        /// Registers a pose parameter that a blend sequence positions its animations along. The live
+        /// value starts at zero normalized into range.
         /// </summary>
         public void RegisterPoseParameter(PoseParameter parameter)
         {
@@ -730,7 +730,6 @@ namespace ValveResourceFormat.Renderer
                     : animName;
             }
 
-            // Check if clip already exists
             if (!clips.TryGetValue(animName, out var newClip))
             {
                 newClip = new PlaybackClip(animation)

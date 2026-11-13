@@ -4,11 +4,11 @@ namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
     /// Pushes new particles away from nearby world geometry. Traces along the six axes find how much
-    /// of each direction is blocked; the offset points away from the blocked sides, scaled per axis
-    /// between <c>m_vecOutputMin</c> and <c>m_vecOutputMax</c> by the total blocked amount, and is
-    /// added to the position, and also to the previous position with <c>m_bTranslate</c> (otherwise
-    /// it becomes velocity). The traces start at each particle, or once at the control point for the
-    /// whole batch, which can also hand the result to a group of children as two control points.
+    /// of each direction is blocked. The offset points away from the blocked sides and is scaled per axis
+    /// between <c>m_vecOutputMin</c> and <c>m_vecOutputMax</c> by the total blocked amount. It is
+    /// added to the position, and also to the previous position with <c>m_bTranslate</c>; otherwise
+    /// it becomes velocity. The traces start at each particle, or once at the control point for the
+    /// whole batch. A batch trace can also write the result to two control points of a child group, <c>m_nChildCP</c> and the next one.
     /// With <c>m_bInherit</c> the offset is built from the control point and the next one instead,
     /// with no traces.
     /// </summary>

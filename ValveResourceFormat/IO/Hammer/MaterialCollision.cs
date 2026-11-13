@@ -57,8 +57,8 @@ public sealed class MaterialCollision
     ];
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="MaterialCollision"/> class with the collision faces with a
-    /// material compile to.
+    /// Initializes a new instance of the <see cref="MaterialCollision"/> class for the faces that use the
+    /// material.
     /// </summary>
     /// <param name="material">The material of the faces.</param>
     public MaterialCollision(Material material)
@@ -67,8 +67,8 @@ public sealed class MaterialCollision
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="MaterialCollision"/> class with the collision faces with a
-    /// material that has these attributes compile to.
+    /// Initializes a new instance of the <see cref="MaterialCollision"/> class for the faces that use a
+    /// material with these attributes.
     /// </summary>
     /// <param name="intAttributes">The integer attributes of the material, see <see cref="Material.IntAttributes"/>.</param>
     /// <param name="stringAttributes">The string attributes of the material, see <see cref="Material.StringAttributes"/>.</param>
@@ -144,8 +144,8 @@ public sealed class MaterialCollision
     }
 
     /// <summary>
-    /// Gets whether the faces compile to collision with the given collision attributes. The layers of a material
-    /// only count when it gives a collision group, and faces in none are in the default one.
+    /// Gets whether the faces compile to collision with the given collision attributes. Layers only count when
+    /// the material gives a collision group. Without one, the faces are in the default group.
     /// </summary>
     /// <param name="collisionAttributes">Collision attributes of compiled physics, see <see cref="PhysAggregateData.CollisionAttributes"/>.</param>
     /// <returns>Whether they match.</returns>

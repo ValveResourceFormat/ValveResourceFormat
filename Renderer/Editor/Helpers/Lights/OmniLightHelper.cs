@@ -5,8 +5,8 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// An omni light, which shows its luminaire and the cones it lights while its entity is selected: the inner
-/// cone at full strength and the outer one it fades out to, each capped by the part of a sphere at its range.
+/// An omni light. While the entity is selected, it shows the luminaire and the cones of the light: the inner
+/// cone at full strength and the outer cone it fades out to. Each cone is capped by a part of a sphere at the range.
 /// </summary>
 internal sealed class OmniLightHelper : LightHelperBase
 {
@@ -17,7 +17,7 @@ internal sealed class OmniLightHelper : LightHelperBase
     private const int ConeLines = 16;
     private const float HandleSize = 6f;
 
-    // Rows of the caps of the cones, one per this many radians
+    // Angle in radians per row of the cone caps
     private const float CapRowAngle = MathF.PI / 12f;
 
     private static readonly Color32 ShapeColor = new(192, 255, 255, 32);
@@ -108,8 +108,8 @@ internal sealed class OmniLightHelper : LightHelperBase
         context.PopTransform();
     }
 
-    // Handles on the sides of the luminaire, the range and where the light starts fading out, and for each
-    // cone one above the light that moves along X with the cosine of its angle
+    // Handles on the luminaire sides, at the range, and at the start of the fade out. Each cone also has a
+    // handle above the light that moves along X with the cosine of the cone angle.
     private void DrawHandles(ToolRenderContext context, float inner, float outer)
     {
         var side = Shape is SphereShape or PointShape ? SizeParams.X : SizeParams.Y;

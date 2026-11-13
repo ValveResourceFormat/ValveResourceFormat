@@ -4,8 +4,8 @@ using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
-    /// <summary>A solid edge along the sides of a sprite, as wide on the screen whatever the size of the sprite.</summary>
-    /// <param name="Color">The color of the edge, which the sprite is cut out of like its texture.</param>
+    /// <summary>A solid edge along the sides of a sprite, with the same width on the screen whatever the size of the sprite.</summary>
+    /// <param name="Color">The color of the edge. Its alpha is alpha tested like the texture.</param>
     /// <param name="WidthPx">The width of the edge, in pixels.</param>
     internal readonly record struct SpriteBorder(Vector4 Color, float WidthPx);
 

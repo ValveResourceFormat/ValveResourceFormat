@@ -3,7 +3,7 @@ using ValveResourceFormat.Particles.Utils;
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
-    /// Initializes a scalar particle attribute from the value lattice sampled at the particle's
+    /// Initializes a scalar particle attribute from value noise sampled at the particle's
     /// scaled creation position with a time term added to every component, remapped into an output
     /// range. The time term is taken once per call, from the first particle, and shared by the rest; in
     /// the whole blocks of a batch each lane takes it from the first block. Angle fields author the

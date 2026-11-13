@@ -28,8 +28,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private const int MaxTessellationLevel = 7;
         private const int MaxTubeRings = 8192;
 
-        // A segment is sized for tessellation by its bounding sphere, whose diameter is the segment length
-        // scaled by this.
+        // Diameter of the bounding sphere of a segment, as a multiple of the segment length.
+        // Tessellation is sized by that sphere.
         private const float SegmentBoundsScale = 1.2f;
 
         private readonly int roundness = 1;
@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>How far a cap reaches past its end particle, in radii of that particle.</summary>
         private readonly float capOffset = 1f;
 
-        // Where the system's lighting is sampled, or null to sample at the center of its bounds
+        // Transform to sample the system's lighting at, or null to sample at the center of its bounds
         private readonly ITransformProvider? lightingTransform;
         private readonly Scene scene;
         private readonly float tessScale = 1f;
@@ -400,10 +400,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private const float CapTipDistance = 0.01f;
 
         /// <summary>
-        /// The four spline points one cap is shaped by, each with a radius: its tip, the rim it closes to, the end
-        /// particle and a point back inside the tube. The tip only shapes the curve; its radius, negative when the
-        /// cap is round at all, makes the cap swell faster the rounder it is and centres the dome the cap's normals
-        /// form. An end particle level with its neighbour collapses its cap onto itself.
+        /// The four spline points that shape a cap, each with a radius: the tip, the rim the cap closes to, the end
+        /// particle and a point back inside the tube. The tip only shapes the curve. The tip radius is negative when
+        /// the cap is round at all; it makes the cap swell faster the rounder it is and centres the dome formed by
+        /// the cap normals. An end particle level with its neighbour collapses the cap onto itself.
         /// </summary>
         private readonly struct CapShape(Vector3 end, Vector3 outward, float radius, float roundness, float offset)
         {
@@ -421,8 +421,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// Adds the rings of a cap: one spline segment between the rim and the end particle, the start cap running
-        /// up to the end particle without its ring, the end cap running on from it. Returns the cursor past them.
+        /// Adds the rings of a cap: one spline segment between the rim and the end particle. The start cap stops
+        /// before the ring of the end particle and the end cap starts after it. Returns the cursor past them.
         /// </summary>
         private static int AddCapRings(in CapShape cap, bool atStart, int subdivisions, Vector3 color, float alpha, float firstV, float repeats,
             Span<Vector3> ringPositions, Span<RopeSample> ringSamples, int cursor)

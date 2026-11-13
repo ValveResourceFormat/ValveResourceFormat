@@ -5,8 +5,8 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// A barn light, which shows the frustum it lights while its entity is selected: its luminaire, its far end
-/// at its range, where it fades in and out, and how soft its edges are.
+/// A barn light. While the entity is selected, it shows the lit frustum: the luminaire, the far end at the
+/// range, the skirts where the light fades in and out, and the soft edges.
 /// </summary>
 internal sealed class BarnLightHelper : LightHelperBase
 {
@@ -113,8 +113,8 @@ internal sealed class BarnLightHelper : LightHelperBase
         context.PopTransform();
     }
 
-    // Handles on the far end, its edges, its corners and a quarter of its smaller size in from its center, on
-    // the origin, and on the edges and corners of the near end
+    // Handles on the far end: the center, the edges, the corners, and points a quarter of the smaller size
+    // from the center. Handles on the near end: the origin, the edges and the corners.
     private void DrawHandles(ToolRenderContext context, Vector2 nearHalfSize, Vector3 farCenter, Vector2 farHalfSize)
     {
         var quarter = MathF.Min(SizeParams.X, SizeParams.Y) * (Range * SizeParams.Z + 1f) / 4f;
@@ -151,8 +151,8 @@ internal sealed class BarnLightHelper : LightHelperBase
         }
     }
 
-    // The area light sits where the sides of a widening frustum meet behind the entity, as large as the angle
-    // it covers is there, plus some
+    // The area light is drawn at the apex, where the sides of the widening frustum meet behind the entity.
+    // It spans the covered angle at the distance of the apex plus 100 units.
     private void DrawLuminaire(ToolRenderContext context)
     {
         if (SizeParams.Z <= 0f)

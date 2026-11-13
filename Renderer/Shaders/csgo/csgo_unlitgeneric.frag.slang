@@ -61,7 +61,7 @@ void main()
     // Translucent, additive, multiply and mod-then-add materials fade into the fog instead of taking its color
     options.FogFadesAlpha = (F_BLEND_MODE == 1) || (F_BLEND_MODE >= 4);
 
-    // Has no fullbright view of its own, so keeps its color, shown as it is written without post processing
+    // The material has no fullbright view of its own, so fullbright shows the color as written, without post processing
     options.KeepColorInFullBright = true;
 
     RenderUnlitSurface(g_tColor, options);

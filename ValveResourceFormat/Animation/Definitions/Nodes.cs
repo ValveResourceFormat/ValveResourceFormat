@@ -521,7 +521,7 @@ public partial class IDEventNode : IDValueNode
     public StringToken DefaultValue { get; }
 }
 
-// Note: outputs a float (the percentage through the matched event), FloatValueNode in Esoterica
+// Outputs a float, the percentage through the matched event
 [KV3Transfer]
 public partial class IDEventPercentageThroughNode : FloatValueNode
 {

@@ -337,7 +337,7 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The paint a control node's compiled integrator states: its goal strength and damping, its gravity scale and its drag.
+    /// The paint values derived from a control node's compiled integrator: goal strength, goal damping, gravity scale and drag.
     /// </summary>
     private readonly record struct NodePaint(float GoalStrength, float GoalDamping, float GravityZ, float Drag)
     {

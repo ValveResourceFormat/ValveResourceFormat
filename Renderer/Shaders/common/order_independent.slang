@@ -55,7 +55,7 @@ float UnpackOrderIndependentAlpha(uint fragment)
     return mix(orderIndependentFillAlpha, 1.0, opacityLevel / 3.0);
 }
 
-// What the layers behind the nearest let through: the second with its own opacity, the rest with the fill's
+// Transmittance of the layers behind the nearest. The second layer uses its packed opacity, the rest the fill alpha
 float OrderIndependentBehindNearest(uint second, uint count)
 {
     if (count < 2u)

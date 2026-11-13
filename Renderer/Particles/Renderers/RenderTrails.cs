@@ -89,7 +89,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             usesVerletDelta = prevPositionSource == ParticleField.PositionPrevious;
 
-            // No source still reads the Verlet previous position, but as a plain point
+            // A negative source reads PositionPrevious as a plain point, without the Verlet velocity conversion
             if (prevPositionSource < 0)
             {
                 prevPositionSource = ParticleField.PositionPrevious;

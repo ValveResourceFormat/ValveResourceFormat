@@ -5,9 +5,9 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// A flat box that turns with an entity, from its origin along its forward and left axes, sized by two of its
-/// keys. It is drawn as lit solid faces in the draw color of the entity, or tinted and outlined while the
-/// entity is selected.
+/// A flat box that turns with an entity, from the origin of the entity along the forward and left axes of the
+/// entity, sized by two keys of the entity. It is drawn as lit solid faces in the draw color of the entity, or
+/// tinted and outlined while the entity is selected.
 /// </summary>
 internal sealed class OrientedWidthHeightHelper : EntityHelper
 {

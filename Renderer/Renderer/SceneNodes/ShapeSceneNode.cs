@@ -55,7 +55,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>
         /// Gets the tools material the shape stands for, such as a clip, whose texture is projected onto its faces.
-        /// Whether the shape is drawn is decided by it, see <see cref="RenderSettings.DrawFilter"/>.
+        /// The material decides whether the shape is drawn, see <see cref="RenderSettings.DrawFilter"/>.
         /// </summary>
         public RenderMaterial? ToolsMaterial { get; private set; }
 
@@ -287,7 +287,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>
         /// Appends line index pairs along a capsule from <see cref="AddCapsule(List{SimpleVertexNormal}, List{int}, Vector3, Vector3, float, Color32)"/>
-        /// that starts at <paramref name="baseVertex"/>: both rims, and four lines along its length that go on over the caps.
+        /// that starts at <paramref name="baseVertex"/>: both rims, and four lines along the length that continue over the caps.
         /// </summary>
         protected static void AddCapsuleLines(List<int> lines, int baseVertex)
         {
@@ -504,8 +504,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Draws the translucent fills into the order independent layers the caller binds, which the fill shader
-        /// writes instead of its color.
+        /// Draws the translucent fills into the order independent layers the caller binds.
+        /// The fill shader writes to the layers instead of a color.
         /// </summary>
         internal static void RenderOrderIndependentFills(List<ShapeSceneNode> shapes)
         {

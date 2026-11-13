@@ -2,8 +2,9 @@
 
 #include "common/utils.slang"
 
-// Where the selection is seen, and where the scene hides it
+// Outline color of the visible part of the selection
 uniform vec4 g_vOutlineColor;
+// Outline color of the part the scene hides
 uniform vec4 g_vOccludedColor;
 
 // How much of each pixel the selection covers. Red: the selection wherever it is. Green: where the scene does not hide it.

@@ -17,11 +17,11 @@ public class SampleProvider3D : SampleProviderSpatial
     public SoundEventCurve? DistanceVolumeCurve { get; set; }
 
     /// <summary>
-    /// Gets or sets the reciprocal of the distance this sound stays at full volume out to, past which it
+    /// Gets or sets the reciprocal of the full volume distance, derived from a sound level (see
+    /// <see cref="SoundscapeOperatorParsing.SoundLevelToDistanceMult"/>). Past that distance the sound
     /// follows the inverse distance law (halving in amplitude per doubling of distance) instead of running
-    /// out of range - derived from a sound level (see
-    /// <see cref="SoundscapeOperatorParsing.SoundLevelToDistanceMult"/>). Zero attenuates nothing at all
-    /// (SNDLVL_NONE), null leaves attenuation to the curve or to <see cref="Range"/>.
+    /// out of range. Zero attenuates nothing at all (SNDLVL_NONE), null leaves attenuation to the curve
+    /// or to <see cref="Range"/>.
     /// </summary>
     public float? DistanceMult { get; set; }
 
@@ -192,8 +192,8 @@ public class SampleProvider3D : SampleProviderSpatial
 
         var scale = DopplerScale * listener.DopplerScale;
 
-        // A sound in the listener's own head has no axis to close along, and the direction it falls back
-        // to would read the listener's own movement as a shift
+        // A sound at the listener position has no axis to close along. The fallback direction would
+        // read the listener movement as a shift
         if (scale <= 0f || distance < MinDopplerDistance)
         {
             dopplerTarget.DopplerShift = 1f;

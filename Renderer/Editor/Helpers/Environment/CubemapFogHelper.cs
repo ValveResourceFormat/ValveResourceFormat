@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// </summary>
 internal sealed class CubemapFogHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
-    /// <summary>Makes this fog the one the scene of the entity is drawn with. It is only drawn while it has a texture.</summary>
+    /// <summary>Sets this fog as the cubemap fog of the entity scene. It is drawn only while CubemapFogTexture is set.</summary>
     public void Apply()
     {
         var fog = CreateFog();
@@ -36,7 +36,7 @@ internal sealed class CubemapFogHelper(IHelperOwner owner, HelperDeclaration dec
                 break;
 
             case SceneCubemapFog.FogSource.SkyEntity:
-                // Any entity of that name is the sky, which turns the fog with it
+                // The first entity with that name is the sky. The fog takes its transform.
                 if (Owner.FindByName(GetStringKey("cubemapfogskyentity")) is [var sky, ..])
                 {
                     transform = sky.RigidTransform;
@@ -76,8 +76,8 @@ internal sealed class CubemapFogHelper(IHelperOwner owner, HelperDeclaration dec
         return fog;
     }
 
-    // An older entity says whether it has height fog, a newer one says how the height fades. Where it gives
-    // an end height, how high the fog reaches is the way from its start to its end.
+    // Older entities have a height fog flag, newer ones a height type. When cubemapfogheightend is set,
+    // the height width is the end height minus the start height.
     private void SetHeight(SceneCubemapFog fog)
     {
         var heightType = GetIntegerKey("cubemapfogheighttype", -1);

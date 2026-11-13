@@ -70,7 +70,7 @@ internal sealed class SphereHelper : EntityHelper
         Color = GetColorArguments(1);
         UnselectedColor = DefaultUnselectedColor;
 
-        // Flags follow the color, and the key of the center comes two after its flag
+        // Flags follow the color, and the key of the center comes two arguments after originKey
         for (var i = 4; i < declaration.Arguments.Count; i++)
         {
             var argument = declaration.Arguments[i];

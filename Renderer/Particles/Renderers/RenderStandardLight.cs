@@ -8,13 +8,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
     /// Render a standard point or spot light per particle. Up to <c>m_nMaxAllowed</c> particles with a
-    /// positive intensity get a light each, which follows its particle by id and faces along its angles.
-    /// A capsule light is a tube from the particle along its facing, toward the next particle of a chain,
-    /// or back along the particle's trail.
+    /// positive intensity get a light each. The light follows the particle by id and faces along the
+    /// particle angles. A capsule light is a tube from the particle along the particle facing, toward
+    /// the next particle of a chain, or back along the particle trail.
     /// </summary>
     /// <remarks>
-    /// With <c>m_bReverseOrder</c> the lights go to the particles from the last one, each taking the
-    /// intensity read for the particle as many places from the first.
+    /// With <c>m_bReverseOrder</c> the lights are given to the particles from the last one. The particle
+    /// n places from the last takes the intensity read for the particle n places from the first.
     /// <para>
     /// The old attenuation falls off as <c>1 / (q*d^2 + l*d)</c> with <c>l</c> the falloff linearity and
     /// <c>q = 1 - l</c>, brightened by <c>q*10000 + l*100</c>, and the range is cut to where the light
@@ -42,7 +42,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private const float MinimumZeroPercentFalloff = 1f / (1 << 22);
         private const float FiftyPercentFalloffMargin = 1f / (1 << 23);
 
-        /// <summary>The shortest distance a trail capsule's moved distance is taken as.</summary>
+        /// <summary>Lower bound of the distance a trail capsule moved.</summary>
         private const float MinimumTrailDistance = 1.1920929e-7f;
 
         private readonly ParticleLightTypeChoiceList lightType;
@@ -135,8 +135,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var rolls = current.ReadFloats(ParticleField.Roll);
             var intensities = intensity.Fill(current, systemState);
 
-            // A trail runs back to the previous position whatever m_nPrevPntSource names, which only
-            // decides whether its length is scaled by the step
+            // A trail runs back to the previous position whatever m_nPrevPntSource names. The field only
+            // decides whether the trail length is scaled by the step
             var trails = IsCapsule && capsuleBehavior == ParticleLightBehaviorChoiceList.PARTICLE_LIGHT_BEHAVIOR_TRAILS;
             var previousPositions = trails ? current.ReadVectors(ParticleField.PositionPrevious) : default;
             var trailLengths = trails ? current.ReadFloats(ParticleField.TrailLength) : default;
@@ -268,8 +268,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// Turns a trail's moved distance into a velocity when its previous point is the one the step
-        /// moved from, unless the renderer opts out.
+        /// Scale that turns the moved distance of a trail into a velocity, when the previous point source
+        /// is PositionPrevious, unless the renderer opts out with m_bIgnoreDT.
         /// </summary>
         private float TrailDeltaTimeScale(ParticleSystemState systemState)
         {

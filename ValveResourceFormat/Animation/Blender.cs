@@ -35,13 +35,14 @@ public static class Blender
         ReadOnlySpan<float> boneMaskWeights,
         Span<FrameBone> resultPose)
     {
-        // A full weight takes the target as is, ignoring the mask
+        // A zero weight or a mask without any weight keeps the source as is
         if (blendWeight == 0f || !boneMaskWeights.ContainsAnyExcept(0f))
         {
             sourcePose[..resultPose.Length].CopyTo(resultPose);
             return;
         }
 
+        // A full weight takes the target as is, ignoring the mask
         if (blendWeight == 1f)
         {
             targetPose[..resultPose.Length].CopyTo(resultPose);

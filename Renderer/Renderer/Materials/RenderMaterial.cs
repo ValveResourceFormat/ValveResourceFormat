@@ -490,8 +490,8 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>Sets a packed global uniform in this material's constant buffer.</summary>
         /// <remarks>
-        /// The value survives until the buffer is refilled, which only happens when one of the inputs it is
-        /// built from changes, or a shader reload replaces the layout.
+        /// The value survives until the buffer is refilled. A refill happens only when an input of the buffer
+        /// changes or a shader reload replaces the layout.
         /// </remarks>
         public void SetUniform(string name, float value)
         {
@@ -574,7 +574,7 @@ namespace ValveResourceFormat.Renderer.Materials
             return Textures.GetValueOrDefault(name);
         }
 
-        /// <summary>This material as a shared depth-only shader sees it: the color texture and the alpha reference.</summary>
+        /// <summary>Material for a shared depth-only shader, holding the color texture and alpha reference of this material.</summary>
         private RenderMaterial GetDepthMaterial(Shader depthShader)
         {
             if (depthMaterial != null && depthMaterialVersion == InputsVersion)
@@ -595,7 +595,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>Binds textures, sets material uniforms, and applies blend/depth render state for this material.</summary>
         /// <param name="shader">The shader to use for this draw call, or <see langword="null"/> to use <see cref="Shader"/>.</param>
-        /// <param name="depthPass">Whether the draw only lays down depth, which a shared depth shader still rasterizes this material's way.</param>
+        /// <param name="depthPass">Whether the draw only lays down depth. A shared depth shader still gets the render state of this material.</param>
         public void Render(Shader? shader = default, bool depthPass = false)
         {
             textureUnit = TextureUnitStart;
@@ -789,8 +789,8 @@ namespace ValveResourceFormat.Renderer.Materials
 
             foreach (var param in shader.Default.Matrices)
             {
-                // Sheen is tinted the same way but has no colour correct matrix, and reads
-                // its own params rather than the albedo's.
+                // Sheen has a tint matrix but no colour correct matrix.
+                // It reads the sheen params instead of the albedo ones.
                 if (param.Key == "g_mSheenTextureColorTint")
                 {
                     var sheenTint = VectorParams.GetValueOrDefault("g_vSheenColorTint1", Vector4.One).AsVector3();
@@ -913,9 +913,8 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 // Coverage is a single bit without multisampling, which turns this into a second,
                 // harder alpha cutout on top of the one the shader already does.
-                // A pass that tests for the depth of a prepass takes its coverage from that depth. Cutting the
-                // samples again with a second coverage mask leaves the ones the masks disagree on with a depth
-                // and no color.
+                // A pass that tests against prepass depth takes its coverage from that depth. A second coverage
+                // mask would leave samples where the masks disagree with depth and no color.
                 var coverageFromPrepass = state.DepthStencil.DepthFunc == RsComparison.Equal;
                 state.Blend.AlphaToCoverageEnable = state.Rasterizer.MultisampleEnable && !coverageFromPrepass;
             }

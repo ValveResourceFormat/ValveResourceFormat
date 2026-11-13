@@ -579,18 +579,12 @@ namespace GUI
             mainFormBottomPanel.UpdateKeybindings(keybindings);
         }
 
-        /// <summary>
-        /// Shows the keybindings for a previewed viewer
-        /// </summary>
         public void ShowPreviewKeybindings(TabPage previewTab)
         {
             var keybindings = KeybindingRegistry.GetKeybindingsForViewer(KeybindingRegistry.GetViewerTypeFromTab(previewTab));
             mainFormBottomPanel.UpdateKeybindings(keybindings);
         }
 
-        /// <summary>
-        /// Shows the keybindings of the selected tab.
-        /// </summary>
         public void ShowSelectedTabKeybindings() => UpdateBottomPanelKeybindings();
 
         /// <summary>Reopens the active tab from its file, returning the new tab, or null when nothing was reopened.</summary>
@@ -1016,8 +1010,8 @@ namespace GUI
 
                 if (oldTag is ExportData exportData)
                 {
-                    // Contents first: disposing them cancels loading and waits for it, and the context
-                    // disposes the resources that loading is still reading until it does
+                    // Contents first: disposing them cancels loading and waits for loading to finish.
+                    // The context disposes resources that loading may still be reading, so it is disposed after the contents
                     exportData.DisposableContents?.Dispose();
                     exportData.VrfGuiContext.Dispose();
                 }

@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// Base of the trigger volumes: a brush that reports what is inside it. Subclasses add what a touch does.
+/// Base of the trigger volumes: a brush that reports what is inside it. Subclasses add the response to a touch.
 /// </summary>
 /// <remarks>
 /// A trigger's <c>Spawn</c> calls <see cref="InitTrigger"/>. Deliberately stays visible: showing a map's

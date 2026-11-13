@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CRotDoor">CRotDoor</seealso>
 public class FuncDoorRotating : FuncDoor
 {
-    /// <summary>What a <c>func_door_rotating</c>'s <c>spawnflags</c> mean beyond the door's own.</summary>
+    /// <summary>The <c>spawnflags</c> of a <c>func_door_rotating</c> in addition to those of <c>func_door</c>.</summary>
     [Flags]
     public enum RotatingSpawnFlag : uint
     {

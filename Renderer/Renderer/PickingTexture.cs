@@ -75,7 +75,7 @@ public class PickingTexture : Framebuffer
         GL.Finish();
 
         var x = request.X;
-        var y = Height - 1 - request.Y; // flip y
+        var y = Height - 1 - request.Y;
         var pixelInfo = new PixelInfo();
         var depth = 0f;
 

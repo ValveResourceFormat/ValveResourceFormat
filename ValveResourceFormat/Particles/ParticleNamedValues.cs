@@ -40,9 +40,9 @@ namespace ValveResourceFormat.Particles
     }
 
     /// <summary>
-    /// The named values of one system. The names are the definition's <c>m_NamedValueLocals</c>, the
-    /// names its inputs read, and the names of every child below it, each with the first type it was
-    /// declared with. Three tables hold the values: the current one, the one captured on the first
+    /// The named values of one system. The names come from the definition's <c>m_NamedValueLocals</c>,
+    /// from the inputs of its functions and from every child system. Each name keeps the type it was
+    /// first declared with. Three tables hold the values: the current one, the one captured on the first
     /// step after the system starts or restarts, and the previous step's.
     /// </summary>
     internal sealed class ParticleNamedValues

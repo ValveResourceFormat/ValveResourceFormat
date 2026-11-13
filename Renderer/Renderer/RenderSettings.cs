@@ -9,7 +9,7 @@ public record struct RenderSettings
     }
 
     /// <summary>
-    /// Gets or sets what decides which materials of the nodes are drawn, such as a tool hiding tools materials.
+    /// Gets or sets the <see cref="IDrawFilter"/> that decides which materials are drawn, such as a tool hiding tools materials.
     /// Without one, every material is drawn.
     /// </summary>
     public IDrawFilter? DrawFilter { get; set; }

@@ -19,7 +19,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets or sets the parsed data as a <see cref="KVObject"/>.
         /// </summary>
-        /// <remarks>Can be set to null to release KV3 data. Next probe will deserialize again.</remarks>
+        /// <remarks>Can be set to null to release KV3 data. The next access deserializes it again.</remarks>
         [AllowNull]
         public KVObject Data
         {

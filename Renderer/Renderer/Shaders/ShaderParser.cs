@@ -56,14 +56,14 @@ namespace ValveResourceFormat.Renderer.Shaders
         [GeneratedRegex(@"^in\s+[a-z0-9]+\s+(?<Name>[A-Za-z_][A-Za-z0-9_]*)\s*;", RegexOptions.Multiline)]
         private static partial Regex RegexVertexAttribute();
 
-        // A declaration that places itself, which the allocation has to work around rather than stamp
+        // A declaration with an explicit location, which the allocation keeps instead of stamping
         [GeneratedRegex(@"^layout\s*\(\s*location\s*=\s*(?<Location>[0-9]+)\s*\)\s*in\s+[a-z0-9]+\s+(?<Name>[A-Za-z_][A-Za-z0-9_]*)\s*;", RegexOptions.Multiline)]
         private static partial Regex RegexLocatedVertexAttribute();
 
         /// <summary>
         /// Writes each attribute's location into its declaration, once every declaration in the shader is
-        /// known. A custom attribute takes a slot this set leaves free, so a vertex struct declaring the same
-        /// set reaches the same numbers without either side naming one.
+        /// known. A custom attribute takes a slot that the declared attributes leave free. A vertex struct
+        /// declaring the same attributes gets the same locations, so neither side names one.
         /// </summary>
         private static string StampAttributeLocations(string source, HashSet<string> declaredAttributes)
         {

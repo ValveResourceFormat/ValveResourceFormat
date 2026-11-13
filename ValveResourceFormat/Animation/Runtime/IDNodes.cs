@@ -43,7 +43,6 @@ namespace ValveResourceFormat.Animation
 
             InputValueNode.Initialize(ctx);
 
-            // Cache on entry
             if (Mode == CachedValueMode.OnEntry)
             {
                 CachedValue = InputValueNode.GetValue(ctx);

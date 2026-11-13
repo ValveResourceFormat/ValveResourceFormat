@@ -166,9 +166,9 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// How long the sequence each sequence number reaches on the first sheet this system's renderers
-        /// offer runs, in frames, or null when none of them draws with one. A number no sequence answers
-        /// to runs for 0.
+        /// Duration of each sequence of the first sprite sheet found on this system's renderers, in frames,
+        /// indexed by sequence id. Null when no renderer has a sprite sheet. An id that no sequence answers
+        /// to has a duration of 0.
         /// </summary>
         private float[]? CollectSequenceDurations()
         {

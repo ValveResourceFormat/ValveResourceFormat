@@ -6,8 +6,8 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The cone of a spot light while its entity is selected: the cone out to its range, and a dome over it
-/// whose radius follows the brightness of the light from the inner to the outer angle.
+/// The cone of a spot light, shown while the entity is selected: a cone out to the range, and a dome over
+/// the cone. The dome radius follows the brightness of the light from the inner to the outer angle.
 /// </summary>
 internal sealed class LightConeHelper : EntityHelper
 {
@@ -30,7 +30,7 @@ internal sealed class LightConeHelper : EntityHelper
     /// <summary>Gets the key of the entity that holds the color of the light.</summary>
     private string ColorKey { get; }
 
-    /// <summary>Gets what the pitch of the entity is multiplied by for the cone to point the way the light does.</summary>
+    /// <summary>Gets the factor applied to the pitch of the entity so the cone points along the light.</summary>
     private float PitchScale { get; }
 
     public LightConeHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)

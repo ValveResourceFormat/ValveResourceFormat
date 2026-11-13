@@ -41,8 +41,8 @@ public sealed class EntityClassTable
     public EntityClass? FindClass(string name) => classesByName.GetValueOrDefault(name);
 
     /// <summary>
-    /// Gets whether the game declares a class of a name, either one entities can be of or one other classes are based
-    /// on that some class is required to be placed under.
+    /// Gets whether the name is that of a class in the table, or of a base class listed in the
+    /// <see cref="EntityClass.BaseClasses"/> of one.
     /// </summary>
     /// <param name="name">Name of the class.</param>
     /// <returns>Whether it does.</returns>

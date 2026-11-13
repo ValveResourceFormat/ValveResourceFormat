@@ -5,7 +5,7 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// A rect light, which shows its luminaire and the lobes of what it emits while its entity is selected.
+/// A rect light. While the entity is selected, it shows the luminaire and the emission lobes.
 /// </summary>
 internal sealed class RectLightHelper : LightHelperBase
 {
@@ -34,8 +34,8 @@ internal sealed class RectLightHelper : LightHelperBase
 
         context.PushTransform(Owner.RigidTransform);
 
-        // The luminaire is an ellipse or a rectangle, whatever the shape between them is, solid where seen and
-        // faint over the scene
+        // The luminaire is an ellipse for a disc and a rectangle otherwise, solid where seen and faint over
+        // the scene
         foreach (var mode in (ReadOnlySpan<ToolRenderMode>)[ToolRenderMode.Wireframe, ToolRenderMode.WireframeTranslucentNoZ])
         {
             context.PushRenderMode(mode);

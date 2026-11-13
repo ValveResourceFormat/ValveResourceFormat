@@ -214,7 +214,7 @@ namespace ValveResourceFormat.Renderer.Decals
         public string? FindEffect(uint surfacePropertyHash)
             => FindImpact(surfacePropertyHash, static impact => impact.Effect != null).Effect;
 
-        // A surface without what is asked for inherits it through its base surface
+        // A surface that fails the has check inherits from its base surface
         private SurfaceImpact FindImpact(uint surfacePropertyHash, Func<SurfaceImpact, bool> has)
         {
             var name = surfaceNamesByHash.GetValueOrDefault(surfacePropertyHash, "default");

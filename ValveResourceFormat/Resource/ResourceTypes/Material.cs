@@ -108,8 +108,8 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Loads a material's vertex shader input signature, which maps its DirectX semantics to engine
-        /// ones. Returns <see cref="VsInputSignature.Empty"/> for a material that cannot be loaded.
+        /// Loads a material's vertex shader input signature, which maps DirectX semantics to engine
+        /// semantics. Returns <see cref="VsInputSignature.Empty"/> for a material that cannot be loaded.
         /// </summary>
         /// <param name="fileLoader">Loader for the material resource.</param>
         /// <param name="materialPath">Resource path of the material, e.g. <c>materials/foo.vmat</c>.</param>

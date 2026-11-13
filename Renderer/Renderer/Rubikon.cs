@@ -148,7 +148,6 @@ public class Rubikon
                 GetSurfacePropertyHash(surfacePropertyHashes, hullDesc.SurfacePropertyIndex));
         }
 
-        // Build BVH for hulls
         HullIndices = [.. Enumerable.Range(0, Hulls.Length)];
         HullTree = BuildHullBVH();
 
@@ -616,7 +615,7 @@ public class Rubikon
     {
         foreach (var plane in hull.Planes)
         {
-            // The nearest point of the box to the hull's inside, so the whole box is out when it is out
+            // Signed distance of the box corner nearest the hull's inside, so when it is outside the plane the whole box is outside
             var nearest = Vector3.Dot(plane.Normal, center) - Vector3.Dot(Vector3.Abs(plane.Normal), halfExtents);
 
             if (nearest - plane.Offset > 0f)
@@ -1123,7 +1122,7 @@ public class Rubikon
     // Solid untagged geometry that closely resembles the render mesh
     internal const string DefaultGeometry = "default";
 
-    // What takes a decal: default geometry, and the glass and fences that bullets pass through
+    // Geometry that takes decals: default geometry, and the glass and fences that bullets pass through
     internal const string DecalGeometry = "decal";
 
     internal const string GrenadeCollisionName = "grenade";
@@ -1134,7 +1133,7 @@ public class Rubikon
 
     internal const string Cs2PlayerCollisionFilter = "player";
 
-    // What the player stands on, without the player clips laid over it, to find the surface underfoot
+    // Geometry the player stands on, without the player clips, to find the surface underfoot
     internal const string FootstepCollisionName = "footstep";
 
     /// <summary>Which shapes a query collides with, decided from each shape's interaction tags.</summary>
@@ -1408,7 +1407,7 @@ public class Rubikon
 
     private static bool RayIntersectsTriangle(in RayTraceContext ray, Vector3 v0, Vector3 v1, Vector3 v2, out float distance)
     {
-        // Möller-Trumbore ray-triangle intersection algorithm
+        // Moller-Trumbore ray-triangle intersection algorithm
         var edge1 = v1 - v0;
         var edge2 = v2 - v0;
         var h = Vector3.Cross(ray.Direction, edge2);
@@ -1550,7 +1549,7 @@ public class Rubikon
                 continue;
             }
 
-            //avoids division early
+            // The sweep never closes the gap on this axis, so return before dividing
             if (min > tracedDistanceAlongAxis)
             {
                 return;
@@ -1668,7 +1667,6 @@ public class Rubikon
             return [];
         }
 
-        // Build BVH recursively
         var nodes = new List<Node>();
         var sortKeys = new float[Hulls.Length];
 
@@ -1682,7 +1680,6 @@ public class Rubikon
         var nodeIndex = nodes.Count;
         nodes.Add(default); // Reserve space for this node
 
-        // Calculate bounding box for this range
         var min = Hulls[hullIndices[start]].Min;
         var max = Hulls[hullIndices[start]].Max;
 
@@ -1693,7 +1690,6 @@ public class Rubikon
             max = Vector3.Max(max, hull.Max);
         }
 
-        // If few enough hulls or max depth reached, make a leaf
         const int MaxHullsPerLeaf = 4;
         if (count <= MaxHullsPerLeaf || depth >= STACK_SIZE)
         {
@@ -1723,7 +1719,6 @@ public class Rubikon
 
         Array.Sort(sortKeys, hullIndices, start, count);
 
-        // Split in the middle
         var leftCount = count / 2;
         var rightCount = count - leftCount;
 
@@ -1731,11 +1726,9 @@ public class Rubikon
         var leftChildIndex = nodes.Count;
         BuildHullBVHRecursive(nodes, hullIndices, sortKeys, start, leftCount, depth + 1);
 
-        // Build right child
         var rightChildIndex = nodes.Count;
         BuildHullBVHRecursive(nodes, hullIndices, sortKeys, start + leftCount, rightCount, depth + 1);
 
-        // Update parent node
         var childOffset = (uint)(rightChildIndex - nodeIndex);
         nodes[nodeIndex] = new Node(
             min,

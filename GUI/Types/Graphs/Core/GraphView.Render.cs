@@ -248,7 +248,7 @@ partial class GraphView
         }
     }
 
-    /// <summary>A box the drawn wire and its hit area stay inside, from its pivots and route without building its path.</summary>
+    /// <summary>Bounds containing the drawn wire and its hit area, computed from the pivots and route without building the path.</summary>
     private SKRect WireReach(GraphWire wire)
     {
         var from = Geometry.PivotOf(wire.From);

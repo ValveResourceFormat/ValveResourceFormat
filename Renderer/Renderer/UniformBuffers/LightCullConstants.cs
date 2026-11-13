@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         public uint EnvMapCullWords;
         /// <summary>
         /// Env map probe slots the shading pass may iterate. Bits past it exist in the last mask word but
-        /// name nothing, and the all ones masks written when binning is off do not distinguish them.
+        /// refer to no probe. The all ones masks written when binning is off do not exclude them.
         /// </summary>
         public uint EnvMapCount;
         /// <summary>Padding to maintain 16-byte struct alignment.</summary>

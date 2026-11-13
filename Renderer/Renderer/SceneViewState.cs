@@ -530,7 +530,6 @@ public sealed class SceneViewState
         var translucentList = renderLists[RenderPass.Translucent];
         staticTranslucentCount = 0;
 
-        // Collect mesh calls
         for (var nodeIndex = 0; nodeIndex < visibleNodes.Count; nodeIndex++)
         {
             if (nodeIndex == staticCullCount)
@@ -1059,7 +1058,6 @@ public sealed class SceneViewState
 
         var occlusionDebugEnabled = !collectsShadowCasters && scene.Settings.OcclusionDebugEnabled && scene.OcclusionDebug != null;
 
-        // Bind debug buffer for occluded bounds visualization
         if (occlusionDebugEnabled)
         {
             scene.OcclusionDebug!.BindAndClearBuffer();
@@ -1353,7 +1351,7 @@ public sealed class SceneViewState
 
     /// <summary>
     /// Renders the opaque first-person viewmodel layer collected during <see cref="CollectSceneDrawCalls"/>.
-    /// Rendered after the main scene and its translucents, and its reserved near depth range keeps it in front of world geometry.
+    /// Rendered after the main scene and its translucents. A reserved near depth range keeps the layer in front of world geometry.
     /// </summary>
     /// <param name="renderContext">The render context for this pass, expected to use the dedicated viewmodel camera and depth range.</param>
     /// <param name="depthOnlyShader">Optional depth-only shader; <see langword="null"/> for a pass that replaces material shaders.</param>
@@ -1471,8 +1469,8 @@ public sealed class SceneViewState
     }
 
     /// <summary>
-    /// Draws what the last collection queued for some nodes again, each node all at once, with the replacement
-    /// shader of the context. Nodes the collection left out, such as those out of view, are not drawn.
+    /// Draws the requests the last collection queued for the given nodes again, each node all at once, with the
+    /// replacement shader of the render context. Nodes the collection left out, such as those out of view, are not drawn.
     /// </summary>
     /// <param name="renderContext">The render context, with the shader to draw with.</param>
     /// <param name="nodes">The nodes to draw.</param>
@@ -1500,7 +1498,7 @@ public sealed class SceneViewState
         AddNodeDraws(unprimedAggregateDraws, nodes);
         AddNodeDraws(viewmodelUnprimedOpaqueDraws, nodes);
 
-        // Listed once each, unlike their requests, which are queued in every pass they draw in
+        // Each node is listed once, while its requests are queued in every pass the node draws in
         foreach (var node in customBufferNodes)
         {
             if (nodes.Contains(node))

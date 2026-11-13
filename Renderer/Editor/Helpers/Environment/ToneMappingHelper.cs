@@ -5,7 +5,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The exposure limits of an <c>env_tonemap_controller</c>, which the map is exposed within while the entity
+/// The exposure limits of an <c>env_tonemap_controller</c>. The map is exposed within them while the entity
 /// is the <c>tonemap</c> global.
 /// </summary>
 internal sealed class ToneMappingHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
@@ -13,7 +13,7 @@ internal sealed class ToneMappingHelper(IHelperOwner owner, HelperDeclaration de
     /// <inheritdoc/>
     public override bool IsVisual => false;
 
-    /// <summary>Makes these limits the ones the scene of the entity is exposed within, over those of any post processing.</summary>
+    /// <summary>Sets these limits as the exposure limits of the entity scene. They take precedence over the limits of any post processing.</summary>
     public void Apply()
     {
         var defaults = new ExposureSettings();

@@ -58,11 +58,11 @@ internal class EntityIOGraphViewer : GLGraphViewer
         [
             new("Output", EntityIOGraphBuilder.OutputHue, GraphLegendKind.Wire),
             new("Input", EntityIOGraphBuilder.InputHue, GraphLegendKind.Wire),
-            // Closes the line samples, meeting the point_template swatch that opens the node rows.
+            // Last of the wire entries. The classname entries below start with the point_template hue when it is present.
             new("Template spawn", EntityIOGraphBuilder.TemplateSpawnHue, GraphLegendKind.DashedWire),
         ]);
 
-        // Named from the classnames this graph draws, resolved through the lookup that colours the cards.
+        // One entry per hue of the classnames in this graph, named by those classnames and coloured by EntityClassHues.
         View.Legend.AddRange(EntityClassHues.Legend(
             entities.Select(entity => entity.GetStringProperty("classname") ?? "unknown")));
 

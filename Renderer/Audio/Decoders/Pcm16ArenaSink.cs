@@ -19,8 +19,8 @@ internal interface IPcm16Sink
 /// <summary>
 /// Converts pushed float chunks to the mixer's channel count and sample rate (linear interpolation
 /// with cross-chunk carry), quantizes to 16-bit PCM with TPDF dither, and writes the result straight
-/// into a <see cref="SampleArena"/> region - the final resting place of the cached sound - growing or
-/// trimming the region as the real decoded length reveals itself.
+/// into a <see cref="SampleArena"/> region, which holds the cached sound, growing or
+/// trimming the region to the real decoded length.
 /// </summary>
 /// <param name="arena">The arena the final PCM lives in.</param>
 /// <param name="targetChannels">Mixer channel count.</param>

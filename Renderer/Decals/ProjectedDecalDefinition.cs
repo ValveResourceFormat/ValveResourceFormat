@@ -28,8 +28,8 @@ namespace ValveResourceFormat.Renderer.Decals
     }
 
     /// <summary>
-    /// What a projected decal looks like and how large it is. Register one with
-    /// <see cref="ProjectedDecalSystem.Register"/>. Whether its textures are files of their own or parts of
+    /// Textures, blending and size of a projected decal. Register one with
+    /// <see cref="ProjectedDecalSystem.Register"/>. Whether the textures are separate files or parts of
     /// an atlas only changes <see cref="TextureRect"/>.
     /// </summary>
     public sealed record ProjectedDecalDefinition
@@ -105,7 +105,7 @@ namespace ValveResourceFormat.Renderer.Decals
         /// <summary>Gets the linear color the color texture is multiplied by.</summary>
         public Vector3 ColorTint { get; init; } = Vector3.One;
 
-        /// <summary>Gets what the opacity is multiplied by.</summary>
+        /// <summary>Gets the factor the opacity is multiplied by.</summary>
         public float OpacityScale { get; init; } = 1f;
 
         /// <summary>Gets the texture whose green channel masks where the decal glows, see <see cref="SelfIllumScale"/>.</summary>
@@ -250,9 +250,9 @@ namespace ValveResourceFormat.Renderer.Decals
         }
 
         /// <summary>
-        /// Reads a decal from a material on the shader that writes decals into a deferred g-buffer. Its color
-        /// has opacity in alpha and its normal texture is hemi-octahedral with roughness in blue, as this
-        /// renderer reads them. It carries no size, the particle or entity placing it gives one.
+        /// Reads a decal from a material on the shader that writes decals into a deferred g-buffer. The color
+        /// texture has opacity in alpha and the normal texture is hemi-octahedral with roughness in blue, as this
+        /// renderer reads them. The material gives no size, so the particle or entity placing the decal gives one.
         /// </summary>
         private static ProjectedDecalDefinition FromDeferredMaterial(Material data, string colorTexture)
         {
@@ -299,8 +299,8 @@ namespace ValveResourceFormat.Renderer.Decals
         }
 
         /// <summary>
-        /// Narrows the decal to one sequence of the color texture's sprite sheet, taking the part of the
-        /// texture its first frame covers, and the size and fade times its parameters give.
+        /// Narrows the decal to one sequence of the color texture's sprite sheet. It takes the part of the
+        /// texture the first frame covers, and the size and fade times from the sequence parameters.
         /// </summary>
         /// <param name="fileLoader">Loads the color texture.</param>
         /// <param name="sequenceName">The name of the sequence.</param>

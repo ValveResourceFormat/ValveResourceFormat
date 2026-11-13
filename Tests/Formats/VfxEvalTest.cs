@@ -280,8 +280,8 @@ namespace Tests.Formats
         /*
          * F_ADDITIVE_BLENDING || 0
          *
-         * results of 1 and 0 are where the short circuit and the conditional compile to the same
-         * bytes, so this is written as the conditional it reads as, mapper or not
+         * with results of 1 and 0 the short circuit and the conditional compile to the same bytes.
+         * This is written as the conditional, mapper or not
          */
         [Test]
         public async Task TestShortCircuitResultsAreNamedWithEnumMapper()
@@ -501,7 +501,7 @@ namespace Tests.Formats
         /*
          * 1+2+3+4
          *
-         * the bytecode is left nested and so is the reading of the output, no brackets needed
+         * the bytecode nests the additions, and the output prints them without brackets
          *
          */
         [Test]
@@ -530,7 +530,7 @@ namespace Tests.Formats
             var testInput = ParseString(
                 "1A 13 04 0F 00 07 00 07 00 00 00 00 02 14 00 1F 28 A6 90 70 04 19 00 21 00 19 A1 D0 52 1E 02 26 00 1D 6F 89 29 B8 00");
 
-            // parsing a shader registers its variable names, which is what resolves this one
+            // Parsing a shader registers its variable names. Register this one so its hash resolves to the name.
             StringToken.Store("g_flReflectionsTintByBaseBlendToNone");
 
             var expectedResult = "(FEAT[19] && exists($REFLECTIONSTINTBYBASEBLENDTONONE)) ? OnlyRenderIfStencil : g_flReflectionsTintByBaseBlendToNone";

@@ -4,8 +4,8 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
 /// Makes an entity a candidate for the globals its class declares, such as <c>fog</c>, <c>tonemap</c> or
-/// <c>gradient_fog</c>. Of the entities that can be a global, one is: the first that is on, at the fewest
-/// prefabs deep.
+/// <c>gradient_fog</c>. Of the entities that can be a global, the first one that is on and has the
+/// fewest prefab levels is the global.
 /// </summary>
 internal sealed class GlobalHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {

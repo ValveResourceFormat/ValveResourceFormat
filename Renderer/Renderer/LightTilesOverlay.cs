@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer;
 /// <remarks>
 /// The heat map only colours shaded fragments, so it shows the grid folded onto geometry, and under
 /// subgroup ops it reports the subgroup's union rather than the tile's own list. This covers the whole
-/// screen and ignores the depth bin, which makes it ground truth for what the producer marked.
+/// screen and ignores the depth bin, which makes it ground truth for the masks the cull passes wrote.
 /// </remarks>
 public class LightTilesOverlay(RendererContext rendererContext)
 {

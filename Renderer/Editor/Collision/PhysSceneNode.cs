@@ -10,9 +10,9 @@ using RnMesh = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Mesh;
 namespace ValveResourceFormat.Renderer.Editor.Collision
 {
     /// <summary>
-    /// The shapes of one group of collision, which the editor draws to show what collides, as Hammer does with its
-    /// "Show collision models" toggle, colored by the kind of shape. A group built from a tools material, such as a
-    /// clip, shows that material instead, see <see cref="ShapeSceneNode.ToolsMaterial"/>.
+    /// The shapes of one group of collision, drawn by the editor to show what collides, as Hammer does with its
+    /// "Show collision models" toggle. They are colored by the kind of shape. A group built from a tools material,
+    /// such as a clip, shows that material instead, see <see cref="ShapeSceneNode.ToolsMaterial"/>.
     /// </summary>
     public class PhysSceneNode : ShapeSceneNode
     {
@@ -168,7 +168,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
             }
         }
 
-        /// <summary>Gets what the shapes collide as, see <see cref="GetCollisionLabels"/>.</summary>
+        /// <summary>Gets the collision labels of the shapes, see <see cref="GetCollisionLabels"/>.</summary>
         public required string[] CollisionLabels { get; init; }
 
         /// <summary>Gets the physics this node was built from.</summary>
@@ -182,9 +182,9 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
         }
 
         /// <summary>
-        /// Gets what a group of collision collides as, which the collision drawn is chosen by: a label for each of its
-        /// interact-as tags, or for its collision group when it has none, and under each, as a path such as
-        /// <c>default/not player</c>, what it does not collide with.
+        /// Gets the labels of a group of collision, which choose the collision drawn: one label for each interact-as
+        /// tag, or for the collision group when there are no tags. When the group excludes interactions, each label is
+        /// a path such as <c>default/not player</c> that ends in what the group does not collide with.
         /// </summary>
         /// <param name="attributes">The collision attributes of the group.</param>
         /// <returns>The labels, at least one.</returns>
@@ -211,10 +211,10 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
         /// </summary>
         /// <param name="scene">The scene the nodes are for, which they are not added to.</param>
         /// <param name="phys">The collision.</param>
-        /// <param name="name">What the nodes are named.</param>
+        /// <param name="name">The name of the nodes.</param>
         /// <param name="groupToolsMaterial">
-        /// The tools material a group, by its index into <see cref="PhysAggregateData.CollisionAttributes"/>, was built
-        /// from, or <see langword="null"/> for plain collision. All groups are plain collision without it.
+        /// The tools material the group at an index into <see cref="PhysAggregateData.CollisionAttributes"/>
+        /// was built from, or <see langword="null"/> for plain collision. All groups are plain collision without it.
         /// </param>
         public static List<PhysSceneNode> Create(Scene scene, PhysAggregateData phys, string? name, Func<int, string?>? groupToolsMaterial = null)
         {
@@ -496,7 +496,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
                 CollisionAttributeIndex = collisionAttributeIndex,
             };
 
-            // Shown as its tools material is, rather than as the collision chosen to be shown
+            // A tools material node is always Enabled, whatever collision labels are selected
             if (toolsMaterial != null && node.SetToolsMaterial(toolsMaterial))
             {
                 node.Enabled = true;

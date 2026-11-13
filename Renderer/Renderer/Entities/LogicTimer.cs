@@ -251,7 +251,7 @@ public sealed class LogicTimer : BaseEntity
 
     private void ScheduleAt(float time)
     {
-        // A think due now runs on the next tick, which is also where one scheduled in the past belongs
+        // A think due now, or scheduled in the past, runs on the next tick
         time = MathF.Max(time, EntitySystem.CurrentTime + EntitySystem.TickInterval);
 
         SetNextThink(time);

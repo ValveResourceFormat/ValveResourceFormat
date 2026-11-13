@@ -271,7 +271,7 @@ namespace ValveResourceFormat.Animation
     }
 
     // Checks the sampled graph events (entry/fully-in-state/exit/timed/generic) against a set of
-    // ID + event-type conditions (Esoterica GraphEventConditionNode).
+    // ID + event-type conditions.
     partial class GraphEventConditionNode
     {
         StateNode? SourceStateNode;

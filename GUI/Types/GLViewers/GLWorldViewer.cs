@@ -1029,7 +1029,7 @@ namespace GUI.Types.GLViewers
             });
         }
 
-        // The layers of the nodes of the map, in the order they are first found, which the user can choose
+        // Layers of the map nodes, in the order they are first found. The user chooses among them.
         private List<WorldLayer> GetListedLayers()
             => [.. Scene.AllNodes.SelectMany(static node => node.Layers).Where(static layer => !layer.IsInternal).Distinct()];
 
@@ -1061,8 +1061,8 @@ namespace GUI.Types.GLViewers
             worldLayersTree = AddLayersTree("World Layers", listedLayers, layer => enabledLayers?.Contains(layer) ?? true, foldGroups: true);
         }
 
-        // Hammer's Auto Vis Groups of tools materials, those the loaded map uses nested under the groups above them,
-        // shown until unchecked and folded until opened. A group the brushes of several entity classes use lists
+        // Hammer's Auto Vis Groups of tools materials. The groups the loaded map uses are nested under their parent groups,
+        // shown until unchecked and folded until opened. A group used by the brushes of several entity classes lists
         // each class below it.
         private void AddToolBrushGroupsControl()
         {
@@ -1091,7 +1091,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            // What each item hides, where a group listing its classes hides nothing of its own
+            // Group and entity class hidden by each item. A group that lists entity classes hides nothing itself.
             var items = new Dictionary<string, (string Group, string? EntityClass)>(StringComparer.Ordinal);
             var paths = new List<string>();
 
@@ -1130,7 +1130,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        // What the loaded map collides as, hidden until checked and folded until opened, and whether it and tools materials are drawn opaque
+        // Collision labels of the loaded map, hidden until checked and folded until opened, and whether collision and tools materials are drawn opaque
         private void AddCollisionControl()
         {
             Debug.Assert(UiControl != null);
@@ -1184,7 +1184,7 @@ namespace GUI.Types.GLViewers
             Tools.ApplyCollisionVisibility(Scene.AllNodes);
         }
 
-        // Above the viewport rather than in the sidebar: what of the tools is drawn
+        // Above the viewport rather than in the sidebar: tools visibility
         private void AddToolsVisibilityToolbar()
         {
             Debug.Assert(UiControl != null);
@@ -1198,7 +1198,7 @@ namespace GUI.Types.GLViewers
             RequestVisibilityUpdate();
         }
 
-        // Above the viewport rather than in the sidebar: how the world is run
+        // Above the viewport rather than in the sidebar: simulation play, pause and stop
         private void AddSimulationToolbar()
         {
             Debug.Assert(UiControl != null);
@@ -1218,7 +1218,7 @@ namespace GUI.Types.GLViewers
         {
             Interlocked.Exchange(ref simulationRequest, (int)request);
 
-            // Hands the keyboard back to the viewport, which the click took, so the player can be walked
+            // The click took keyboard focus. Return it to the viewport so the player can be walked
             GLControl?.Focus();
         }
 
@@ -1298,7 +1298,7 @@ namespace GUI.Types.GLViewers
                     entitySystem.StartRound();
                     Input.SetWalkMode(true);
 
-                    // Plays as the game looks
+                    // Hide tools while playing, as the game does
                     showToolsBeforePlay = Tools.ShowTools;
                     Tools.ShowTools = false;
                     RequestVisibilityUpdate();
@@ -1344,7 +1344,7 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(LoadedWorld != null);
 
-            // Its nodes are about to go
+            // The nodes of the selection are about to be removed
             Selection.Clear();
 
             Renderer.RemoveEntities();

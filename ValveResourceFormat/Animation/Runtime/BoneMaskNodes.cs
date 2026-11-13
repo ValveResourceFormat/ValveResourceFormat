@@ -49,8 +49,7 @@ namespace ValveResourceFormat.Animation
         private BoneMaskTask element0;
     }
 
-    // A command list of bone mask operations (Esoterica BoneMaskTaskList). Value type: assignment
-    // copies the whole list, matching the C++ inline-vector semantics.
+    // A command list of bone mask operations. Value type: assignment copies the whole list.
     public struct BoneMaskTaskList
     {
         public const int MaxTasks = 32;
@@ -324,7 +323,7 @@ namespace ValveResourceFormat.Animation
         public override void Instantiate(GraphContext ctx)
         {
             // ctx.Skeleton (Animation.Skeleton, holding the mask definitions) is not wired up yet, so it can
-            // be null — fall back to a uniform-weight mask rather than crashing at graph load.
+            // be null. Fall back to a uniform-weight mask rather than crashing at graph load.
             var maskIndex = ctx.Skeleton?.GetBoneMaskIndex(BoneMaskID) ?? -1;
             if (maskIndex != -1)
             {
@@ -450,7 +449,6 @@ namespace ValveResourceFormat.Animation
         protected override BoneMaskTaskList GetValueInternal(GraphContext ctx)
         {
             // Perform selection
-            //-------------------------------------------------------------------------
             if (SwitchDynamically)
             {
                 // Only try to select a new mask if we are not blending
@@ -477,7 +475,6 @@ namespace ValveResourceFormat.Animation
             }
 
             // Generate task list
-            //-------------------------------------------------------------------------
 
             if (Blending)
             {
@@ -565,7 +562,6 @@ namespace ValveResourceFormat.Animation
         protected override BoneMaskTaskList GetValueInternal(GraphContext ctx)
         {
             // Perform selection
-            //-------------------------------------------------------------------------
             if (SwitchDynamically)
             {
                 // Only try to select a new mask if we are not blending
@@ -588,7 +584,6 @@ namespace ValveResourceFormat.Animation
             }
 
             // Generate task list
-            //-------------------------------------------------------------------------
 
             if (Blending)
             {

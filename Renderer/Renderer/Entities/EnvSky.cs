@@ -49,7 +49,7 @@ public sealed class EnvSky : BaseEntity
 
         var fogType = (SkyFogType)KeyValues.GetInt32Property("fog_type", (int)SkyFogType.Distance);
 
-        // Where the angular fog fades below and above the horizon, while the entity does not say
+        // Start and end angles of the angular fog below and above the horizon, with defaults for keys the entity does not set
         var angularFog = new Vector4(
             KeyValues.GetFloatProperty("angular_fog_min_start", -25f),
             KeyValues.GetFloatProperty("angular_fog_min_end", -35f),

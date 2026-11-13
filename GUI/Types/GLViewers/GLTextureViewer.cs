@@ -206,12 +206,10 @@ namespace GUI.Types.GLViewers
 
             if (Bitmap != null)
             {
-                // Image viewer
                 AddChannelsComboBox();
             }
             else if (Svg != null)
             {
-                // Svg viewer
                 AddChannelsComboBox();
             }
             else if (Resource != null)

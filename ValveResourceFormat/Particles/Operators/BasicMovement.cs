@@ -28,8 +28,7 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            // Gravity is set up before the drag is evaluated and read after it, so only an input drawing per block
-            // draws after the drag
+            // A gravity input that draws per block draws after the drag. Any other gravity input draws before it
             var setUpGravity = gravity.DrawsPerBlock ? Vector3.Zero : gravity.NextVector(particleSystemState);
 
             var timeStepSquared = frameTime * frameTime;

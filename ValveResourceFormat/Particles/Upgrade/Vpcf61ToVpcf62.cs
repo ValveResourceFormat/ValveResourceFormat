@@ -6,8 +6,8 @@ namespace ValveResourceFormat.Particles.Upgrade;
 /// <summary>
 /// Negates the Y component of C_INIT_CreateWithinSphereTransform's two local-coordinate-system
 /// speed vector inputs across every vector-input type. Literal inputs are rebuilt at the
-/// operator tail, dropping extra members; every other branch edits values in place, with
-/// float-component Y inputs negated through both their value type and their map type, where a
+/// operator tail, dropping extra members; every other branch edits values in place.
+/// Float-component Y inputs are negated through both the value type and the map type. A
 /// direct-mapped CP component becomes a mult mapping whose absent factor negates to
 /// negative zero.
 /// </summary>

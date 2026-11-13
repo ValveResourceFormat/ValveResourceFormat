@@ -122,8 +122,8 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
         return new Vector4(distCull, heightCull, MathF.Pow(2f, ExposureBias), Opacity);
     }
 
-    // The VR shaders take the stronger of the distance and height terms. Those are the lightmap versions below 2
-    // and the games with a VR forward pipeline. The shaders read the same attribute.
+    // The VR shaders take the stronger of the distance and height terms. They are the shaders of lightmap versions
+    // below 2 and of games with a VR forward pipeline, and read the S_FOG_CUBE_BLEND_MAX attribute.
     private bool BlendsByMax => Scene.RenderAttributes.GetValueOrDefault("S_FOG_CUBE_BLEND_MAX", (byte)1) == 1;
 
     // Without height fog both heights are infinite, so they compare equal. The VR shaders take only upward ranges.
@@ -144,16 +144,16 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
 
     /// <summary>The sky a fog takes its color from.</summary>
     /// <param name="MaterialName">Sky material of the sky entity.</param>
-    /// <param name="Transform">Where the sky entity is placed. The fog takes its rotation.</param>
+    /// <param name="Transform">Transform of the sky entity. The fog takes its rotation.</param>
     /// <param name="BrightnessScale">Brightness scale of the sky entity.</param>
     public readonly record struct SkySource(string? MaterialName, Matrix4x4 Transform, float BrightnessScale);
 
     /// <summary>Creates the fog an <c>env_cubemap_fog</c> entity describes.</summary>
     /// <param name="scene">The scene the fog is for.</param>
     /// <param name="entity">The keyvalues of the entity.</param>
-    /// <param name="transform">Where the entity is placed.</param>
+    /// <param name="transform">Transform of the entity.</param>
     /// <param name="findSky">Finds the sky entity with a name, for a fog that takes its color from one.</param>
-    /// <returns>The fog, or <see langword="null"/> when what it takes its color from cannot be told.</returns>
+    /// <returns>The fog, or <see langword="null"/> when the named sky entity is not found or the fog source is not recognized.</returns>
     public static SceneCubemapFog? FromEntityProperties(Scene scene, EntityLump.Entity entity, Matrix4x4 transform, Func<string, SkySource?> findSky)
     {
         ArgumentNullException.ThrowIfNull(scene);
@@ -262,8 +262,8 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
     }
 
     /// <summary>
-    /// Colors the fog from the sky texture of a sky material, exposed as the material and the sky entity
-    /// make it. Leaves the fog as it is when the material does not load or has no sky texture.
+    /// Colors the fog from the sky texture of a sky material, using the exposure bias of the material
+    /// and the brightness scale of the sky entity. Leaves the fog as it is when the material does not load or has no sky texture.
     /// </summary>
     /// <param name="materialName">The sky material.</param>
     /// <param name="brightnessScale">Brightness scale of the sky entity, or 1 for a material the fog names itself.</param>

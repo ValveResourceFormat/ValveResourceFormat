@@ -86,7 +86,6 @@ partial class MainForm
 
             var rawPoint = LParamToPoint(m.LParam);
 
-            // Convert to client coordinates
             var point = PointToClient(rawPoint);
             var controlsBoxPanelPoint = controlsBoxPanel.PointToClient(rawPoint);
 
@@ -115,7 +114,6 @@ partial class MainForm
                         return;
                     }
 
-                    // Regular top edge
                     m.Result = new IntPtr(PInvoke.HTTOP);
                     return;
                 }

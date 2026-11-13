@@ -5,11 +5,11 @@ namespace ValveResourceFormat.Particles.ForceGenerators;
 /// <summary>
 /// Pushes particles with the wind, water flow and gravity the game reports at
 /// <c>m_vecSamplePosition</c>, scaled per component by <c>m_vecScale</c>. Without a game there is
-/// no wind or water to sample, and sampled gravity is the standard world gravity, so with
-/// <c>m_bSampleGravity</c> the force is that gravity scaled by <c>m_flLocalGravityScale</c>, minus the
-/// <c>C_OP_BasicMovement</c> gravity when <c>m_bUseBasicMovementGravity</c> is set, and
-/// <c>m_vecGravityForce</c> otherwise. A sample position read from the particles takes that
-/// movement gravity off <c>m_vecGravityForce</c> as well.
+/// no wind or water to sample. Sampled gravity is the standard world gravity.
+/// With <c>m_bSampleGravity</c> the force is that gravity scaled by <c>m_flLocalGravityScale</c>, minus the
+/// <c>C_OP_BasicMovement</c> gravity when <c>m_bUseBasicMovementGravity</c> is set.
+/// Without <c>m_bSampleGravity</c> the force is <c>m_vecGravityForce</c>. A sample position read from
+/// the particles takes that movement gravity off <c>m_vecGravityForce</c> as well.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ExternalWindForce">C_OP_ExternalWindForce</seealso>
 class ExternalWindForce : ParticleFunctionForceGenerator
@@ -79,7 +79,7 @@ class ExternalWindForce : ParticleFunctionForceGenerator
     }
 
     /// <summary>
-    /// Fills the inputs as a sample position read from each particle evaluates them: in batches of up
+    /// Fills the inputs in the order they are evaluated for a sample position read from the particles: in batches of up
     /// to <see cref="BlocksPerBatch"/> blocks, the gravity of every block of the batch first, then
     /// the scale and buoyancy of every block. The buoyancy is drawn and never used.
     /// </summary>

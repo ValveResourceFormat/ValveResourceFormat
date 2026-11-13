@@ -58,7 +58,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var containerSpan = container.AsSpan();
             var localChannel = dataChannels[segmentKV.GetInt32Property("m_nLocalChannel")];
 
-            // Read header
             var decoderName = decoderNames[BinaryPrimitives.ReadInt16LittleEndian(containerSpan[0..2])];
             //var cardinality = BitConverter.ToInt16(containerSpan[2..4]);
             var numElements = BinaryPrimitives.ReadInt16LittleEndian(containerSpan[4..6]);
@@ -70,7 +69,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 return null;
             }
 
-            // Look at the decoder to see what to read
             AnimationSegmentDecoder? decoder = decoderName switch
             {
                 nameof(CCompressedStaticFullVector3) => new CCompressedStaticFullVector3(),

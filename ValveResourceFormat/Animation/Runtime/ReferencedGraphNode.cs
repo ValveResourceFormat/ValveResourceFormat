@@ -112,7 +112,6 @@ namespace ValveResourceFormat.Animation
             {
                 ReflectControlParametersFromParent(ctx);
 
-                // Reset the referenced instance at the initial time
                 childGraph.Context.ResetReferencedGraphState(ctx, initialTime);
 
                 var childRoot = childGraph.Context.RootNode;
@@ -126,7 +125,6 @@ namespace ValveResourceFormat.Animation
                 PreviousTime = CurrentTime = 0f;
                 Duration = 0f;
 
-                // Initialize the fallback node if set
                 if (FallbackNode != null)
                 {
                     FallbackNode.Initialize(ctx, initialTime);

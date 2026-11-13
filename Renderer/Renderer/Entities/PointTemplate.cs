@@ -7,9 +7,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>point_template</c>. Spawns the entities compiled into its entity lump as a new instance each time it is
-/// told to, placed at itself or at another entity. Each instance loads a spawn group of its own, which the
-/// entities join or not as <see cref="SpawnGroupType"/> says.
+/// <c>point_template</c>. Spawns the entities compiled into the entity lump of the template as a new instance
+/// each time it is told to, placed at the template or at another entity. Each instance loads a spawn group.
+/// The entities join it or not, as <see cref="SpawnGroupType"/> says.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -19,8 +19,8 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </para>
 /// <para>
 /// The template only describes an instance's spawn group: the world and entity lump to spawn, the placement, the
-/// name fixups and the owner. The <see cref="SpawnGroupManager"/> loads it and spawns the lump from the loaded world of that name,
-/// within the call, or on the next tick for an asynchronous template, then tells the template what spawned.
+/// name fixups and the owner. The <see cref="SpawnGroupManager"/> loads the spawn group and spawns the lump from the loaded world of that name,
+/// within the call or, for an asynchronous template, on the next tick. It then tells the template which entities spawned.
 /// </para>
 /// <para>
 /// The <c>entityFilterName</c> filter is game code, so every entity of the lump spawns. Entities spawned after
@@ -49,7 +49,7 @@ public sealed class PointTemplate : BaseEntity
         /// <summary>The spawn group active when the instance spawns.</summary>
         InsertIntoCurrentlyActiveSpawnGroup = 1,
 
-        /// <summary>A spawn group of the instance's own, which <see cref="DeleteCreatedSpawnGroups"/> unloads with its entities.</summary>
+        /// <summary>A spawn group created for the instance. <see cref="DeleteCreatedSpawnGroups"/> unloads it with its entities.</summary>
         InsertIntoNewlyCreatedSpawnGroup = 2,
     }
 
@@ -66,14 +66,14 @@ public sealed class PointTemplate : BaseEntity
     public OwnerSpawnGroupType SpawnGroupType { get; private set; }
 
     /// <summary>
-    /// Gets what the instances spawned, gathered across them until <see cref="DeleteCreatedSpawnGroups"/>. An
+    /// Gets the entities the instances spawned, gathered across them until <see cref="DeleteCreatedSpawnGroups"/>. An
     /// entity removed since drops out at the next instance.
     /// </summary>
     public IReadOnlyList<BaseEntity> SpawnedEntities => spawnedEntities;
 
     private readonly List<BaseEntity> spawnedEntities = [];
 
-    // The spawn groups of the instances whose entities joined them, which unload with their entities
+    // Spawn groups created for instances. They unload together with the entities in them
     private readonly List<SpawnGroup> createdSpawnGroups = [];
 
     /// <summary>Initializes a <c>point_template</c> from its keyvalues.</summary>

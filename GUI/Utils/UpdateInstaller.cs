@@ -209,8 +209,8 @@ static class UpdateInstaller
         {
             if (IsDirectoryWritable(Path.GetDirectoryName(exePath)!))
             {
-                // A single file bundle loads assemblies from the executable's path on first use,
-                // which is the new build after the swap, so Restart needs this one loaded before it
+                // A single file bundle loads assemblies from the executable path on first use.
+                // After the swap that path is the new build, so load System.Diagnostics.Process now, before Restart needs it
                 RuntimeHelpers.RunClassConstructor(typeof(Process).TypeHandle);
 
                 Swap(exePath, downloadPath, download.Sha256);
@@ -390,8 +390,8 @@ static class UpdateInstaller
         return (destination.BytesWritten, destination.GetHash());
     }
 
-    // The manifest only names the file. Its CI origin is proven by the provenance attestation GitHub stores for
-    // its hash, signed through Sigstore with the identity of the workflow run that produced it.
+    // The manifest only names the file. The CI origin of the file is proven by the provenance attestation GitHub stores for
+    // the file hash, signed through Sigstore with the identity of the workflow run that produced it.
     private static async Task VerifyProvenanceAsync(HttpClient httpClient, UpdateChecker.UpdateOffer offer, UpdateChecker.UpdateDownload download, CancellationToken cancellationToken)
     {
         var hash = download.Sha256;

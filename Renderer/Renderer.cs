@@ -21,7 +21,7 @@ public class Renderer : ISceneHost
 {
     /// <summary>Draws into one scene for <see cref="DrawOverScenes"/>.</summary>
     /// <param name="context">The render context with the view state the scene was culled with.</param>
-    /// <param name="state">What the draw works with.</param>
+    /// <param name="state">The state passed through to the draw.</param>
     public delegate void OverSceneDraw<TState>(Scene.RenderContext context, ref TState state);
 
     /// <summary>
@@ -239,8 +239,8 @@ public class Renderer : ISceneHost
     private bool waterEffectsMapIsNeutral;
 
     /// <summary>
-    /// HDR target the effects bloom layer draws into at a reduced resolution, which the bloom post
-    /// process adds in rather than the scene.
+    /// HDR target at a reduced resolution that the effects bloom layer draws into.
+    /// The bloom post process adds it in separately from the scene.
     /// </summary>
     public Framebuffer? EffectsBloomBuffer { get; private set; }
 
@@ -342,7 +342,7 @@ public class Renderer : ISceneHost
 
     private RenderSettings settings = new();
 
-    /// <summary>Gets the rendering toggles for all scenes, which each scene reads a copy of that is refreshed once per frame in <see cref="Update"/>.</summary>
+    /// <summary>Gets the rendering toggles for all scenes. Each scene reads a copy that is refreshed once per frame in <see cref="Update"/>.</summary>
     public ref RenderSettings Settings => ref settings;
 
     /// <summary>
@@ -978,7 +978,6 @@ public class Renderer : ISceneHost
         brdfLutTexture.SetWrapMode(RsTextureAddressMode.Clamp);
         Textures.Add(new(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup", brdfLutTexture));
 
-        // Load default cube fog texture.
         using var cubeFogStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources.sky_furnace.vtex_c") ?? throw new InvalidOperationException("Failed to load embedded cube fog texture.");
         using var cubeFogResource = new Resource() { FileName = "default_cube.vtex_c" };
         cubeFogResource.Read(cubeFogStream);
@@ -1231,7 +1230,7 @@ public class Renderer : ISceneHost
         }
     }
 
-    /// <summary>Resolves the depth of the prepass that just drew and computes the occlusion of it, which the opaque draws that follow sample.</summary>
+    /// <summary>Resolves the depth of the prepass that just drew and computes the occlusion from it. The opaque draws that follow sample the result.</summary>
     private void ComputeScreenSpaceAo(Framebuffer framebuffer)
     {
         Debug.Assert(ResolvedSceneDepth != null);
@@ -1297,7 +1296,7 @@ public class Renderer : ISceneHost
 
         GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
 
-        // The composite outputs the layers' color premultiplied, and what they let through of the scene as alpha
+        // The composite outputs the premultiplied color of the layers, and the fraction of the scene they let through as alpha
         using (GraphicsContext.RenderState.Scope(fillMode: RsFillMode.Solid, cullMode: RsCullMode.None, depthTest: false, srcBlend: RsBlendMode.One, dstBlend: RsBlendMode.SrcAlpha))
         {
             orderIndependentCompositeShader.Use();
@@ -1329,8 +1328,8 @@ public class Renderer : ISceneHost
     }
 
     /// <summary>
-    /// Removes every entity, every spawn group and what they registered with the scene, leaving the loaded
-    /// world in place for its entities to spawn again as they did when it loaded.
+    /// Removes every entity, every spawn group, and the lighting volumes, post process info and projected decals
+    /// the entities registered with the scene. The loaded world stays in place for the entities to spawn again.
     /// </summary>
     public void RemoveEntities()
     {
@@ -1711,9 +1710,6 @@ public class Renderer : ISceneHost
         }
     }
 
-    /// <summary>
-    /// Computes the first-person viewmodel camera's FOV.
-    /// </summary>
     private float ComputeViewmodelFov()
     {
         var fovRatio = RendererContext.FieldOfView / 90f;
@@ -2362,8 +2358,8 @@ public class Renderer : ISceneHost
     /// constants and buffers it was rendered with, for drawing in the world over a frame that has already been
     /// rendered. The scene textures stay bound. The caller binds the target and sets the render state.
     /// </summary>
-    /// <param name="framebuffer">What is drawn into, the size of the scene.</param>
-    /// <param name="state">What <paramref name="draw"/> works with, passed along so it does not need to capture it.</param>
+    /// <param name="framebuffer">Framebuffer drawn into, the size of the scene.</param>
+    /// <param name="state">State passed to <paramref name="draw"/>, so it does not need to capture it.</param>
     /// <param name="draw">Draws into one scene, given a render context with the view state it was culled with.</param>
     public void DrawOverScenes<TState>(Framebuffer framebuffer, ref TState state, OverSceneDraw<TState> draw)
     {
@@ -2396,11 +2392,11 @@ public class Renderer : ISceneHost
     }
 
     /// <summary>
-    /// Draws some nodes of the last frame again over every scene they were drawn in, each all at once with a shader
-    /// that replaces their materials, which can test against the resolved scene depth. The caller binds and
-    /// clears the target and sets the render state.
+    /// Draws some nodes of the last frame again over every scene they were drawn in, each node all at once, with a
+    /// shader that replaces their materials. The draws can test against the resolved scene depth. The caller binds
+    /// and clears the target and sets the render state.
     /// </summary>
-    /// <param name="framebuffer">What is drawn into, the size of the scene.</param>
+    /// <param name="framebuffer">Framebuffer drawn into, the size of the scene.</param>
     /// <param name="shader">The shader every draw is made with.</param>
     /// <param name="nodes">The nodes to draw. Those the last frame did not draw are left out.</param>
     /// <returns>Whether anything was drawn.</returns>

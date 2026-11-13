@@ -25,7 +25,7 @@ public sealed class FuncCombineBarrier : FuncBrush
         BlocksCombine = 1,
     }
 
-    // Default size of one field cell, which the effect is sized in
+    // Default size of one field cell. The effect is sized in cells.
     private const float CellSpacing = 6f;
 
     private static readonly Vector3 HumanBlockerColor = new(100f, 255f, 255f);

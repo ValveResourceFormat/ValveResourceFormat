@@ -5,8 +5,8 @@ namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
     /// A control point snapshot whose points are skinned to bones by name, such as one taken off a
-    /// model's surface, read by the functions that deform it with the bones of a control point's
-    /// model.
+    /// model's surface. Functions read it to deform the points with the bones of the model on a
+    /// control point.
     /// </summary>
     internal sealed class SkinnedSnapshot
     {
@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Particles.Utils
         /// <param name="Count">How many points the snapshot holds.</param>
         /// <param name="Positions">Each point's rest position, in the model's space.</param>
         /// <param name="Skinning">Each point's bones and weights, or null when the points name one hitbox each instead.</param>
-        /// <param name="Hitboxes">Each point's one bone, taken whole, read when there is no <paramref name="Skinning"/>.</param>
+        /// <param name="Hitboxes">Each point's single bone at full weight, read when there is no <paramref name="Skinning"/>.</param>
         /// <param name="Normals">Each point's normal, or null when the snapshot has none.</param>
         /// <param name="Radii">Each point's radius, or null when the snapshot has none.</param>
         /// <param name="Colors">Each point's colour, or null when the snapshot has none.</param>
@@ -152,8 +152,8 @@ namespace ValveResourceFormat.Particles.Utils
         }
 
         /// <summary>
-        /// The point a walk at <paramref name="index"/> reads: past the last of <paramref name="count"/>
-        /// points it wraps round, moved on by <paramref name="fullLoopIncrement"/> for every loop made.
+        /// The point a walk at <paramref name="index"/> reads. Past the last of <paramref name="count"/>
+        /// points the index wraps around, and <paramref name="fullLoopIncrement"/> is added for every loop made.
         /// </summary>
         public static int WalkRow(int index, int count, int fullLoopIncrement)
             => index >= count ? (index + (fullLoopIncrement * (index / count))) % count : index;

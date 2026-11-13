@@ -4,10 +4,10 @@ namespace ValveResourceFormat.Renderer.Audio.Decoders;
 
 /// <summary>
 /// MP3 decoder built on NLayer's frame decoder (fully managed), fed by a <see cref="MpegFrameWalker"/>
-/// straight over the file bytes. The frame decoder, whose cost is its per-instance synthesis and
-/// reservoir buffers (layer-III lookup tables are shared statics), and the walker are kept per decode
-/// thread, so steady-state decodes allocate nothing. Honors Xing/LAME gapless info: leading encoder
-/// delay and trailing padding are trimmed.
+/// straight over the file bytes. The frame decoder and the walker are kept per decode thread, so
+/// steady-state decodes allocate nothing. Each frame decoder instance holds its own synthesis and
+/// reservoir buffers (layer-III lookup tables are shared statics).
+/// Honors Xing/LAME gapless info: leading encoder delay and trailing padding are trimmed.
 /// </summary>
 internal static class Mp3Decoder
 {

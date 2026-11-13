@@ -274,7 +274,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     private void Exit()
     {
         GLWindowContext?.Close();  // signal the thread that it should exit
-        decodeQueue.CompleteAdding(); // mark the thread as done
+        decodeQueue.CompleteAdding();
         GLThread.Join(); // wait for the thread to exit
     }
 

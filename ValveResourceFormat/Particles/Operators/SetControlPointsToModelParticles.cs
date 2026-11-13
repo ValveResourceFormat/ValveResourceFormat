@@ -4,8 +4,8 @@ namespace ValveResourceFormat.Particles.Operators
     /// Binds a run of control points to a run of particles every step: each control point takes its
     /// particle's position, and the model the particle is drawn as becomes the control point's
     /// model, so child effects can attach to particle models. With <c>m_bAttachment</c> the
-    /// position comes from a named attachment of that model instead, which whatever draws the
-    /// models places.
+    /// position comes from a named attachment of that model instead. Whatever draws the models
+    /// places it, not this operator.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetControlPointsToModelParticles">C_OP_SetControlPointsToModelParticles</seealso>
     class SetControlPointsToModelParticles : ParticleFunctionOperator

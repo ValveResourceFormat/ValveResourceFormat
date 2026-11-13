@@ -25,11 +25,7 @@ public static partial class ShaderSpirvReflection
     /// and compute shaders use one compact layout. From version 69 every stage and set uses that layout.
     /// </summary>
     /// <remarks>
-    /// These constants are not stored in the shader files. They come from GetBindingStartOffsetHLSLToSPIRV in
-    /// rendersystemvulkan, a small function taking the shader stage, a VkDescriptorType and the descriptor set,
-    /// and returning these numbers (switch over descriptor types 0, 2/4, 3/7, 6/8, plus 1000150000 in newer builds).
-    /// Since version 69 it is VfxGetBindingStartOffsetHLSLToSPIRV, which takes the register type and returns 30, 14 or 158.
-    /// Mobile builds of rendersystemvulkan have their own copy with different constants.
+    /// These constants are not stored in the shader files. Mobile Vulkan shaders use different values.
     /// </remarks>
     private static uint GetBindingStartOffset(VfxProgramData program, uint set, VfxRegisterType registerType)
     {

@@ -489,8 +489,8 @@ namespace Tests.IO
         }
 
         /// <summary>
-        /// A chain's <c>mass</c> default is the multiplier most of its simulating joints carry, sheet or no sheet, and
-        /// only the others state their own; an even split states 1 and every joint's own value.
+        /// The <c>mass</c> default of a chain is the multiplier that most simulating joints carry, sheet or no sheet.
+        /// Only the other joints state a multiplier. An even split states 1 and the multiplier of every joint.
         /// </summary>
         [Test]
         public async Task AChainStatesTheMassMostOfItsJointsCarry()

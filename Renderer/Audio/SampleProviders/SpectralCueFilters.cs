@@ -19,13 +19,13 @@ internal sealed class SpectralCueFilters
     /// </summary>
     private static readonly float[] NotchElevations = [-45f, -30f, -15f, 0f, 15f, 30f, 45f, 60f];
 
-    /// <summary>Where the notch sits for a sound at ear level, which the peak compensates back to flat.</summary>
+    /// <summary>Notch frequency for a sound at ear level. The peak compensates it back to flat.</summary>
     private const float ReferenceNotchHz = 7623f;
 
-    /// <summary>How deep the measured notch is, near enough - the set has it between 14 and 22 dB.</summary>
+    /// <summary>Notch depth, approximating the measurements that range from 14 to 22 dB.</summary>
     private const float NotchDepthDecibels = 18f;
 
-    /// <summary>How sharp the notch is. Wider than this and it cancels against the reference peak, narrower and it stops being audible on anything but noise.</summary>
+    /// <summary>Notch Q. A wider notch cancels against the reference peak, a narrower one is only audible on noise.</summary>
     private const float NotchQ = 4f;
 
     /// <summary>
@@ -37,10 +37,10 @@ internal sealed class SpectralCueFilters
     /// <summary>Corner of the rear shelf, below which the measurements show front and back are the same sound.</summary>
     private const float RearShelfHz = 2000f;
 
-    /// <summary>How much the rear shelf takes off the top, matching the 3 to 4 dB the set measures behind the listener.</summary>
+    /// <summary>Rear shelf gain, matching the 3 to 4 dB measured behind the listener.</summary>
     private const float RearShelfDecibels = -3.5f;
 
-    /// <summary>How quickly the filters follow a moving sound. Long enough not to zipper, short enough to keep up with a sprint.</summary>
+    /// <summary>Filter smoothing time. Long enough not to zipper, short enough to keep up with a sprint.</summary>
     private const float SmoothingSeconds = 0.05f;
 
     // Below these the filters are doing nothing anyone can hear, and the whole pass is skipped
@@ -112,9 +112,9 @@ internal sealed class SpectralCueFilters
 
     /// <summary>
     /// Advances the filters towards their target over <paramref name="frames"/> of audio and retunes them,
-    /// returning whether there is anything left for <see cref="Process"/> to do. Runs on the mixing thread:
-    /// the coefficients are only ever built here, and stepping them by the length of the block that is
-    /// about to be filtered is what keeps a sound sweeping overhead sounding the same at any frame rate.
+    /// returning whether there is anything left for <see cref="Process"/> to do. Runs on the mixing thread,
+    /// the only place the coefficients are built. Stepping by the length of the block about to be filtered
+    /// keeps a sound sweeping overhead sounding the same at any frame rate.
     /// </summary>
     public bool Update(int sampleRate, int frames)
     {

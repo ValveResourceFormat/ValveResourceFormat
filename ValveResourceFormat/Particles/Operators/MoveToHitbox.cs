@@ -3,9 +3,9 @@ using ValveResourceFormat.Particles.Utils;
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Pulls particles toward the point in a hitbox, or bone, of the model its model input reads
-    /// that was recorded at creation: over a window of each particle's life with a pull growing
-    /// through it, or by a constant fraction every step.
+    /// Pulls particles toward the point, recorded at creation, in a hitbox or bone of the model read
+    /// from the model input: over a window of each particle's life with a growing pull,
+    /// or by a constant fraction every step.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_MoveToHitbox">C_OP_MoveToHitbox</seealso>
     class MoveToHitbox : ParticleFunctionOperator

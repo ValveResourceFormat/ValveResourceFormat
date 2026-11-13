@@ -94,8 +94,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         }
 
         /// <summary>
-        /// Starts rate parameters at 1 rather than 0, which would freeze what they scale: those a speed scale
-        /// reads, and scales whose range ends at 1.
+        /// Starts rate parameters at 1 rather than 0, which would zero the value they scale. Rate parameters are
+        /// those a speed scale reads, and scales whose range ends at 1.
         /// </summary>
         private void SetNeutralFloatDefaults()
         {

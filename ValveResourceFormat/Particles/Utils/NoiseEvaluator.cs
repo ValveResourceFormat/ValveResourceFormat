@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Particles.Utils
     /// selected primitive over a scaled coordinate, a turbulence resample, a shaping modifier, and
     /// the output range. Turbulence overrides worley with fixed per-mode jitter and seed values, and
     /// its alternate mode swaps a worley input to a simplex resample and every other input to a
-    /// worley resample. The octave sum is unweighted against amplitude-falloff divisors.
+    /// worley resample. The octave sum is divided by fixed divisors instead of being weighted by amplitude falloff.
     /// </summary>
     sealed class NoiseEvaluator
     {
@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Particles.Utils
         }
 
         /// <summary>
-        /// Evaluates the pipeline at a sample vector and collection time, returning a value in the output range.
+        /// Evaluates the pipeline at <paramref name="input"/> and <paramref name="age"/>, returning a value in the output range.
         /// </summary>
         public float Evaluate(Vector3 input, float age)
         {

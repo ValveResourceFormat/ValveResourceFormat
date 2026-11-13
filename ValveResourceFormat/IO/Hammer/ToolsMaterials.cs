@@ -7,8 +7,8 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.IO;
 
 /// <summary>
-/// Hammer's tools materials, with the attributes that decide what their faces compile to, so their collision is
-/// known without the game that has them and compiled collision can be traced back to the material it came from.
+/// Hammer's tools materials, with the attributes that decide what their faces compile to. The collision of a tools
+/// material is known without the game that has it, and compiled collision can be traced back to the material.
 /// </summary>
 public static class ToolsMaterials
 {
@@ -93,9 +93,9 @@ public static class ToolsMaterials
     // "citadel_trigger_teleport" reads "trigger_teleport"
     private static readonly string[] TriggerNamePrefixes = ["citadel_", "dota_", "cs_", "hl_vr_", "func_"];
 
-    // The name written on the generated texture of each tools material, with underscores between its words, and the
-    // most common color of its texture, which the generated texture is filled with. Where the texture writes dark text
-    // on a dark color or light text on a light one, the color is made lighter or darker so that the text follows it.
+    // Per tools material: the name written on the generated texture, with underscores between words, and the most
+    // common color of the material texture, which fills the generated texture. Where the material texture writes dark
+    // text on a dark color or light text on a light one, the color is made lighter or darker so that the text follows it.
     private static readonly Dictionary<string, ToolsLabel> Labels = new(StringComparer.OrdinalIgnoreCase)
     {
         ["materials/tools_postprocess_volume.vmat"] = new("post_process_volume", new(0, 254, 186)),
@@ -355,7 +355,7 @@ public static class ToolsMaterials
     /// Describes a generated texture that names what faces were built from: a tools material, the class of an entity volume, or
     /// the layers of collision.
     /// </summary>
-    /// <param name="Key">A name for the texture, unique to what it names, which it is cached and exported under.</param>
+    /// <param name="Key">Name of the texture, unique to what it names. The texture is cached and exported under it.</param>
     /// <param name="Name">The name written on the texture, with underscores between its words.</param>
     /// <param name="Background">The color the texture is filled with.</param>
     public readonly record struct TextureLabel(string Key, string Name, Color32 Background)

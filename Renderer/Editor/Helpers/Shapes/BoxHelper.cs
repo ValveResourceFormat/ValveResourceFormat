@@ -19,8 +19,8 @@ internal enum BoxHelperSize
 }
 
 /// <summary>
-/// The box of a volume an entity has, given by its keys. While the entity is selected its faces are tinted,
-/// and where the influence of the volume fades out past its sides the faces fade with it. While the entity is
+/// The box of a volume an entity has, given by its keys. While the entity is selected, the faces are tinted.
+/// Where the influence of the volume fades out past the sides, the faces fade with it. While the entity is
 /// not selected only the edges are drawn.
 /// </summary>
 internal sealed class BoxHelper : EntityHelper
@@ -34,8 +34,8 @@ internal sealed class BoxHelper : EntityHelper
     /// <inheritdoc/>
     public override bool HiddenInGameObjectsOnly => true;
 
-    // There is no selection tool, so what is only drawn while the entity is highlighted by it is drawn while
-    // the entity is selected
+    // There is no selection tool, so a box that is only drawn while the selection tool highlights the entity is
+    // drawn while the entity is selected
     /// <inheritdoc/>
     public override bool RequiresSelection => OnlyVisibleHighlightEnabled;
 
@@ -76,8 +76,8 @@ internal sealed class BoxHelper : EntityHelper
     private bool IsLightProbeVolume { get; }
 
     /// <summary>
-    /// Gets whether the influence of the volume fades out past its sides, rather than inside them, which the
-    /// game decides for all of its volumes.
+    /// Gets whether the influence of the volume fades out past the sides, rather than inside them. The game
+    /// decides this for all volumes.
     /// </summary>
     private bool FadesPastSides { get; }
 
@@ -148,8 +148,7 @@ internal sealed class BoxHelper : EntityHelper
             return;
         }
 
-        // Some volumes only tint their faces while the selection overlay of the editor is on, which it is
-        // until it is turned off. A light probe volume leaves them out while the samples of the volumes show.
+        // A selected box tints its faces. A light probe volume leaves them out while the samples of the volumes show.
         if (!IsLightProbeVolume || Owner.Scene.LightingDebug.LightProbeGrid == LightProbeDebugGridMode.Off)
         {
             DrawFaces(context, bounds, color);
@@ -213,9 +212,10 @@ internal sealed class BoxHelper : EntityHelper
     }
 
     /// <summary>
-    /// Faces that show where the influence of the volume fades: on each side, the part where it is whole is
-    /// tinted, and the band around it fades out in steps towards the edge, with the outline of the whole part
-    /// drawn on it. The fade runs out from the sides of the box when it is past them, and in from them otherwise.
+    /// Faces that show where the influence of the volume fades. On each side, the inner part with full influence
+    /// is tinted and the band around it fades out in steps towards the edge. The outline of the inner part is
+    /// drawn over the band. The band runs out from the sides of the box when the fade is past them, and in from
+    /// them otherwise.
     /// </summary>
     private static void DrawFadingFaces(ToolRenderContext context, in AABB bounds, Vector3 edgeFade, bool fadesPastSides, Color32 color)
     {

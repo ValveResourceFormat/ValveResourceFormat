@@ -36,7 +36,7 @@ namespace GUI.Types.GLViewers
             graphPlayImage = AppIcons.ImageList.Images[AppIcons.Icons["AudioPlay"]];
             graphPauseImage = AppIcons.ImageList.Images[AppIcons.Icons["AudioPause"]];
 
-            // The rewind arrows, pointing forwards
+            // The rewind icon flipped to point forwards
             graphTickImage = AppIcons.ImageList.Images[AppIcons.Icons["AudioRewindLeft"]];
             graphTickImage.RotateFlip(RotateFlipType.RotateNoneFlipX);
 
@@ -207,8 +207,8 @@ namespace GUI.Types.GLViewers
             return (slider, [field]);
         }
 
-        // Starts the unset IDs that are always set at runtime, so a picked graph shows a standing character rather than
-        // nothing: an idle state or action, ground movement, and a direction
+        // Gives unset ID parameters a starting value, since the game always sets them at runtime.
+        // A picked graph then shows a standing character: an idle state or action, ground movement and a direction.
         private static void ApplyStartingParameters(AnimationGraph graph)
         {
             foreach (var paramName in graph.IdParameters.Keys.ToArray())
@@ -432,7 +432,7 @@ namespace GUI.Types.GLViewers
 
         private const float GraphEventLingerSeconds = 1.5f;
 
-        // Events of the last update, and those of earlier ones for a moment longer since most last a single update
+        // Events of the last update. Earlier events are kept for a moment longer, since most last a single update.
         private readonly List<(ValveResourceFormat.Animation.SampledEvent Event, long LastSeen)> recentGraphEvents = [];
         private AnimationGraph? recentGraphEventsGraph;
         private long recentGraphEventsTime;

@@ -17,8 +17,8 @@ namespace ValveResourceFormat.Renderer.Audio;
 /// ("global_opvar_name_01", "remap_vol_opvar_*", "remap_filter_freq_opvar_*", "filter_mix") ties into the
 /// game's live parameter system and isn't modeled either, matching every other event type here.
 /// Each layer is wrapped as an anonymous "hlvr_default_3d" child (see <see cref="SoundEventHLVRDefault"/>)
-/// rather than given its own sample-provider plumbing, reusing its distance falloff and looping (via the
-/// vsnd's own baked-in loop points) unchanged.
+/// instead of adding sample-provider plumbing to this class. The child supplies the distance falloff and
+/// the looping, which uses the loop points baked into the vsnd.
 /// </remarks>
 internal sealed class SoundEventHLVRAmbientMultiVsnd : SoundEvent
 {

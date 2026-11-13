@@ -559,8 +559,8 @@ partial class ModelExtract
             var boneScaleArray = scaleSet.GetFloatArray("m_flBoneScaleArray");
             var rootOffset = scaleSet.GetSubCollection("m_vRootOffset").ToVector3();
 
-            // A compiled bone scale is the authored one divided by its nearest scaled ancestor's within
-            // the same set, 1 with no such ancestor. Invert that walk to recover the authored value.
+            // A compiled bone scale is the authored scale divided by the scale of the nearest scaled
+            // ancestor in the same set, or 1 with no such ancestor. Invert that walk to recover the authored value.
             var compiledScaleByBone = new Dictionary<string, float>(boneArray.Length);
 
             for (var i = 0; i < boneArray.Length; i++)

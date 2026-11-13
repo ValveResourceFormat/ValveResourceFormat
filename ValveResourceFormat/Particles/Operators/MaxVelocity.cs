@@ -7,8 +7,8 @@ namespace ValveResourceFormat.Particles.Operators
     /// </summary>
     /// <remarks>
     /// Particles are handled in blocks of four. When a block holds a particle at rest and any particle
-    /// in it has a minimum, every particle in the block also has its Z step replaced by
-    /// <c>0.1 - x - y</c> of its own step.
+    /// in it has a minimum, every particle in the block also has the Z of its step replaced by
+    /// <c>0.1 - x - y</c>, using the X and Y of that step.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_MaxVelocity">C_OP_MaxVelocity</seealso>
     class MaxVelocity : ParticleFunctionOperator

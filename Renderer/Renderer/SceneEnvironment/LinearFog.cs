@@ -3,9 +3,9 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.SceneEnvironment;
 
 /// <summary>
-/// The fog an <c>env_fog_controller</c> sets: a color faded in with distance from a start to an end
-/// distance, up to a maximum density. Of what is drawn, only the sky reads it: a sky fogged by distance
-/// fades toward its color as far away as the far plane, and a sky fogged by angle fades toward its color.
+/// The fog an <c>env_fog_controller</c> sets: a color faded in with distance from Start to End,
+/// up to MaxDensity. Of everything drawn, only the sky reads it. A sky fogged by distance fades toward the
+/// fog color as far away as the far plane. A sky fogged by angle fades toward the fog color of the view direction.
 /// </summary>
 /// <param name="Color">The linear color the fog fades toward.</param>
 /// <param name="Start">The distance the fog starts at.</param>
@@ -39,7 +39,7 @@ public readonly record struct LinearFog(Vector3 Color, float Start, float End, f
         return Vector3.Lerp(SecondaryColor, Color, blend);
     }
 
-    /// <summary>Gets how much of what is a distance away the fog covers.</summary>
+    /// <summary>Gets how much the fog covers at a distance.</summary>
     /// <param name="distance">The distance from the viewer, which may be infinite.</param>
     /// <returns>The amount, from zero to one.</returns>
     public float GetAmount(float distance)

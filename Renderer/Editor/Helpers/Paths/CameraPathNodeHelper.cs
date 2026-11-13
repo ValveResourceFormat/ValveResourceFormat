@@ -7,8 +7,8 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// <summary>
 /// The view of a node of a camera path, a frustum along +X of the node from its <c>FOV</c>, <c>ZNear</c>,
 /// <c>ZFar</c>, <c>rendercolor</c> and <c>aspectRatio</c> keys, drawn while the node is all that is selected.
-/// A node with no field of view of its own has the one of the view, and the nodes of a path with
-/// <c>relative_fov</c> set add theirs to it.
+/// A node without a field of view uses the view field of view. With <c>relative_fov</c> set on the path, a node
+/// adds its field of view to it.
 /// </summary>
 internal sealed class CameraPathNodeHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {

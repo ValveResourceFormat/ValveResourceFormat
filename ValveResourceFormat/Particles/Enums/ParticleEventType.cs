@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.Particles
 {
     /// <summary>
-    /// Particle events a system can hand to its children, which emit from them.
+    /// Particle events a system can pass to its child systems. The children emit from them.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/EventTypeSelection_t">EventTypeSelection_t</seealso>
     [Flags]

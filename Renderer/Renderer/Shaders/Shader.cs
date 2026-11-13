@@ -152,7 +152,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         private bool? overridesBloomAmount;
 
-        /// <summary>The static combo that selects a material shader's depth only mode (1), its quad overdraw counting mode (2) or its bloom amount mode (3).</summary>
+        /// <summary>The static combo that selects the depth only mode (1), quad overdraw counting mode (2) or bloom amount mode (3) of a material shader.</summary>
         public const string DepthModeCombo = "S_MODE_DEPTH";
 
         /// <summary>The static combo of a material that sets the bloom amount of its pixels.</summary>
@@ -191,8 +191,8 @@ namespace ValveResourceFormat.Renderer.Shaders
             return variant;
         }
 
-        /// <summary>Sets a uniform on this shader and on every variant taken from it, which are separate
-        /// programs and so hold their own copy. Variants can be taken of variants, so the walk recurses.</summary>
+        /// <summary>Sets a uniform on this shader and on every variant taken from it.
+        /// Each variant is a separate program with its own copy. Variants can be taken of variants, so the walk recurses.</summary>
         public void SetUniform1AllVariants(string name, uint value)
         {
             SetUniform1(name, value);
@@ -410,10 +410,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         {
             Span<float> floatVal = stackalloc float[16];
 
-            // Stores uniform types and locations
             var uniforms = GetAllUniformNames();
 
-            // Stores uniform values
             foreach (var uniform in uniforms)
             {
                 var name = uniform.Name;
@@ -524,8 +522,8 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         /// <summary>Sets a packed global uniform in this shader's own constant buffer.</summary>
         /// <remarks>
-        /// For shaders drawn without a material. When a material is bound its own constant buffer is what the
-        /// draw reads, so set the value through <see cref="RenderMaterial.SetUniform(string, float)"/> instead.
+        /// For shaders drawn without a material. When a material is bound, the draw reads the constant buffer
+        /// of the material, so set the value through <see cref="RenderMaterial.SetUniform(string, float)"/> instead.
         /// </remarks>
         public void SetUniform(string name, float value) => Default.SetUniform(name, value);
 
@@ -760,7 +758,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-        /// <summary>Gets this shader built for what a mesh supplies, for passes that replace material shaders.</summary>
+        /// <summary>Gets this shader built for the given <see cref="MeshSkinning"/>, for passes that replace material shaders.</summary>
         public Shader WithSkinning(MeshSkinning skinning) => WithCombo("D_SKINNING", (byte)skinning);
 
         /// <summary>Sets an array of four-component float vector uniforms on this program.</summary>

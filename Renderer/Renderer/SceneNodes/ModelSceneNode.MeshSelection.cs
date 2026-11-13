@@ -46,13 +46,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Returns the choices of every body group of the model, which it holds as mesh groups, in the order of
-        /// those mesh groups.
+        /// Returns the choices of every body group of the model, in the order of the mesh groups that hold them.
         /// </summary>
         public IEnumerable<BodyGroupChoice> GetBodyGroupChoices()
             => meshGroups.Names.Select(BodyGroupChoice.Parse).OfType<BodyGroupChoice>();
 
-        /// <summary>Makes a choice the one drawn of its body group, in place of the others of that group.</summary>
+        /// <summary>Selects a choice for its body group, replacing the other choices of that group.</summary>
         /// <param name="choice">One of <see cref="GetBodyGroupChoices"/>.</param>
         public void SetBodyGroupChoice(BodyGroupChoice choice)
         {
@@ -118,7 +117,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
     }
 
-    /// <summary>A choice of a body group of a model, which the model holds as one of its mesh groups.</summary>
+    /// <summary>A choice of a body group, stored as a mesh group of the model.</summary>
     /// <param name="MeshGroup">The mesh group of the choice.</param>
     /// <param name="BodyGroup">The body group the choice is of.</param>
     /// <param name="Index">The number of the choice in its body group.</param>

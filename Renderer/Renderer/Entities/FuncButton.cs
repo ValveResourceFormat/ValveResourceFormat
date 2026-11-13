@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>func_button</c>. A brush that slides in along its <c>movedir</c> when pressed, fires its outputs, and
 /// either comes back out after <c>wait</c> seconds or stays in until pressed again. It can be pressed by
 /// use, touch, damage or input. Not simulated: <c>master</c>, as nothing here can be one, and the spark
-/// effect, of which only the sound plays.
+/// effect. Only its sound plays.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBaseButton">CBaseButton</seealso>
 public class FuncButton : BaseToggle

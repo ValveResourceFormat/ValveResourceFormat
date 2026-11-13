@@ -29,7 +29,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Taken from the clip itself, rather than derived from the frame rate that was derived from it.
+        /// Read from the clip, not recomputed from <see cref="AnimationBase.Fps"/>, which is derived from the clip duration.
         /// </remarks>
         public override float Duration => Clip.Duration;
 

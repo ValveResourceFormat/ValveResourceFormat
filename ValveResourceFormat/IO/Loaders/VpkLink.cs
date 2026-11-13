@@ -22,7 +22,7 @@ namespace ValveResourceFormat.IO
         /// Splits a link into the paths of the packages it goes through, and the path inside of the innermost one.
         /// </summary>
         /// <returns>
-        /// The package paths with the outermost first, which is empty when the link does not point inside of a package,
+        /// The package paths with the outermost first (empty when the link does not point inside of a package),
         /// and the path inside of the innermost package, or the whole path when there is no package.
         /// </returns>
         public static (List<string> PackagePaths, string InnerPath) Parse(string link)

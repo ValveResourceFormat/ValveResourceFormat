@@ -67,7 +67,6 @@ public class ControlsBoxPanel : Panel
 
         var titleBarButtonWidth = this.AdjustForDPI(TitleBarButtonWidth);
 
-        // Calculate the size of the title bar buttons
         titleBarButtonRects.Close = GetTitleBarRect();
         titleBarButtonRects.Close.X = titleBarButtonRects.Close.Width - titleBarButtonWidth;
         titleBarButtonRects.Close.Width = titleBarButtonWidth;

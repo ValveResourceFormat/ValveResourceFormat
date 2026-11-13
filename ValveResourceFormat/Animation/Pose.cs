@@ -118,7 +118,7 @@ namespace ValveResourceFormat.Animation
 
             var boneModelSpaceTransform = ParentSpaceTransforms[boneIdx];
 
-            // Accumulated from the root down, in the order the cached transforms are
+            // Accumulate the parent chain from the root down
             if (nextEntry > 0)
             {
                 var arrayIdx = nextEntry - 1;

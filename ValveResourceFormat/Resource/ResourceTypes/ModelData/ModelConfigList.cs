@@ -46,12 +46,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         }
 
         /// <summary>
-        /// Builds the model the way a config and the configs its picks lead to assemble it.
+        /// Evaluates a config and the configs its picks lead to.
         /// </summary>
         /// <param name="configName">The config to start from, usually <see cref="SpawnConfigName"/>.</param>
         /// <param name="state">
-        /// The <c>config_state</c> of the entity: the choice of each pick by the path of its element, and the
-        /// <c>_color</c> and <c>_matgrp</c> of attached models that leave those to the entity.
+        /// The <c>config_state</c> of the entity. It holds the choice of each pick under the
+        /// <see cref="ModelConfigElement.StateKey"/> of the pick, and the <c>_color</c> and <c>_matgrp</c> of
+        /// attached models that take them from the entity.
         /// </param>
         /// <param name="random">Picks the choice of a random pick the state does not settle.</param>
         /// <returns>The result, or <see langword="null"/> when the model has no config of that name.</returns>
@@ -69,7 +70,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
             evaluation.EvaluateElements(config.Elements, result, parentIndex: -1, depth: 1);
 
-            // Only known once every element ran, as a model can be attached before what applies to it
+            // Runs once every element is evaluated, as a parent can set values for its attached models after attaching them
             foreach (var model in result.AttachedModels)
             {
                 model.InheritFrom(model.ParentIndex >= 0 ? result.AttachedModels[model.ParentIndex] : result);
@@ -126,7 +127,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
                             result.AddAttachedModel(model);
 
-                            // What is nested in an attached model sets that model, not the one it is attached to
+                            // Elements nested in an attached model apply to that model, not to the model it is attached to
                             EvaluateElements(attached.NestedElements, model, result.AttachedModels.Count - 1, depth);
                             break;
                         }
@@ -212,7 +213,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
     }
 
     /// <summary>
-    /// What a model config does to the model it is evaluated for, or to the model it attaches.
+    /// A step of a model config that changes the model it is evaluated for or a model it attaches.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CModelConfigElement">CModelConfigElement</seealso>
     public abstract class ModelConfigElement
@@ -221,8 +222,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         public string Name { get; }
 
         /// <summary>
-        /// Gets the key the element is found by in the <c>config_state</c> of an entity: its name, or
-        /// <c>#</c> and its index when it has none, after the key of the element it is nested in and a dot.
+        /// Gets the key of the element in the <c>config_state</c> of an entity. It is the element name, or
+        /// <c>#</c> and the element index when the name is empty, after the key of the parent element and a dot.
         /// </summary>
         public string StateKey { get; }
 
@@ -479,7 +480,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
         internal void SetAttachedModelsBodyGroup(string name, int choice) => attachedModelsBodyGroups[name] = choice;
 
-        // What the config sets on the model itself wins over what its parent sets on all it attaches
+        // Values set on the model itself win over the values the parent sets for its attached models
         internal void InheritFrom(ModelConfigAppearance parent)
         {
             MaterialGroup ??= parent.AttachedModelsMaterialGroup;
@@ -491,7 +492,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         }
     }
 
-    /// <summary>What a model config makes of the model it is evaluated for.</summary>
+    /// <summary>The result of evaluating a model config for a model, with the models it attaches.</summary>
     public sealed class ModelConfigResult : ModelConfigAppearance
     {
         private readonly List<ModelConfigAttachedModelResult> attachedModels = [];

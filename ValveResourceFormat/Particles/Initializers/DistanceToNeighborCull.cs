@@ -3,7 +3,8 @@ namespace ValveResourceFormat.Particles.Initializers
     /// <summary>
     /// Culls a new particle when another live particle lies within a distance of it, measured between
     /// the radii when <c>m_bIncludeRadii</c> is set. With a modify field it instead writes a value to
-    /// that attribute by a set method, applied to its own value or to the neighbour's.
+    /// that attribute by a set method, applied to the value of the new particle or, with
+    /// <c>m_bUseNeighbor</c>, of the neighbour.
     /// </summary>
     /// <remarks>
     /// The newest particles are searched first, the other new particles of the emission included, and
@@ -41,7 +42,7 @@ namespace ValveResourceFormat.Particles.Initializers
             var neighbors = particles.Current;
 
             // The inputs are evaluated for every live particle, and each particle of the run reads its own value
-            // rather than the value of the particle as far into the collection as it is into the run.
+            // rather than the value of the collection particle at the same index.
             // The modify value is read even further off: the n-th particle to find a neighbour reads the value of particle n
             var ranges = distance.Fill(run, neighbors, particleSystemState);
             var overlaps = lifespanOverlap.Fill(run, neighbors, particleSystemState);

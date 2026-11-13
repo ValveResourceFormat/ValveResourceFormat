@@ -4,10 +4,10 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
-    /// Plays a sound event for each particle, up to sixteen at once, following the particle by id: the
-    /// sound moves with it and takes its volume from it, and stops when it dies or when the system goes
-    /// a frame without being drawn. Particles past the sixteenth wait for a sound to come free. Has no
-    /// visual output.
+    /// Plays a sound event for each particle, up to sixteen at once, following the particle by id.
+    /// The sound moves with the particle, takes its volume from the volume field, and stops when the
+    /// particle dies or when the system goes a frame without being drawn. Particles past the sixteenth
+    /// wait for a sound to come free. Has no visual output.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderSound">C_OP_RenderSound</seealso>
     internal class RenderSound : ParticleFunctionRenderer
@@ -58,8 +58,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Sounds are kept only by a step that follows a draw, so every step after the first of a frame
-        /// split into several lets them all go, and the next drawn frame starts them again.
+        /// Sounds are kept only by a step that follows a draw. Every step after the first of a frame
+        /// split into several steps lets all sounds go, and the next drawn frame starts them again.
         /// </remarks>
         public override void Simulate(ParticleCollection particles, ParticleSystemState systemState)
         {
@@ -133,7 +133,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
         }
 
-        /// <summary>The slot following a particle, else the first free one, claimed for it, else -1.</summary>
+        /// <summary>The slot already following the particle. Otherwise claims the first free slot for it, or returns -1 when none is free.</summary>
         private int FindSlot(int particleId)
         {
             var free = -1;

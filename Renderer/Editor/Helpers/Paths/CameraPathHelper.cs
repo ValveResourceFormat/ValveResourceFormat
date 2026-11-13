@@ -6,10 +6,10 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The camera a path moves, where it starts: at the first node, turned as that node is and seeing as far as its
-/// field of view, drawn as a frustum from the <c>ZNear</c>, <c>ZFar</c>, <c>rendercolor</c> and
-/// <c>aspectRatio</c> keys of the path, with an arrow along the path that keeps its size on the screen. It is
-/// drawn while the path or any of its nodes is selected, and only for a path the camera takes some time to run.
+/// The camera a path moves, shown at the first node. It is drawn as a frustum turned like that node, with the
+/// field of view of the node and the <c>ZNear</c>, <c>ZFar</c>, <c>rendercolor</c> and <c>aspectRatio</c> keys
+/// of the path, plus an arrow along the path that keeps its size on the screen. It is drawn while the path or
+/// any of its nodes is selected, and only for a path the camera takes some time to run.
 /// </summary>
 internal sealed class CameraPathHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
@@ -33,8 +33,7 @@ internal sealed class CameraPathHelper(IHelperOwner owner, HelperDeclaration dec
     private const float DefaultFarPlane = 100f;
     private const float DefaultAspectRatio = 1f;
 
-    // How long the arrow is on the screen, in pixels: the length of the axes of gizmos, which is a setting of the
-    // editor; this is its default
+    // Arrow length on the screen, in pixels. The gizmo axis length is an editor setting; this is its default
     private const float ArrowLength = 80f;
 
     private const float ArrowHeadLength = 0.25f;
@@ -87,14 +86,14 @@ internal sealed class CameraPathHelper(IHelperOwner owner, HelperDeclaration dec
         context.PopRenderMode();
     }
 
-    // The camera is only placed on a path it takes some time to run: as long as its duration at a constant speed,
-    // or as long as its length takes at the speeds of its nodes
+    // Whether the camera takes some time to run the path: a positive duration at constant speed, otherwise a
+    // positive length at the speeds of the nodes
     private bool TakesTime()
         => GetBooleanKey(ConstantSpeedKey, defaultValue: false)
             ? GetFloatKey(DurationKey) > 0f
             : PathSpline.Create(Owner) is { Length: > 0f };
 
-    // A node with no field of view of its own has the one of the view, unless the path adds them to it
+    // A node without a field of view uses ViewFov. With relative_fov set, the node field of view is added to ViewFov
     private float GetFov(IHelperOwner? firstNode)
     {
         var fov = firstNode?.KeyValues.GetFloatProperty(CameraFrustum.FovKey) ?? 0f;

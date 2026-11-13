@@ -5,15 +5,14 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer.Editor.ToolRender;
 
 /// <summary>
-/// The variants of the tools shader each set of mode flags is drawn with, and what each kind of handle is
-/// drawn with.
+/// Tools shader variants for each set of mode flags, and handle materials for each handle type.
 /// </summary>
 internal sealed class ToolShaders(RendererContext rendererContext)
 {
     private const string ShaderName = "tools_wireframe";
     private const string HandleShaderName = "tools_handle";
 
-    /// <summary>A handle material: the sprite shader, the shape it is cut out of, and how much of it is kept.</summary>
+    /// <summary>A handle material: the sprite shader, the texture the handle is cut out of, and the alpha test reference.</summary>
     public sealed record HandleMaterial(Shader Shader, RenderTexture Texture, float AlphaTestReference)
     {
         public void Use()
@@ -47,8 +46,8 @@ internal sealed class ToolShaders(RendererContext rendererContext)
         return shader;
     }
 
-    /// <summary>Gets what a kind of handle is drawn with.</summary>
-    /// <returns>Whether the handle is drawn at all, which a generic one is not.</returns>
+    /// <summary>Gets the material of a handle type.</summary>
+    /// <returns>Whether the handle has a material. A generic handle has none.</returns>
     public bool TryGetHandle(ToolHandleState state, [NotNullWhen(true)] out HandleMaterial? material)
     {
         var key = (state.Type, state.Border, state.Translucent);

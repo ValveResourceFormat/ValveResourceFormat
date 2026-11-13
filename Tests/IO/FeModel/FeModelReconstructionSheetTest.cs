@@ -966,8 +966,8 @@ namespace Tests.IO
         }.Reconstruct();
 
         /// <summary>
-        /// A fitless vertex keeps its recorded paint when its only simulated influence is a small weight on a bone with
-        /// its own fit matrix; without that fit matrix it stays deferred.
+        /// A fitless vertex keeps its recorded paint when the only simulated influence is a small weight on a bone that
+        /// has a fit matrix; without that fit matrix it stays deferred.
         /// </summary>
         [Test]
         public async Task AFitlessVertexKeepsASubThresholdWeightOnABoneTheOriginalFits()

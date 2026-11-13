@@ -140,9 +140,9 @@ namespace ValveResourceFormat.Particles.Initializers
         }
 
         /// <summary>
-        /// Writes a vector row. A position, previous position or normal moves into the local space
-        /// control point's frame, the latter two by its rotation alone, and so do box angles with
-        /// <c>m_bLocalSpaceAngles</c>. A previous position row is a velocity, turned into the position
+        /// Writes a vector row. With a local space control point, a position is transformed into the
+        /// frame of the control point, and a previous position or normal by the rotation alone. Box angles are transformed too
+        /// with <c>m_bLocalSpaceAngles</c>. A previous position row is a velocity, turned into the position
         /// one previous step back from the current one.
         /// </summary>
         private void WriteVectors(ParticleSpan run, ReadOnlySpan<int> rows, Vector3[] vectors, ParticleSystemState particleSystemState)

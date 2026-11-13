@@ -109,8 +109,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 UpdateSkinningActive(hasAnimation: false);
             }
 
-            // GetChildFrame already falls back to this node's own world Transform for an empty/
-            // unmatched name - AnimationController.Transform is not it (see its doc comment), so route through here.
+            // Route through GetChildFrame, which falls back to the world Transform of this node for an empty or unmatched name.
+            // AnimationController.Transform does not (see the doc comment of AnimationController.Transform).
             AnimationController.ResolvePosition = attachmentName => GetChildFrame(attachmentName).Translation;
             AnimationController.AnimationLookup = animationName => Animations.GetValueOrDefault(animationName);
         }
@@ -225,7 +225,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         // How far the lighting origin may leave the center of the model
         private const float MaxViewerLightingOriginOffset = 18f;
 
-        /// <summary>Gets or sets the closed pose of a door, which it is lit from on the camera side.</summary>
+        /// <summary>Gets or sets the closed pose of a door. The door is lit from the camera side of that pose.</summary>
         public (Vector3 Position, Vector3 Normal)? DoorLightingPose { get; set; }
 
         // The side only changes once the camera is past both the closed plane and a margin around the door as it stands
@@ -711,8 +711,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Plays an animation graph on this model, binding the skinning buffers the same way
-        /// <see cref="SetAnimation"/> does. Pass <see langword="null"/> to detach the graph.
+        /// Plays an animation graph on this model, updating the bounding box and the
+        /// skinning of the meshes. Pass <see langword="null"/> to detach the graph.
         /// </summary>
         /// <param name="graph">The animation graph to play, or <see langword="null"/> to detach.</param>
         public void SetAnimationGraph(IAnimationGraph? graph)

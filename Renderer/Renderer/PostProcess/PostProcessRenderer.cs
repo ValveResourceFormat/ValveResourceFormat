@@ -479,7 +479,6 @@ namespace ValveResourceFormat.Renderer.PostProcess
             ReportTonemapStats();
         }
 
-        /// <summary> Publishes tonemapping state to the render stats.</summary>
         private void ReportTonemapStats()
         {
             var settings = State.ExposureSettings;
@@ -502,7 +501,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
             }
 
             // A frame that advances no time, such as one drawn while paused, leaves the exposure and its
-            // history as they are, so how many of them were drawn does not change the result
+            // history unchanged, so the number of such frames does not change the result
             if (deltaTime <= 0f)
             {
                 return CurrentExposure;
@@ -541,7 +540,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
             }
 
             // Authored data contains locked (min == max) and even inverted ranges; an inverted range
-            // gives the minimum below it and the maximum above it
+            // gives the minimum for a value below the minimum and the maximum for any other value
             var clampedScalar = averagedScalar < settings.ExposureMin
                 ? settings.ExposureMin
                 : MathF.Min(settings.ExposureMax, averagedScalar);

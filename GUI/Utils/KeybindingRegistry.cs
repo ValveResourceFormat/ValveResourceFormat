@@ -7,14 +7,8 @@ using GUI.Types.PackageViewer;
 
 namespace GUI.Utils
 {
-    /// <summary>
-    /// Represents a single keybinding with its key combination and description.
-    /// </summary>
     public readonly record struct KeybindingInfo(string KeyCombination, string Description);
 
-    /// <summary>
-    /// Enum representing different viewer types in the application.
-    /// </summary>
     public enum ViewerType
     {
         Default,
@@ -29,9 +23,6 @@ namespace GUI.Utils
         PackageEditor,
     }
 
-    /// <summary>
-    /// Registry that maps viewer types to their relevant keybindings.
-    /// </summary>
     public static class KeybindingRegistry
     {
         private static readonly List<KeybindingInfo> AppKeybindings =

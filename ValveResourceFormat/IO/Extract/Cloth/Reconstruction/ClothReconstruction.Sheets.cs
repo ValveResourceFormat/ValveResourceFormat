@@ -573,8 +573,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets the source faces of the covered sheets that reach a node outside the solve elements, which make up the
-        /// sheets' rod region, and adds their corners to <paramref name="referenced"/>.
+        /// Gets the source faces of the covered sheets that reach a node outside the solve elements. These faces make up
+        /// the rod region of the sheets. Adds their corners to <paramref name="referenced"/>.
         /// </summary>
         private List<int[]> AddRodRegionFaces(SortedSet<int> referenced, HashSet<int> surfaceNodes, HashSet<int> surfaceMeshes)
         {

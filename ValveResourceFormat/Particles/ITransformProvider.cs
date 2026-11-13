@@ -180,9 +180,9 @@ namespace ValveResourceFormat.Particles
     }
 
     /// <summary>
-    /// PT_TYPE_NAMED_VALUE. The system's transform named value, as it stands now when following it and
-    /// as the system started with otherwise, blended from the previous step's value within a step.
-    /// The identity when the system has none.
+    /// PT_TYPE_NAMED_VALUE. The system's transform named value: the current value when following,
+    /// otherwise the value the system started with. Within a step it is blended from the previous
+    /// step's value. The identity when the system has none.
     /// </summary>
     readonly struct NamedValueTransformProvider : ITransformProvider
     {

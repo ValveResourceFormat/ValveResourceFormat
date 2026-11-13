@@ -124,7 +124,7 @@ namespace ValveResourceFormat.Particles.Initializers
             var speedMins = speedMin.Fill(run, particleSystemState);
             var speedMaxs = speedMax.Fill(run, particleSystemState);
             // The block run evaluates the vector inputs for every live particle, and each particle of the run reads its own value
-            // rather than the value of the particle as far into the collection as it is into the run
+            // rather than the value of the collection particle at the same index
             var evaluated = blockRun ? particles.Current : run;
             var biases = distanceBias.Prepare(run, evaluated, particleSystemState);
             var localSpeedMins = localCoordinateSystemSpeedMin.Prepare(run, evaluated, particleSystemState);

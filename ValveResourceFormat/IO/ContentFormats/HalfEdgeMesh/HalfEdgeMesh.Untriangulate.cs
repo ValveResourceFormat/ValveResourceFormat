@@ -108,7 +108,7 @@ partial class HalfEdgeMesh
         var normalA = TriangleNormal(v2, v4, v1);
         var normalB = TriangleNormal(v4, v2, v3);
 
-        // written this way so nan normals from degenerate triangles also delimit
+        // written this way so nan normals from degenerate triangles are rejected
         if (!(Vector3.Dot(normalA, normalB) >= angleFaceCos))
         {
             return false;

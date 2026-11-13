@@ -53,7 +53,7 @@ namespace ValveResourceFormat.Renderer
 
         private int[] activeLodLevels = [];
 
-        /// <summary>Gets or sets where this aggregate's setups start in the scene's active LOD level bits.</summary>
+        /// <summary>Gets or sets the offset of this aggregate's first setup in the scene's active LOD level bits.</summary>
         public int LodSetupBase { get; set; }
 
         /// <summary>
@@ -141,7 +141,7 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Parses fragment data from the scene object and adds each fragment to the scene.</summary>
         /// <param name="aggregateSceneObject">KV3 object describing the aggregate's fragment list.</param>
-        /// <param name="rootTransform">Where the world node this aggregate belongs to is placed.</param>
+        /// <param name="rootTransform">Transform of the world node this aggregate belongs to.</param>
         /// <param name="worldNode">The world node this aggregate belongs to, which holds precomputed fragment visibility.</param>
         public void LoadFragments(KVObject aggregateSceneObject, Matrix4x4 rootTransform, WorldNode? worldNode = null)
         {

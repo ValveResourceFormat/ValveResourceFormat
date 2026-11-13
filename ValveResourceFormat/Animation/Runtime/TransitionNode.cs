@@ -20,8 +20,8 @@ namespace ValveResourceFormat.Animation
         {
             ClampDuration,
 
-            Synchronized, // The time control mode: either sync, match or none
-            MatchSourceTime, // The time control mode: either sync, match or none
+            Synchronized, // Sync time control mode, none when neither mode is set
+            MatchSourceTime, // Match time control mode
 
             MatchSyncEventIndex, // Only checked if MatchSourceTime is set
             MatchSyncEventID, // Only checked if MatchSourceTime is set
@@ -60,7 +60,7 @@ namespace ValveResourceFormat.Animation
         float[] startBoneMaskWeights = [];
         int cachedPoseBufferID = -1;
 
-        // Scratch layer context for the target state (Esoterica swaps context.m_pLayerContext)
+        // Scratch layer context for the target state
         readonly LayerContext targetLayerContext = new();
 
         public override SyncTrack SyncTrack => blendedSyncTrack ?? TargetStateNode?.SyncTrack ?? SyncTrack.Default;
@@ -188,18 +188,15 @@ namespace ValveResourceFormat.Animation
 
         protected override void ShutdownInternal(GraphContext ctx)
         {
-            // Release cached pose buffers
             if (cachedPoseBufferID != -1)
             {
                 ctx.DestroyCachedPose(cachedPoseBufferID);
                 cachedPoseBufferID = -1;
             }
 
-            // Clear transition flags from target
             TargetStateNode.SetTransitioningState(StateNode.TransitionState.None);
             CurrentTime = 1f;
 
-            // Shutdown source node
             if (SourceNode != null)
             {
                 if (IsSourceTransition)
@@ -244,7 +241,6 @@ namespace ValveResourceFormat.Animation
             // Calculate the new layer weights based on the transition progress
             UpdateLayerContext(sourceLayerContext, targetLayerContext);
 
-            // Restore original context
             ctx.LayerContext = sourceLayerContext;
         }
 
@@ -281,9 +277,9 @@ namespace ValveResourceFormat.Animation
         }
 
         /// <summary>
-        /// Called before a new (forced) transition starts so this in-flight transition can switch to a
-        /// cached-pose source if its source is about to become the new target state, or start caching
-        /// its pose if a forceable transition back to its source may follow.
+        /// Called before a new (forced) transition starts. This in-flight transition switches to a
+        /// cached-pose source if the source state is about to become the new target state, or starts caching
+        /// the source pose if a forceable transition back to the source state may follow.
         /// </summary>
         public void NotifyNewTransitionStarting(GraphContext ctx, StateNode targetStateNode, List<StateNode> forceableFutureTargetStatesUsingCachedPoses)
         {
@@ -300,7 +296,6 @@ namespace ValveResourceFormat.Animation
                     // We also need to explicitly shutdown the source transition target state as by default we dont shutdown target states when shutting down a transition
                     sourceTransitionTargetState.Shutdown(ctx);
 
-                    // Shutdown the source transition
                     sourceTransitionNode.Shutdown(ctx);
                     SourceNode = null;
                 }
@@ -402,7 +397,6 @@ namespace ValveResourceFormat.Animation
 
             var sourceLayerContext = BeginTargetLayerContext(ctx);
 
-            // Cache source node pose
             if (cachedPoseBufferID != -1 && sourceNodeResult.Pose != null)
             {
                 sourceNodeResult.Pose.CopyTo(ctx.GetCachedPoseBuffer(cachedPoseBufferID), 0);
@@ -428,7 +422,6 @@ namespace ValveResourceFormat.Animation
                         EndSourceTransition(ctx);
                     }
 
-                    // Shutdown the source node
                     SourceNode!.Shutdown(ctx);
                     SourceNode = null;
                 }
@@ -446,12 +439,10 @@ namespace ValveResourceFormat.Animation
                 var sourceSyncTrack = SourceNode!.SyncTrack;
                 sourceSyncTrackForBlend = sourceSyncTrack;
 
-                // Calculate the source update sync range
                 var sourceUpdateRange = new SyncTrackTimeRange(
                     sourceSyncTrack.GetTime(SourceNode.PreviousTime),
                     sourceSyncTrack.GetTime(SourceNode.CurrentTime));
 
-                // Calculate transition duration
                 if (GetOption(TransitionOptions_t.ClampDuration))
                 {
                     // Calculate the delta between the current position and the real end of the source
@@ -685,7 +676,6 @@ namespace ValveResourceFormat.Animation
             }
             else if (!IsSourceACachedPoseOrOffState && IsSynchronized && blendedSyncTrack != null)
             {
-                // Calculate the update range for this frame on the blended sync track
                 var percentageTimeDelta = BlendedDuration > 0f ? ctx.DeltaTime / BlendedDuration : 0f;
                 var toTime = CurrentTime + percentageTimeDelta;
                 syncedRange = new SyncTrackTimeRange(blendedSyncTrack.GetTime(CurrentTime), blendedSyncTrack.GetTime(toTime));
@@ -713,7 +703,6 @@ namespace ValveResourceFormat.Animation
 
             TransitionProgress = MathUtils.Saturate(TransitionProgress);
 
-            // Calculate blend weight with easing
             CalculateBlendWeight();
 
             // Update the source state
@@ -743,7 +732,6 @@ namespace ValveResourceFormat.Animation
             {
                 Debug.Assert(SourceNode != null);
 
-                // Set branch state to inactive for source
                 var previousBranchState = ctx.BranchState;
                 ctx.BranchState = BranchState.Inactive;
 
@@ -770,7 +758,6 @@ namespace ValveResourceFormat.Animation
 
                 ctx.BranchState = previousBranchState;
 
-                // Cache source node pose
                 if (cachedPoseBufferID != -1 && sourceNodeResult.Pose != null)
                 {
                     sourceNodeResult.Pose.CopyTo(ctx.GetCachedPoseBuffer(cachedPoseBufferID), 0);
@@ -791,7 +778,7 @@ namespace ValveResourceFormat.Animation
 
             if (IsSourceAnOffState)
             {
-                // No source pose to blend: the result is the target's (C++ keeps the target task only)
+                // No source pose to blend: the result is the target's
                 result.Pose = targetNodeResult.Pose;
                 result.RootMotionDelta = targetNodeResult.RootMotionDelta;
                 result.NoPose = targetNodeResult.NoPose;
@@ -859,8 +846,8 @@ namespace ValveResourceFormat.Animation
             var sourceTransition = GetSourceTransitionNode();
             var sourceTransitionTargetState = sourceTransition.TargetStateNode;
 
-            // Shut down the completed source transition (this also releases its cached pose buffer
-            // and clears its own source chain), then take over its target state as our source.
+            // Shut down the completed source transition. That releases its cached pose buffer and
+            // clears its source chain. The target state of that transition then becomes the source.
             sourceTransition.Shutdown(ctx);
             SourceNode = sourceTransitionTargetState;
             Type = SourceType.State;

@@ -141,7 +141,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
-    // Attack sounds. In the game these come from weapons.vdata (m_aShootSounds).
+    // Attack sound events, the m_aShootSounds of each item
     private const string RifleAttackSound = "Weapon_M4A1.Silenced";      // weapon_m4a1_silencer
     private const string PistolAttackSound = "Weapon_USP.SilencedShot";  // weapon_usp_silencer
     private const float AttackSoundVolume = 0.5f;
@@ -155,8 +155,9 @@ public class ViewmodelSceneNode : ModelSceneNode
     // Both knife buttons share one timer, which a swing that connects pushes back further
     private const float KnifeHitDelay = 0.1f;
 
-    // A missed line trace is retried with swept spheres shrinking from 14 to 2 units, each ending that much
-    // short, keeping the smallest that still connects. We are currently missing sphere traces, so cubes stand in.
+    // A missed line trace is retried with swept spheres whose radius shrinks from 14 to 2 units.
+    // Each sweep ends one radius short of the line trace, and the smallest that still connects is kept.
+    // We are currently missing sphere traces, so cubes stand in.
     private const float KnifeSweepMaxRadius = 14f;
     private const float KnifeSweepRadiusStep = 3f;
 
@@ -274,7 +275,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
     private const float BulletRange = 8192f;
 
-    // m_szTracerParticle from weapons.vdata
+    // Tracer particle of each item, m_szTracerParticle
     private const string RifleTracer = "particles/weapons/cs_weapon_fx/weapon_tracers_assrifle.vpcf";
     private const string PistolTracer = "particles/weapons/cs_weapon_fx/weapon_tracers_pistol.vpcf";
 
@@ -400,7 +401,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     // Both silenced weapons are held with the silencer on, which is their second mode
     private const int SilencerOnMode = 1;
 
-    // m_nRecoilSeed, m_bIsFullAuto and the m_flRecoil* keys from weapons.vdata
+    // Recoil pattern of each item: m_nRecoilSeed, m_bIsFullAuto and the m_flRecoil* keys
     private static readonly RecoilPattern RifleRecoil = new(38965, fullAuto: true, angle: [0f, 0f], angleVariance: [65f, 65f], magnitude: [25f, 21f], magnitudeVariance: [3f, 0f]);
 
     private static readonly RecoilPattern PistolRecoil = new(5426, fullAuto: false, angle: [0f, 0f], angleVariance: [0f, 0f], magnitude: [29f, 23f], magnitudeVariance: [0f, 0f]);
@@ -426,8 +427,8 @@ public class ViewmodelSceneNode : ModelSceneNode
         lastShotTime = uptime;
     }
 
-    // Once a tick past the cycle time since the last shot, the recoil index falls to a hundredth of itself
-    // per second
+    // The recoil index falls to a hundredth of its value per second, starting one tick after the
+    // cycle time since the last shot has passed
     private void DecayRecoilIndex(float time, float dt)
     {
         var (cycleTime, _) = GetWeaponFireDelays();
@@ -447,7 +448,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
     /// <summary>
     /// Gets the running speed the equipped item allows, in world units per second.
-    /// These are <c>max_player_speed</c> from the CS weapon scripts: heavier guns slow the player down.
+    /// These are <c>max_player_speed</c> of each item: heavier guns slow the player down.
     /// </summary>
     public float WeaponMaxSpeed
         => SelectedItemIndex switch
@@ -459,8 +460,8 @@ public class ViewmodelSceneNode : ModelSceneNode
         };
 
     /// <summary>
-    /// Gets how long after this item is drawn before it can be used, <c>m_flDeployDuration</c> in
-    /// weapons.vdata. A second for everything here bar the rifle.
+    /// Gets how long after this item is drawn before it can be used, <c>m_flDeployDuration</c>.
+    /// A second for everything here bar the rifle.
     /// </summary>
     public float DeployDuration
         => SelectedItemIndex switch
@@ -499,7 +500,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     private const string ViewmodelAnimPath = "animation/anims/viewmodel/";
     private const string MuzzleFlashAttachment = "muzzle_flash2";
 
-    /// <summary>The world the weapons this viewmodel holds spawn their effects into.</summary>
+    /// <summary>The entity system that the weapons of this viewmodel spawn effects into.</summary>
     private readonly EntitySystem entitySystem;
 
     internal ViewmodelSceneNode(Scene scene, EntitySystem entitySystem, Model model)
@@ -655,7 +656,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// Try to load the CS2 viewmodel, returning null if the necessary resources are not found.
     /// </summary>
     /// <param name="scene">The scene the viewmodel is drawn in.</param>
-    /// <param name="entitySystem">The world its weapons spawn effects into.</param>
+    /// <param name="entitySystem">The entity system that the weapons spawn effects into.</param>
     /// <returns>The loaded viewmodel, or <see langword="null"/> when its resources are missing.</returns>
     public static ViewmodelSceneNode? TryLoadCs2Viewmodel(Scene scene, EntitySystem entitySystem)
     {
@@ -707,7 +708,6 @@ public class ViewmodelSceneNode : ModelSceneNode
         viewmodel.Flags |= ObjectTypeFlags.DisableVisCulling | ObjectTypeFlags.NoShadows;
         viewmodel.RenderPasses |= CustomRenderPasses.Viewmodel;
 
-        // Load muzzle flash particle
         var muzzleFlashResource = loader.LoadFileCompiled("particles/unified_weapon_fx/uweapon_muzflsh_riffle_fps.vpcf");
         if (muzzleFlashResource?.DataBlock is ParticleSystem particleSystem)
         {
@@ -718,7 +718,7 @@ public class ViewmodelSceneNode : ModelSceneNode
                 Parent = viewmodel,
             };
 
-            // Added to, not assigned over: the node's passes are the ones its particle renderers draw in.
+            // Added to, not assigned over: the particle renderers of the node draw in the passes it already has.
             viewmodel.muzzleFlashParticle.RenderPasses |= CustomRenderPasses.Viewmodel;
 
             scene.Add(viewmodel.muzzleFlashParticle, true);
@@ -778,7 +778,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         AimPunchServices.Update(dt);
 
-        // Ends the frame it runs out below zero, by how long ago that was
+        // A cooldown that runs out goes below zero by the time that has passed since it ran out
         attackCooldown = attackCooldown > 0f ? attackCooldown - dt : 0f;
         alternateAttackCooldown = MathF.Max(0f, alternateAttackCooldown - dt);
 
@@ -939,9 +939,9 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         var forward = Vector3.Normalize(punchedForward);
 
-        // This is the +Y (left) axis rather than right, which is why the rows below come out cyclically
-        // permuted; viewmodelOffsetRot is tuned against that frame, so leave it be. Taken from the camera
-        // rather than as Cross(worldUp, forward), which is the same vector but collapses looking straight down.
+        // The variable named right holds the +Y (left) axis, which is why the rows below come out cyclically
+        // permuted. viewmodelOffsetRot is tuned against that frame, so leave it be. The axis comes from the camera
+        // rather than from Cross(worldUp, forward), which is the same vector but collapses looking straight down.
         var right = -punchedRight;
         var up = Vector3.Cross(forward, right);
 
@@ -1048,7 +1048,6 @@ public class ViewmodelSceneNode : ModelSceneNode
             Legs.AnimationController.EnableFirstPersonLegs = FirstPersonMode;
             Legs.Transform = PlayerTransform;
 
-            // Enable firstperson legs distortion shader effect
             var distortionValue = FirstPersonMode ? 1 : 0;
             foreach (var material in legsMaterials)
             {
@@ -1147,8 +1146,8 @@ public class ViewmodelSceneNode : ModelSceneNode
         /// </summary>
         public float SwayScale { get; set; } = 0.32f;
 
-        // Past view yaws, newest last. The window only needs one entry per frame, so this reaches
-        // back well past the sway window even at very high framerates; older entries fall off.
+        // Past view yaws, newest last, one entry per frame. Even at very high framerates this reaches
+        // back well past the sway window. Older entries fall off.
         private readonly (float Time, float Yaw)[] history = new (float, float)[512];
         private int newest = -1;
         private int count;
@@ -1168,7 +1167,7 @@ public class ViewmodelSceneNode : ModelSceneNode
                 return Vector3.Zero;
             }
 
-            // Unturned forward minus the forward for the yaw turned through over the window.
+            // The forward vector minus the forward vector turned by deltaYaw, the yaw turned through over the window.
             // Standing still leaves this at zero.
             var deltaYaw = MathF.IEEERemainder(yaw - Sample(currentTime - SwayInterp), MathF.Tau);
             var (yawSin, yawCos) = MathF.SinCos(deltaYaw);

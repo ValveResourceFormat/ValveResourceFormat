@@ -366,12 +366,12 @@ public sealed partial class VMixGraphExtract
 
         result.Add("m_EditorNodes", editorNodes);
         result.Add("m_EditorEdges", edges);
-        // Graphs compiled by vmixtool kept its view of them
+        // Graphs compiled by vmixtool keep the editor state saved in them
         result.Add("m_EditorState", graph.Source.TryGetValue("m_EditorState", out var editorState) ? editorState : EditorState(graph.Format));
 
         if (graph.Format == MixGraphFormat.EditorCompiled)
         {
-            // vmixtool compiled these graphs itself and saved the result beside the nodes, which is what the resource compiler reads
+            // vmixtool saved its own compiled result beside the nodes. The resource compiler reads that result
             foreach (var (key, value) in graph.Source)
             {
                 if (!result.ContainsKey(key))

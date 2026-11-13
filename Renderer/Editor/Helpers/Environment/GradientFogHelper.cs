@@ -5,21 +5,21 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The distance and height fog of an <c>env_gradient_fog</c>, which the map has while the entity is the
+/// The distance and height fog of an <c>env_gradient_fog</c>. The map has this fog while the entity is the
 /// <c>gradient_fog</c> global.
 /// </summary>
 internal sealed class GradientFogHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <summary>
-    /// Gets whether the fog is only there while the entity names a gradient fog texture, as the block the
-    /// helper is declared with can ask.
+    /// Gets whether the declaration metadata requires the entity to name a gradient fog texture
+    /// for the fog to apply.
     /// </summary>
     private bool IsTextureRequired => GetMetadataFlag("textureRequired");
 
     /// <summary>Gets the gradient fog texture the entity names, or <see langword="null"/> when it names none.</summary>
     private string? TextureName => GetStringKey("gradientfogtexture") is { Length: > 0 } name ? name : null;
 
-    /// <summary>Makes this fog the one the scene of the entity is drawn with, unless it lacks the texture it requires.</summary>
+    /// <summary>Sets this fog as the gradient fog of the entity scene, unless the required texture is missing.</summary>
     public void Apply()
     {
         if (IsTextureRequired && TextureName == null)
@@ -41,7 +41,7 @@ internal sealed class GradientFogHelper(IHelperOwner owner, HelperDeclaration de
         // The fog color defaults to white where the entity has none
         var color = ValueParsing.TryParseColor(GetStringKey("fogcolor"), out var fogColor) ? fogColor : Color32.White;
 
-        // Without height fog the fog has no height range, and its height does not thin it
+        // Without height fog the height range and the vertical exponent are zero
         return new SceneGradientFog(Owner.Scene)
         {
             StartDist = GetFloatKey("fogstart"),

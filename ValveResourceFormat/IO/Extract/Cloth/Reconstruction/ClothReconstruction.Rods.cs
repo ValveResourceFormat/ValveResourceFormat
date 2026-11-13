@@ -5,8 +5,8 @@ using static ValveResourceFormat.IO.FeModelIndex;
 namespace ValveResourceFormat.IO
 {
     /// <summary>
-    /// A recovered <c>ClothSelfCollisionCluster</c>: its member nodes, the length band of its pairwise rods, and each
-    /// member's stiffness, whose product over a pair is that pair's relaxation.
+    /// A recovered <c>ClothSelfCollisionCluster</c>: the member nodes, the length band of the pairwise rods, and a
+    /// stiffness per member. The product of two stiffnesses is the relaxation of that pair.
     /// </summary>
     internal readonly record struct SelfCollisionCluster(int[] Nodes, float MinDist, float MaxDist, float[] Stiffness);
 
@@ -361,8 +361,8 @@ namespace ValveResourceFormat.IO
         internal bool HasSurfaceFolds => hasSurfaceFolds ??= Index.Rods.Any(rod => IsSurfaceFanRod(rod, banded: true));
 
         /// <summary>
-        /// Gets whether <paramref name="rod"/> is a banded rod the compiler folded across a face edge on its own: it carries
-        /// its endpoints' final inverse-mass ratio as its weight, which no declaration does.
+        /// Gets whether <paramref name="rod"/> is a banded rod the compiler folded across a face edge without a declaration:
+        /// the weight is the final inverse-mass ratio of the endpoints, which no declaration sets.
         /// </summary>
         internal bool IsSurfaceFold(Rod rod) => IsSurfaceFanRod(rod, banded: true);
 
@@ -380,8 +380,8 @@ namespace ValveResourceFormat.IO
             .Select(static group => group.Key)];
 
         /// <summary>
-        /// Gets whether <paramref name="rod"/> lies on a surface fold pair and carries its endpoints' final inverse-mass
-        /// ratio as its weight. With <paramref name="banded"/>, the rod must also be banded.
+        /// Gets whether <paramref name="rod"/> lies on a surface fold pair and has the final inverse-mass
+        /// ratio of the endpoints as weight. With <paramref name="banded"/>, the rod must also be banded.
         /// </summary>
         private bool IsSurfaceFanRod(Rod rod, bool banded)
         {
@@ -436,7 +436,7 @@ namespace ValveResourceFormat.IO
             return sum > 0f && MathF.Abs(Fe.NodeInvMasses[rod.NodeA] / sum - 0.5f) > SurfaceFanWeightTolerance;
         }
 
-        /// <summary>Gets the node pairs a recovered cluster puts one of its own rods on.</summary>
+        /// <summary>Gets the node pairs that carry a rod of a recovered cluster.</summary>
         private IReadOnlySet<(int, int)> SelfCollisionClusterPairs
         {
             get

@@ -26,8 +26,8 @@ namespace ValveResourceFormat.Particles.Initializers
             // Modern schema names it m_fMaxDistance; older content uses m_flMaxDistance.
             maxDistance = parse.NumberProvider("m_fMaxDistance", parse.NumberProvider("m_flMaxDistance", maxDistance));
 
-            // The field defaults to a varying uniform draw over [0, 1), one per block of four particles, so a block that
-            // omits its type is one too.
+            // m_fT defaults to a varying uniform draw over [0, 1), one per block of four particles.
+            // A block that omits m_nType is that draw too.
             var block = parse.Data.ContainsKey("m_fT") ? parse.Data.GetSubCollection("m_fT") : KVObject.ListCollection();
 
             pathParameter = block.IsCollection && !block.ContainsKey("m_nType")
@@ -41,8 +41,8 @@ namespace ValveResourceFormat.Particles.Initializers
 
         protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            // The inputs are evaluated for every live particle, and each particle of the run reads its own value
-            // rather than the value of the particle as far into the collection as it is into the run
+            // The inputs are evaluated for every live particle, and each particle of the run reads its own value,
+            // not the value at the same offset from the start of the collection
             var distances = maxDistance.Fill(run, particles.Current, particleSystemState);
             var pathParameters = pathParameter.Fill(run, particles.Current, particleSystemState);
 

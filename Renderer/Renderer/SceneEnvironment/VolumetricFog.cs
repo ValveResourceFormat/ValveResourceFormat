@@ -31,7 +31,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         private const int MaxLights = 64;
         private const int MaxBarnLights = 64;
 
-        // Cost units of lights the 8 bit fog takes: a light costs one, and a light the fog shadows costs one per cube face
+        // Light budget of the 8 bit fog in cost units. A light costs one, and a light the fog shadows costs one per cube face
         private const int LightBudget = 32;
 
         /// <summary>Size in texels of the tile a fog light shadow map is rendered into.</summary>
@@ -60,8 +60,8 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         // Scale of the controller's strength to the fog's extinction per unit of distance
         private const float ScatteringScale = 0.0022f;
 
-        // The slices of controllers that set a first slice thickness follow an exponential distribution, with this
-        // many slices when the controller gives no count, and a limit on the count and the thickness
+        // Controllers that set a first slice thickness space their slices exponentially.
+        // Default slice count, limits of the count and limits of the thickness
         private const int WarpedGridDepth = 128;
         private const int MinWarpedGridDepth = 32;
         private const int MaxWarpedGridDepth = 384;
@@ -70,7 +70,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         private const float DefaultWarp = 7f;
         private const float MaxWarp = 256f;
 
-        // Lowest density of fog that no volume covers, for fog the engine keeps in floats and does not space exponentially
+        // Lowest density where no volume covers, for controllers with float light storage and no first slice thickness
         private const float MinDensity = 0.001f;
 
         /// <summary>The falloff shape of a volume that fades from its top and sides.</summary>
@@ -176,10 +176,10 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         private RenderTexture? volume;
         private Shader? shader;
 
-        // Anisotropy is left out. Nothing in the game's fog shaders reads it
         private int staticLightCount;
         private bool lightStorageIs8Bit = true;
         private bool fogShadowNeedsCastShadows;
+
         private float scattering;
         private float drawDistance = 600f;
         private float fadeInStart = 20f;
@@ -287,6 +287,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         {
             HasController = true;
 
+            // The anisotropy key is not read, the fog shaders have no phase term
             scattering = entity.GetFloatProperty("fogstrength", 1f) * ScatteringScale;
             drawDistance = entity.GetFloatProperty("drawdistance", 600f);
             fadeInStart = entity.GetFloatProperty("fadeinstart", 20f);
@@ -503,7 +504,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
                 var size = fogVolume.Maxs - fogVolume.Mins;
                 var scale = Vector3.One / size;
 
-                // The volume to world transform without its rotation is a move to the origin of the entity
+                // Without rotation, the world to volume transform is a translation by the negated origin of the entity
                 var worldToLocal = Matrix4x4.CreateTranslation(-fogVolume.LocalToWorld.Translation);
 
                 if (fogVolume.FollowsRotation && Matrix4x4.Invert(fogVolume.LocalToWorld, out var inverse))
@@ -920,12 +921,11 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             }
         }
 
-        // Gives the lights the fog shadows a slot each in the order the lights are ranked in, and queues the shadow
+        // Gives each light the fog shadows a slot, in the order the lights are ranked, and queues the shadow
         // maps that are not in the atlas yet. A spot light has one map, a point light one per cube face that reaches
-        // into the fog. A map stays in its tile while its light is in use, and the lights that were not picked for a
-        // while give up their tiles to new ones, so a light that does not fit is left unshadowed.
-        // The casters are static geometry, so a map that was rendered stays valid. Dynamic casters would not be
-        // reflected in it.
+        // into the fog. A map stays in its tile while its light is in use. Lights that were not picked for a
+        // while give up their tiles to new maps, and a light that gets no tile is left unshadowed.
+        // The casters are static geometry, so a rendered map stays valid. Dynamic casters would not show in it.
         private void AssignShadowFaces()
         {
             var candidateCount = Math.Min(lightCandidates.Count, MaxLights);
@@ -1016,7 +1016,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             }
         }
 
-        // Writes the slot of the shader's buffer that is next, and queues the map to render into its tile
+        // Writes the next slot of the shader's buffer, and queues the map to render into the tile
         private void AddShadowFace(Vector3 eye, Matrix4x4 worldToFrustum, int tile, bool render)
         {
             var region = new ShadowAtlasRegion(tile % ShadowAtlasTiles * ShadowTileSize, tile / ShadowAtlasTiles * ShadowTileSize, ShadowTileSize, ShadowTileSize);
@@ -1148,8 +1148,8 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             return new AABB(min, max);
         }
 
-        // Barn, rect and omni2 lights light the fog through the faces the scene binned for its own shading, in the
-        // order it ranks them, so a light that is not on screen does not light the fog
+        // Barn, rect and omni2 lights light the fog through the faces the scene binned for shading, in the order the
+        // scene ranks them. A light that is not on screen does not light the fog
         private int StoreBarnLights(Scene scene, Vector3 cameraPosition)
         {
             var faces = scene.LightingInfo.BinnedBarnLightFaces;

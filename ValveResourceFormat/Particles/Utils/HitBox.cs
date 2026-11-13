@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Particles.Utils
     /// <param name="Volume">The box's volume when the cache was asked to weigh boxes by volume, 1 otherwise.</param>
     internal readonly record struct HitBox(Vector3 Mins, Vector3 Maxs, Quaternion Orientation, Vector3 Position, float Scale, float Volume)
     {
-        /// <summary>Carries a point from the box's space into the world.</summary>
+        /// <summary>Transforms a point from the box's space into the world.</summary>
         public Vector3 TransformPoint(Vector3 local) => (Vector3.Transform(local, Orientation) * Scale) + Position;
 
         /// <summary>
@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Particles.Utils
             return (new Vector3(0.5f) - half, new Vector3(0.5f) + half);
         }
 
-        /// <summary>Carries a world point into the box's space.</summary>
+        /// <summary>Transforms a world point into the box's space.</summary>
         public Vector3 InverseTransformPoint(Vector3 world)
             => Vector3.Transform((world - Position) / Scale, Quaternion.Conjugate(Orientation));
 

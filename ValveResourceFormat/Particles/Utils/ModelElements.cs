@@ -7,9 +7,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
-    /// Looks the named parts of a model up by name the way particle functions address them: sequences
-    /// by their index among the model's sequences, body parts by index, and mesh groups by their bit in
-    /// a mesh group mask. Names match ignoring case.
+    /// Looks the named parts of a model up by name. Sequences are addressed by their index among the
+    /// model's sequences, body parts by index, and mesh groups by their bit in a mesh group mask.
+    /// Names match ignoring case.
     /// </summary>
     internal static class ModelElements
     {
@@ -18,8 +18,8 @@ namespace ValveResourceFormat.Particles.Utils
 
         /// <summary>
         /// Looks every name up in <paramref name="model"/>, at most <see cref="MaxNames"/> of them. A
-        /// name the model lacks, or every name without a model, gives -1 for a sequence or body part
-        /// and 0 for a mesh group; a mesh group name the model lacks gives -1.
+        /// name the model lacks gives -1. Without a model, every name gives -1 for a sequence or body
+        /// part and 0 for a mesh group.
         /// </summary>
         public static int[] Resolve(ModelElementKind kind, IReadOnlyList<string> names, Model? model, IFileLoader? fileLoader)
         {

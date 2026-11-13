@@ -113,7 +113,7 @@ vec3 SampleProbeAmbientCube(vec3 vIndirectSampleCoords, vec3 normal)
     return indirectDiffuse;
 }
 
-// What the volumes reaching a position bake for it, blended
+// Irradiance, shadows and coverage of the volumes at a position, blended
 struct LightProbeSample_t
 {
     vec3 Irradiance;
@@ -148,7 +148,7 @@ void AddLightProbeVolume(inout LightProbeSample_t probe, LightProbeVolume lpv, v
 
 #if (PROBES_FROM_ENVMAPS)
 
-// Volumes are reached through the environment maps sharing their handshake, faded and ordered as those are
+// Volumes come from the environment maps that have an AssociatedLPV, with the edge fade and order of the environment maps
 void BlendLightProbeVolumes(inout LightProbeSample_t probe, vec3 positionWs, vec3 normal)
 {
     float envMapCoverage = 0.0;
@@ -191,7 +191,7 @@ void BlendLightProbeVolumes(inout LightProbeSample_t probe, vec3 positionWs, vec
 
 #else
 
-// Bit order is priority order, so each volume only gets what the ones before it left uncovered
+// Bit order is priority order. Each volume is weighted by the coverage the volumes before it left free
 void BlendLightProbeVolumes(inout LightProbeSample_t probe, vec3 positionWs, vec3 normal)
 {
     bool bContinueLoop = true;
@@ -284,7 +284,7 @@ vec4 SampleProbeDirectLightShadows(vec3 positionWs)
     return SampleProbeDirectLightShadows(positionWs, g_bLightProbeSampleReady ? g_vLightProbeSampleNormal : vec3(0.0, 0.0, 1.0));
 }
 
-// How much of the sky fills what no volume covers
+// Weight of the sky ambient where no volume covers the position
 float GetProbeSkyWeight(LightProbeSample_t probe)
 {
     float skyWeight = 1.0 - probe.Coverage;
@@ -300,7 +300,7 @@ vec3 SampleLightProbeIrradiance(vec3 positionWs, vec3 normal)
 {
     LightProbeSample_t probe = GetLightProbeSample(positionWs, normal);
 
-    // Sky from above and its ground bounce from below, for what no volume covers
+    // Sky from above and its ground bounce from below, where no volume covers the position
     return probe.Irradiance + GetSkyAmbientLighting(normal) * GetProbeSkyWeight(probe);
 }
 

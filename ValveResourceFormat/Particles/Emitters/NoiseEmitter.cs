@@ -148,7 +148,7 @@ namespace ValveResourceFormat.Particles.Emitters
             }
 
             var timeTerm = (noiseOffset + time) * noiseScale.NextNumber(particleSystemState);
-            // The time term is the process wall clock in milliseconds, read once per axis; simulation world time is used here to keep playback deterministic
+            // The engine's time term is the process wall clock in milliseconds, read once per axis. Simulation world time is used here to keep playback deterministic
             var worldTimeTerm = (int)(particleSystemState.WorldTime * 1000f) * worldTimeScale;
             var noise = Noise.Value3D((position * worldScale) + new Vector3(timeTerm) + new Vector3(worldTimeTerm));
 

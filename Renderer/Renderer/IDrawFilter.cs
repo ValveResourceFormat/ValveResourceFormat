@@ -23,7 +23,7 @@ public interface IDrawFilter
 {
     /// <summary>Gets how a node draws one of its materials.</summary>
     /// <param name="node">The node.</param>
-    /// <param name="material">The material of one of its draws.</param>
-    /// <returns>How the draw is drawn.</returns>
+    /// <param name="material">The material being drawn.</param>
+    /// <returns>The visibility of the material on the node.</returns>
     DrawVisibility GetVisibility(SceneNode node, RenderMaterial material);
 }

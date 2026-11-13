@@ -67,7 +67,7 @@ namespace ValveResourceFormat.IO
 
         /// <summary>
         /// <c>SceneSystem/VrLightBinnerSingleLightFastPath</c>: whether the VR light binner shades one shadowed light and
-        /// a few unshadowed point lights per pixel, and lights what nothing baked with the sky's spherical harmonics.
+        /// a few unshadowed point lights per pixel, and lights anything without baked lighting with the sky's spherical harmonics.
         /// </summary>
         public bool VrLightBinnerSingleLightFastPath { get; }
 

@@ -64,7 +64,7 @@ namespace ValveResourceFormat.Renderer
             return true;
         }
 
-        // Where the graph's root motion has moved the character, relative to where the graph started
+        // Accumulated root motion of the graph, relative to the transform at graph start
         private FrameBone graphRootTransform = FrameBone.Identity;
 
         /// <summary>

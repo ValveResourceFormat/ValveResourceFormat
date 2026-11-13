@@ -3,9 +3,9 @@ using ValveResourceFormat.Particles.Utils;
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
-    /// Writes a transform input's orientation into a particle's pitch/yaw/roll rotations (or its
-    /// forward direction into the normal) at spawn, plus a fixed rotation offset. Shares its math
-    /// with the operator variant.
+    /// Writes a transform input's orientation into the pitch/yaw/roll rotations of a particle (or the
+    /// transform's forward direction into the normal) at spawn, plus a fixed rotation offset. Shares the
+    /// math with the operator variant.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RemapTransformOrientationToRotations">C_INIT_RemapTransformOrientationToRotations</seealso>
     class RemapTransformOrientationToRotations : ParticleFunctionInitializer

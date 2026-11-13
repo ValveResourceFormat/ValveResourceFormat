@@ -20,7 +20,7 @@ namespace ValveResourceFormat.IO
     public class PhysicsTriangleMatcher
     {
         /// <summary>
-        /// A physics mesh and what triangles from it are covered
+        /// A physics mesh and its covered triangles
         /// </summary>
         public class PhysMeshData
         {
@@ -56,7 +56,7 @@ namespace ValveResourceFormat.IO
 
         private readonly Dictionary<MeshDescriptor, PhysMeshData> PhysicsMeshByDescriptor = new(ReferenceEqualityComparer.Instance);
 
-        // a physics triangle is covered when it lies in the plane of a render triangle, within this distance and its centre falls inside that triangle
+        // a physics triangle is covered when it lies within this distance of the plane of a render triangle and the centre of the physics triangle is inside the render triangle
         private const float PlaneDistance = 0.125f;
 
         // leeway past the edges so a centre on the diagonal of a differently triangulated quad still counts
@@ -88,7 +88,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         /// <param name="positions">Render mesh positions, in world space.</param>
         /// <param name="indices">Three position indices per render triangle.</param>
-        /// <param name="progressReporter">Receives what was covered.</param>
+        /// <param name="progressReporter">Receives a message with the number of covered triangles, in debug builds.</param>
         public void MarkTrianglesCoveredBy(ReadOnlySpan<Vector3> positions, ReadOnlySpan<int> indices, IProgress<string>? progressReporter)
         {
             var stack = new Stack<RnMeshNodeWithIndex>(64);
@@ -148,7 +148,7 @@ namespace ValveResourceFormat.IO
                         }
 
                         var triangleOffset = (int)node.TriangleOffset;
-                        var triangleCount = (int)node.ChildOffset; // Same packing
+                        var triangleCount = (int)node.ChildOffset; // a leaf stores the triangle count in ChildOffset
 
                         for (var k = 0; k < triangleCount; k++)
                         {
@@ -333,8 +333,8 @@ namespace ValveResourceFormat.IO
             => WriteParts(Mesh.SplitConnectedParts());
 
         /// <summary>
-        /// Welds everything added so far together where it coincides within the distance, the draw calls of one object
-        /// becoming one mesh again, and writes it out as one Hammer mesh per connected part, see
+        /// Welds everything added so far where vertices coincide within the distance, so the draw calls of one object
+        /// become one mesh again, and writes one Hammer mesh per connected part, see
         /// <see cref="PolygonMesh.RemergeDrawCalls"/>. Each part is untriangulated when <see cref="Untriangulate"/> is set.
         /// </summary>
         /// <param name="weldDistance">How far apart coinciding vertices may be.</param>
@@ -924,7 +924,7 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            // positions and corner data per compacted vertex, in the mesh's transform
+            // positions and corner data per compacted vertex, with the transform applied
             var newPositions = new Vector3[sourceIndices.Count];
             var corners = new Corner[sourceIndices.Count];
 

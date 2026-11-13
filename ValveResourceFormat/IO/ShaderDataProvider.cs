@@ -533,9 +533,6 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        /// <summary>
-        /// Gets the file suffix for an input texture by querying the shader file.
-        /// </summary>
         private string? GetSuffixForInputTexture_Internal(string inputName, Material material)
         {
             var shader = fileLoader.LoadShader(material.ShaderName);

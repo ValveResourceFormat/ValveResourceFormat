@@ -3,8 +3,8 @@ using ValveResourceFormat.Particles.Utils;
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
-    /// Gives new particles a random speed along the line between their point in their hitbox and
-    /// the hitbox's centre, measured in the hitbox's own axes. A positive speed moves them toward
+    /// Gives new particles a random speed along the line between the particle position in the hitbox
+    /// and the hitbox centre, measured in the hitbox axes. A positive speed moves them toward
     /// the centre.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_InitialVelocityFromHitbox">C_INIT_InitialVelocityFromHitbox</seealso>

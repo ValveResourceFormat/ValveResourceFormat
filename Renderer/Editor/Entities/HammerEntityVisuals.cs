@@ -15,17 +15,17 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Entities;
 
 /// <summary>
-/// Draws entities the way Hammer shows them, with the helpers their classes declare for the editor of the
-/// game: the model, icon or box an entity is placed as, the lines its class draws to the entities it names,
-/// and a line along each of its entity I/O connections. None of it is what the game shows. It holds the
-/// helpers of every entity of a view, of a compiled map or of a source map, so the shapes a selected entity
-/// shows are drawn by the same helpers either way.
+/// Draws entities as Hammer shows them, using the helpers their classes declare for the editor of the game.
+/// These are the model, icon or box an entity is placed as, the lines its class draws to the entities it names,
+/// and a line along each entity I/O connection. The game shows none of them. It holds the helpers of every
+/// entity of a view, whether of a compiled map or a source map, so the shapes of a selected entity are drawn by
+/// the same helpers either way.
 /// </summary>
 public sealed class HammerEntityVisuals : IEntityToolVisuals
 {
     /// <summary>
-    /// Visibility layer of what the editor draws entities with that is hidden while it shows only what the game
-    /// does, such as the boxes, icons and models entities stand in as. Turning it off is that option.
+    /// Visibility layer of what the editor draws for entities that the game does not show, such as the boxes, icons
+    /// and models they stand in as. Hiding it is the option to show only what the game shows.
     /// </summary>
     public static readonly WorldLayer MarkerLayer = new("Entities/Editor only") { IsToolsOnly = true };
 
@@ -33,9 +33,9 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
     public static readonly WorldLayer ConnectionsLayer = new("Entities/Connections") { IsToolsOnly = true };
 
     /// <summary>
-    /// Visibility layer of the helpers the editor only draws while it shows helpers, such as lines to the
-    /// entities an entity names, spheres of its radii and the edges of its volumes. Turning it off is that
-    /// option, which also hides those helpers of a selected entity.
+    /// Visibility layer of the helpers drawn only while the editor shows helpers, such as lines to the entities an
+    /// entity names, spheres of its radii and the edges of its volumes. Hiding it is the option to show no helpers.
+    /// It also hides those helpers of a selected entity.
     /// </summary>
     public static readonly WorldLayer HelpersLayer = new("Entities/Helpers (editor only)") { IsToolsOnly = true };
 
@@ -49,8 +49,8 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
     public EntityClassTable Classes => classes.Value;
 
     /// <summary>Initializes the visuals for the entities of a game.</summary>
-    /// <param name="fileLoader">The file loader of what is shown, which finds its game.</param>
-    /// <param name="logger">Where it is said which classes are used.</param>
+    /// <param name="fileLoader">The file loader of the view, which finds its game.</param>
+    /// <param name="logger">The logger that reports which classes are used.</param>
     public HammerEntityVisuals(IFileLoader fileLoader, ILogger logger)
     {
         ArgumentNullException.ThrowIfNull(fileLoader);
@@ -112,8 +112,7 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
             return null;
         }
 
-        // The game draws what the entity shows in the game, so of the helpers of its class only the ones
-        // that stand in for it are drawn
+        // The game draws the entity itself, so only the helpers of its class that stand in for it are drawn
         var placed = new List<SceneNode>();
         var owner = GetEntity(entity);
 
@@ -134,8 +133,8 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
             node.Flags |= flags;
         }
 
-        // The entity takes the first as its own, and owns the others along with it. Shapes of the editor are
-        // not what the entity is drawn as, so they never take its place.
+        // The first node that is not a tool shape becomes the stand-in of the entity, which also owns the others.
+        // Tool shapes never take its place.
         owner.StandIn = placed.Find(static node => node is not ToolSceneNode);
 
         foreach (var node in placed)
@@ -152,7 +151,7 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
     /// <inheritdoc/>
     public IEnumerable<SceneNode> CreateCollisionVisuals(Scene scene, PhysAggregateData physics, string name, BaseEntity? entity)
     {
-        // The class of an entity draws its volume with one material, as Hammer applies it to the faces of a new one
+        // The class of an entity draws its volume with one material, the one Hammer applies to the faces of a new volume
         var autoApplyMaterial = entity == null ? null : Classes.FindClass(entity.Classname)?.AutoApplyMaterial;
 
         // An entity whose model draws nothing is a volume, built from a tools material the compiled map no longer names
@@ -208,8 +207,8 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
         }
     }
 
-    // The lines the class of the entity declares to the entities its keyvalues name, and the shapes the
-    // editor draws for it whether or not it is selected, none of which the game draws
+    // Adds the shapes the editor draws for the entity whether or not it is selected, such as lines to the
+    // entities its keyvalues name. The game draws none of them.
     private void AddToolShapes(BaseEntity entity)
     {
         if (entity.Data == null)
@@ -234,7 +233,8 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
         }
     }
 
-    // A 3D sky shares names with the map it is placed in, and the entity is the caller a connection aimed at !self reaches
+    // A 3D sky shares names with the map it is placed in, so targets are limited to the same world group.
+    // The entity is the caller of connections aimed at !self.
     private void AddConnectionLines(Scene scene, BaseEntity entity)
     {
         if (entity.Data?.Connections is { } connections)

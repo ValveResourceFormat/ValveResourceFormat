@@ -31,10 +31,9 @@ namespace ValveResourceFormat.Particles.Utils
         /// <summary>The model bone every bone slot is posed by, all meshes concatenated.</summary>
         public ReadOnlyMemory<int> RemapTable { get; }
 
-        /// <summary>The inverse bind pose of every bone slot, as its mesh is skinned with it.</summary>
+        /// <summary>The inverse bind pose of every bone slot, taken from the mesh that owns the slot.</summary>
         public Matrix4x4[] InverseBindPose { get; }
 
-        /// <summary>How many triangles the meshes have.</summary>
         public int TriangleCount => areas.Count;
 
         private MeshTriangles(Model model, IFileLoader? fileLoader)
@@ -62,7 +61,6 @@ namespace ValveResourceFormat.Particles.Utils
         /// <summary>The area of triangle <paramref name="triangle"/> in model space.</summary>
         public float Area(int triangle) => areas[triangle];
 
-        /// <summary>Corner <paramref name="corner"/> of triangle <paramref name="triangle"/>.</summary>
         public Vertex Corner(int triangle, int corner) => vertices[indices[(triangle * 3) + corner]];
 
         /// <summary>The model bones of a vertex's slots, packed like the slots.</summary>

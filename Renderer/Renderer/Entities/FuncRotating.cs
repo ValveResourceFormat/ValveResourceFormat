@@ -123,7 +123,7 @@ public sealed class FuncRotating : BaseModelEntity
     {
         base.Spawn();
 
-        // Absent means zero rather than the FGD's 20, so the guard below is what a map that omits it gets.
+        // Absent means zero rather than the FGD's 20, so a map that omits it takes the guard below.
         FanFriction = KeyValues.GetInt32Property("fanfriction") / 100f;
 
         // Prevent a divide by zero if the level designer forgot the friction
@@ -388,9 +388,9 @@ public sealed class FuncRotating : BaseModelEntity
         SetMoveDoneTime(GetNextMoveInterval());
     }
 
-    // A pending StopAtStartPos steers the last stretch: over 90 degrees out it keeps its speed, inside that
-    // it eases towards the remaining angle but never below 20 degrees per second, and once slow and within
-    // a degree it lands on the start.
+    // A pending StopAtStartPos steers the last stretch. Over 90 degrees out, the speed is kept.
+    // Inside that, the speed eases towards the remaining angle, never below 20 degrees per second.
+    // Once slow and within a degree, the brush lands on the start.
     private void UpdateSpeed(float newSpeed)
     {
         var oldSpeed = Speed;

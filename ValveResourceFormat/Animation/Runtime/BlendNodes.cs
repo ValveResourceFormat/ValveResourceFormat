@@ -109,7 +109,7 @@ namespace ValveResourceFormat.Animation
             ctx.SetNodeFromIndex(InputParameterValueNodeIdx, ref InputParameterValueNode);
         }
 
-        // Matches Esoterica: only the input parameter is required, sources may be individually invalid.
+        // Only the input parameter is required, sources may be individually invalid.
         public override bool IsValid => SourceNodes is { Length: > 1 } && InputParameterValueNode != null;
 
         SyncTrack? blendedSyncTrack;
@@ -270,7 +270,7 @@ namespace ValveResourceFormat.Animation
         {
             base.Instantiate(ctx);
 
-            // Blend space is evaluated lazily on the first Update — the input parameter node may not be
+            // Blend space is evaluated lazily on the first Update, because the input parameter node may not be
             // initialized yet at this point (nodes initialize in array order).
             ActiveParameterization = Parameterization;
         }
@@ -361,7 +361,7 @@ namespace ValveResourceFormat.Animation
             // initialized yet at this point).
         }
 
-        // Esoterica Blend2D requires every source to be valid (unlike Blend1D)
+        // Every source must be valid, unlike Blend1D
         public override bool IsValid
         {
             get
@@ -491,9 +491,9 @@ namespace ValveResourceFormat.Animation
         }
     }
 
-    // Layers additional pose sources over a base pose. Port of Esoterica's LayerBlendNode: each
-    // layer runs in a fresh layer context; state machine layers always update and contribute their
-    // state's authored weight and bone mask through the context.
+    // Layers additional pose sources over a base pose: each layer runs in a fresh layer context;
+    // state machine layers always update and contribute their state's authored weight and bone mask
+    // through the context.
     partial class LayerBlendNode
     {
         PoseNode BaseNode;

@@ -5,9 +5,9 @@ using ValveResourceFormat.Renderer.Editor.ToolRender;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// What blocks the grid units move on: a model where the entity snaps to the grid, either the one the class
-/// names, which only stands in for it in the editor, or the one its <c>model</c> key does. A magenta box
-/// stands there where there is no model.
+/// An obstruction on the grid that units move on: a model drawn where the entity snaps to the grid. It is the
+/// model the class names, which only stands in for the entity in the editor, or the model in the <c>model</c>
+/// key of the entity. A magenta box is drawn where there is no model.
 /// </summary>
 internal sealed class DotaObstructionHelper : ModelHelper
 {
@@ -15,7 +15,7 @@ internal sealed class DotaObstructionHelper : ModelHelper
 
     private static readonly Color32 BoxColor = new(255, 0, 255);
 
-    // The edge of a cell of the grid the game data of the game declares, or null where it declares none
+    // Edge length of a grid cell from the game data, or null where the game data declares no grid
     private readonly float? gridCellSize;
 
     /// <inheritdoc/>

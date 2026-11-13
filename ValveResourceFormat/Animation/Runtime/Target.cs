@@ -38,7 +38,7 @@ partial struct Target
     {
         if (!IsBoneTarget)
         {
-            result = Transform; // Just use the internal transform
+            result = Transform;
             return true;
         }
 
@@ -59,7 +59,7 @@ partial struct Target
             {
                 result = pose.GetTransform(boneIdx);
 
-                // Apply the offset's rotation then translation (preserve multiplication order from the C++ code)
+                // Apply the offset's rotation then translation
                 var offset = Transform;
                 var combinedRot = Quaternion.Normalize(result.Angle * offset.Angle);
                 result = result with { Angle = combinedRot, Position = result.Position + offset.Position };
@@ -71,7 +71,7 @@ partial struct Target
                     result *= pose.GetModelSpaceTransform(parentBoneIdx);
                 }
             }
-            else // Get the model space transform for the target bone
+            else
             {
                 result = pose.GetModelSpaceTransform(boneIdx);
                 var offset = Transform;

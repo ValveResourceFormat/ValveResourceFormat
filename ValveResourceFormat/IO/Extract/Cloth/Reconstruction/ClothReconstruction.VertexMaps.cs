@@ -8,8 +8,8 @@ namespace ValveResourceFormat.IO
     internal sealed partial class ClothReconstruction
     {
         /// <summary>
-        /// The weight a selection is painted at on a node <c>m_DynNodeVertexSet</c> puts in its set while its compiled
-        /// weight there is 0; it rounds back to 0.
+        /// Weight painted for a selection on a node that <c>m_DynNodeVertexSet</c> puts in the selection's vertex set
+        /// while the compiled weight of the node there is 0. It rounds back to 0.
         /// </summary>
         internal const float SubQuantumMembershipWeight = 0.001f;
 

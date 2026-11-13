@@ -1386,8 +1386,8 @@ namespace Tests.IO
         }
 
         /// <summary>
-        /// A two-wide joint whose parent cross links carry two records against one on its own ring states no extra
-        /// iteration, since the repeat would copy the own ring rod too; with its own ring rod doubled as well it states one.
+        /// A two-wide joint whose cross links to the parent ring carry two records each against one ring rod states no
+        /// extra iteration, since the repeat would copy the ring rod too. With the ring rod doubled as well it states one.
         /// </summary>
         [Test]
         public async Task CrossLinksOutnumberingTheOwnRingRodStateNoExtraIteration()
@@ -1475,9 +1475,9 @@ namespace Tests.IO
         }
 
         /// <summary>
-        /// A sibling-spring hub reads its <c>antishrink</c> off the rods between its children, a static joint under a static
-        /// parent counts its <c>extra_iterations</c> off its bend rods alone, and a ringed joint reads its <c>motion_bias</c>
-        /// off the bounded rods between its ring and its parent's ring.
+        /// A sibling-spring hub reads <c>antishrink</c> off the rods between its children. A static joint under a static
+        /// parent counts <c>extra_iterations</c> off its bend rods alone. A ringed joint reads <c>motion_bias</c>
+        /// off the bounded rods between its ring and the ring of its parent.
         /// </summary>
         [Test]
         public async Task ChainSpansReadAntishrinkCopiesAndMotionBias()

@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.Particles
 {
     /// <summary>
-    /// Whether a renderer shrinks its cards to the art of their sheet frames. Only a first texture layer
+    /// Whether a renderer crops its cards to the art of the sheet frames. Only a first texture layer
     /// with a sheet is ever cropped.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/ParticleSequenceCropOverride_t">ParticleSequenceCropOverride_t</seealso>

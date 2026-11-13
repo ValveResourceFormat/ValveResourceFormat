@@ -167,7 +167,6 @@ public record struct RsDepthStencilStateDesc
         DepthFunc = (RsComparison)((depthStencilBits >> 8) & 0xFF);
 
         // Stencil state starts at byte 2 (bit 16)
-        // RsStencilStateDesc_t
         var stencilBits = depthStencilBits >> 16;
 
         StencilEnable = (stencilBits & 1) != 0;

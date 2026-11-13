@@ -3,8 +3,8 @@ using OpenTK.Graphics.OpenGL;
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>
-/// Maps the engine's own vocabulary to the OpenGL equivalents, the way
-/// <see cref="GLImageFormatExtensions"/> does for image formats.
+/// Maps texture addressing modes, shader stages and buffer usages to OpenGL equivalents.
+/// <see cref="GLImageFormatExtensions"/> does the same for image formats.
 /// </summary>
 public static class GLGraphicsTypeExtensions
 {

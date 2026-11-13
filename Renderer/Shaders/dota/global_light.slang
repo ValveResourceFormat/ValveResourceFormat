@@ -32,8 +32,9 @@ vec3 CalculateDotaDirectionalAmbient(vec3 worldNormal)
     return g_vAmbientDirectionColor.rgb * facing;
 }
 
-// The light that falls on an albedo: the sun where it reaches, the directional ambient that the sun shadow
-// only darkens by its shadow amount, and the sky and ground colors fading in where the sun does not.
+// The light that falls on an albedo: the sun where it reaches, the directional ambient, and the sky and
+// ground colors fading in where the sun does not. The sun shadow darkens the directional ambient only by
+// the shadow amount of the ambient direction.
 // sunShadow is the sun shadow alone, without the facing of the surface.
 // Needs lighting_common.slang and shadowmapping.slang.
 // TODO: the screen space ambient occlusion scales the sun by 1 - 0.35 * ao and the two ambient terms by (1 - ao)^2.

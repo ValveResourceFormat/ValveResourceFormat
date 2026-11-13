@@ -10,7 +10,7 @@ using Entity = ValveResourceFormat.ResourceTypes.EntityLump.Entity;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// What an authored entity I/O connection addresses: a name and how to read it.
+/// The target of an authored entity I/O connection: a name and its type.
 /// </summary>
 /// <param name="Name">
 /// The target name. May hold <c>*</c> and <c>?</c> wildcards, or be a <c>!</c> name that stands
@@ -98,8 +98,8 @@ public sealed class EntitySystem
     public PlayerEntity? Player { get; private set; }
 
     /// <summary>
-    /// Gets or sets what a tool draws for entities beyond what the game shows, or <see langword="null"/> to
-    /// draw only that. Set before a world is loaded, as entities build their nodes when they spawn.
+    /// Gets or sets the tool visuals drawn for entities in addition to what the game shows, or
+    /// <see langword="null"/> to draw none. Set before a world is loaded, as entities build their nodes when they spawn.
     /// </summary>
     public IEntityToolVisuals? ToolVisuals { get; set; }
 
@@ -161,13 +161,13 @@ public sealed class EntitySystem
     /// <summary>Gets the one-shot effects that have no entity of their own, such as bullet impacts.</summary>
     public TempEntities TempEntities { get; }
 
-    /// <summary>Gets what loads, spawns and unloads the spawn groups the entities come from.</summary>
+    /// <summary>Gets the manager that loads, spawns and unloads the spawn groups the entities come from.</summary>
     public SpawnGroupManager SpawnGroupManager { get; }
 
     /// <summary>
-    /// Gets the active spawn group, which a <c>point_template</c> set to insert into it gives its entities to,
-    /// set by <see cref="SpawnGroupManager.PerformActivateSpawnGroup"/>. The map becomes active once it has
-    /// spawned, and none is active once the active one unloads.
+    /// Gets the active spawn group, set by <see cref="SpawnGroupManager.PerformActivateSpawnGroup"/>. A
+    /// <c>point_template</c> set to insert into the active spawn group gives its entities to that group.
+    /// The map becomes active once it has spawned, and none is active once the active one unloads.
     /// </summary>
     public SpawnGroup? ActiveSpawnGroup { get; internal set; }
 
@@ -199,8 +199,8 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Spawns and then activates a batch of entities created by <see cref="CreateEntity"/>, which a spawn group
-    /// does once the groups it placed have finished.
+    /// Spawns and then activates a batch of entities created by <see cref="CreateEntity"/>. A spawn group
+    /// does this once the groups it placed have finished.
     /// </summary>
     /// <param name="batch">The entities, in the order they were created.</param>
     internal void SpawnEntities(List<BaseEntity> batch)
@@ -359,7 +359,7 @@ public sealed class EntitySystem
             return;
         }
 
-        // Anything it was standing in should hear that it left before it stops existing
+        // Close the touch links to the removed entity before it stops existing
         for (var i = 0; i < entities.Count; i++)
         {
             entities[i].UpdateTouchLink(entity, isOverlapping: false);
@@ -421,7 +421,7 @@ public sealed class EntitySystem
     /// <param name="entity">The entity a movement sweep hit.</param>
     public void NotePlayerImpact(BaseEntity entity) => playerImpacts.Add(entity);
 
-    /// <summary>Notes what a sweep of the player ran into, unless it missed or struck the world.</summary>
+    /// <summary>Notes the entity a sweep of the player hit, unless the sweep missed or hit the world.</summary>
     public void NotePlayerImpact(in Rubikon.TraceResult trace)
     {
         if (trace.HitEntity is { } entity && entity != World)
@@ -430,7 +430,7 @@ public sealed class EntitySystem
         }
     }
 
-    // On the tick rather than as the player moves, for the same reason as the trigger touches
+    // On the tick rather than as the player moves, so impact handlers do not run per frame
     private void DispatchPlayerImpacts()
     {
         if (playerImpacts.Count == 0)
@@ -536,7 +536,7 @@ public sealed class EntitySystem
             tickAccumulator = 0f;
         }
 
-        // Entities are not scene nodes, so nothing else places what they own. Parents first, so a child
+        // Entities are not scene nodes, so nothing else places their nodes. Parents first, so a child
         // follows its parent's current pose.
         foreach (var entity in entities)
         {
@@ -627,8 +627,8 @@ public sealed class EntitySystem
             }
 
             // A hull inside this entity cannot be swept (the SAT sweep is meaningless from an overlapping
-            // start). A move ending fully outside steps out freely, anything else stops where it stands:
-            // escape is always possible, crossing the interior never is, and a pusher never leaves the
+            // start). A move ending fully outside steps out freely, anything else stops where it stands.
+            // So escape is always possible, crossing the interior never is, and a pusher never leaves the
             // player deep inside it.
             if (entity.Collider.OverlapsVolume(from, insideExtents))
             {
@@ -848,7 +848,7 @@ public sealed class EntitySystem
     /// <summary>
     /// Fires an entity's authored output on every connection with that name. The value is what the output
     /// reports, and a connection's own parameter overrides it. The caller defaults to
-    /// <paramref name="source"/>; the few outputs that pass on the caller of the input that fired them name it.
+    /// <paramref name="source"/>. A few outputs instead pass on the caller of the input that fired them.
     /// </summary>
     public void TriggerOutput(BaseEntity source, string outputName, BaseEntity? activator = null, string? value = null,
         BaseEntity? caller = null)
@@ -973,7 +973,7 @@ public sealed class EntitySystem
         return entitiesByName.TryGetValue(NameKey(pattern), out var named) ? named : NoEntities;
     }
 
-    /// <summary>Uppercases the ASCII letters of a name, the way names compare when they hold no wildcards.</summary>
+    /// <summary>Uppercases the ASCII letters of a name, for case-insensitive lookup of names without wildcards.</summary>
     private static string NameKey(string name)
         => string.Create(name.Length, name, static (key, name) =>
         {
@@ -1043,7 +1043,7 @@ public sealed class EntitySystem
             return;
         }
 
-        // Copied to a list of its own, not a shared buffer: a handler may spawn or remove entities or
+        // Copied to a new list, not a shared buffer: a handler may spawn or remove entities or
         // deliver further inputs, which would disturb a walk over state the nested delivery also uses
         var targets = new List<BaseEntity>();
 
@@ -1098,7 +1098,7 @@ public sealed class EntitySystem
         => firedCounts.TryGetValue(connection, out var count) ? count : 0;
 
     /// <summary>
-    /// Resolves what an authored connection addresses: <c>!</c> names for an entity in the firing chain,
+    /// Resolves the target of an authored connection: <c>!</c> names for an entity in the firing chain,
     /// then names and classnames.
     /// </summary>
     /// <returns>The entities the target stands for, which may be none.</returns>

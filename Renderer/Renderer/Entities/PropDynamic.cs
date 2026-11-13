@@ -57,8 +57,8 @@ public sealed class PropDynamic : BaseModelEntity
             SetBodyGroup(bodyGroupChoice.ToString(CultureInfo.InvariantCulture));
         }
 
-        // Replayed over what BaseModelEntity posed, which neither knows the loop mode nor plays a held
-        // animation through before stopping on its last frame
+        // Replayed over the pose BaseModelEntity applied. It does not know the loop mode and does not play a
+        // held animation through before stopping on its last frame
         if (NonEmpty(KeyValues.GetStringProperty("startinganim")) is { } startingAnimation)
         {
             PlayAnimation(startingAnimation, ReadLoopMode("startinganimationloopmode"), restart: true, forced: false);
@@ -257,7 +257,7 @@ public sealed class PropDynamic : BaseModelEntity
     /// <param name="name">The animation to play.</param>
     /// <param name="looping">Whether it loops; null takes a sequence's own flag, and loops anything else.</param>
     /// <param name="restart">Whether an animation already playing starts over, rather than being left alone.</param>
-    /// <param name="forced">Whether an input asked for it, which is what the animation outputs report on.</param>
+    /// <param name="forced">Whether an input asked for it. Only forced animations fire the animation outputs.</param>
     private void PlayAnimation(string name, bool? looping, bool restart, bool forced)
     {
         if (ModelNode is not { HasMeshes: true } node)

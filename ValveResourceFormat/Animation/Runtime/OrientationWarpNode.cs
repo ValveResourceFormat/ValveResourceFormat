@@ -97,7 +97,6 @@ namespace ValveResourceFormat.Animation
                 return;
             }
 
-            // Find the warp event
             var warpEvent = Array.Find(clip.Animation.Events, static e => e is OrientationWarpEvent);
             if (warpEvent == null)
             {
@@ -209,7 +208,6 @@ namespace ValveResourceFormat.Animation
                 transforms = buffer.Transforms;
                 originalRootMotion.Transforms.CopyTo(transforms, 0);
 
-                // Set start transform
                 transforms[0] = ctx.WorldTransform;
 
                 // Set initial world space positions up to the end of the rotation warp event

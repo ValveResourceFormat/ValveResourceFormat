@@ -2,13 +2,13 @@ namespace ValveResourceFormat.Particles;
 
 /// <summary>
 /// Watches a simulated particle system so a drawing layer can keep up with it. The simulation holds
-/// one per system and draws nothing itself, which is what lets it run without a graphics backend.
+/// one observer per system. It draws nothing itself, so it runs without a graphics backend.
 /// </summary>
 public interface IParticleSystemObserver
 {
     /// <summary>
-    /// Called after every simulated step of the system, and never while it fast-forwards through a
-    /// pre-simulation; once that is done it is called once.
+    /// Called after every simulated step of the system. It is not called while the system fast-forwards
+    /// through a pre-simulation, and is called once when the pre-simulation is done.
     /// </summary>
     /// <param name="particles">The system's live particles.</param>
     /// <param name="state">The system's render state.</param>

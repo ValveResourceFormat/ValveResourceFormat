@@ -411,7 +411,7 @@ namespace GUI.Types.GLViewers
             FocusNode(match);
         }
 
-        /// <summary>The declared rows whose colour something in the current graph draws.</summary>
+        /// <summary>Legend entries whose hue is used by a node, socket or wire of the current graph.</summary>
         private List<GraphLegendEntry> PresentLegendEntries()
         {
             HashSet<GraphHue> categories = [];
@@ -612,7 +612,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        /// <summary>What double clicking a node does. Opens the asset the node references.</summary>
+        /// <summary>Opens the asset the node references when the node is double clicked.</summary>
         protected virtual void OnNodeDoubleClick(GraphNode node)
         {
             if (node.ExternalResourceName != null)

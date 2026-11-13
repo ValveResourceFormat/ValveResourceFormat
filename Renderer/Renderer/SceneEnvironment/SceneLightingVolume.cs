@@ -6,13 +6,13 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.SceneEnvironment;
 
 /// <summary>
-/// Adds the baked lighting of a cubemap or light probe volume entity to a scene, from the entity's keyvalues: its
-/// environment map, and its light probe. Compiled maps and source maps both use it, and each sets the
-/// <see cref="SceneNode.EntityData"/> of the nodes to the entity they belong to.
+/// Adds the baked lighting of a cubemap or light probe volume entity to a scene, from the keyvalues of the entity: an
+/// environment map and a light probe. Compiled maps and source maps both use it. Each sets the
+/// <see cref="SceneNode.EntityData"/> of the nodes to the entity.
 /// </summary>
 /// <remarks>
-/// Entity scale does not resize a volume: its baked probe grid is the unscaled box over the voxel size,
-/// and objects bound to it by their precomputed handshake only fall inside it at that size.
+/// Entity scale does not resize a volume: the baked probe grid is the unscaled box over the voxel size,
+/// and objects bound to the volume by a precomputed handshake only fall inside it at that size.
 /// </remarks>
 public static class SceneLightingVolume
 {

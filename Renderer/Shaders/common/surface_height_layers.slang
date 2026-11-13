@@ -207,8 +207,8 @@ HeightLayer_t SampleHeightLayer(
     return layer;
 }
 
-// Remaps a layer's occlusion by its levels, as the material stores them. The lowest is negated, the exponent is a
-// power of two that reaches the authored fraction, and the highest is flipped around two.
+// Remaps a layer's occlusion by its authored levels, as the material stores them. The low level is negated,
+// the exponent is -log2(1 - middle level) and the high level is subtracted from 2.
 float LayerOcclusion(float occlusion, vec3 authoredLevels)
 {
     float lowest = -authoredLevels.x;
@@ -236,7 +236,7 @@ void InitHeightMaterial(inout MaterialProperties_t mat, vec3 albedo, float occlu
     mat.AmbientGeometricNormal = mat.GeometricNormal;
 }
 
-// The rest of the material, once wetness has had its say over the roughness and the reflectance
+// The rest of the material, after wetness has changed the roughness and the reflectance
 void FinishHeightMaterial(inout MaterialProperties_t mat, float reflectance)
 {
     AdjustRoughnessByGeometricNormal(mat);

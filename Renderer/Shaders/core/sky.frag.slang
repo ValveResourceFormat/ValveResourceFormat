@@ -99,7 +99,7 @@ void main()
     }
 #endif
 
-    // Every render mode draws the sky as it is, shown as it is written without post processing
+    // Render modes skip post processing, so the sky is converted to gamma here
     if (g_iRenderMode != 0)
     {
         vColor.rgb = SrgbLinearToGamma(vColor.rgb);

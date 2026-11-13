@@ -5,9 +5,9 @@ namespace ValveResourceFormat.Particles.Upgrade;
 
 /// <summary>
 /// Folds the control points of six classes into lowercase m_transformInput members: the
-/// single-CP position setter, the three model-bound classes, which also gain a clamped
-/// m_modelInput, the normal-align initializer, and velocity-from-CP, which builds a
-/// m_velocityInput as a CP value or delta.
+/// single-CP position setter, the three model-bound classes (which also gain a clamped
+/// m_modelInput), the normal-align initializer, and velocity-from-CP (which builds a
+/// m_velocityInput as a CP value or delta).
 /// </summary>
 internal sealed class Vpcf56ToVpcf57 : ParticleUpgradeStep
 {

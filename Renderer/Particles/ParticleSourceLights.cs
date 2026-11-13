@@ -5,8 +5,8 @@ namespace ValveResourceFormat.Renderer.Particles
 {
     /// <summary>
     /// The scene lights the functions of one system place on their own, each following one
-    /// <see cref="ParticleLightSource"/>. Updates from the simulation only record what each light shows;
-    /// <see cref="Apply"/> hands that to the scene lights on the main thread, since the scene's light
+    /// <see cref="ParticleLightSource"/>. Updates from the simulation only record the lit state, position, color and range of each light.
+    /// <see cref="Apply"/> copies them to the scene lights on the main thread, since the scene's light
     /// list is shared.
     /// </summary>
     internal sealed class ParticleSourceLights(Scene scene)
@@ -19,11 +19,11 @@ namespace ValveResourceFormat.Renderer.Particles
         private readonly Dictionary<ParticleLightSource, LightState> states = [];
         private readonly Dictionary<ParticleLightSource, SceneLight> lights = [];
 
-        /// <summary>Records what <paramref name="source"/> shows now.</summary>
+        /// <summary>Records the current lit state, position, color and range of <paramref name="source"/>.</summary>
         public void Update(ParticleLightSource source)
             => states[source] = new LightState(source.IsLit, source.Position, source.Color, source.Range);
 
-        /// <summary>Makes the scene lights show what was last recorded, or puts them all out.</summary>
+        /// <summary>Copies the last recorded states to the scene lights, or puts them all out.</summary>
         /// <param name="visible">Whether the lights may show at all.</param>
         public void Apply(bool visible)
         {

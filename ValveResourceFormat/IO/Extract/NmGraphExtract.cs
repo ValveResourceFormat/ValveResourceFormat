@@ -1077,6 +1077,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
         if (compiledClass.TryGetTypedSuffix("ControlParameter", out var valueType))
         {
+            // valueType is already set by the suffix
         }
         else if (IsVirtualParameterNode(nodeIndex))
         {

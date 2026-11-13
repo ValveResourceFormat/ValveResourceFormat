@@ -6,10 +6,11 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
-    /// Renders each particle as a decal projected onto the scene around it, through the scene's
-    /// projected decal system: a box as wide as the particle, projecting along its normal or straight
-    /// down, which follows the particle and is removed when it dies or shrinks to nothing. The decals
-    /// share the decal system's room with every other decal and make way for newer ones like them.
+    /// Renders each particle as a decal projected onto the scene around it, through the projected decal
+    /// system of the scene. The decal is a box as wide as the particle, projecting along the particle
+    /// normal or straight down. It follows the particle and is removed when the particle dies or shrinks
+    /// to nothing. The decals share the room of the decal system with every other decal and make way for
+    /// newer ones like them.
     /// </summary>
     /// <remarks>
     /// Material variables and sheet animation are not applied. The decals project onto whatever the scene
@@ -29,11 +30,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>
         /// Whether the decals project onto the world. The scene's decal pass cannot tell the world from the
-        /// other surfaces it projects onto, so without it nothing is projected.
+        /// other surfaces it projects onto, so when this is false nothing is projected.
         /// </summary>
         private readonly bool projectWorld = true;
 
-        /// <summary>The decal of each particle with a handle, at the slot its handle names less one.</summary>
+        /// <summary>The decal of each particle with a handle, at the slot of the particle's handle minus one.</summary>
         private readonly ParticleHandlePool<(ProjectedDecalHandle Handle, int Material)> pool = new();
         private readonly Action<(ProjectedDecalHandle Handle, int Material)> removeDecal;
 
@@ -186,8 +187,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>
         /// The box the particle's decal projects through: as wide as the particle, projecting along its
-        /// normal when authored to and straight down otherwise. The texture's top runs along the normal
-        /// crossed with world Y, or world X for a normal close to Y, or along -X when projecting down,
+        /// normal when authored to and straight down otherwise. The texture top runs along the normal
+        /// crossed with world Y (world X for a normal close to Y), or along -X when projecting down. It is
         /// turned back about the projection axis by the particle's roll. The depth range, when enabled,
         /// places the box along the projection axis instead of centring it on the particle.
         /// </summary>

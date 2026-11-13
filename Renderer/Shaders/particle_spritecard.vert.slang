@@ -12,7 +12,7 @@
 #define S_PARTICLE_INSTANCED 0
 
 // A sheet of motion vectors warps the first two layers toward the frames they blend between. It plays
-// the first layer's sequence, timing and placement from its own sheet.
+// the first layer's sequence, timing and placement from uMotionVectorSheet.
 #define S_MOTION_VECTORS 0
 
 #if S_PARTICLE_INSTANCED == 2
@@ -22,7 +22,8 @@ in vec4 vPOSITION;
 // The card's centre, or for the buffer path the corner as placed before the size clamp.
 in vec3 vPOSITION;
 #endif
-// The colour, alpha before any fade. A trail's is before either end's colour scale, and its alpha is the head's.
+// The colour, with the alpha before any fade. For a trail the colour is before either end's colour scale
+// and the alpha is the head's.
 in vec4 vCOLOR;
 // The particle's random value, its shader extra data 1, the age the sheet plays by, and its shader
 // extra data 2.
@@ -42,8 +43,8 @@ in vec2 vSegmentAlphaRadius;
 in vec3 vNORMAL;
 
 #if S_PARTICLE_INSTANCED == 2
-// A trail tapers independently at each end, so the half widths ride in w: across in xyz with the
-// head's half width, along and already halved with the tail's.
+// A trail tapers independently at each end, so each axis carries a half width in w. vAxisU is the
+// across axis with the head's half width. vAxisV is the along axis, already halved, with the tail's.
 in vec4 vAxisU;
 in vec4 vAxisV;
 // How much of the card coordinate the flip and crop leave, signed by the flip.
@@ -106,15 +107,15 @@ uniform vec2 uRopeVMapping = vec2(0.0, 1.0);
 uniform bool uClampV = false;
 #endif
 
-// Per-layer uv controls: scale in xy, offset in zw, then the rotation. A layer without a sheet turns by
-// its rotation, in radians; a layer with one plays its sheet that many times as fast instead, or at the
-// animation rate when that comes to 0.
+// Per-layer uv controls: scale in xy, offset in zw, then the rotation. A layer without a sheet rotates by
+// the rotation, in radians. A layer with a sheet plays it at that multiple of the animation rate instead,
+// or at the animation rate when the rotation is 0.
 uniform vec4 uLayerUvScaleOffset[S_TEXTURE_LAYERS + 1];
 uniform float uLayerUvRotation[S_TEXTURE_LAYERS + 1];
 
-// The per particle value (SpriteCardPerParticleScale_t) each control of each layer is multiplied by,
-// four bits per control in the order of PP_SCALE to PP_BLEND, and whether the layer's offset is moved by
-// a random amount per particle in bit PP_RANDOMIZE_OFFSETS_BIT.
+// Selects the per particle value (SpriteCardPerParticleScale_t) each control of each layer is multiplied by,
+// four bits per control in the order of PP_SCALE to PP_BLEND. Bit PP_RANDOMIZE_OFFSETS_BIT moves the
+// layer's offset by a random amount per particle.
 uniform uint uLayerPerParticleModes[S_TEXTURE_LAYERS + 1];
 
 // Whether each layer maps the colour beneath it through a ramp rather than placing its texture on the card.
@@ -164,14 +165,14 @@ uniform bool uCropFrames;
 #define PP_RANDOM_V 8
 #define PP_RANDOMIZE_OFFSETS_BIT 28
 
-// What a control multiplies the particle's random value by before taking its fraction is its layer's key
-// times its own, so every control of every layer reads a different value. A chain where any layer plays
-// a sheet gives its layers without one the second set of layer keys.
+// Key a control multiplies the particle's random value by before taking the fraction: the layer key times
+// the control key, so every control of every layer reads a different value. When any layer plays a sheet,
+// layers without one use PER_PARTICLE_SEQUENCE_LAYER_KEYS instead of PER_PARTICLE_LAYER_KEYS.
 const float PER_PARTICLE_CONTROL_KEYS[9] = float[9](1.0, 0.2177092, 0.27271673, 0.5249507, 0.3436811, 0.47799698, 0.8085732, 0.30374956, 0.2248184);
 const float PER_PARTICLE_LAYER_KEYS[5] = float[5](5657.411, 169.49466, 59.664104, 19.181442, 3.0533476);
 const float PER_PARTICLE_SEQUENCE_LAYER_KEYS[5] = float[5](33.658, 63.17984, 78.20789, 146.17879, 333.92426);
 
-// The rotation key of each layer that plays a sheet, whose rotation scales how fast it plays.
+// Key of the rotation control of each layer that plays a sheet. The rotation scales the playback rate.
 const float SHEET_RATE_KEYS[5] = float[5](1.347, 3.5802, 5.734, 832.234, 48.376);
 
 #define ALPHA_REFERENCE_KEY 238.84
@@ -284,8 +285,8 @@ vec4 PlaceInSheet(vec2 cardUv, float blend, float zoom, vec4 scaleOffset)
         (placedB / scaleOffset.xy) + scaleOffset.zw);
 }
 
-// The direction a placed coordinate is pulled in as the card shrinks to its art, by the first
-// layer's scale and offset whichever layer it belongs to.
+// The direction a placed coordinate is pulled in as the card shrinks to the art. It always uses the
+// scale and offset of the first layer, whichever layer the coordinate belongs to.
 vec4 CropPullDirection(vec4 placed)
 {
     vec4 scaleOffset = uLayerUvScaleOffset[0];
@@ -466,7 +467,7 @@ float LayerFrameZoom(int layer)
     return 1.0;
 }
 
-// What is left of a card by the view angle fade, which fades it out as the facing axis lines up with
+// Alpha multiplier of the view angle fade, which fades the card out as the facing axis lines up with
 // the direction to the camera.
 float ViewAngleFade(vec3 facingAxis, vec3 position)
 {
@@ -663,7 +664,7 @@ float WriteLaterLayerUvs(vec2 layerUv, vec2 cardUv, float laterSequence, vec2 cr
     return secondBlend;
 }
 
-// The motion vectors play the first layer's sequence, rate, zoom and placement in their own sheet
+// The motion vectors play the first layer's sequence, rate, zoom and placement from uMotionVectorSheet
 void WriteMotionVectorUvs(vec4 firstUvs, vec2 cardUv, float sequence, float firstSheetRate, vec2 cropPull)
 {
 #if S_MOTION_VECTORS
@@ -685,7 +686,7 @@ void WriteMotionVectorUvs(vec4 firstUvs, vec2 cardUv, float sequence, float firs
 vec4 CardColor(vec2 corner)
 {
 #if S_PARTICLE_INSTANCED == 2
-    // The head is the end the ribbon runs towards, which the along axis points away from
+    // The head is the end the ribbon runs towards. The along axis points away from it
     bool isHead = corner.y < 0.0;
 
     vec3 colorScale = isHead ? uTrailHeadColorScale : uTrailTailColorScale;
@@ -709,7 +710,7 @@ void CardCenterAndRadius(vec2 corner, out vec3 center, out float radius)
     center = vPOSITION;
     radius = vTEXCOORD3.w;
 #elif S_PARTICLE_INSTANCED == 2
-    // Each end is faded and clamped by its own half width and its own distance from the camera
+    // Each end is faded and clamped by the half width and the camera distance at that end
     bool isHead = corner.y < 0.0;
 
     center = vPOSITION.xyz + (vAxisV.xyz * corner.y);

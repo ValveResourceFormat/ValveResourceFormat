@@ -78,7 +78,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (easeInAndOut)
                 {
-                    // The smoothstep curve without clamping, which the slack past the window's end runs beyond
+                    // The smoothstep curve without clamping, so it is evaluated past the end of the window in the slack
                     timeScale = timeScale * timeScale * (3f - (2f * timeScale));
                 }
                 else if (bias != 0.5f)

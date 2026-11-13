@@ -52,14 +52,14 @@ HashSet<string> editorModelClasses =
     "prop_handpose",
 ];
 
-// The table the library embeds is written over, and the games not installed here keep the classes it has of them
+// Overwrites the entity_classes.kv3 embedded in the library. Games not installed here keep the classes already in it.
 var classesPath = Path.GetFullPath(Path.Join(Path.GetDirectoryName(GetSourcePath()), "..", "..", "ValveResourceFormat", "IO", "Fgd", "entity_classes.kv3"));
 var previous = File.Exists(classesPath) ? KVDocumentExtensions.ParseKV3(classesPath).Root : new KVObject();
 var previousDefinitions = (previous.GetArray("classes") ?? []).ToDictionary(static data => data.GetStringProperty("id", data.GetStringProperty("name")), StringComparer.Ordinal);
 var previousTables = (previous.GetArray("games") ?? []).ToDictionary(static table => table.GetInt32Property("app_id"));
 
-// Every version of each class by its name, with the games that declare it so, under a key of its own until
-// every game is read and the ids it is written under are known
+// Versions of each class by class name, with the app ids that declare that version. A version has a temporary key
+// until every game is read and the final ids are known.
 var definitions = new Dictionary<string, List<(string Text, string Key, KVObject Data, SortedSet<int> AppIds)>>(StringComparer.Ordinal);
 var gameTables = new List<KVObject>();
 
@@ -70,7 +70,7 @@ foreach (var appId in appIds)
 {
     var table = installed.TryGetValue(appId, out var game) ? ParseGame(game) : null;
 
-    // A game whose tools are not installed here keeps what was found of it before
+    // A game not installed with its FGD files keeps its previous table
     if (table == null && previousTables.TryGetValue(appId, out var previousTable))
     {
         Console.WriteLine($"Keeping the classes of {appId}, which is not installed with its FGD files");
@@ -90,12 +90,12 @@ WriteProperties();
 
 return 0;
 
-// The classes of an installed game, or null where none of its gameinfo files names FGD files that are there
+// Class table of an installed game, or null if no gameinfo.gi names FGD files that exist
 KVObject? ParseGame(GameFolderLocator.SteamLibraryGameInfo game)
 {
     Console.WriteLine($"Searching {game.AppID} {game.AppName} ({game.GamePath})");
 
-    // The folder is walked once for both, as most of the time goes to walking it
+    // Walk the folder once for both .fgd and gameinfo.gi files, as the walk takes most of the time
     var files = Directory.EnumerateFiles(game.GamePath, "*", SearchOption.AllDirectories)
         .Where(static path => path.EndsWith(".fgd", StringComparison.OrdinalIgnoreCase) || Path.GetFileName(path).Equals("gameinfo.gi", StringComparison.OrdinalIgnoreCase))
         .ToList();
@@ -105,8 +105,8 @@ KVObject? ParseGame(GameFolderLocator.SteamLibraryGameInfo game)
         ParseFile(file);
     }
 
-    // The classes every game shares are read as part of each game, with what the game changes of them, and an
-    // addon is made with the classes of its game
+    // Skip the gameinfo.gi of core and of addons. Classes shared by all games are read as part of each game, with
+    // that game's changes, and an addon uses the classes of its game.
     var gameInfos = files
         .Where(static path => path.EndsWith("gameinfo.gi", StringComparison.OrdinalIgnoreCase)
             && Path.GetFileName(Path.GetDirectoryName(path)) != "core"
@@ -124,7 +124,7 @@ KVObject? ParseGame(GameFolderLocator.SteamLibraryGameInfo game)
     return null;
 }
 
-// The classes of one game as Hammer builds them
+// Class table of one game, loaded through the Hammer block of its gameinfo.gi
 KVObject? ParseGameClasses(GameFolderLocator.SteamLibraryGameInfo game, string gameInfo)
 {
     if (LoadFgd(gameInfo) is not { } fgd)
@@ -132,7 +132,7 @@ KVObject? ParseGameClasses(GameFolderLocator.SteamLibraryGameInfo game, string g
         return null;
     }
 
-    // Of the classes a class is based on, only the ones an entity can be required to be placed under are read
+    // Names used as a required_parent_class. Only base classes with these names are stored.
     var requiredParentClasses = fgd.Classes
         .Select(static gameClass => gameClass.Metadata.GetStringProperty("required_parent_class"))
         .OfType<string>()
@@ -169,8 +169,8 @@ KVObject? ParseGameClasses(GameFolderLocator.SteamLibraryGameInfo game, string g
     return table;
 }
 
-// The classes of the FGD files the Hammer block of a gameinfo names, opened through the folders and packages the
-// game mounts, or null where it names none that are there
+// Loads the FGD files named by the Hammer block of a gameinfo.gi, through the folders and packages the game mounts.
+// Null if none of the named files exist.
 static FgdFile? LoadFgd(string gameInfo)
 {
     KVObject gameInfoData;
@@ -198,7 +198,7 @@ static FgdFile? LoadFgd(string gameInfo)
     return fgd.LoadGameFiles(hammer) ? fgd : null;
 }
 
-// The table of a game as it was written before, with its classes added again among the ones written now
+// Copies the previously written table of a game, adding each of its classes to definitions again
 KVObject KeepTable(KVObject previousTable)
 {
     var appId = previousTable.GetInt32Property("app_id");
@@ -214,13 +214,13 @@ KVObject KeepTable(KVObject previousTable)
     return table;
 }
 
-// A class as it was written before, under the id it is given among the classes written now
+// Adds a previously written class to definitions and returns its key
 string KeepDefinition(string previousId, int appId)
 {
     var previousData = previousDefinitions.GetValueOrDefault(previousId)
         ?? throw new InvalidDataException($"'{classesPath}' names class '{previousId}', which it does not declare.");
 
-    // It is written as it would be by a game that is installed, which gives it its id last
+    // Drop the id. A definition from an installed game gets its id last, in WriteClasses.
     var data = new KVObject();
 
     foreach (var (name, value) in previousData)
@@ -235,7 +235,7 @@ string KeepDefinition(string previousId, int appId)
     return AddDefinition(data.GetStringProperty("name"), data, appId);
 }
 
-// The key of the version of a class a game declares, which is shared by every game that declares it alike
+// Adds the version of a class that a game declares and returns its key. Games that declare an identical version share the key.
 string AddDefinition(string name, KVObject data, int appId)
 {
     var text = data.ToKV3String();
@@ -262,8 +262,7 @@ string AddDefinition(string name, KVObject data, int appId)
     return key;
 }
 
-// What an entity of a class is in the editor, where it is not the most common, a point; null for a class only
-// other classes are based on
+// Editor kind of an entity of the class, with point the most common. Null for a class that is only a base class.
 static string? GetKind(FgdClass gameClass) => gameClass.Type switch
 {
     FgdClassType.PointClass or FgdClassType.NpcClass or FgdClassType.FilterClass or FgdClassType.MoveClass
@@ -279,8 +278,7 @@ static string? GetKind(FgdClass gameClass) => gameClass.Type switch
 static IEnumerable<FgdClass> GetAllBaseClasses(FgdClass gameClass)
     => gameClass.BaseClasses.SelectMany(static baseClass => GetAllBaseClasses(baseClass).Prepend(baseClass));
 
-// A class as the renderer reads it, which is only what an entity of it is drawn with, or null for a class only
-// other classes are based on
+// Class data the renderer needs to draw an entity of the class. Null for a class that is only a base class.
 static KVObject? ConvertClass(FgdClass gameClass, HashSet<string> requiredParentClasses)
 {
     if (GetKind(gameClass) is not { } kind)
@@ -310,7 +308,7 @@ static KVObject? ConvertClass(FgdClass gameClass, HashSet<string> requiredParent
 
     foreach (var variable in gameClass.Variables)
     {
-        // A key of one of these types is drawn by a helper of its own, which is given its name
+        // A key of these types is drawn by a helper named after the type, with the key name as argument
         var helperName = variable.DeclaredType switch
         {
             FgdVariableType.VecLine => "vecline",
@@ -321,7 +319,7 @@ static KVObject? ConvertClass(FgdClass gameClass, HashSet<string> requiredParent
 
         if (helperName != null)
         {
-            // A key without a name gives the helper none
+            // A key without a name gives the helper no argument
             helpers.Add(ConvertHelper(helperName, variable.Name.Length > 0 ? [variable.Name] : [], null));
         }
     }
@@ -341,8 +339,7 @@ static KVObject? ConvertClass(FgdClass gameClass, HashSet<string> requiredParent
         data.Add("auto_apply_material", autoApplyMaterial);
     }
 
-    // The keys that name the animation the model plays, the one that matters most first, and of keys that matter
-    // as much the one declared first
+    // Keys that name the preview animation, ordered by descending preview_animation_priority and then by declaration
     var previewAnimationKeys = gameClass.Variables
         .Where(static variable => variable.Name.Length > 0 && variable.Metadata.GetBooleanProperty("is_preview_animation"))
         .OrderByDescending(static variable => variable.Metadata.GetInt32Property("preview_animation_priority"))
@@ -412,13 +409,13 @@ static KVObject ConvertHelper(string name, IReadOnlyList<string> arguments, KVOb
 
 static KVObject ToArray(Vector3 vector) => KVObject.Array([vector.X, vector.Y, vector.Z]);
 
-// The classes of every game, written as the table the renderer shows entities with
+// Writes the class definitions and the per-game tables to entity_classes.kv3
 void WriteClasses()
 {
     Console.WriteLine($"Found {definitions.Count} classes in {gameTables.Count} games");
 
-    // A class every game declares alike is written once under its name. Where games declare it differently, each
-    // version is written under its name and the first game that declares it so, and no version is the plain one.
+    // A class that all games declare identically uses its name as id. Where games declare it differently, each
+    // version uses "name:appid" with the lowest app id that declares it, and no version uses the plain name.
     var ids = new Dictionary<string, string>(StringComparer.Ordinal);
 
     foreach (var (name, versions) in definitions)
@@ -477,7 +474,7 @@ void WriteClasses()
 
 static string GetSourcePath([CallerFilePath] string path = "") => path;
 
-// The property names and trigger materials of every Source 2 game, whichever game declares them
+// Collects the lowercase property names of every Source 2 game, whichever game declares them
 void ParseFile(string file)
 {
     var directory = Path.GetDirectoryName(file)!;
@@ -495,7 +492,7 @@ void ParseFile(string file)
         return;
     }
 
-    // Each file is read on its own, opening what it includes through the game it is in
+    // Each file is read separately, with its includes resolved through the game that contains it
     using var fileLoader = new GameFileLoader(null, file);
     var fgd = new FgdFile(fileLoader.GetFileStream);
 

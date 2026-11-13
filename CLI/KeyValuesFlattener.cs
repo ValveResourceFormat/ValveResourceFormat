@@ -61,7 +61,7 @@ namespace CLI
         }
 
         /// <summary>
-        /// Thrown by <see cref="KVSerializer"/> for malformed text.
+        /// Returns whether the exception is one <see cref="KVSerializer"/> throws for malformed text.
         /// </summary>
         public static bool IsParseException(Exception e) => e is KeyValueException or InvalidDataException or InvalidOperationException;
 

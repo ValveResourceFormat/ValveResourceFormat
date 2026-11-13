@@ -18,7 +18,6 @@ namespace Tests.Resources
             resource.Serialize(ms);
             ms.Position = 0;
 
-            // Now try to parse what we just wrote
             using var newResource = new Resource
             {
                 FileName = resource.FileName,
@@ -61,7 +60,6 @@ namespace Tests.Resources
             resource.Serialize(ms);
             ms.Position = 0;
 
-            // Now try to parse what we just wrote
             using var newResource = new Resource
             {
                 FileName = $"{NewName}_c",

@@ -573,7 +573,7 @@ internal sealed partial class McpTools
 
         switch (input)
         {
-            // It moves with the number beside it, which carries the value
+            // A slider moves with the number input beside it, which carries the value
             case Slider:
                 return input.AccessibleName;
 

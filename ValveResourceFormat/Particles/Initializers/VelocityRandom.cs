@@ -31,8 +31,8 @@ namespace ValveResourceFormat.Particles.Initializers
 
         protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            // The local speeds are evaluated for every live particle, and each particle of the run reads its own value
-            // rather than the value of the particle as far into the collection as it is into the run
+            // The local speeds are evaluated for every live particle, and each particle of the run reads its own value,
+            // not the value at its offset from the start of the collection
             var vecMins = vectorMin.Prepare(run, particles.Current, particleSystemState);
             var vecMaxes = vectorMax.Prepare(run, particles.Current, particleSystemState);
             var speedMins = speedMin.Fill(run, particleSystemState);

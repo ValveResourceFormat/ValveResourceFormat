@@ -125,7 +125,6 @@ public struct BlendWeight
         {
             BlendTime += deltaTime;
 
-            // Is the blend complete?
             if (BlendTime >= DesiredBlendTime)
             {
                 BlendTime = 0f;

@@ -204,7 +204,7 @@ namespace ValveResourceFormat.Renderer.Decals
                 Monitor.Exit(data);
             }
 
-            // Past its own mip chain, repeat the smallest image
+            // Past the last mip of the texture, repeat the smallest mip
             if (smallestMip != null)
             {
                 for (var level = smallestLevel + 1; level < levels; level++)

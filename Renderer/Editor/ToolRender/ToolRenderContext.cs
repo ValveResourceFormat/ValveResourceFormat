@@ -5,8 +5,8 @@ namespace ValveResourceFormat.Renderer.Editor.ToolRender;
 /// <summary>
 /// Draws the shapes of the editor the way Hammer's tool render context does: a stack of render modes that
 /// say whether shapes are lines or faces, opaque or blended, hidden by the scene or over it, a stack of
-/// transforms, and a draw color and line width that the shapes take as they are drawn. What is drawn goes
-/// into a <see cref="ToolGeometry"/>.
+/// transforms, and a draw color and line width that the shapes take as they are drawn. The shapes are added
+/// to a <see cref="ToolGeometry"/>.
 /// </summary>
 public sealed class ToolRenderContext
 {
@@ -15,7 +15,7 @@ public sealed class ToolRenderContext
     // Faces are lit by the CPU in the flat modes, from this direction
     private static readonly Vector3 FlatShadeLightDirection = Vector3.Normalize(new Vector3(1f, 2f, 3f));
 
-    // What lines carry as their normal
+    // Normal of lines, and of faces that have no computed normal
     private static readonly Vector3 DefaultNormal = Vector3.UnitZ;
 
     private readonly ToolRenderMode[] modeStack = new ToolRenderMode[StackDepth];
@@ -25,7 +25,7 @@ public sealed class ToolRenderContext
     private ToolPickTargets? pickTargets;
     private int pickId;
 
-    /// <summary>Gets what is drawn.</summary>
+    /// <summary>Gets the geometry the shapes are added to.</summary>
     public ToolGeometry Output { get; }
 
     /// <summary>Gets or sets the color shapes take when they are not given one.</summary>
@@ -37,8 +37,8 @@ public sealed class ToolRenderContext
     public float LineWidth { get; set; }
 
     /// <summary>
-    /// Gets or sets the layer shapes are drawn in whatever their mode, or <see langword="null"/> for the one of
-    /// their mode.
+    /// Gets or sets the layer all shapes are drawn in, or <see langword="null"/> to use the layer of the render
+    /// mode.
     /// </summary>
     public ToolRenderLayer? LayerOverride { get; set; }
 
@@ -55,7 +55,7 @@ public sealed class ToolRenderContext
     public Matrix4x4 Transform => transformStack[transformDepth];
 
     /// <summary>Initializes a context drawing into some geometry, in the default mode and without a transform.</summary>
-    /// <param name="output">Where the shapes go.</param>
+    /// <param name="output">The geometry the shapes are added to.</param>
     public ToolRenderContext(ToolGeometry output)
     {
         ArgumentNullException.ThrowIfNull(output);
@@ -80,7 +80,7 @@ public sealed class ToolRenderContext
         Camera = null;
     }
 
-    // The flags shapes are drawn with right now: lines get thick when there is a line width
+    // Flags of the current render mode, with ThickLines added to wireframe modes when LineWidth is set
     private ToolRenderState State
     {
         get
@@ -123,11 +123,11 @@ public sealed class ToolRenderContext
     }
 
     /// <summary>Draws in a space placed in the current one until <see cref="PopTransform"/>.</summary>
-    /// <param name="transform">Where the space is, in the current one.</param>
+    /// <param name="transform">The transform of the space, relative to the current one.</param>
     public void PushTransform(in Matrix4x4 transform) => PushTransform(transform, multiply: true);
 
     /// <summary>Draws in a space placed in the world, whatever the current one, until <see cref="PopTransform"/>.</summary>
-    /// <param name="transform">Where the space is.</param>
+    /// <param name="transform">The transform of the space, in world space.</param>
     public void PushAbsoluteTransform(in Matrix4x4 transform) => PushTransform(transform, multiply: false);
 
     private void PushTransform(in Matrix4x4 transform, bool multiply)
@@ -154,8 +154,8 @@ public sealed class ToolRenderContext
     /// Makes the faces and handles drawn until <see cref="EndPickObject"/> pickable as one object, as well as
     /// drawn unless the mode is <see cref="ToolRenderMode.PickProxy"/>.
     /// </summary>
-    /// <param name="targets">Where what can be picked goes.</param>
-    /// <param name="id">What the object is picked as.</param>
+    /// <param name="targets">The targets the pickable shapes are added to.</param>
+    /// <param name="id">The id the object is picked as.</param>
     public void BeginPickObject(ToolPickTargets targets, int id)
     {
         ArgumentNullException.ThrowIfNull(targets);
@@ -239,11 +239,11 @@ public sealed class ToolRenderContext
         }
     }
 
-    // The corners of a box, the X, Y and Z bits of the index picking the maximum of each axis
+    // Corner of a box. Bits 4, 2 and 1 of the index select the maximum of X, Y and Z
     private static Vector3 GetBoxCorner(Vector3 mins, Vector3 maxs, int index)
         => new((index & 4) != 0 ? maxs.X : mins.X, (index & 2) != 0 ? maxs.Y : mins.Y, (index & 1) != 0 ? maxs.Z : mins.Z);
 
-    // Corner indices of the faces of a box, as the box faces are drawn
+    // Corner indices of the faces of a box, four per face
     private static ReadOnlySpan<int> BoxFaceCorners =>
     [
         0, 2, 3, 1,
@@ -522,8 +522,8 @@ public sealed class ToolRenderContext
 
     /// <summary>
     /// Draws a capsule as faces in one color: a half sphere around each end, the start one first, and a band
-    /// joining their rims. Every vertex has its normal on the sphere it lies on, which the shaded modes light
-    /// it by.
+    /// joining their rims. Every vertex gets the normal of the sphere it lies on. The shaded modes light by
+    /// that normal.
     /// </summary>
     /// <param name="start">The center of the sphere at one end.</param>
     /// <param name="end">The center of the sphere at the other end.</param>
@@ -733,8 +733,8 @@ public sealed class ToolRenderContext
     }
 
     /// <summary>
-    /// Draws a cone as faces from a disc around its base to its tip, the base in one color and the tip in
-    /// another, with the disc itself lit by the CPU when it is capped.
+    /// Draws a cone as faces from the rim of the base to the tip, the base in one color and the tip in
+    /// another. When capped, the base cap is lit by the CPU.
     /// </summary>
     /// <param name="baseCenter">The center of the base.</param>
     /// <param name="tip">The tip.</param>
@@ -881,7 +881,7 @@ public sealed class ToolRenderContext
         var previousInner = previous;
         var previousOuter = previous;
 
-        // Each point is widened across the segment that ends at it, so the first one, which has no segment, is not
+        // Each point is widened across the segment that ends at it. The first point has no such segment and is not widened
         for (var i = 0; i <= segments; i++)
         {
             var point = GetPoint(startDegrees + step * i);
@@ -979,8 +979,8 @@ public sealed class ToolRenderContext
 
     private Matrix4x4 GetWorldToLocal() => Matrix4x4.Invert(Transform, out var inverse) ? inverse : Matrix4x4.Identity;
 
-    // Two axes across a normalized direction, both normalized: the first across it and the X axis, or the Y
-    // axis when the direction is along X, and the second across that and the direction
+    // Right and up axes perpendicular to a normalized forward, both normalized. Up is perpendicular to forward
+    // and the X axis, or the Y axis when forward is along X. Right is perpendicular to up and forward.
     private static (Vector3 Right, Vector3 Up) GetVectorVectors(Vector3 forward)
     {
         var reference = MathF.Abs(forward.X) > 0.999f ? Vector3.UnitY : Vector3.UnitX;
@@ -990,7 +990,7 @@ public sealed class ToolRenderContext
         return (MathUtils.SafeNormalize(right), MathUtils.SafeNormalize(up));
     }
 
-    // The normal the CPU lights a face by, which faces away from the side its corners turn clockwise on
+    // Face normal for CPU lighting, pointing away from the side on which the corners wind clockwise
     private static Vector3 GetShadeNormal(Vector3 a, Vector3 b, Vector3 c) => MathUtils.SafeNormalize(MathUtils.TriangleCross(a, c, b));
 
     private void AddFaces(Vector3 a, Vector3 b, Vector3 c, Color32 colorA, Color32 colorB, Color32 colorC, ToolFaceSides sides)
@@ -1022,7 +1022,7 @@ public sealed class ToolRenderContext
         AddTriangle(a, b, c, colorA, colorB, colorC, normal, normal, normal);
     }
 
-    /// <summary>A color lit by the CPU the way the flat modes light faces, its alpha kept.</summary>
+    /// <summary>A color lit by the CPU from a face normal and a fixed light direction, as in the flat modes. Alpha is kept.</summary>
     internal static Color32 ShadeFlat(Color32 color, Vector3 normal)
     {
         var factor = Vector3.Dot(normal, FlatShadeLightDirection) * 0.35f + 0.65f;

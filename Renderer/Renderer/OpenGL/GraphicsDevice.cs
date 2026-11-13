@@ -94,8 +94,8 @@ public sealed class GraphicsDevice
         var size = data.Length * Unsafe.SizeOf<T>();
         ref var bytes = ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(data));
 
-        // Static contents are set here and never written again, which immutable storage lets the
-        // driver rely on. It has no zero sized form, so an empty buffer stays mutable.
+        // Static contents are never written again, so they use immutable storage.
+        // Immutable storage cannot be zero sized, so an empty buffer stays mutable.
         if (usage == BufferUsage.Static && size > 0)
         {
             GL.NamedBufferStorage(handle, size, ref bytes, BufferStorageFlags.None);

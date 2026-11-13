@@ -28,7 +28,7 @@ namespace ValveResourceFormat.IO
         /// <summary>The largest inverse mass an <c>explicit_masses</c> node carries.</summary>
         private const float MaxExplicitInverseMass = 20f;
 
-        /// <summary>How far, relative to the mass, an <c>explicit_masses</c> mass may sit from two decimals.</summary>
+        /// <summary>Relative tolerance for an <c>explicit_masses</c> mass to count as rounded to two decimals.</summary>
         private const float ExplicitMassRoundingTolerance = 1e-3f;
 
         /// <summary>How far, relative to the larger, two inverse masses may differ and still count as equal.</summary>
@@ -41,8 +41,8 @@ namespace ValveResourceFormat.IO
         private const float MassProportionalWeightTolerance = 2e-5f;
 
         /// <summary>
-        /// Recovers the <c>cloth_mass</c> paint of an authored-face proxy sheet from what each node's mass carries beyond
-        /// its geometric term, or null when there is none. Under the <see cref="HasVoronoiElementMasses">Voronoi element
+        /// Recovers the <c>cloth_mass</c> paint of an authored-face proxy sheet from the residual of each node mass
+        /// over its geometric mass, or null when there is none. Under the <see cref="HasVoronoiElementMasses">Voronoi element
         /// mass pass</see> sheets of compiled elements are read too, and vertices without a reading get a negligible paint.
         /// </summary>
         internal float[]? RecoverMassPaint(ProxyMesh proxy)
@@ -128,10 +128,10 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Solves the <c>cloth_mass</c> paint of a sheet under the Voronoi element mass pass from its face rods, whose
-        /// weights depend only on the endpoints' mass paint, so each states <c>paint[b] - paint[a] = ln(w / (1 - w))</c>.
-        /// Each connected set is shifted by the median offset of its readings on nodes outside bracketed elements; a set
-        /// without such a reading keeps its readings.
+        /// Solves the <c>cloth_mass</c> paint of a sheet under the Voronoi element mass pass from its face rods.
+        /// The weight of a rod depends only on the mass paint of its endpoints, so each rod states
+        /// <c>paint[b] - paint[a] = ln(w / (1 - w))</c>. Each connected set is shifted by the median offset of its
+        /// readings on nodes outside bracketed elements; a set without such a reading keeps its readings.
         /// </summary>
         private float[] PinVoronoiMassPaint(ProxyMesh proxy, float[] paint, List<(int Vertex, float Tolerance)> painted,
             HashSet<int> bracketed)
@@ -240,8 +240,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Walks each connected set of <paramref name="neighbours"/> from its lowest vertex, giving every vertex the value its
-        /// path of rod differences reaches from <paramref name="seed"/>.
+        /// Walks each connected set of <paramref name="neighbours"/> from its lowest vertex. Every vertex gets the
+        /// <paramref name="seed"/> of that start vertex plus the rod differences along the path walked to it.
         /// </summary>
         private static IEnumerable<(List<int> Component, Dictionary<int, double> Value)> MassPaintComponents(
             Dictionary<int, List<(int Other, double Difference)>> neighbours, Func<int, double> seed)
@@ -306,8 +306,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets the median of the <c>cloth_mass</c> readings when every reading lies within
-        /// <see cref="UniformMassPaintSteps"/> of its tolerance from it, else null.
+        /// Gets the median of the <c>cloth_mass</c> readings when every reading is within
+        /// <see cref="UniformMassPaintSteps"/> times its tolerance of the median, else null.
         /// </summary>
         internal static float? UniformMassPaint(IReadOnlyList<(float Value, float Tolerance)> readings)
         {
@@ -951,8 +951,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Recovers the <c>motion_bias</c> of a chain joint from the weights of the rods between it and its parent, and the
-        /// bounded rods between their simulated <c>$cc</c> rings, or null where they carry no reading.
+        /// Recovers the <c>motion_bias</c> of a chain joint from the weights of the rods between the joint and its parent, and the
+        /// bounded rods between the simulated <c>$cc</c> rings of the joint and its parent, or null where they carry no reading.
         /// </summary>
         internal float? GetMotionBias(BoneChainJoint joint)
         {

@@ -28,8 +28,8 @@ out vec4 vThisVertexPs;
 
 const float DepthBiasAmount = 0.005;
 
-// Reverse-Z, so the bias moves towards larger depths, and it falls off from the near plane as the
-// depth the editor biases with does
+// Reverse-Z, so the bias moves towards larger depths. The bias falls off from DepthBiasAmount at the
+// near plane to 1e-6 at the far plane
 vec4 ApplyDepthBias(vec4 positionPs)
 {
 #if D_DEPTH_BIAS == 1

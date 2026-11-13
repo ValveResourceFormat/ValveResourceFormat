@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Animation
     {
         Target cachedValue;
 
-        // Returns the node's value, evaluating it at most once per graph update (matches the C++ WasUpdated guard).
+        // Returns the node's value, evaluating it at most once per graph update.
         public Target GetValue(GraphContext ctx)
         {
             if (!WasUpdated(ctx))
@@ -44,7 +44,6 @@ namespace ValveResourceFormat.Animation
 
             InputValueNode.Initialize(ctx);
 
-            // Cache on entry
             if (Mode == CachedValueMode.OnEntry)
             {
                 CachedValue = InputValueNode.GetValue(ctx);

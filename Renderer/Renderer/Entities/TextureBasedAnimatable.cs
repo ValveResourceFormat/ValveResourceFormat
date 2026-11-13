@@ -4,8 +4,8 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>texture_based_animatable</c>. A model of rigid pieces whose motion is baked into a position and a rotation
-/// keyframe texture, one column per piece, which its <c>F_PRE_BAKED_VERTEX_ANIMATION</c> materials sample per vertex.
+/// <c>texture_based_animatable</c>. A model of rigid pieces whose motion is baked into a position keyframe texture and
+/// a rotation keyframe texture, one column per piece. The <c>F_PRE_BAKED_VERTEX_ANIMATION</c> materials of the model sample them per vertex.
 /// <c>Start</c> plays the frames at <c>fps</c> from the first, <c>Stop</c> returns to the first.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CTextureBasedAnimatable">CTextureBasedAnimatable</seealso>
@@ -41,7 +41,7 @@ public sealed class TextureBasedAnimatable : BaseModelEntity
             return;
         }
 
-        // The pieces move away from the model's own bounds, so while playing it is culled by these instead
+        // The pieces move outside the model bounds, so while playing the model is culled by the animation bounds instead
         var boundsMin = KeyValues.GetVector3Property("anim_bounds_min");
         var boundsMax = KeyValues.GetVector3Property("anim_bounds_max");
         var hasAnimationBounds = boundsMin.X < boundsMax.X && boundsMin.Y < boundsMax.Y && boundsMin.Z < boundsMax.Z;

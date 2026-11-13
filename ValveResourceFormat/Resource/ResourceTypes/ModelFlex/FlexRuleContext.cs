@@ -42,7 +42,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex
         }
 
         /// <summary>
-        /// Pops a value, yielding zero on an empty stack the way the engine reads past its own.
+        /// Pops a value, yielding zero on an empty stack, as the engine does when it reads past the bottom of the stack.
         /// </summary>
         public readonly float Pop()
         {
@@ -50,7 +50,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex
         }
 
         /// <summary>
-        /// Pops a value and reinterprets its bits as an index, the way flex ops encode operand indices as floats.
+        /// Pops a value and reinterprets its bits as an index. Flex ops encode operand indices as floats.
         /// </summary>
         public readonly int PopIndex()
         {

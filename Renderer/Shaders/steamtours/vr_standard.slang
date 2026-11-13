@@ -154,14 +154,14 @@ vec4 SampleColor(vec2 texCoord)
 }
 
 #if (F_BLEND > 0)
-// The share of a layer: a linear ramp over the paint, where the reveal mask sets how much paint it takes to show
+// Blend weight of a layer, a linear ramp over the paint where the reveal mask sets how much paint is needed to show the layer
 float GetLayerBlend(float paint, float revealMask, float softness)
 {
     float ramp = softness * 2.0;
     return saturate((paint * (1.0 + ramp) - revealMask) / ramp);
 }
 
-// The border color of a layer, strongest along the middle of the ramp of its blend
+// The border color of a layer, strongest in the middle of the blend ramp
 vec3 GetLayerBorder(float paint, float revealMask, vec3 borderColor, float softness, float offset, float strength)
 {
     float ramp = softness * 2.0;
@@ -230,7 +230,7 @@ void InitAlbedoAndOpacity(inout MaterialProperties_t mat, vec2 texCoord, vec4 co
 #endif
 }
 
-// The high quality gloss shader reads its normal from a texture of its own and adds a gloss texture to the roughness
+// The high quality gloss shader reads the normal from g_tNormal2 and adds g_tGloss to the roughness
 void InitNormalAndRoughness(inout MaterialProperties_t mat, vec2 texCoord, vec4 normalTexture)
 {
 #if (F_HIGH_QUALITY_GLOSS == 1)

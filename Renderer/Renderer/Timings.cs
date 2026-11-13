@@ -32,7 +32,7 @@ public class Timings
         public double? PreviousMax;
         public double? CurrentMax;
 
-        // The same over the last whole fold window, which decides what is folded
+        // The same over the last whole fold window, which decides which regions are folded
         public double? PreviousFoldMax;
         public double? CurrentFoldMax;
 
@@ -84,10 +84,10 @@ public class Timings
 
     private const int NameColumnWidth = 40;
 
-    // A collapsed region still lists what is nested in it once it peaks above this
+    // A collapsed region still lists the regions nested in it once it peaks above this
     private const double ExpandCollapsedMs = 1.0;
 
-    // Seconds between changes to what is folded, so that rows do not jump around while reading
+    // Seconds between changes to which regions are folded, so that rows do not jump around while reading
     private const double FoldWindowSeconds = 4.0;
 
     private static readonly string ColumnHeader = $"  {"",-NameColumnWidth} {"GPU",6} {"CPU",6} {"P100",6}";
@@ -112,8 +112,8 @@ public class Timings
 
     /// <summary>
     /// Records the swap wait and the frame period it belongs to, and folds them into the unaccounted
-    /// remainder. Uses the total <see cref="MarkFrameEnd"/> snapshotted rather than the live results,
-    /// which are cleared by then, and which the display only ever sees part of anyway.
+    /// remainder. Uses the total <see cref="MarkFrameEnd"/> snapshotted, not the live results.
+    /// Those are cleared by then, and the display only shows part of them anyway.
     /// </summary>
     /// <param name="milliseconds">Wall time the swap call blocked for.</param>
     /// <param name="framePeriodMilliseconds">Wall time between this swap and the last, or 0 for a frame

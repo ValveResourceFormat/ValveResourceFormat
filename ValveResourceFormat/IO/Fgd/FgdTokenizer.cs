@@ -45,7 +45,7 @@ internal sealed class FgdTokenizer
             }
         }
 
-        /// <summary>Whether the token is made of nothing but what a decimal number is written with.</summary>
+        /// <summary>Whether the token is made only of digits, signs, a decimal point and exponent letters.</summary>
         public bool IsFloat
         {
             get
@@ -90,7 +90,7 @@ internal sealed class FgdTokenizer
         public bool Is(string text) => Span.Equals(text, StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
-        /// The text a string stands for: without its quotes, and with what a backslash escapes.
+        /// The text of the string without its quotes and with backslash escapes resolved.
         /// </summary>
         public string Unquote()
         {
@@ -406,7 +406,7 @@ internal sealed class FgdTokenizer
         return true;
     }
 
-    // Lexing only moves forward, so the lines are counted on from the last place they were counted to
+    // Lexing only moves forward, so lines are counted incrementally from lineCountedTo
     private int CountLinesTo(int end)
     {
         end = Math.Min(end, text.Length);

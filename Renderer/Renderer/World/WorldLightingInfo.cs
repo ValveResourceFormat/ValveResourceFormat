@@ -100,7 +100,7 @@ namespace ValveResourceFormat.Renderer.World
 
         private BarnLightSortKey[] BarnLightSortKeys = new BarnLightSortKey[BarnLightConstants.MAX_BARN_LIGHTS];
 
-        /// <summary>What decides which visible lights make the per view cap, in order of priority.</summary>
+        /// <summary>Sort key that decides which visible lights make the per view cap. Fields are compared in order of priority.</summary>
         private struct BarnLightSortKey : IComparable<BarnLightSortKey>
         {
             public int BinnedIndex;
@@ -213,8 +213,8 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Sets up the atlas the light probes sample: the one the map baked, or else one packed from the volumes that
-        /// were each baked into textures of their own. Only volumes in it are lit by, see <see cref="IsInProbeAtlas"/>.
+        /// Sets up the atlas the light probes sample: the atlas the map baked, or else an atlas packed from volumes that
+        /// have separate textures. Only volumes in the atlas are sampled, see <see cref="IsInProbeAtlas"/>.
         /// </summary>
         internal void BuildProbeAtlas()
         {
@@ -394,7 +394,7 @@ namespace ValveResourceFormat.Renderer.World
                 LoadLightCookies();
                 StoreLightMappedLights_V1(lights);
 
-                // Not in the store itself, which light styles run every tick
+                // Log here, not in StoreLightMappedLights_V1, which reruns when a light style changes a stored light
                 scene.RendererContext.Logger.LogDebug(
                     "Lightmap version {Major}.{Minor}: {Stationary} stationary and {Dynamic} per-pixel lights of {Total} light entities",
                     LightmapVersionNumber, LightmapGameVersionNumber, LightingData.StaticLightCount,
@@ -712,8 +712,8 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Gets the roughness the highlight of the sun is no sharper than. Only CS2 keeps the sun from shining as a
-        /// point; the other games leave its highlight as sharp as the material is.
+        /// Gets the minimum roughness of the sun highlight. Only CS2 keeps the sun from shining as a
+        /// point; the other games leave the highlight as sharp as the material is.
         /// </summary>
         /// <param name="lightMinRoughness">The minimum roughness the light itself asks for.</param>
         /// <returns>The minimum roughness, zero where it does not apply.</returns>
@@ -883,7 +883,7 @@ namespace ValveResourceFormat.Renderer.World
         private SceneLight? mixedShadowSun;
         private int mixedShadowSunIndex = -1;
 
-        /// <summary>Gets what picks the one stationary light whose real-time shadow is drawn over its baked shadows.</summary>
+        /// <summary>Gets the selector of the one stationary light whose real-time shadow is drawn over its baked shadows.</summary>
         public MixedShadowSelector MixedShadows { get; } = new();
 
         /// <summary>
@@ -1305,7 +1305,6 @@ namespace ValveResourceFormat.Renderer.World
             var readFbo = GraphicsDevice.CreateFramebuffer("CookieAtlasBlitSrc");
             var drawFbo = GraphicsDevice.CreateFramebuffer("CookieAtlasBlitDst");
 
-            // First layer is full white
             GL.NamedFramebufferTextureLayer(drawFbo, FramebufferAttachment.ColorAttachment0, atlas.Handle, 0, 0);
             GL.ClearNamedFramebuffer(drawFbo, ClearBuffer.Color, 0, [1f, 1f, 1f, 1f]);
 
@@ -1354,7 +1353,7 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Gets what bounds every binned barn light face, in the order the shading pass indexes them, so
+        /// Gets the cull volume of every binned barn light face, in the order the shading pass indexes them, so
         /// a cull item's bit position is its light index.
         /// </summary>
         public ReadOnlySpan<BarnLightCullVolume> BinnedBarnLightVolumes

@@ -13,9 +13,9 @@ public static class CollisionProperties
     /// <summary>A named collision property.</summary>
     /// <param name="Name">The name it is referred to by.</param>
     /// <param name="CollisionGroup">The collision group it puts collision in.</param>
-    /// <param name="InteractAs">The interaction layers collision with it is in.</param>
-    /// <param name="InteractWith">The interaction layers collision with it collides with.</param>
-    /// <param name="InteractExclude">The interaction layers collision with it never collides with.</param>
+    /// <param name="InteractAs">The interaction layers the collision is in.</param>
+    /// <param name="InteractWith">The interaction layers the collision collides with.</param>
+    /// <param name="InteractExclude">The interaction layers the collision never collides with.</param>
     public sealed record Entry(string Name, string CollisionGroup, string[] InteractAs, string[] InteractWith, string[] InteractExclude);
 
     private const string ConditionallySolid = "ConditionallySolid";

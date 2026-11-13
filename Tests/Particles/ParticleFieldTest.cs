@@ -6,8 +6,8 @@ namespace Tests.Particles
 {
     public class ParticleFieldTest
     {
-        // Fields holding references the engine owns, which have no value to store in a viewer, and the
-        // bone indices, which are kept apart from the scalars and vectors
+        // Pointer fields reference objects the engine owns, so there is no value to store in a viewer.
+        // Bone indices are kept apart from the scalars and vectors.
         private static readonly ParticleField[] Unstored =
         [
             ParticleField.NoneDisabled,

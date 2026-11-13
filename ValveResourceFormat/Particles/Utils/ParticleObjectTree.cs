@@ -3,9 +3,9 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
-    /// Finds the pairs of particles whose boxes overlap, in the order an object tree over their boxes
-    /// visits them. Each particle's box, its position grown by its radius plus a padding, is quantised to
-    /// signed bytes within the system's bounds, and the particles are sorted into slots along a Morton
+    /// Finds the pairs of particles whose boxes overlap, in the order an object tree over the boxes
+    /// visits them. The box of a particle is its position grown by the radius plus a padding, quantised
+    /// to signed bytes within the system's bounds. The particles are sorted into slots along a Morton
     /// curve through the box centres. Pairs come out by groups of 32 slots, then by slot.
     /// </summary>
     /// <remarks>
@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Particles.Utils
     {
         private const int GroupSize = 32;
 
-        // Half of 255, the fraction of the range that maps to zero
+        // 128/255, the fraction of the range that maps to zero; slightly above half because signed bytes start at -128
         private const float OriginFraction = 0.50196081f;
 
         private int count;
@@ -27,7 +27,6 @@ namespace ValveResourceFormat.Particles.Utils
         /// <summary>Gets the overlapping pairs as slot indices, the lower slot first, in visiting order.</summary>
         public List<(int First, int Second)> Pairs { get; } = [];
 
-        /// <summary>Gets the particle each slot holds.</summary>
         public ReadOnlySpan<int> SlotToParticle => slotToParticle.AsSpan(0, count);
 
         /// <summary>

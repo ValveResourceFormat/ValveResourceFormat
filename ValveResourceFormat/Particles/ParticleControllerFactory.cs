@@ -382,45 +382,21 @@ namespace ValveResourceFormat.Particles
             return false;
         }
 
-        /// <summary>
-        /// Attempts to create a particle pre-emission operator by its Source 2 class name.
-        /// </summary>
-        /// <returns><see langword="true"/> if the pre-emission operator type is supported; otherwise <see langword="false"/>.</returns>
         public static bool TryCreatePreEmissionOperator(string name, ParticleDefinitionParser parse, [MaybeNullWhen(false)] out ParticleFunctionPreEmissionOperator preEmissionOperator)
             => TryCreate(PreEmissionOperatorDictionary, name, parse, out preEmissionOperator);
 
-        /// <summary>
-        /// Attempts to create a particle emitter by its Source 2 class name.
-        /// </summary>
-        /// <returns><see langword="true"/> if the emitter type is supported; otherwise <see langword="false"/>.</returns>
         public static bool TryCreateEmitter(string name, ParticleDefinitionParser parse, [MaybeNullWhen(false)] out ParticleFunctionEmitter emitter)
             => TryCreate(EmitterDictionary, name, parse, out emitter);
 
-        /// <summary>
-        /// Attempts to create a particle initializer by its Source 2 class name.
-        /// </summary>
-        /// <returns><see langword="true"/> if the initializer type is supported; otherwise <see langword="false"/>.</returns>
         public static bool TryCreateInitializer(string name, ParticleDefinitionParser parse, [MaybeNullWhen(false)] out ParticleFunctionInitializer initializer)
             => TryCreate(InitializerDictionary, name, parse, out initializer);
 
-        /// <summary>
-        /// Attempts to create a particle operator by its Source 2 class name.
-        /// </summary>
-        /// <returns><see langword="true"/> if the operator type is supported; otherwise <see langword="false"/>.</returns>
         public static bool TryCreateOperator(string name, ParticleDefinitionParser parse, [MaybeNullWhen(false)] out ParticleFunctionOperator @operator)
             => TryCreate(OperatorDictionary, name, parse, out @operator);
 
-        /// <summary>
-        /// Attempts to create a particle force generator by its Source 2 class name.
-        /// </summary>
-        /// <returns><see langword="true"/> if the force generator type is supported; otherwise <see langword="false"/>.</returns>
         public static bool TryCreateForceGenerator(string name, ParticleDefinitionParser parse, [MaybeNullWhen(false)] out ParticleFunctionForceGenerator forceGenerator)
             => TryCreate(ForceGeneratorDictionary, name, parse, out forceGenerator);
 
-        /// <summary>
-        /// Attempts to create a particle constraint by its Source 2 class name.
-        /// </summary>
-        /// <returns><see langword="true"/> if the constraint type is supported; otherwise <see langword="false"/>.</returns>
         public static bool TryCreateConstraint(string name, ParticleDefinitionParser parse, [MaybeNullWhen(false)] out ParticleFunctionConstraint constraint)
             => TryCreate(ConstraintDictionary, name, parse, out constraint);
 

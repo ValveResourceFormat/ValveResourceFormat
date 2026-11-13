@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Renderer
         public uint EnvMapIndex { get; internal set; }
 
         /// <summary>
-        /// Where the lighting of a moving node was last picked from, null when it has to be picked again.
+        /// Origin the lighting of a moving node was last picked at, null when it has to be picked again.
         /// </summary>
         internal Vector3? CachedLightingOrigin { get; set; }
 

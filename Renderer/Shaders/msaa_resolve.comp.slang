@@ -93,7 +93,7 @@ vec3 ResolvePixel(ivec2 coord)
         vec4 worldPos3D = vec4(worldPos.xyz / worldPos.w, 1.0);
 
         // Projecting worldpos onto the lens plane gives us how far away the point is from the plane
-        // g_vLensPlane.w is the plane offset, using dot between 4d vectors for this is clever
+        // g_vLensPlane.w is the plane offset, so a dot product between 4D vectors gives the distance
         float distanceFromLensPlane = dot(g_vLensPlane, worldPos3D);
 
         float nearScale = g_vNearFarScaleBias.x;

@@ -13,7 +13,7 @@ namespace ValveResourceFormat.Graphs;
 /// </remarks>
 internal sealed class NetworkSimplex(int nodeCount)
 {
-    /// <summary>Negative tree edges compared before the most negative of them leaves the tree.</summary>
+    /// <summary>Negative cut values examined per search for the leaving tree edge.</summary>
     private const int SearchSize = 30;
 
     private readonly List<(int Tail, int Head, int MinLength, int Weight)> pending = [];

@@ -25,8 +25,8 @@ namespace ValveResourceFormat.Particles.Operators
             => strength >= 1f ? value : (value * strength) + (current * (1f - strength));
 
         /// <summary>
-        /// Records the initial value read of an operator that writes <paramref name="field"/> by
-        /// <paramref name="method"/>: the field itself when the method combines with its initial value.
+        /// Records that an operator writing <paramref name="field"/> by <paramref name="method"/> reads the
+        /// initial value of the field, when the method combines with the initial value.
         /// </summary>
         protected static void AddInitialReadOf(ParticleDefinitionParser parse, ParticleSetMethod method, ParticleField field)
         {

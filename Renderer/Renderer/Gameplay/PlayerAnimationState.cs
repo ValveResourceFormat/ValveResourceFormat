@@ -434,7 +434,7 @@ public sealed class PlayerAnimationState
                 continue;
             }
 
-            // One already under way the same way is left to play
+            // A plant and turn already playing in this direction is left to play
             if (GroundState == GroundMoveState.PlantAndTurn && GroundActionDirection == opposite && plantAndTurnTime < PlantAndTurnRepeatDelay)
             {
                 return false;
@@ -497,9 +497,9 @@ public sealed class PlayerAnimationState
             return;
         }
 
-        // Turns faster the further the aim is ahead, coming up to speed over the first few ticks. The ramp
-        // counts whole ticks, so that a turn gets going the same at any frame rate: its first step has to
-        // be fast enough to keep it from being called off again below.
+        // Turns faster the further the aim is ahead, ramping up over the first few ticks. The ramp counts
+        // whole ticks so a turn gets going the same at any frame rate. The first step has to be fast
+        // enough that the TurnLoopStopSpeed check below does not end the turn.
         var lead = MathF.Abs(aimLead);
         var rampTicks = MathF.Floor(actionTime * TickRate) + 1f;
         var speed = lead * 8f * MathF.Min(1f, rampTicks / (TurnLoopRampDuration * TickRate));

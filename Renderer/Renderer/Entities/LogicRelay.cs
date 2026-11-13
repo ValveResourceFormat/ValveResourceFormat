@@ -79,7 +79,7 @@ public sealed class LogicRelay : BaseEntity
             return;
         }
 
-        // Deaf until the slowest OnTrigger connection has been delivered, so a retrigger cannot overlap it.
+        // Ignores triggers until the slowest OnTrigger connection has been delivered, so a retrigger cannot overlap it.
         // A connection whose count this trigger used up is no longer counted.
         isWaitingForRefire = true;
         EntitySystem.QueueInput(this, "EnableRefire", activator: this, caller: caller,

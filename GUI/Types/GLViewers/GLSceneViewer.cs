@@ -88,7 +88,7 @@ namespace GUI.Types.GLViewers
         private volatile bool visibilityDirty;
         private string? currentRenderMode;
 
-        /// <summary>Gets whether the viewer has its own switches for what of the tools is drawn.</summary>
+        /// <summary>Gets whether the viewer has its own switches for the visibility of tools.</summary>
         protected virtual bool HasToolsVisibilityControls => false;
 
         /// <summary>Gets the mode shown at the top of the viewport and its colour, or <see langword="null"/> to show none.</summary>
@@ -104,10 +104,10 @@ namespace GUI.Types.GLViewers
         private SelectionVisuals? selectionVisuals;
         private ToolsPass? toolsPass;
 
-        /// <summary>What tools-only content the view draws, which decides the tools materials the renderer draws.</summary>
+        /// <summary>Which tools-only content the view draws. It is the draw filter for tools materials.</summary>
         protected ToolsVisibility Tools { get; } = new();
 
-        /// <summary>The editor entities of the view, which draw what Hammer shows of them.</summary>
+        /// <summary>The Hammer helpers of the entities of the view.</summary>
         protected HammerEntityVisuals EntityVisuals { get; }
 
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
@@ -415,9 +415,9 @@ namespace GUI.Types.GLViewers
 
             var size = bbox.Size * 1.25f;
 
-            // Framed by what the bounds cover from where the camera will be: their longest axis would
-            // stand a cable or a trigger brush off by its own length. The floor keeps something player
-            // sized from filling the view with nothing around it to place it by.
+            // Frame the bounds as seen from the camera direction. Their longest axis would place a cable or
+            // a trigger brush as far away as it is long. The minimum distance keeps something player
+            // sized from filling the view with nothing around it to judge its size by.
             var framing = Input.Camera.GetFramingDistance(size, -CameraPlacement.PreferredDirection(size));
             var distance = Math.Max(framing, 192f);
             var location = CameraPlacement.FindOrbitPosition(Renderer.EntitySystem.PhysicsWorld, center, distance, size);
@@ -805,7 +805,7 @@ namespace GUI.Types.GLViewers
         /// Draws viewer specific shapes over the scene, once per frame after the camera is final. They are drawn
         /// with the tools of the main scene, whether or not tools are shown.
         /// </summary>
-        /// <param name="context">Where the shapes go, in world space.</param>
+        /// <param name="context">Receives the shapes, in world space.</param>
         protected virtual void UpdateOverlayShapes(ToolRenderContext context)
         {
         }
@@ -1154,7 +1154,7 @@ namespace GUI.Types.GLViewers
 
             renderModeComboBox = UiControl.AddToolbarSelection(OnRenderModeSelected, "Render mode");
 
-            // Hands the keyboard back to the viewport, which the dropdown took
+            // The dropdown took keyboard focus. Return it to the viewport
             renderModeComboBox.DropDownClosed += (_, _) => GLControl?.Focus();
 
             SetAvailableRenderModes();
@@ -1255,7 +1255,7 @@ namespace GUI.Types.GLViewers
         private sealed record LayerChoice(IReadOnlyCollection<WorldLayer> Listed, HashSet<WorldLayer> Chosen);
 
         /// <summary>
-        /// Shows the chosen layers out of those listed and hides the rest of them, from the next frame. Layers that
+        /// Shows the chosen layers and hides the other listed layers, from the next frame. Layers that
         /// are not listed are left as they are.
         /// </summary>
         protected void SetEnabledLayers(IReadOnlyCollection<WorldLayer> listedLayers, HashSet<WorldLayer> chosenLayers)
@@ -1266,7 +1266,7 @@ namespace GUI.Types.GLViewers
 
         /// <summary>
         /// Adds the layers to the sidebar as checkable items nested by the slashes in their names, and shows the
-        /// checked ones out of them.
+        /// checked layers.
         /// </summary>
         /// <param name="name">The title of the box.</param>
         /// <param name="layers">The layers to list, in order.</param>
@@ -1297,7 +1297,7 @@ namespace GUI.Types.GLViewers
         }
 
         /// <summary>
-        /// Reapplies what is shown at the start of the next frame. Nodes are added and removed on the render
+        /// Reapplies node visibility at the start of the next frame. Nodes are added and removed on the render
         /// thread, so they are only walked there.
         /// </summary>
         protected void RequestVisibilityUpdate() => visibilityDirty = true;
@@ -1436,7 +1436,7 @@ namespace GUI.Types.GLViewers
 
             if (keyData == Keys.Tab && perfDisplayComboBox != null)
             {
-                // Cycle through the perf display modes (the callback updates perfDisplay)
+                // The callback updates perfDisplay
                 perfDisplayComboBox.SelectedIndex = (perfDisplayComboBox.SelectedIndex + 1) % perfDisplayComboBox.Items.Count;
             }
 

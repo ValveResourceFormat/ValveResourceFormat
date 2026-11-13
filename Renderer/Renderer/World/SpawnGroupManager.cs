@@ -15,9 +15,9 @@ namespace ValveResourceFormat.Renderer.World;
 /// the game needs of each. The entity system only creates and spawns their entities and holds the active group.
 /// </para>
 /// <para>
-/// Nothing that draws knows spawn groups either. A group with a scene of its own hands it to the
-/// <see cref="Host"/> once it spawns, which draws it with the other scenes of its world group, and takes it
-/// back when it unloads.
+/// Nothing that draws knows spawn groups either. A group with <see cref="SpawnGroup.HasOwnScene"/> hands its
+/// scene to the <see cref="Host"/> once it spawns, which draws the scene with the other scenes of the world
+/// group. Unloading the group removes the scene from the host.
 /// </para>
 /// </remarks>
 public sealed class SpawnGroupManager
@@ -26,7 +26,7 @@ public sealed class SpawnGroupManager
 
     private readonly List<SpawnGroup> groups = [];
 
-    // Loaded without being told to spawn there and then, which the next tick spawns
+    // Loaded groups that have not spawned yet, which the next tick spawns
     private readonly List<SpawnGroup> pendingGroups = [];
 
     // Maps loaded into the scene of the map that placed them, whose geometry and collision stay in that scene
@@ -73,7 +73,7 @@ public sealed class SpawnGroupManager
         pendingGroups.Add(group);
     }
 
-    /// <summary>Makes a loaded spawn group a child of another, which unloads it along with itself.</summary>
+    /// <summary>Makes a loaded spawn group a child of another. Unloading the parent unloads the child.</summary>
     /// <param name="parent">The group to unload the child with.</param>
     /// <param name="child">The group to unload with the parent.</param>
     public void AddChildSpawnGroup(SpawnGroup parent, SpawnGroup child)
@@ -181,7 +181,7 @@ public sealed class SpawnGroupManager
         return loadedWorld;
     }
 
-    // Loads the map of a group placed where the group is. A group with a scene of its own keeps the map package
+    // Loads the map of a group at the group's transform. A group with a scene of its own keeps the map package
     // mounted until it unloads, even when the map failed to load.
     private WorldLoader? LoadWorld(SpawnGroup group)
     {
@@ -210,7 +210,7 @@ public sealed class SpawnGroupManager
             entitySystem.Logger.LogWarning("Not loading '{MapName}': {Message}", group.MapName, e.Message);
         }
 
-        // A prefab joins the scene of the map that placed it, which needs nothing of its package once loaded
+        // A prefab joins the scene of the map that placed it and needs no map package once loaded
         if (!group.HasOwnScene)
         {
             fileLoader.UnmountMapPackage(group.MountedMapPackage);
@@ -220,8 +220,8 @@ public sealed class SpawnGroupManager
         return world;
     }
 
-    // A group whose entities joined an owner hands it its child groups once it has spawned, and unloads, as
-    // nothing is left in it. Without this every point_template instance would stay loaded with the world.
+    // Once a group whose entities joined an owner has spawned, the owner takes over its child groups and the
+    // group unloads, as nothing is left in it. Without this every point_template instance would stay loaded with the world.
     private void MergeIntoOwner(SpawnGroup group, SpawnGroup owner)
     {
         owner.Children.AddRange(group.Children);
@@ -258,8 +258,8 @@ public sealed class SpawnGroupManager
     }
 
     /// <summary>
-    /// Makes a loaded spawn group the active one, which a <c>point_template</c> set to insert into it gives its
-    /// entities to.
+    /// Makes a loaded spawn group the active one. A <c>point_template</c> set to insert into the active group
+    /// adds its entities to that group.
     /// </summary>
     /// <param name="group">The group to activate.</param>
     public void PerformActivateSpawnGroup(SpawnGroup group)
@@ -319,8 +319,8 @@ public sealed class SpawnGroupManager
         ReleaseOwnScene(group);
     }
 
-    // Takes back the scene a group handed to the host when it spawned, or disposes the one it never handed over
-    // as it failed to spawn, and the map package mounted for it
+    // Removes the scene from the host when the group handed it over on spawning, or disposes the scene when the
+    // group failed to spawn. Also unmounts the map package mounted for the group
     private void ReleaseOwnScene(SpawnGroup group)
     {
         if (!group.HasOwnScene)
@@ -367,11 +367,11 @@ public sealed class SpawnGroupManager
     // Forgets the maps left in scenes once the scenes are emptied and the collision is dropped
     internal void ForgetPlacedWorlds() => placedWorlds.Clear();
 
-    // Number for the next placed map that gives its entity names a prefix of its own
+    // Number for the next placed map that prefixes its entity names
     internal int NextNameFixupIndex() => ++nameFixupCount;
 
-    // Number for the next point_template instance that gives its entity names a suffix of its own. The engine
-    // never resets its counter; this one restarts with the world, so the names repeat when it spawns again.
+    // Number for the next point_template instance that suffixes its entity names. The engine never resets its
+    // counter; this one restarts with the world, so the names repeat when the world spawns again.
     internal int NextTemplateInstanceIndex() => ++templateInstanceCount;
 
     // A map placed more than once in a world group is found as the first one loaded
@@ -382,7 +382,7 @@ public sealed class SpawnGroupManager
     internal EntityLump? GetEntityLumpForTemplate(string worldName, string lumpName)
         => FindLoadedWorld(world => world.MapName.Equals(worldName, StringComparison.OrdinalIgnoreCase))?.FindEntityLump(lumpName);
 
-    // A loaded world is one a group that spawns a whole map loaded, rather than a lump of it
+    // Searches the worlds loaded by groups that spawn a whole map, not by groups that spawn a lump
     private WorldLoader? FindLoadedWorld(Predicate<WorldLoader> match)
     {
         foreach (var group in groups)

@@ -24,9 +24,8 @@ namespace ValveResourceFormat.Particles.Utils
         private const int OperatorStride = 17;
 
         /// <summary>
-        /// The offset into the shared table that every deterministic draw by this system is displaced
-        /// by, giving each system instance its own sequence. Child systems hold their own value rather
-        /// than reading the root's.
+        /// Offset into the shared table added to every deterministic draw of this system, giving each
+        /// system instance its own sequence. Child systems hold their own value rather than the root's.
         /// </summary>
         public int Seed { get; private set; }
 
@@ -37,14 +36,12 @@ namespace ValveResourceFormat.Particles.Utils
         /// </summary>
         public int OperatorOffset { get; private set; }
 
-        /// <summary>Puts <see cref="OperatorOffset"/> back to 0 and starts a new function call.</summary>
         public void ResetOperatorOffset()
         {
             OperatorOffset = 0;
             BeginFunctionCall();
         }
 
-        /// <summary>Advances <see cref="OperatorOffset"/> to the next operator and starts a new function call.</summary>
         public void AdvanceOperatorOffset()
         {
             OperatorOffset += OperatorStride;

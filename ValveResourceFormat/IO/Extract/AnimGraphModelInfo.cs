@@ -330,7 +330,6 @@ public sealed class AnimGraphModelInfo
             return string.Empty;
         }
 
-        // Try to get attachment name directly if stored as a string property
         if (compiledAttachment.ContainsKey("m_attachmentName"))
         {
             return compiledAttachment.GetStringProperty("m_attachmentName");

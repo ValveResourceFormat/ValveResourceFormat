@@ -68,8 +68,8 @@ public class ShadowMapper
     /// <param name="camera">The camera used for culling and shadow resolution selection.</param>
     /// <param name="atlasSize">Pixel size of the shadow atlas texture.</param>
     /// <param name="cookiePaths">Map from cookie material path to cookie atlas index, used when recomputing dirty faces.</param>
-    /// <param name="visibilitySequence">Readback the per face cull mask is taken from. A light not stamped
-    /// with it is treated as lit, so a sequence no light carries shadows every face.</param>
+    /// <param name="visibilitySequence">Sequence number of the readback that the per face cull mask is taken from.
+    /// A light whose GPU visibility sequence differs counts as visible, so a sequence no light carries keeps every face shadowed.</param>
     public void Bin(List<SceneLight> lights, Camera camera, int atlasSize, Dictionary<string, int> cookiePaths,
         int visibilitySequence)
     {
@@ -131,7 +131,6 @@ public class ShadowMapper
             candidates[candidateCount++] = candidate;
         }
 
-        // Sort by distance
         sortKeys.AsSpan(0, candidateCount).Sort(candidates.AsSpan(0, candidateCount));
 
         var candidateSpan = candidates.AsSpan(0, candidateCount);
@@ -158,7 +157,7 @@ public class ShadowMapper
         return culled;
     }
 
-    /// <summary>Faces of a light that still want a shadow map, which is what the atlas is budgeted over.</summary>
+    /// <summary>Faces of a light that still want a shadow map. The atlas budget is split over them.</summary>
     private static int ShadowFaceCount(in BinnedLight candidate)
         => candidate.Light.BarnFaces.Length
             - BitOperations.PopCount(candidate.MaskCulledFaces & ((1u << candidate.Light.BarnFaces.Length) - 1u));
@@ -210,7 +209,7 @@ public class ShadowMapper
     }
 
     /// <summary>
-    /// How far the camera is from a light's bounds, which is what the binned order is cut on.
+    /// Distance from the camera to the center of a light's bounds. Binned lights are sorted by it.
     /// </summary>
     private static float ComputeDistance(SceneLight light, Vector3 cameraPosition)
     {

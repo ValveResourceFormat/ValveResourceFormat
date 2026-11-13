@@ -1,9 +1,9 @@
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Kills a particle when it moves too slowly. The test compares the squared step over the step
-    /// length against the squared minimum, so the threshold on the real speed is the minimum over the
-    /// square root of the step length. The minimum is at least 0.001.
+    /// Kills a particle when it moves too slowly. The test compares the squared distance moved over the
+    /// frame time against the squared minimum, so the threshold on the real speed is the minimum over
+    /// the square root of the frame time. The minimum is at least 0.001.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_VelocityDecay">C_OP_VelocityDecay</seealso>
     class VelocityDecay : ParticleFunctionOperator

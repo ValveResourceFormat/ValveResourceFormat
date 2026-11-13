@@ -70,7 +70,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="initialMaterialTable">Optional material name overrides.</param>
         /// <param name="morph">Optional morph data for facial animation.</param>
         /// <param name="isAggregate">When <see langword="true"/>, all draw calls go into the opaque bucket for aggregate rendering.</param>
-        /// <param name="shaderArguments">Optional shader combos set on every draw call, over the ones the scene gives it.</param>
+        /// <param name="shaderArguments">Optional shader combos set on every draw call, overriding the combos from the scene lighting.</param>
         public RenderableMesh(Mesh mesh, int meshIndex, Scene scene, Model? model = null,
             Dictionary<string, string>? initialMaterialTable = null, Morph? morph = null, bool isAggregate = false,
             IReadOnlyDictionary<string, byte>? shaderArguments = null)
@@ -194,7 +194,7 @@ namespace ValveResourceFormat.Renderer
             drawCall.SetNewMaterial(renderContext.MaterialLoader.GetMaterial(replacementName, dynamicParams));
         }
 
-        // The shader arguments of a draw call that its material does not derive
+        // Shader parameters of the draw call that the material's shader arguments do not set
         private static Dictionary<string, byte> GetDynamicShaderParams(DrawCall drawCall)
         {
             var material = drawCall.Material;

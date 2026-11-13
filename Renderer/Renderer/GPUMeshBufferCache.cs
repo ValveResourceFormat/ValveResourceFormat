@@ -184,8 +184,8 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Returns a cached VAO for the given buffers, creating it if necessary. Locations are
-        /// canonical, so it is valid for every shader that draws these buffers. Keyed by what a VAO
-        /// fundamentally is, so callers never need to invent a unique name to keep unrelated geometry from
+        /// canonical, so it is valid for every shader that draws these buffers. Keyed by the input signature
+        /// hash and the buffer handles, so callers never need to invent a unique name to keep unrelated geometry from
         /// colliding, and identical layouts dedupe automatically.</summary>
         /// <param name="vertexBuffers">Vertex buffer bindings for the draw call.</param>
         /// <param name="inputSignature">Material input signature mapping buffer semantics to shader attribute names.</param>
@@ -212,7 +212,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Builds a new VAO for the given buffers without caching it. Each attribute takes the
-        /// canonical location of its material input signature name, or of its own buffer semantic when the
+        /// canonical location of its signature name, or of the buffer semantic when the
         /// signature is absent or names something unknown.</summary>
         /// <param name="vertexBuffers">Vertex buffer bindings for the draw call.</param>
         /// <param name="inputSignature">Material input signature mapping buffer semantics to shader attribute names.</param>
@@ -226,7 +226,6 @@ namespace ValveResourceFormat.Renderer
             var newVaoHandle = GraphicsDevice.CreateVertexArray(debugLabel ?? string.Empty);
             VertexArray.StartRecording(newVaoHandle);
 
-            // Check for non-indexed geometry
             if (idxIndex != 0)
             {
                 GL.VertexArrayElementBuffer(newVaoHandle, idxIndex);
@@ -248,7 +247,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     var attributeLocation = VertexAttributeLocations.Resolve(inputSignature, attribute, out var insgElemName);
 
-                    // Unknown, or a location an earlier buffer already took, which the table's aliases allow
+                    // Unknown, or a location already taken by an earlier buffer through an alias of the location table
                     if (attributeLocation == -1 || (boundLocations & (1 << attributeLocation)) != 0)
                     {
                         if (attributeLocation == -1 && !string.IsNullOrEmpty(insgElemName))

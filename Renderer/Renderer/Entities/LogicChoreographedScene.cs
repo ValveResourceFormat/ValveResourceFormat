@@ -182,7 +182,7 @@ public sealed class LogicChoreographedScene : BaseEntity
 
     private float GetSceneTime() => isPaused ? sceneTime : sceneTime + EntitySystem.CurrentTime - resumeTime;
 
-    // A stop point completes the scene early, and its end then completes it no more
+    // A stop point completes the scene early. Reaching the end of the scene then does not complete it again
     private void Complete()
     {
         if (hasCompleted)

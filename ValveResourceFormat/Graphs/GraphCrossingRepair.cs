@@ -82,7 +82,7 @@ internal sealed class CrossingRepair
 
     /// <summary>
     /// The island's cards ordered by left edge, with their widths. Every move here is vertical, so
-    /// this is built once and stays valid, and it is what the separation veto searches: quantised
+    /// this is built once and stays valid. The separation veto searches it, since quantised
     /// columns say nothing about which cards actually overlap in x once widths differ.
     /// </summary>
     private readonly int[] byLeft;
@@ -112,8 +112,8 @@ internal sealed class CrossingRepair
     private readonly float[] landedMaxY;
 
     /// <summary>
-    /// The boxes landed moves disturbed, in order: where each moved card and each of its wires was
-    /// before the move and where it is after it.
+    /// Boxes disturbed by landed moves, in order. For each moved card and each wire of it, the box
+    /// before the move and the box after it.
     /// </summary>
     private readonly List<Box> changes = [];
 
@@ -544,8 +544,8 @@ internal sealed class CrossingRepair
 
         for (var slot = 0; slot < column.Count && budget > 0 && !deadline.Expired; slot++)
         {
-            // Asked of the best order stacked, rather than of whatever the last rejected candidate
-            // left behind, and of the card that would actually be relocated.
+            // Check crossings against bestOrder restacked, not against the layout the last rejected
+            // candidate left behind, and for the card that would actually be relocated.
             Restack(bestOrder, top);
 
             if (!Crosses(bestOrder[slot], candidates))
@@ -1084,7 +1084,7 @@ internal sealed class CrossingRepair
         return level;
     }
 
-    /// <summary>Cards other than their own ends that a card's wires pass across.</summary>
+    /// <summary>Cards that a card's wires pass across, not counting the end cards of those wires.</summary>
     private int Covering(int node)
     {
         var covering = 0;
@@ -1243,7 +1243,7 @@ internal sealed class CrossingRepair
 
     /// <summary>
     /// Everything upstream of a card, stopping before the consumer it feeds. Null when the cone
-    /// grows past what may be shifted at once, so an oversized walk stops rather than
+    /// grows past <see cref="BranchShiftMaxNodes"/>, so an oversized walk stops rather than
     /// materialising a branch that is going to be refused.
     /// </summary>
     private HashSet<int>? Branch(int node, int stop)
@@ -1275,7 +1275,7 @@ internal sealed class CrossingRepair
         return branch;
     }
 
-    /// <summary>An axis-aligned box: what a refused move depended on, or what a landed move disturbed.</summary>
+    /// <summary>An axis-aligned box, used as the reach of a refused move and as the area a landed move disturbed.</summary>
     private readonly record struct Box(float MinX, float MaxX, float MinY, float MaxY)
     {
         public static Box Everything { get; } = new(float.MinValue, float.MaxValue, float.MinValue, float.MaxValue);
@@ -1408,7 +1408,7 @@ internal sealed class CrossingRepair
         return true;
     }
 
-    /// <summary>How the crossing of two wires changed since they last landed, judged as <see cref="Count(int, ReadOnlySpan{int}, int)"/> judges it.</summary>
+    /// <summary>Change in whether two wires cross since they last landed: 1 when they now cross and did not, -1 for the reverse, otherwise 0.</summary>
     private int Delta(int wire, int other)
     {
         var now = Overlaps(wire, other) && GraphSegmentGeometry.SegmentsIntersect(from[wire], to[wire], from[other], to[other]);

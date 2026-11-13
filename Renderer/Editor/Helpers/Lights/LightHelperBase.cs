@@ -6,8 +6,8 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The light of a barn, rect or omni light, with the keys its shapes are drawn from while its entity is
-/// selected.
+/// Base of the barn, rect and omni light helpers. Reads the keys of the shapes that are drawn while the
+/// entity is selected.
 /// </summary>
 internal abstract class LightHelperBase : EntityHelper
 {
@@ -78,8 +78,8 @@ internal abstract class LightHelperBase : EntityHelper
     }
 
     /// <summary>
-    /// Gets the color of the light at full brightness: its color normalized in linear space, back in gamma
-    /// space and opaque.
+    /// Gets the color of the light at full brightness: the light color normalized in linear space,
+    /// converted back to gamma space, and opaque.
     /// </summary>
     /// <returns>The color.</returns>
     protected Color32 GetHue()

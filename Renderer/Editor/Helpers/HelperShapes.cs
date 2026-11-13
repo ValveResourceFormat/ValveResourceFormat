@@ -52,8 +52,8 @@ internal static class HelperShapes
     }
 
     /// <summary>
-    /// Draws curves in four planes through the forward axis, 45 degrees apart, in one color: a lobe of what a
-    /// light emits, or the hemisphere it reaches with the circle at its base.
+    /// Draws curves in four planes through the forward axis, 45 degrees apart, in one color: the emission lobe
+    /// of a light, or a hemisphere of the given radius with a circle at the base.
     /// </summary>
     public static void DrawEmissionCurves(this ToolRenderContext context, float radius, float startDegrees, bool lobe, Color32 color)
     {

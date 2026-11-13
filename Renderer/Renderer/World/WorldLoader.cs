@@ -359,16 +359,16 @@ namespace ValveResourceFormat.Renderer.World
 
         /// <summary>
         /// Spawns the map's entities from its entity lumps, as a spawn group that becomes the active one when
-        /// there is none. Called again once the entities it spawned have been removed, they spawn as they did when
-        /// the map loaded: the 3D sky and the other maps they place load again, reusing the geometry of the
-        /// prefabs that is still in the scene.
+        /// there is none. Can be called again once the entities it spawned have been removed. They spawn as they did
+        /// when the map loaded: the 3D sky and the other maps they place load again, reusing the prefab geometry
+        /// that is still in the scene.
         /// </summary>
         public void LoadEntities()
         {
             ReportLoadingPhase("Loading entities…");
 
-            // Made again each time, a group that already has its world, as the engine reuses the world a spawn
-            // group handle already owns
+            // A new group on every call, given this world as the engine reuses the world a spawn group handle
+            // already owns
             var group = new SpawnGroup(MapName, scene, rootTransform)
             {
                 World = this,
@@ -600,9 +600,9 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
-        // Lumps of entities parsed for Entities that have not spawned yet, by lump name. The first spawn takes
-        // them, so that spawn's entities have the keyvalues Entities lists. Any later spawn parses its own, as each
-        // instance of a template is an entity of its own.
+        // Entities parsed for Entities, by lump name, until the lump spawns. The first spawn of a lump takes them,
+        // so the spawned entities have the keyvalues Entities lists. Later spawns parse the lump again, as each
+        // instance of a template is a separate entity.
         private readonly Dictionary<string, List<Entity>> listedLumpEntities = new(StringComparer.OrdinalIgnoreCase);
 
         // Every lump listed in Entities, so spawning one again lists nothing twice
@@ -640,8 +640,8 @@ namespace ValveResourceFormat.Renderer.World
             => listedLumpEntities.Remove(lump.Name, out var listed) ? listed : lump.GetEntities();
 
         /// <summary>
-        /// Lists the entities of the lumps the world spawns when it loads in <see cref="Entities"/>, starting over
-        /// from what an earlier spawn of the map listed.
+        /// Lists the entities of the lumps the world spawns when it loads in <see cref="Entities"/>. Clears what an
+        /// earlier spawn of the map listed first.
         /// </summary>
         /// <returns>The entities of those lumps alone, as the lumps of their templates spawn when told to.</returns>
         internal List<Entity> ListMapEntities()
@@ -671,7 +671,7 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>Lists a lump's entities in <see cref="Entities"/> unless they already are.</summary>
-        /// <returns>The entities to spawn from the lump, parsed again unless no spawn took the listed ones yet.</returns>
+        /// <returns>The listed entities if no spawn took them yet, otherwise the lump parsed again.</returns>
         internal List<Entity> ListLumpEntities(EntityLump lump)
         {
             ListEntities(lump);

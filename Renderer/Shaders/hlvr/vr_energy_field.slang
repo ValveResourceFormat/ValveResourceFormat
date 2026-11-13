@@ -1,7 +1,7 @@
 #version 460
 
-// The entry file declares the textures of the flow and defines SampleFlow() and GetFlowPasses() for them, whether
-// the mask, the flow phase and its two details are textures of their own or the channels of one.
+// The entry file declares the flow textures and defines SampleFlow() and GetFlowPasses() for them.
+// The mask, the flow phase and the two phase details are either separate textures or channels of one texture.
 
 #include "vr_energy_field_features.slang"
 

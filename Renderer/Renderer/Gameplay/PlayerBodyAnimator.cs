@@ -7,14 +7,14 @@ namespace ValveResourceFormat.Renderer.Gameplay;
 
 internal sealed class PlayerBodyAnimator
 {
-    // What is held and what is being done with it, in the names the graph knows them by.
+    // Weapon and action, as the ids of the animation graph parameters.
     public struct WeaponState
     {
         public string Category;
         public string Type;
         public bool IsSilenced;
 
-        // The fastest the weapon lets the player run.
+        // Maximum run speed with the weapon.
         public float MaxSpeed;
 
         public string Action;
@@ -23,22 +23,22 @@ internal sealed class PlayerBodyAnimator
         // Whether the action began again since the last update, like each shot of a burst.
         public bool ActionRestarted;
 
-        // How far firing has kicked the aim off the view, as (pitch, yaw) degrees.
+        // Aim punch from firing, as (pitch, yaw) degrees.
         public Vector2 AimPunch;
     }
 
-    // How the body moves and where it aims, whoever steers it.
+    // Movement and aim of the body, independent of what steers it.
     public struct BodyState
     {
-        // Where the bottom of the hull is.
+        // Position of the bottom of the hull.
         public Vector3 Position;
         public Vector3 Velocity;
 
-        // Where it aims, in degrees.
+        // Aim angles in degrees.
         public float AimYaw;
         public float AimPitch;
 
-        // The way it is trying to go, as (forward, left).
+        // Wished movement direction, as (forward, left).
         public Vector2 WishMove;
 
         public bool OnGround;
@@ -49,10 +49,10 @@ internal sealed class PlayerBodyAnimator
         public Vector3 LadderNormal;
     }
 
-    // Traces a ray through the world and what stands in it, against the named collision.
+    // Traces a ray from one point to another against the collision named collisionName.
     public delegate Rubikon.TraceResult WorldTrace(Vector3 from, Vector3 to, string collisionName);
 
-    // What the graph calls the states of the body, indexed by their enums
+    // Animation graph id of each state of the body, indexed by the enum value
     private static readonly string[] MoveTypeNames = ["", "move_type_ground", "move_type_air", "move_type_ladder"];
 
     private static readonly string[] GroundActionNames =
@@ -76,7 +76,7 @@ internal sealed class PlayerBodyAnimator
     private UserInput? TraceInput;
     private WorldTrace? Trace;
 
-    // Which way the body faces, in degrees.
+    // Body yaw in degrees.
     public float BodyYaw => State.BodyYaw;
 
     public PlayerBodyAnimator(AnimationGraph graph)
@@ -140,7 +140,7 @@ internal sealed class PlayerBodyAnimator
 
         State.Update(new PlayerAnimationState.Input
         {
-            // The body aims where the recoil has the weapon pointing, which is what kicks it when firing
+            // The aim includes the aim punch, so the body kicks when firing
             AimYaw = body.AimYaw + weapon.AimPunch.Y,
             AimPitch = body.AimPitch + weapon.AimPunch.X,
             Velocity = body.Velocity,
@@ -191,7 +191,7 @@ internal sealed class PlayerBodyAnimator
                 var cycle = MathF.Abs(height) / LadderCycleHeight;
                 floats["ladder_cycle"] = MathUtils.Saturate(height < 0f ? 1f - cycle : cycle);
 
-                // Where the ladder is, as seen from where the body faces
+                // Yaw of the ladder relative to the body yaw
                 var toLadder = -body.LadderNormal;
                 var ladderYaw = float.RadiansToDegrees(MathF.Atan2(toLadder.Y, toLadder.X));
                 var ladderAngle = ValveMath.AngleNormalize(ladderYaw - State.BodyYaw);

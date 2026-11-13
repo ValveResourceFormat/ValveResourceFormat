@@ -570,7 +570,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                // A node closer to the surface than its radius gets a plane through itself.
+                // A node closer to the surface than the node radius gets a plane through the node.
                 if (Vector3.Dot(normal, sample.Local) - offset < sample.Radius)
                 {
                     offset = Vector3.Dot(normal, sample.Local);
@@ -956,8 +956,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Adds the sphere centred at the point closest to every ray the normals of <paramref name="subset"/> run back
-        /// along.
+        /// Adds the sphere centred at the point closest to the rays that start at each node of
+        /// <paramref name="subset"/> and run back along its plane normal.
         /// </summary>
         private static void AddCapSpheres(CandidateSet candidates, List<PlanarizeSample> samples, List<int> subset)
         {

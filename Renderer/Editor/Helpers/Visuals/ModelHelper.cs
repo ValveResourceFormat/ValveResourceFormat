@@ -12,10 +12,10 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
-/// <summary>Which bounds of its model a model helper draws while its entity is selected.</summary>
+/// <summary>Which bounds of the model a model helper draws while the entity is selected.</summary>
 internal enum ModelBoundsMode
 {
-    /// <summary>The bounds of the model as it is built, which turn with the entity but follow neither its scale nor the animation.</summary>
+    /// <summary>The bounds of the model as built. They turn with the entity but follow neither the scale of the entity nor the animation.</summary>
     Fixed,
 
     /// <summary>The bounds of the model as it is drawn.</summary>
@@ -26,9 +26,10 @@ internal enum ModelBoundsMode
 }
 
 /// <summary>
-/// The model an entity is drawn as: the one its class names, or the one its <c>model</c> key does. A class
-/// declares it as <c>editormodel</c> where the model only stands in for the entity in the editor. Words after
-/// the name of the model, or in its place, and the block the class declares it with change how it is drawn.
+/// The model an entity is drawn as: the model the class names, or the model in the <c>model</c> key of the
+/// entity. A class declares it as <c>editormodel</c> where the model only stands in for the entity in the
+/// editor. Options after the name of the model or in its place, and the metadata block of the declaration,
+/// change how it is drawn.
 /// </summary>
 public class ModelHelper : EntityHelper
 {
@@ -41,10 +42,10 @@ public class ModelHelper : EntityHelper
     // The bounds of the model while the entity is selected
     private static readonly Color32 BoundsColor = new(140, 215, 250);
 
-    // What a class can put where the name of the model goes, to draw the model the entity names differently
+    // Options a class can put where the name of the model goes, to change how the model the entity names is drawn
     private static readonly string[] Options = ["static", "fixedbounds", "castshadows", "nobounds", "posable", "postocclusionquery"];
 
-    // A light without a directlight key is drawn as one that is lit as it moves
+    // A light without a directlight key is dynamic
     private const int DefaultDirectLight = 2;
 
     private readonly Model? model;
@@ -62,7 +63,7 @@ public class ModelHelper : EntityHelper
 
     /// <summary>
     /// Gets whether the class names the model, which then stands in for every entity of the class, rather
-    /// than each entity naming its own with its <c>model</c> key.
+    /// than each entity naming a model in the <c>model</c> key.
     /// </summary>
     private bool IsNamedByClass => settings.IsNamedByClass;
 
@@ -82,7 +83,7 @@ public class ModelHelper : EntityHelper
     /// <summary>Gets the model as it is drawn, once it is in the scene.</summary>
     public ModelSceneNode? ModelNode { get; private set; }
 
-    /// <summary>Gets whether the model moves along with the entity, which it does where it is placed at it.</summary>
+    /// <summary>Gets whether the model moves along with the entity. It does where it is placed at the entity.</summary>
     private protected virtual bool FollowsEntity => true;
 
     /// <summary>
@@ -104,26 +105,26 @@ public class ModelHelper : EntityHelper
         // A static model does not animate
         public bool IsStatic { get; init; }
 
-        // What is played where no animation is named, or the one named is not found
+        // Sequence played where no animation is named or the named one is not found
         public DefaultSequence DefaultSequence { get; init; } = DefaultSequence.Search;
 
         // The animation the class names
         public string? DefaultAnimation { get; init; }
 
-        // The animation the key of the entity the class names gives, played over the rest
+        // The animation held by the entity key named in preview_clipname, played over the rest
         public string? PreviewClip { get; init; }
 
-        // The colors the model of a light is drawn in, by how the light is lit, in place of the color of the entity
+        // Colors of the model of a light by lighting mode, in place of the color of the entity
         public (Color32 Baked, Color32 Stationary, Color32 Dynamic)? LightModeTints { get; init; }
 
-        // The choice the first body group of the model is drawn with, whatever the entity says
+        // Choice of the first body group, whatever the entity says
         public int? ForcedFirstBodyGroup { get; init; }
     }
 
-    /// <summary>What a model plays where nothing names an animation that it has.</summary>
+    /// <summary>The sequence a model plays where no animation it has is named.</summary>
     private protected enum DefaultSequence
     {
-        /// <summary>The one of its sequences that looks meant for it: a reference pose, or else an idle.</summary>
+        /// <summary>The sequence that looks like the default of the model: a reference pose, or else an idle.</summary>
         Search,
 
         /// <summary>Its first sequence.</summary>
@@ -215,7 +216,7 @@ public class ModelHelper : EntityHelper
             firstOption = 0;
         }
 
-        // A class can pick the model by the value of a key of the entity, and a value it does not list leaves it without one
+        // A class can pick the model by the value of a key of the entity. A value the class does not list leaves the entity without a model
         if (GetBlock(block, "model_from_key") is { } fromKey && GetBlockString(fromKey, "source_key") is { } sourceKey
             && GetBlock(fromKey, "value_to_vmdl") is { } models)
         {
@@ -246,8 +247,8 @@ public class ModelHelper : EntityHelper
             : FindOption("nobounds") >= 0 ? ModelBoundsMode.None
             : ModelBoundsMode.Animated;
 
-        // The model of a light is drawn in the color of the way it is lit. The first form gives one color for
-        // baked and stationary lights and another for the rest, the second one color for each.
+        // The model of a light is drawn in a color chosen by its lighting mode. lightModeTint gives one color for
+        // baked and stationary lights and another for the rest, lightModeTint2 one color for each.
         (Color32, Color32, Color32)? lightModeTints = null;
 
         if (FindOption("lightModeTint") is >= 0 and var tint)
@@ -268,7 +269,8 @@ public class ModelHelper : EntityHelper
 
         var previewClip = isEditorModelName && GetBlockString(block, "preview_clipname") is { } clipKey ? GetStringKey(owner, clipKey) : null;
 
-        // The model of an entity is drawn the way the game draws it before it is told to play anything
+        // Sequence played before anything tells the model to play: a searched one for an editor model, otherwise
+        // the first animation where the game does that, otherwise none
         var defaultSequence = isEditorModel ? DefaultSequence.Search
             : owner.Scene.RendererContext.FileLoader.GameInfo.UseFirstAnimationAsDefault ? DefaultSequence.First
             : DefaultSequence.None;
@@ -312,7 +314,7 @@ public class ModelHelper : EntityHelper
         return null;
     }
 
-    /// <summary>Gets where the model is placed, which is where the entity is.</summary>
+    /// <summary>Gets the transform of the model, which is the transform of the entity.</summary>
     /// <returns>The transform of the model.</returns>
     private protected virtual Matrix4x4 GetModelTransform() => Owner.Transform;
 
@@ -394,7 +396,7 @@ public class ModelHelper : EntityHelper
         context.PopTransform();
     }
 
-    // The color of a light picked by how it is lit, or else the color of the entity
+    // The tint of a light by its directlight mode, or else the color of the entity
     private Vector4 GetTint()
     {
         if (settings.LightModeTints is not { } tints)
@@ -415,8 +417,8 @@ public class ModelHelper : EntityHelper
     }
 
     /// <summary>
-    /// Gets the color the entity is drawn in: the <c>color_tint</c> of a node of a path, always opaque, or else its
-    /// <c>rendercolor</c>, with its <c>renderamt</c> as alpha.
+    /// Gets the color the entity is drawn in: the <c>color_tint</c> of a path node, always opaque, or else the
+    /// <c>rendercolor</c> of the entity with <c>renderamt</c> as alpha.
     /// </summary>
     /// <returns>The color, each channel from 0 to 1.</returns>
     private protected Vector4 GetEntityColor()
@@ -497,7 +499,7 @@ public class ModelHelper : EntityHelper
         }
     }
 
-    // Body groups by name, each with the number of the choice drawn of it
+    // Body groups by name, each with the index of the choice to draw
     private static void SetBodyGroups(ModelSceneNode node, List<BodyGroupChoice> choices, KVObject bodyGroups)
     {
         foreach (var (bodyGroup, value) in bodyGroups)
@@ -547,7 +549,7 @@ public class ModelHelper : EntityHelper
         }
     }
 
-    // Of the keys of the class that name the animation shown, the set one that matters most
+    // The first non-empty value among the PreviewAnimationKeys of the class
     private string? GetPreviewAnimation()
         => Owner.EntityClass?.PreviewAnimationKeys.Select(GetStringKey).FirstOrDefault(static value => value.Length > 0);
 

@@ -73,7 +73,7 @@ namespace ValveResourceFormat.IO
 
         private readonly string? CurrentFileName;
 
-        // Where the gameinfo of the current file is looked for from, which for a source file is the compiled side
+        // File name the gameinfo of the current file is searched from. For a source file it is the compiled side.
         private readonly string? GameSearchFileName;
         private readonly ILogger Logger;
         private string? PreferredAddonFolderOnDisk;

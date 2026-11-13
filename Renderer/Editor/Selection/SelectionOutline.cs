@@ -4,8 +4,8 @@ using OpenTK.Graphics.OpenGL;
 namespace ValveResourceFormat.Renderer.Editor.Selection;
 
 /// <summary>
-/// Outlines the selected nodes over the final image. Where they are is drawn into a mask, and its edges are then
-/// drawn over the image, bright where the selection is seen and faint where the scene hides it.
+/// Outlines the selected nodes over the final image. The nodes are drawn into a mask, and the edges of the mask are
+/// then drawn over the image, bright where the selection is seen and faint where the scene hides it.
 /// </summary>
 internal sealed class SelectionOutline
 {
@@ -22,7 +22,7 @@ internal sealed class SelectionOutline
     // so both are tested per sample.
     private readonly Framebuffer mask;
 
-    // The mask resolved to how much of each pixel is covered, which the edges are found in
+    // The mask resolved to the coverage of each pixel. The edges are found in it.
     private readonly Framebuffer resolvedMask;
 
     public SelectionOutline(RendererContext rendererContext)
@@ -41,8 +41,8 @@ internal sealed class SelectionOutline
 
     /// <summary>Outlines nodes as the last frame drew them.</summary>
     /// <param name="renderer">The renderer of the frame, which resolved the scene depth.</param>
-    /// <param name="sceneFramebuffer">What the scene was rendered into.</param>
-    /// <param name="target">What the outline is drawn over, the size of the scene.</param>
+    /// <param name="sceneFramebuffer">The framebuffer the scene was rendered into.</param>
+    /// <param name="target">The framebuffer the outline is drawn over, the size of the scene.</param>
     /// <param name="nodes">The nodes to outline.</param>
     public void Render(Renderer renderer, Framebuffer sceneFramebuffer, Framebuffer target, IReadOnlyList<SceneNode> nodes)
     {

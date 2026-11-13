@@ -184,7 +184,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Gets where a point of the world is in the viewport.
+        /// Gets the viewport position of a point in the world.
         /// </summary>
         /// <param name="position">The point.</param>
         /// <returns>The point in pixels from the top left of the viewport, or <see langword="null"/> when it is behind the camera.</returns>
@@ -295,7 +295,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <remarks>
         /// Exact while the two cameras differ only in projection, which is what the viewmodel is. Both
-        /// turn a view ray into ndc by the same shape of expression, <c>ndc = scale * (x / -z)</c>, so
+        /// turn a view ray into ndc as <c>ndc = scale * (x / -z)</c>, so
         /// eliminating the ray leaves an affine map with no dependence on distance along it.
         /// </remarks>
         /// <param name="target">The camera whose screen the result maps into.</param>
@@ -443,7 +443,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// How far from its center a box has to be viewed from for all of it to fit on screen.
+        /// Distance from the center of a box to the camera at which the whole box fits on screen.
         /// </summary>
         /// <param name="size">The box's dimensions.</param>
         /// <param name="right">The camera's right vector at the angle it frames the box from.</param>
@@ -519,8 +519,8 @@ namespace ValveResourceFormat.Renderer
         {
             Location = matrix.Translation;
 
-            // Forward is the matrix's first row. The helper is scale invariant, which matters because an
-            // entity's "scales" is baked in here, but it cannot answer for a row that is entirely zero.
+            // Forward is the matrix's first row. The helper is scale invariant, so the entity's "scales"
+            // baked into the matrix does not matter. A row that is entirely zero has no direction.
             var dir = matrix.GetRow(0).AsVector3();
 
             if (dir == Vector3.Zero)
@@ -536,8 +536,8 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public void ClampRotation()
         {
-            // Straight down is reachable (the direction vectors have no singularity there), so the limit is
-            // where looking would tip over rather than where the maths gives out.
+            // Straight down is reachable because the direction vectors have no singularity there.
+            // The limit is straight up or down, past which the camera would flip over.
             Pitch = Math.Clamp(Pitch, -MathF.PI / 2f, MathF.PI / 2f);
 
             // Mouse look accumulates yaw without bound, and sin and cos lose accuracy at a few million

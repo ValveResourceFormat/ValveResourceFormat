@@ -22,8 +22,8 @@ partial class ModelExtract
         => (Vector3.Transform(position, NmSkelRotationFixup), NmSkelRotationFixup * rotation);
 
     /// <summary>
-    /// The other half of <see cref="NmAxisFixupChild"/>: root_motion takes the inverse, cancelling what
-    /// its children gained.
+    /// The other half of <see cref="NmAxisFixupChild"/>: root_motion takes the inverse, cancelling the
+    /// fixup applied to its children.
     /// </summary>
     /// <remarks>Both halves apply to the bind pose and to every frame alike.</remarks>
     private static Quaternion NmAxisFixupRootMotion(Quaternion rotation)
@@ -63,7 +63,7 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Adds one skeleton's joints to a DmeModel, its roots as children of the model, and returns the
+    /// Adds the joints of a skeleton to a DmeModel, with the skeleton roots as children of the model, and returns the
     /// joint transforms indexed by bone index. With <paramref name="nmLowLodBoneCount"/> non-negative,
     /// DAG siblings reproduce the compiled NM bone order, otherwise bone index order.
     /// </summary>
@@ -228,7 +228,7 @@ partial class ModelExtract
             ["skeleton"] = dmeSkeleton,
             ["exportTags"] = new Element(dmx, "exportTags", null, "DmeExportTags")
             {
-                ["app"] = "sfm", // maya
+                ["app"] = "sfm", // names sfm as the source application
                 ["source"] = $"Generated with {StringToken.VRF_GENERATOR}",
             }
         };

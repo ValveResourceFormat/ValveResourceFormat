@@ -7,8 +7,8 @@ using GUI.Utils;
 namespace GUI.Controls
 {
     /// <summary>
-    /// Checkable items in a tree, as Hammer lists its auto visgroups: an item of a path such as
-    /// <c>Clip/Player Clip</c> is nested under the item of each group before it, which folds it away. Checking or
+    /// Checkable items in a tree, like the auto visgroups of Hammer: an item with a path such as
+    /// <c>Clip/Player Clip</c> is nested under the item of each group before it, and those items can fold it away. Checking or
     /// unchecking an item does the same to every item below it.
     /// </summary>
     class GLViewerTreeSelectionControl : UserControl
@@ -50,7 +50,7 @@ namespace GUI.Controls
                 }
                 else if (treeView.Nodes is [var root])
                 {
-                    // A lone item at the top holds all the others, so it lists its groups, each folded away
+                    // A lone item at the top holds all the others. Expand only it, so the groups below it stay folded
                     root.Expand();
                 }
 
@@ -132,8 +132,8 @@ namespace GUI.Controls
         {
             base.OnCreateControl();
 
-            // The tree has its row height by now, as children are created first. It expands the nodes while it is
-            // created, before all of them are in it, so its folding is only followed from here on.
+            // Children are created first, so the tree has its row height by now. The nodes are expanded while the tree is
+            // created, before all of them are in it, so expanding and collapsing is only followed from here on.
             FitToRows();
 
             treeView.AfterExpand += (_, _) => FitToRows();
@@ -198,8 +198,8 @@ namespace GUI.Controls
         private static IEnumerable<TreeNode> AllBelow(TreeNodeCollection nodes)
             => nodes.Cast<TreeNode>().SelectMany(static node => AllBelow(node.Nodes).Prepend(node));
 
-        // The rows of the panel's other lists, rather than the taller rows of the file trees. Like the lists, a click
-        // on a row checks it, and rows are never selected.
+        // Tree with the row height of the panel's other lists instead of the taller rows of the file trees. As in the
+        // lists, a click on a row checks it, and rows are never selected.
         internal sealed class CompactTreeView : TreeViewDoubleBuffered
         {
             private const int WM_LBUTTONDOWN = 0x0201;
@@ -211,8 +211,8 @@ namespace GUI.Controls
             /// <summary>Raised when the label of an item is clicked.</summary>
             public event Action<TreeNode>? LabelClicked;
 
-            // The tree draws its own check boxes larger than the lists do, and unlike them in dark mode, so it gets
-            // theirs as the images of its check states
+            // The tree draws its own check boxes, larger than those of the lists and not themed in dark mode.
+            // The check boxes of the lists are used as its state images instead.
             public CompactTreeView()
             {
                 using var graphics = Graphics.FromHwnd(IntPtr.Zero);

@@ -197,8 +197,8 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         /// <summary>
         /// Collects the link status of every shader loaded so far, which loading does not wait for.
-        /// Until this runs a shader is linked by the first draw that uses it, and a draw call is queued before that
-        /// happens: run it before rendering a frame that has to see each shader's final state, such as a pre-warm
+        /// Until this runs, a shader is linked by the first draw that uses it, and the draw call is already queued
+        /// by then. Run it before rendering a frame that has to see each shader's final state, such as a pre-warm
         /// pass. Must be called on the thread holding the GL context.
         /// </summary>
         /// <exception cref="OperationCanceledException">Loading was cancelled.</exception>
@@ -323,8 +323,8 @@ namespace ValveResourceFormat.Renderer.Shaders
                     SamplerUserConfigUniforms = parsedData.SamplerUserConfigUniforms,
                     RepresentativeTexture = parsedData.RepresentativeTexture,
 
-                    // Copied, because the parsed data is shared by every variant of this shader while the
-                    // linker trims each variant's own set down to what its combos kept.
+                    // Copied, because the parsed data is shared by every variant of this shader, and the
+                    // linker trims the set of each variant to the samplers its combos keep.
                     ReservedTexturesUsed = [.. parsedData.ReservedTextures],
                 };
 
@@ -509,7 +509,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         /// <summary>The file extension used to identify vertex shader entry points (<c>.vert.slang</c>).</summary>
         public const string ShaderFileExtension = ".vert.slang";
-        // No longer used by the renderer itself, kept so that names that were required before still resolve
+        // Legacy prefix of renderer shader names, stripped so that those names still resolve
         const string VrfInternalShaderPrefix = "vrf.";
         private const string CoreShaderFolder = "core";
         private const string FallbackShaderFile = "fallback";
@@ -554,8 +554,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 
         /// <summary>
-        /// The game folders searched, in this order, for a shader the folder of the current game does not have. The
-        /// games first are the ones whose files draw an unknown game and a game without a file best.
+        /// The game folders searched, in this order, for a shader the folder of the current game does not have.
+        /// Earlier games are the best match for an unknown game and for a game without a file of its own.
         /// </summary>
         public static readonly IReadOnlyList<Game> GameFallbackOrder =
         [

@@ -5,9 +5,9 @@ using Entity = ValveResourceFormat.ResourceTypes.EntityLump.Entity;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// What a spawn group puts in place of the markers its entities' names were compiled with: <c>[PR#]</c>
+/// Replacements a spawn group supplies for the markers compiled into entity names: <c>[PR#]</c>
 /// becomes <see cref="Parent"/> and <c>&amp;0000</c> becomes <see cref="Local"/>. A map and anything it
-/// loads by plain reference leave both empty, which simply drops the markers.
+/// loads by plain reference leave both empty, which drops the markers.
 /// </summary>
 /// <param name="Parent">Replaces <c>[PR#]</c>.</param>
 /// <param name="Local">Replaces <c>&amp;0000</c>.</param>

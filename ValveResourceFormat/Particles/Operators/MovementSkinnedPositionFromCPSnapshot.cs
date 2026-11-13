@@ -4,9 +4,9 @@ namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
     /// Pulls every particle each step toward a point of a skinned control point snapshot, deformed
-    /// by the current pose of the bones of another control point's model, picked by index, by a
-    /// walk from a start point that begins again every step, or at random every step. Both the
-    /// position and the previous position move, so a full pull leaves particles still.
+    /// by the current pose of the bones of another control point's model. The point is picked by
+    /// index, by a walk that restarts from a start point every step, or at random every step. Both
+    /// the position and the previous position move, so a full pull leaves particles still.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_MovementSkinnedPositionFromCPSnapshot">C_OP_MovementSkinnedPositionFromCPSnapshot</seealso>
     class MovementSkinnedPositionFromCPSnapshot : ParticleFunctionOperator

@@ -84,7 +84,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Gets what a shape with these collision attributes interacts as. Older assets carry the tags
+        /// Gets the interact-as tags (<c>m_InteractAsStrings</c>) of the collision attributes. Older assets carry the tags
         /// under <c>m_PhysicsTagStrings</c>.
         /// </summary>
         public static string[] GetInteractAsTags(KVObject collisionAttributes)
@@ -97,7 +97,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Gets what a shape interacts as, by index into <see cref="CollisionAttributes"/>.
+        /// Gets the interact-as tags of a shape, by index into <see cref="CollisionAttributes"/>.
         /// </summary>
         public string[] GetInteractAsTags(int collisionAttributeIndex)
             => collisionAttributeIndex >= 0 && collisionAttributeIndex < CollisionAttributes.Count

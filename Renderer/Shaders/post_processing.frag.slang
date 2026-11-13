@@ -140,8 +140,8 @@ void main()
             return;
         }
 
-        // The bloom terms are weighted by the exposure on its own, not by the exposed color, so keep it
-        // around after the scene has been multiplied through.
+        // The bloom terms are weighted by the exposure scalar, not by the exposed color. Keep the scalar
+        // after the scene color has been multiplied by it.
         float flExposure = g_flToneMapScalarLinear;
         if (g_nTonemapMode == TONEMAP_ENGINE_CURVE)
         {

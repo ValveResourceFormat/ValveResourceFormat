@@ -236,9 +236,7 @@ partial class ModelExtract
     /// </summary>
     /// <remarks>
     /// <paramref name="bindPose"/> transforms the mesh's vertices from body-local space into bind-pose
-    /// component space, matching how
-    /// <see cref="ToDmxMesh(RnShapes.Hull, string, string, HashSet{string}, bool, Matrix4x4?)"/> treats
-    /// a hull's vertices.
+    /// component space, the space a <c>PhysicsMeshFile</c> node's geometry is authored in.
     /// </remarks>
     public static byte[] ToDmxMesh(RnShapes.Mesh mesh, string name,
         string uniformSurface,

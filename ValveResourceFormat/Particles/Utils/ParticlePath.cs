@@ -86,13 +86,13 @@ namespace ValveResourceFormat.Particles.Utils
 
         /// <summary>
         /// Computes the Bezier control triple for a path at the given timestamp. Endpoint offsets
-        /// apply before the midpoint is derived; the bulge displaces the midpoint along the bulge
-        /// control point's forward direction scaled by how perpendicular that direction is to the
-        /// path; without a bulge control point the displacement is instead drawn per world axis in
+        /// apply before the midpoint is derived. With a bulge control point, the bulge displaces the
+        /// midpoint along the forward direction of that control point, scaled by how perpendicular
+        /// that direction is to the path. Without one, the displacement is drawn per world axis in
         /// <c>[-bulge, +bulge)</c> from the system's random seed alone, so it stays fixed for the
         /// lifetime of the system instance. A mid control point replaces the midpoint bias and bulge
-        /// with a control that makes the curve pass through that point at half way. The midpoint
-        /// offset applies last.
+        /// with a midpoint that makes the curve pass through that control point at half way. The
+        /// midpoint offset applies last.
         /// </summary>
         public static (Vector3 Start, Vector3 Mid, Vector3 End) CalculatePathValues(
             ParticleSystemState state, in ParticlePathParameters path, float timeStamp)

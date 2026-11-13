@@ -64,7 +64,7 @@ public abstract class SampleProviderSpatial : SampleProvider2D
     /// <summary>
     /// How much of a sound behind the listener survives the fold into the front pair when the spectral
     /// cues are turned off. Stereo output has no rear speakers, so the rear is mixed in at three quarters.
-    /// A broadband trim is a blunt stand-in for what the ear does to a sound from behind, see
+    /// A broadband trim only roughly approximates the spectral change of a sound from behind, see
     /// <see cref="SpectralCueFilters"/>.
     /// </summary>
     private const float RearVolumeScale = 0.75f;

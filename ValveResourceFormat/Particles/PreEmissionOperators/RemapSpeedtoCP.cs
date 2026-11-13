@@ -48,8 +48,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         }
 
         /// <summary>
-        /// Starts the velocity change over from the input control point's position rather than a
-        /// velocity, so the first change measured after a restart is against that.
+        /// Seeds the previous velocity with the input control point's position, so the first change
+        /// measured after a restart is against that position.
         /// </summary>
         public override void Restart(ParticleSystemState particleSystemState)
         {

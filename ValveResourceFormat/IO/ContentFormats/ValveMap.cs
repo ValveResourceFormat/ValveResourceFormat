@@ -847,7 +847,7 @@ public class CMapStaticOverlay : CMapMesh
     public bool DisabledInLowQuality { get; set; }
 
     /// <summary>
-    /// Whether the overlay shades with the normals of the surface under it rather than its own.
+    /// Whether the overlay shades with the normals of the surface under it rather than the overlay's own normals.
     /// </summary>
     public bool UseBaseNormals { get; set; }
 

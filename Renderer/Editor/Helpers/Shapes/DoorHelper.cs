@@ -5,8 +5,8 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// Where a selected door that spawns ajar stands, its bounds turned open by its <c>ajarangle</c> key: about
-/// its <c>hinge_axis</c> key in the space of the door, or about its up axis where that is not set.
+/// The bounds of a selected door that spawns ajar, turned open by the <c>ajarangle</c> key of the door. They
+/// turn about the <c>hinge_axis</c> key in the space of the door, or about the up axis where that key is not set.
 /// </summary>
 internal sealed class DoorHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {

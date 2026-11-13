@@ -41,7 +41,7 @@ namespace GUI.Controls
         private void FitToContent()
         {
             // Height minus the display rectangle is the box's own chrome: title band, padding
-            // and borders, whatever the current font and DPI make of them.
+            // and borders, which depend on the current font and DPI.
             var chrome = groupBox.Height - groupBox.DisplayRectangle.Height;
             var desired = tableLayout.Height + chrome + Padding.Vertical;
 

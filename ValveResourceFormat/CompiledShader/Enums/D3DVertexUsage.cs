@@ -2,8 +2,8 @@ namespace ValveResourceFormat.CompiledShader;
 
 /// <summary>
 /// Vertex attribute usage, as packed into <see cref="VfxShaderFileVulkan.AttribMap"/> to identify vertex
-/// shader inputs. These follow the legacy <c>D3DDECLUSAGE</c> values, except that the fixed function only
-/// <c>POSITIONT</c> is absent, which shifts everything from <see cref="Color"/> onwards down by one.
+/// shader inputs. These follow the legacy <c>D3DDECLUSAGE</c> values, except that <c>POSITIONT</c>, which is
+/// fixed function only, is absent. That shifts everything from <see cref="Color"/> onwards down by one.
 /// Only the usages up to and including <see cref="Color"/> have been observed in shipped shaders.
 /// </summary>
 public enum D3DVertexUsage

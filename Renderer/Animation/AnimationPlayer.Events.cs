@@ -5,7 +5,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Fires the events of the clips the player advances, and handles the ones it acts on itself.
+    /// Fires the events of the clips the player advances, and plays the sounds of sound events.
     /// </summary>
     public partial class AnimationPlayer
     {
@@ -17,8 +17,8 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Raised for every event of a sequence animation crossed while the player advances its clips.
-        /// Kept apart from <see cref="ClipEventFired"/> because sequence events are a struct, which handing
-        /// to a delegate of their shared interface would box on every fire.
+        /// Separate from <see cref="ClipEventFired"/> because sequence events are structs.
+        /// Passing one to a delegate of their shared interface would box it on every fire.
         /// </summary>
         public event Action<AnimationEvent>? SequenceEventFired;
 

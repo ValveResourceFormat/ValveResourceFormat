@@ -500,7 +500,6 @@ internal sealed class PulseGraphBuilder
         /// <param name="node">The break node.</param>
         public static FlowContinuation Break(Node node) => new(() => node.CreateFlowOut(""), node);
 
-        /// <summary>The port itself.</summary>
         public GraphSocket Socket => socket ??= create();
 
         /// <summary>Whether <see cref="Socket"/> has been used.</summary>
@@ -1385,8 +1384,8 @@ internal sealed class PulseGraphBuilder
                     var node = CreateIfNode(document, instruction, chunkIndex, previousActionOutSocket, registerValues);
                     AddChunkLeapNode(document, instruction, FlowContinuation.Of(node.CreateFlowOut("True")));
 
-                    // Leaps never come back, so the conditions need no bounds unlike regular jumps, and there
-                    // is no "Finished" socket as the true and false flows never merge.
+                    // Leaps never come back, so unlike regular jumps the conditions need no bounds.
+                    // There is no "Finished" socket because the true and false flows never merge.
                     previousActionOutSocket = FlowContinuation.Of(node.CreateFlowOut("False"));
 
                     document.AddNode(node);
@@ -1573,7 +1572,6 @@ internal sealed class PulseGraphBuilder
             document.AddNode(cellNode);
         }
 
-        // General info as a node
         var graphInfoNode = CreateNode("Graph info", "", PulseCategory.Other);
 
         // Remaps some graph keys to friendlier names; unmapped keys still display under their raw name.

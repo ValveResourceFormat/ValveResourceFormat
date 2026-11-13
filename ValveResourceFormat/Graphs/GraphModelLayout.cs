@@ -3,7 +3,7 @@ namespace ValveResourceFormat.Graphs;
 /// <summary>
 /// Drives <see cref="ValveResourceFormat.Graphs.GraphLayout"/> from the view's node model: node
 /// sizes and socket pivots go out as parallel arrays, placements and routed waypoints come back.
-/// Self-referencing wires never reach the engine and get a synthetic orbit route here instead.
+/// Self-referencing wires never reach the engine and get a synthetic loop route here instead.
 /// </summary>
 internal static class GraphModelLayout
 {
@@ -23,7 +23,7 @@ internal static class GraphModelLayout
 
     /// <summary>
     /// Runs <see cref="GraphLayout.Refine(Vector2[], Vector2[], GraphLayoutEdge[], Vector2[][], int)"/>
-    /// on an island where it stands, starting from the routes its wires have now.
+    /// on an island in place, starting from the current routes of its wires.
     /// </summary>
     public static void Refine(
         List<GraphNode> component,

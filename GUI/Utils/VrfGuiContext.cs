@@ -139,7 +139,7 @@ namespace GUI.Utils
         // This is a hack to set camera and properties when clicking a mesh from a model or map
         internal Action<GLBaseControl>? GLPostLoadAction { get; set; }
 
-        // Loading panel listening for the phase this file is being loaded through, if one is up
+        // Receives the current loading phase for the loading panel, if one is shown
         internal IProgress<string>? LoadingProgress { get; set; }
 
         private readonly Lock ChildrenLock = new();
@@ -187,7 +187,7 @@ namespace GUI.Utils
         {
             try
             {
-                var paths = Settings.Config.GameSearchPaths.ToList(); // Make a copy
+                var paths = Settings.Config.GameSearchPaths.ToList();
 
                 // Find any gameinfo files specified by the user in settings
                 foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith("gameinfo.gi", StringComparison.InvariantCulture)).ToList())

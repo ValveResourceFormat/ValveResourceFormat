@@ -3,15 +3,15 @@ using ValveResourceFormat.Particles.Utils;
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
-    /// Places new particles at random points inside the hitboxes, or bones, of the model a control
-    /// point carries that reach across a world height, preferring points along a direction, and
-    /// can give them the velocity of their box. With no box reaching the height the particles get a
+    /// Places new particles at random points inside the hitboxes, or bones, that reach across a
+    /// world height, in the model a control point carries. Points along a direction are preferred,
+    /// and particles can take the velocity of their box. With no box reaching the height the particles get a
     /// life of 0. Measuring the height from the water surface is not supported.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateOnModelAtHeight">C_INIT_CreateOnModelAtHeight</seealso>
     class CreateOnModelAtHeight : ParticleFunctionInitializer
     {
-        /// <summary>Where the direction bias of a box is measured from.</summary>
+        /// <summary>Reference point of the direction bias: the entity origin or the center of the box.</summary>
         /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/ParticleHitboxBiasType_t">ParticleHitboxBiasType_t</seealso>
         private enum HitboxBiasType
         {

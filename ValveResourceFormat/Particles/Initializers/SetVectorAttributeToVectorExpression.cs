@@ -53,8 +53,8 @@ namespace ValveResourceFormat.Particles.Initializers
             var values1 = input1.Prepare(run, particleSystemState);
             var values2 = input2.Prepare(run, particleSystemState);
 
-            // The lerp is evaluated for every live particle, and each particle of the run reads its own value
-            // rather than the value of the particle as far into the collection as it is into the run
+            // The lerp is evaluated for every live particle, and each particle of the run reads its own value,
+            // not the value at its offset from the start of the collection
             var lerps = lerp.Fill(run, particles.Current, particleSystemState);
 
             foreach (var (offset, block, lane) in run.InputBlocks())

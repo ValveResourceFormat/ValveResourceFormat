@@ -86,7 +86,6 @@ namespace GUI.Controls
             var keycapHeight = Height - (keycapMargin * 2);
             var keycapRect = new Rectangle(0, keycapMargin, keycapWidth, keycapHeight);
 
-            // Draw keycap background with rounded corners
             using var path = Themer.GetRoundedRect(keycapRect, this.AdjustForDPI(CornerRadius));
             using var backBrush = new SolidBrush(Themer.CurrentThemeColors.Border);
             graphics.FillPath(backBrush, path);

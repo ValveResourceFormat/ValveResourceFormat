@@ -3,7 +3,7 @@ using static ValveResourceFormat.ResourceTypes.EntityLump;
 namespace GUI.Forms
 {
     /// <summary>
-    /// What a cell in <see cref="EntityInfoControl"/> points at, handed to its host when the cell is double clicked.
+    /// Target of a cell in <see cref="EntityInfoControl"/>, passed to the host when the cell is double clicked.
     /// </summary>
     abstract record LinkedResource;
 

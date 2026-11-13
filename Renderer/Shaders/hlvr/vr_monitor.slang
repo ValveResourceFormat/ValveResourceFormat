@@ -146,7 +146,7 @@ vec3 GetGlassHighlight(vec3 normal)
     return lighting.SpecularDirect;
 }
 #else
-// What the glass shows of the room: the environment maps
+// Reflection of the room on the glass, blended from the environment maps
 vec3 GetRoomReflection(vec3 normal, vec3 viewDir)
 {
     float roughness = g_fScreenReflectionRoughness;

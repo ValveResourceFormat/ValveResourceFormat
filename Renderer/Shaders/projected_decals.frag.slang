@@ -8,8 +8,8 @@
 
 #define ENABLE_LPV_BLENDING 1
 
-// Dual source: the destination becomes outputColor + destination * outputMultiplier, one channel at a time,
-// which is the same shape as every decal blend mode, so any mix of them stacks in order in one draw
+// Dual source: the destination becomes outputColor + destination * outputMultiplier, one channel at a time.
+// Every decal blend mode has this shape, so any mix of them stacks in order in one draw
 layout(location = 0, index = 0) out vec4 outputColor;
 layout(location = 0, index = 1) out vec4 outputMultiplier;
 
@@ -221,7 +221,7 @@ vec4 SampleDecalTriplanar(sampler2DArray textureArray, DecalTexture_t decalTextu
 
 // Blood spreads from its centre as it lands, then dries from its thin edges inward until only the thickest
 // of it is left. Fading it out dries it the rest of the way. Returns the opacity, how dry the blood is, and
-// where its normal and occlusion are read, which sag toward the ground while it is wet.
+// the coordinate its normal and occlusion are read at. That coordinate sags toward the ground while the blood is wet.
 float AgeBlood(float age, float fadeOpacity, vec4 color, vec3 decalCoords, vec3 axisX, vec3 axisY, out vec2 agedCoord, out float dry)
 {
     age = max(age, 0.0);
@@ -376,8 +376,8 @@ void main()
     float roughness = 0.0;
     float occlusion = 0.0;
 
-    // Each layer scales everything under it and adds its own light: the destination by keepDestination,
-    // the merged lit surface by litWeight and the emissive light by itself, which keeps them all in order
+    // Each layer scales everything under it and adds its own light. keepDestination scales the destination,
+    // litWeight the merged lit surface and emissiveColor the emissive light, so all three stay in order
     vec3 keepDestination = vec3(1.0);
     vec3 litWeight = vec3(0.0);
     vec3 emissiveColor = vec3(0.0);
@@ -501,7 +501,7 @@ void main()
 
                 color = SampleDecalTriplanar(g_tDecalColor, material.Color, planeCoords, planeDdx, planeDdy, planeWeights);
 
-                // Without an edge width of its own, it still fades toward its box faces
+                // A decal without an edge width still fades toward the box faces
                 if (material.SurfaceFade.z == 0.0)
                 {
                     color.a *= saturate(8.0 * faceDistance);
@@ -614,7 +614,7 @@ void main()
                     ? SampleDecalTriplanar(g_tDecalSelfIllum, material.SelfIllum, planeCoords, planeDdx, planeDdy, planeWeights)
                     : SampleDecalTexture(g_tDecalSelfIllum, material.SelfIllum, texCoord, texCoordDdx, texCoordDdy);
 
-                // It glows in its own color, as a g-buffer that holds up to ten times the albedo of light
+                // Glows in the albedo color, capped at ten times the albedo, which is the most a g-buffer holds
                 emissiveColor += albedo * min(selfIllum.g * material.SelfIllumScale, 10.0) * opacity;
             }
         }

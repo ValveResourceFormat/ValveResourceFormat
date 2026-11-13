@@ -106,9 +106,9 @@ internal static class PulseHues
     }
 
     /// <summary>
-    /// Buckets a compiled cell class. Yielding is the class's ancestry, which the compiled graph
-    /// does not record - a yielding cell serialises its resume points under per-class names that
-    /// read as ordinary outflows - so the set is named here.
+    /// Buckets a compiled cell class. Whether a cell yields depends on its class ancestry, which the
+    /// compiled graph does not record. A yielding cell serialises its resume points under per-class
+    /// names that read as ordinary outflows. The yielding classes are therefore listed here.
     /// </summary>
     /// <param name="cellClass">The cell's _class value.</param>
     public static PulseCategory CategoryOf(string cellClass) => cellClass switch

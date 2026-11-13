@@ -46,7 +46,7 @@ public sealed class AudioMixer : IDisposable
 
     // The position comes from the camera and the interval from a stopwatch on this thread, and the two
     // are not measuring the same frame: any jitter between them lands in the velocity at full weight,
-    // which the doppler shift then turns into audible warble. Smoothed over the same span as a sound's own.
+    // which the doppler shift then turns into audible warble. Uses the same span as the velocity smoothing of SampleProvider3D.
     private const float VelocitySmoothingSeconds = 0.05f;
 
     // Beyond this the gap is a stall rather than a frame, and smoothing a whole second of it in one

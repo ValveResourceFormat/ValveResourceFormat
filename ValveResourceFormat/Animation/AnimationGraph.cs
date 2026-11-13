@@ -222,7 +222,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// </summary>
         public Animation.SampledEventsBuffer SampledEvents => graphContext.SampledEvents;
 
-        /// <summary>Gets what the last update recorded, when <see cref="RecordUpdateDetails"/> is set.</summary>
+        /// <summary>Gets the sampled clips and graph timings recorded by the last update, when <see cref="RecordUpdateDetails"/> is set.</summary>
         public GraphUpdateDetails? UpdateDetails { get; private set; }
 
         /// <inheritdoc/>

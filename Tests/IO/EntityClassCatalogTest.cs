@@ -18,7 +18,7 @@ namespace Tests.IO
             await Assert.That(light.Helpers[1].Metadata!.ContainsKey("image")).IsTrue();
             await Assert.That(light.PreviewAnimationKeys).IsEmpty();
 
-            // Only the classes an entity can be required to be placed under are kept of what a class is based on
+            // Of the base classes, only those an entity can be required to be placed under are kept
             await Assert.That(light.DerivesFrom("light_omni2")).IsTrue();
             await Assert.That(light.DerivesFrom("targetname")).IsFalse();
         }
@@ -39,7 +39,7 @@ namespace Tests.IO
         {
             var prop = EntityClassCatalog.GetTable(Game.Csgo).FindClass("prop_dynamic")!;
 
-            // Keys the class takes from its bases are there, the one that matters most first
+            // Keys inherited from base classes are included, the most important first
             await Assert.That(prop.PreviewAnimationKeys).IsEquivalentTo(["StartingAnim", "IdleAnim"], StringComparer.Ordinal, CollectionOrdering.Matching);
         }
 
@@ -49,7 +49,7 @@ namespace Tests.IO
             await Assert.That(EntityClassCatalog.GetTable(Game.Dota).GridNav?.EdgeSize).IsEqualTo(64);
             await Assert.That(EntityClassCatalog.GetTable(Game.Csgo).GridNav).IsNull();
 
-            // A class two games declare differently is the one of each game
+            // Each game keeps its own declaration of a class that games declare differently
             var games = new[] { Game.Csgo, Game.Dota, Game.Steamtours }.Select(static game => EntityClassCatalog.GetTable(game).FindClass("info_target"));
 
             await Assert.That(games.Distinct().Count()).IsGreaterThan(1);

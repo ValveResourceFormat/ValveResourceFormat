@@ -46,7 +46,7 @@ public class SceneEnvMap : SceneNode
     public int HandShake { get; init; }
 
     /// <summary>
-    /// Gets or sets the cubemap or cubemap array texture for this environment map. A cubemap of its own is replaced by
+    /// Gets or sets the cubemap or cubemap array texture for this environment map. A separate cubemap is replaced by
     /// the array it is packed into.
     /// </summary>
     public required RenderTexture EnvMapTexture { get; set; }
@@ -81,9 +81,9 @@ public class SceneEnvMap : SceneNode
     public Vector4 NormalizationSH { get; init; } = NoNormalization;
 
     /// <summary>
-    /// Stands in for a probe whose coefficients could not be read. This evaluates to zero rather
-    /// than to one: the harmonic holds a radiance, so no value in it means "leave reflections
-    /// alone", and the shader skips the division when it comes out non positive instead.
+    /// Stands in for a probe whose coefficients could not be read. It is zero rather
+    /// than one: the harmonic holds a radiance, so no value in it means "leave reflections
+    /// alone". The shader instead skips the division when the dot is not positive.
     /// </summary>
     public static readonly Vector4 NoNormalization = Vector4.Zero;
 

@@ -141,7 +141,7 @@ public sealed class TempEntities
             return null;
         }
 
-        // One that is never simulated never finishes, so the oldest makes way
+        // An effect that is never simulated never finishes, so the oldest is retired to make room
         if (particles.Count >= MaxParticles)
         {
             Retire(0);
@@ -195,7 +195,7 @@ public sealed class TempEntities
         particles.RemoveAt(index);
     }
 
-    // Takes the effects out of the scenes that still hold them; a scene that was emptied has deleted its own
+    // Takes the effects out of the scenes that still hold them. An emptied scene has already deleted its effects
     internal void Clear()
     {
         foreach (var particle in particles.Concat(idleParticles.Values.SelectMany(static idle => idle)))

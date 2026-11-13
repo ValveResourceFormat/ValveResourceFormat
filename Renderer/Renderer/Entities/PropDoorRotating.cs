@@ -182,8 +182,8 @@ public class PropDoorRotating : BaseToggle
     }
 
     /// <summary>
-    /// Links a double door: a named door takes the other doors called its <c>slavename</c> (or its own name
-    /// when unset) as slaves, which open and close with it.
+    /// Links a double door: a named door takes the other doors named by <c>slavename</c> (the name of this door
+    /// when unset) as slaves. The slaves open and close with it.
     /// </summary>
     public override void Activate()
     {
@@ -271,8 +271,8 @@ public class PropDoorRotating : BaseToggle
     [EntityInput("OpenAwayFromActivator")]
     protected void InputOpenAwayFromActivator(EntityInputData data)
     {
-        // The parameter overrides the speed for this swing only. A missing one would never arrive, so the
-        // door's own is kept
+        // The parameter overrides the speed for this swing only. A zero or negative speed would never arrive,
+        // so the door's own speed is kept
         var speed = Speed;
         var overrideSpeed = data.Float();
 
@@ -295,7 +295,7 @@ public class PropDoorRotating : BaseToggle
             return;
         }
 
-        // DoorClose fires it too, so a door not already closing reports it twice
+        // DoorClose fires OnClose too, so a door not already closing reports it twice
         EntitySystem.TriggerOutput(this, "OnClose", data.Activator);
         DoorClose();
     }
@@ -480,7 +480,7 @@ public class PropDoorRotating : BaseToggle
 
         RotateTo(ChooseSwingSide(awayFrom) == SwingSide.Forward ? angleOpenForward : angleOpenBack);
 
-        // Only setting off from shut announces itself and takes the rest of a double door along
+        // Only an opening from closed plays the move sound, fires OnOpen and opens the slaves
         if (previous != DoorState.Closed)
         {
             return;
@@ -568,7 +568,7 @@ public class PropDoorRotating : BaseToggle
         }
     }
 
-    // A delay below the 0.1 it is padded by never comes due
+    // Pads ReturnDelay by 0.1 seconds; a negative sum never comes due
     private void ScheduleAutoClose()
     {
         moveDoneFunction = MoveDoneFunction.AutoClose;

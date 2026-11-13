@@ -106,8 +106,8 @@ public static class EntityFactory
         Register<AmbientEffectEntity>("npc_dota_mango_tree", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
         Register<AmbientEffectEntity>("npc_dota_tower", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
 
-        // A rope's effect_name is the cable effect, which drawn without the rope's own snapshot is an
-        // editor placeholder at the world origin, so ropes must never be treated as plain particle entities
+        // A rope's effect_name is the cable effect. Drawn without the rope's snapshot, it is an
+        // editor placeholder at the world origin. Ropes must never be treated as plain particle entities
         Register<PathParticleRopeEntity>("path_particle_rope", static (system, spawnInfo) => new PathParticleRopeEntity(system, spawnInfo));
         Register<PathParticleRopeEntity>("path_particle_rope_clientside", static (system, spawnInfo) => new PathParticleRopeEntity(system, spawnInfo));
         Register<PathParticleRopeEntity>("citadel_zipline_path", static (system, spawnInfo) => new PathParticleRopeEntity(system, spawnInfo));
@@ -174,8 +174,8 @@ public static class EntityFactory
     }
 
     /// <summary>
-    /// Creates the entity for a classname, which the entity system adds to the world to spawn with the rest of
-    /// its spawn group. An unimplemented classname gives a
+    /// Creates the entity for a classname. The entity system adds it to the world and spawns it with the rest
+    /// of the spawn group. An unimplemented classname gives a
     /// <see cref="GenericModelEntity"/> when it has a model, otherwise a <see cref="GenericEntity"/>.
     /// </summary>
     /// <returns>

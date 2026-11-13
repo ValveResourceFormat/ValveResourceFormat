@@ -407,8 +407,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets the corner orders a quad with one or two adjacent static corners can be declared in: its own, then the
-        /// ones with its static corners in the middle.
+        /// Gets the corner orders a quad with one or two adjacent static corners can be declared in: the given order, then
+        /// the orders that put the static corners in the middle.
         /// </summary>
         private static int[][] StaticQuadCornerOrders(int[] face, Func<int, bool> isStatic)
         {
@@ -445,7 +445,7 @@ namespace ValveResourceFormat.IO
 
         /// <summary>
         /// Chooses the order the surface faces are declared in so the importer creates the sheet's nodes in the order the
-        /// shipped node array numbers them, and returns that order with its corners rotated.
+        /// shipped node array numbers them, and returns the faces in that order with rotated corners.
         /// </summary>
         internal List<int[]> ChooseFaceDeclarationOrder(List<int[]> faces, int surfaceFaceCount, IReadOnlyList<int> nodeIndices)
         {

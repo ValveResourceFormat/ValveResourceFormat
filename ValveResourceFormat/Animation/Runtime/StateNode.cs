@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Animation
 
             BoneMaskValueNode?.Initialize(ctx);
             LayerWeightNode?.Initialize(ctx);
-            // Note: the layer root-motion weight node is not part of the lifecycle upstream either
+            // LayerRootMotionWeightNode is not part of the lifecycle
 
             // Flag this as the first update for this state, this will cause state entry events to be sampled for at least one update
             IsFirstStateUpdate = true;
@@ -136,8 +136,8 @@ namespace ValveResourceFormat.Animation
             }
 
             // Sample Timed Events
-            // A state can ask for the time it has really been in, as how far its child has played says
-            // nothing when the child is a held pose
+            // Timed events can use ElapsedTimeInState. The playback progress of the child says
+            // nothing when the child is a held pose.
             var elapsedTime = UseActualElapsedTimeInStateForTimedEvents
                 ? (float)ElapsedTimeInState.TotalSeconds
                 : Duration * CurrentTime;
@@ -173,7 +173,6 @@ namespace ValveResourceFormat.Animation
             }
 
             // Update layer weights
-            //-------------------------------------------------------------------------
             if (IsOffState)
             {
                 ctx.LayerContext.Weight = 0.0f;
@@ -186,17 +185,15 @@ namespace ValveResourceFormat.Animation
             }
 
             // Update bone mask task list
-            //-------------------------------------------------------------------------
             if (BoneMaskValueNode != null)
             {
                 var boneMaskTaskList = BoneMaskValueNode.GetValue(ctx);
 
-                // If we dont have a bone mask task list, use a copy of the state's task list
                 if (!ctx.LayerContext.MaskTaskList.HasTasks)
                 {
                     ctx.LayerContext.MaskTaskList.CopyFrom(boneMaskTaskList);
                 }
-                else // If we already have a bone mask set, combine the bone masks
+                else
                 {
                     ctx.LayerContext.MaskTaskList.CombineWith(boneMaskTaskList);
                 }
@@ -217,12 +214,11 @@ namespace ValveResourceFormat.Animation
             }
             else
             {
-                // No pose of its own, which must add nothing inside an additive layer
+                // No child pose. Use the default pose so the state adds nothing inside an additive layer
                 ctx.GetDefaultPose().CopyTo(result.Pose, 0);
                 result.NoPose = true;
             }
 
-            // track time spent in state
             ElapsedTimeInState += TimeSpan.FromSeconds(ctx.DeltaTime);
 
             // Sample graph events ( we need to track the sampled range for this node explicitly )
@@ -233,7 +229,6 @@ namespace ValveResourceFormat.Animation
             SampledEventRange = new(eventRangeStart, ctx.SampledEvents.Count);
             result.SampledEventRange = SampledEventRange;
 
-            // Update layer context and return
             UpdateLayerContext(ctx);
             IsFirstStateUpdate = false;
 

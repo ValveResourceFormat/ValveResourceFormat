@@ -7,10 +7,10 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// Straight lanes between the nodes of a path, reaching as far to each side of a node as its radius scale,
-/// with an arrow above each pointing from one node to the next. Each node faces along the path, halfway
-/// between the directions it is reached from and left in, upright to the path but rolled as far about that
-/// direction as the node itself is.
+/// Straight lanes between the nodes of a path. A lane reaches to each side of a node by the radius scale of
+/// the node, and has an arrow above it pointing from one node to the next. Each node faces along the path,
+/// halfway between the directions into and out of the node. The node is upright to the path, rolled about
+/// the forward direction by the roll of the node entity.
 /// </summary>
 internal sealed class AccompanyHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
@@ -108,7 +108,7 @@ internal sealed class AccompanyHelper(IHelperOwner owner, HelperDeclaration decl
             var direction = MathUtils.SafeNormalize(end - start);
             var headLength = MathF.Min(length * 0.25f, MaxHeadLength);
 
-            // The lane is drawn on the nodes, and again at the height of the arrow facing the other way
+            // The lane is drawn at the nodes, and again at the arrow height with the opposite facing
             var laneA = fromOrigin - fromSide;
             var laneB = fromOrigin + fromSide;
             var laneC = toOrigin + toSide;
@@ -178,7 +178,7 @@ internal sealed class AccompanyHelper(IHelperOwner owner, HelperDeclaration decl
         }
     }
 
-    // The node keeps how far it is rolled about its forward axis from the frame upright to the path
+    // Applies the roll of the node about the forward axis, measured from the frame that is upright to the path
     private static (Vector3 Left, Vector3 Up) ApplyRoll(Matrix4x4 nodeTransform, Vector3 forward, Vector3 left, Vector3 up)
     {
         var frame = MathUtils.CreateBasis(forward, left, up);

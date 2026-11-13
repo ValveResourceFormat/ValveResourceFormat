@@ -11,8 +11,8 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Editor.Entities;
 
 /// <summary>
-/// An entity of a compiled map as the helpers of its class see it. The game draws what an entity of the
-/// game shows, so only the helpers that stand in for an entity in the editor are added to the scene.
+/// An entity of a compiled map as the helpers of its class see it. The game draws the entity, so only the
+/// helpers that stand in for it in the editor are added to the scene.
 /// </summary>
 internal sealed class EntityHelperOwner : IHelperOwner
 {
@@ -25,8 +25,8 @@ internal sealed class EntityHelperOwner : IHelperOwner
     private readonly HammerEntityVisuals visuals;
 
     /// <summary>
-    /// Gets or sets the nodes that are placed at the entity, while they are held back for the entity to take
-    /// one as its own, or <see langword="null"/> when every node is given to the entity as it is added.
+    /// Gets or sets the nodes placed at the entity while they are held back so the entity can take one as its
+    /// stand-in, or <see langword="null"/> when every node is given to the entity as it is added.
     /// </summary>
     public List<SceneNode>? PlacedNodes { get; set; }
 
@@ -44,10 +44,10 @@ internal sealed class EntityHelperOwner : IHelperOwner
 
     public ImmutableArray<WorldLayer> Layers => entity.Layers;
 
-    /// <summary>Gets or sets the node the helpers stand in for the entity with, which the entity took as its own.</summary>
+    /// <summary>Gets or sets the stand-in node the entity took from the nodes of the helpers.</summary>
     public SceneNode? StandIn { get; set; }
 
-    // What the game draws the entity with, unless the helpers stand in for it
+    // The root node is what the game draws for the entity, unless the helpers stand in for it
     public AABB? LocalBounds => entity.RootNode is { IsPointMarker: false } root ? root.LocalBoundingBox : null;
 
     public AABB? ContentBounds => entity.RootNode is { IsPointMarker: false } root && root != StandIn ? root.BoundingBox : null;
@@ -110,7 +110,7 @@ internal sealed class EntityHelperOwner : IHelperOwner
             .Where(found => !found.IsRemoved && found.Data != null && found.Classname.Equals(classname, StringComparison.OrdinalIgnoreCase))
             .Select(visuals.GetEntity);
 
-    // A node the compiler keeps as an entity of its own names its path by the id of the path, and its place along it
+    // A path node the compiler keeps as an entity names its path with path_uniqueid and its place along it with path_index
     public IHelperOwner? Path
         => entity.Data?.GetStringProperty(PathIdKey) is { } pathId
             ? FindInLump(found => found.ContainsKey(PathNodesKey) && found.GetStringProperty(HammerIdKey) == pathId)

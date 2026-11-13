@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>The smallest near size a barn light's frustum is given.</summary>
         private const float BarnMinimumNearSize = 1.1920929e-7f;
 
-        /// <summary>The largest one minus softness a barn light's frustum edges are given.</summary>
+        /// <summary>Largest hardness (one minus softness) of the edges of a barn light frustum.</summary>
         private const float BarnMaximumHardness = 0.99999988f;
 
         private readonly ParticleOmni2LightTypeChoiceList lightType = ParticleOmni2LightTypeChoiceList.PARTICLE_OMNI2_LIGHT_TYPE_POINT;
@@ -86,8 +86,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var particleIds = current.ReadIntegers(ParticleField.ParticleId);
             var columns = new LightColumns(current);
 
-            // The colour blend is set up before the other inputs and read after them, so only an input drawing per
-            // block draws after them
+            // The colour blend is evaluated before the other inputs, except when it draws per block, in which
+            // case it is evaluated after them
             var setUpColorBlend = colorBlend.DrawsPerBlock ? Vector3.Zero : colorBlend.NextVector(systemState);
 
             // Both brightness inputs are evaluated whichever unit is used, so the draws stay in this order
@@ -148,7 +148,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     continue;
                 }
 
-                // A direction input drawing per block of four draws for the first particle of a block that claims a light
+                // A direction input that draws per block of four is evaluated for the first particle of each block that claims a light
                 if (directionInput != null && i >= nextDirectionBlock)
                 {
                     var (offset, block) = current.BlockAt(i);
@@ -225,8 +225,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// The light's frame, facing along its first row: the particle's angles, its normal or the way to
-        /// its target, the roll variants turning that about the facing direction by the particle's roll.
+        /// The light's frame, with the facing direction on the first row. The direction comes from the
+        /// particle's angles, the normal or the way to the target. The roll variants turn the frame about
+        /// the facing direction by the particle's roll.
         /// </summary>
         private Matrix4x4 LightRotation(int index, in LightColumns columns, ReadOnlySpan<Vector3> directions)
         {
@@ -305,8 +306,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return state with
             {
                 LinearBrightness = BarnLinearBrightness(brightness, nearSize, inverseApexDistance),
-                // The skirt fades a barn light with distance from its apex over the last skirt fraction of its
-                // range, as it fades a point light, rather than over the frustum's far depth
+                // The skirt fades a barn light with distance from the frustum apex, over the last skirt fraction
+                // of the range, as for a point light. It does not fade over the far depth of the frustum
                 FallOff = 0f,
                 BarnDistanceSkirt = inputs.Skirts[index],
                 BarnSizeParams = new Vector3(nearSize, inverseApexDistance),

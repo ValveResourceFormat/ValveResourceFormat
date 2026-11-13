@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
 /// The fog of an <c>env_fog_controller</c>: a color faded in from a start to an end distance, up to a
-/// maximum density, which the map has while the entity is the <c>fog</c> global.
+/// maximum density. The map has this fog while the entity is the <c>fog</c> global.
 /// </summary>
 internal sealed class FogHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration), ILinearFogSource
 {

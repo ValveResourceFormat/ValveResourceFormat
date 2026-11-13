@@ -452,7 +452,6 @@ namespace ValveResourceFormat
 
             for (var i = 0; i < Blocks.Count; i++)
             {
-                // Align to 16 bytes
                 var currentPos = stream.Position;
                 var padding = (16 - currentPos % 16) % 16;
 
@@ -504,7 +503,6 @@ namespace ValveResourceFormat
 
             var end = stream.Position;
 
-            // Update file size
             var fileSize = end - start;
 
             if (fileSize > uint.MaxValue)

@@ -17,8 +17,8 @@ using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 namespace ValveResourceFormat.Renderer.Decals
 {
     /// <summary>
-    /// Decals projected onto whatever the resolved scene depth holds inside their box, such as bullet
-    /// impacts. The boxes are binned with the tiled light culling, and one full screen pass walks the
+    /// Decals, such as bullet impacts, projected onto the geometry in the resolved scene depth that
+    /// lies inside their box. The boxes are binned with the tiled light culling, and one full screen pass walks the
     /// decals reaching each pixel, with every decal material and texture held on the GPU.
     /// </summary>
     public sealed class ProjectedDecalSystem
@@ -37,8 +37,8 @@ namespace ValveResourceFormat.Renderer.Decals
         private const uint FlagFlipU = 1 << 0;
         private const uint FlagHidden = 1 << 1;
 
-        // Matches the feature flags in projected_decals.frag.slang, which go by the material's own names
-        // for them. The low two bits are the blend mode.
+        // Matches the feature flags in projected_decals.frag.slang, which use the material's feature
+        // names. The low two bits are the blend mode.
         [Flags]
         private enum MaterialFlags : uint
         {
@@ -76,13 +76,13 @@ namespace ValveResourceFormat.Renderer.Decals
             public float PlaceTime;
         }
 
-        // Matches DecalTexture_t, 16 bytes. Where a decal finds one of its textures in the array of its kind.
+        // Matches DecalTexture_t, 16 bytes. Where a decal texture sits in the texture array for that kind of texture.
         [StructLayout(LayoutKind.Sequential)]
         private struct TextureGpu
         {
             // How much of the array layer the decal's part of the texture covers
             public Vector2 Scale;
-            // The layer in the low 16 bits, then the last mip level the texture has in four
+            // The layer in the low 16 bits, then the last mip level of the texture in the next four bits
             public uint Layer;
             // Where that part starts in the layer, in texels: x in the low 16 bits, y in the high
             public uint Offset;
@@ -957,7 +957,7 @@ namespace ValveResourceFormat.Renderer.Decals
             passState.BlendEnable = true;
             passState.ColorWriteMask = RsColorWriteEnableBits.R | RsColorWriteEnableBits.G | RsColorWriteEnableBits.B;
 
-            // The shader writes what to add, and in its second output how much of the destination to keep.
+            // The shader writes the color to add, and in its second output the fraction of the destination to keep.
             // CS2 blends its liquid decals the same way.
             passState.SetBlend(RsBlendMode.One, RsBlendMode.Src1Color);
 

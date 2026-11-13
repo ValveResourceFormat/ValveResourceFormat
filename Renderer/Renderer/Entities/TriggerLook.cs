@@ -10,8 +10,8 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </summary>
 /// <remarks>
 /// <para>
-/// In the engine this is a <c>trigger_once</c>, but it replaces the touch outright, so nothing of
-/// <see cref="TriggerMultiple"/> is left to inherit. The look is tested on every touch: the view direction
+/// In the engine this is a <c>trigger_once</c>. It replaces the touch outright, so it does not inherit from
+/// <see cref="TriggerMultiple"/>. The look is tested on every touch: the view direction
 /// (or the direction of travel) has to be within <see cref="FieldOfView"/> of the direction from the eye to
 /// the target's origin, a cosine rather than an angle. Looking away or leaving resets the clock.
 /// </para>
@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </remarks>
 public sealed class TriggerLook : BaseTrigger
 {
-    /// <summary>What a <c>trigger_look</c>'s <c>spawnflags</c> mean.</summary>
+    /// <summary>Spawn flags of <c>trigger_look</c>.</summary>
     [Flags]
     public enum LookSpawnFlag : uint
     {

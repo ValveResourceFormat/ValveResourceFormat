@@ -62,10 +62,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         public INumberProvider Rotation { get; init; } = Zero;
 
-        /// <summary>m_bClampUVs: whether this layer is sampled with its edge texels held outside its range instead of repeating.</summary>
+        /// <summary>m_bClampUVs: whether this layer's texture is sampled clamped to the edge instead of repeating.</summary>
         public bool ClampUVs { get; init; }
 
-        /// <summary>m_bRandomizeOffsets: whether each particle shifts this layer by a random amount of its own.</summary>
+        /// <summary>m_bRandomizeOffsets: whether each particle shifts this layer by its own random amount.</summary>
         public bool RandomizeOffsets { get; init; }
 
         /// <summary>m_nPerParticleScale: the per particle value <see cref="ScaleU"/> and <see cref="ScaleV"/> are multiplied by.</summary>
@@ -118,9 +118,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// Binds the chain's textures and describes every layer to the shader: how it composites, how a
-        /// card coordinate is placed in it, which per particle values scale its controls, and where the
-        /// sequences of its sheet sit in <paramref name="sheets"/>, adding them there the first time.
+        /// Binds the chain's textures and sets the uniforms of every layer: blend, channels, effect mode,
+        /// distortion, zoom, uv scale, offset and rotation, the packed per particle modes, and the rows of
+        /// the layer's sheet in <paramref name="sheets"/>, where they are added the first time.
         /// </summary>
         public static void Bind(Shader shader, ParticleTextureLayer[] layers, ParticleSystemState systemState, ParticleSheetCache sheets)
         {

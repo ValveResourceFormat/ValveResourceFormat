@@ -125,7 +125,6 @@ namespace ValveResourceFormat.IO
             return byPair;
         }
 
-        /// <summary>Gets the <see cref="AuthoredFaceRods"/> of the <see cref="SheetNodes"/>.</summary>
         private List<FaceRod> SheetFaceRods => sheetFaceRods ??= AuthoredFaceRods(SheetNodes);
 
         /// <summary>

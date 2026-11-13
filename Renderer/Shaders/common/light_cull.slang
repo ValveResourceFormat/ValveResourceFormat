@@ -50,8 +50,8 @@ CullLookup_t GetCullLookup(vec3 positionWs)
 #else
     vec2 cullPixelVs = gl_FragCoord.xy;
 
-    // A pass that displaces the vertex in clip space rasterizes somewhere other than where the world
-    // position it shades with projects, so its gl_FragCoord names the wrong tile.
+    // A pass that displaces vertices in clip space rasterizes at a pixel other than the projection of the world
+    // position it shades, so gl_FragCoord gives the wrong tile.
     if (g_bCullFromShadedPosition)
     {
         cullPixelVs = GetCullPixelFromPosition(positionWs);

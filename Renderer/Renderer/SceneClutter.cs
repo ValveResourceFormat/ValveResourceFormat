@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/ClutterSceneObject_t">ClutterSceneObject_t</seealso>
     public sealed class SceneClutter : SceneAggregate
     {
-        /// <summary>One instance with its place in the compiled tile it belongs to.</summary>
+        /// <summary>One instance with its index in the compiled tile.</summary>
         /// <param name="Transform">World transform of the instance.</param>
         /// <param name="Scale">Uniform scale of the instance.</param>
         /// <param name="IndexInTile">Index of the instance within its tile.</param>

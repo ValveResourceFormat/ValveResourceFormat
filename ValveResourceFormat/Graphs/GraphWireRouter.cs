@@ -459,7 +459,7 @@ internal sealed class GraphWireRouter
         return low;
     }
 
-    /// <summary>How many cards other than its own two a sampled wire is drawn across.</summary>
+    /// <summary>How many cards a sampled wire is drawn across, not counting the two cards it connects.</summary>
     private int CardsTouched(GraphLayoutEdge edge, Vector2[] points)
     {
         touched.Clear();

@@ -88,7 +88,7 @@ namespace ValveResourceFormat.Particles.Operators
 
         /// <summary>
         /// How far the point at <paramref name="pathParameter"/> moved from the previous path to the current
-        /// one, scaled down for a particle created during the step by the part of it that it lived.
+        /// one, scaled down for a particle created during the step by the fraction of the step it has lived.
         /// </summary>
         internal static Vector3 PathDelta((Vector3 Start, Vector3 Mid, Vector3 End) current, (Vector3 Start, Vector3 Mid, Vector3 End) previous,
             float pathParameter, float age, float frameTime)

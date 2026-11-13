@@ -153,7 +153,7 @@ namespace Tests.Resources
 
             using (Assert.Multiple())
             {
-                // Both overloads must reach the full displacement; the time-based one previously under-shot.
+                // Both overloads must reach the full displacement.
                 await Assert.That(byFrame.Position.X).IsEqualTo(FullDisplacementX).Within(0.05f);
                 await Assert.That(byTime.Position.X).IsEqualTo(FullDisplacementX).Within(0.05f);
             }

@@ -3,7 +3,7 @@ using ValveResourceFormat.Particles.Utils;
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
-    /// Sends each particle from where it was created toward a control point, where it was at the
+    /// Sends each particle from where it was created toward the position the control point had at the
     /// particle's creation time, with a lifetime that ends on arrival. The end offset moves the target
     /// beyond the control point along the trip, and the start offset moves the particle forward along it.
     /// </summary>

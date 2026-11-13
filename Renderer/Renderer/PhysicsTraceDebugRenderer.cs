@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Renderer
         private static readonly Color32 NormalColor = new(0.25f, 1f, 1f, 1f);
 
         /// <summary>Draws the debug geometry for the current frame as blended lines the scene can hide.</summary>
-        /// <param name="context">Where the lines go.</param>
+        /// <param name="context">Tool render context the lines are added to.</param>
         /// <param name="physics">Physics world to trace against.</param>
         /// <param name="input">User input providing the player movement state.</param>
         /// <param name="camera">Camera the debug trace is fired from.</param>
@@ -35,7 +35,6 @@ namespace ValveResourceFormat.Renderer
                 var hullMins = feet - new Vector3(halfExtents.X, halfExtents.Y, 0f);
                 var hullMaxs = feet + new Vector3(halfExtents.X, halfExtents.Y, halfExtents.Z * 2f);
 
-                // Green when grounded, red in air
                 context.DrawColor = movement.OnGround ? new Color32(0f, 1f, 0f, 1f) : Color32.Red;
                 context.DrawWireBox(hullMins, hullMaxs);
 

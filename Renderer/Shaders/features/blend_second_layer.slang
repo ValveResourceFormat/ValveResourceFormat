@@ -4,8 +4,8 @@
 #define VRF_BLEND_SECOND_LAYER_INCLUDE
 
 // Second color and normal layer of the blend shaders, mixed over the first by a factor the shader picks.
-// The shader declares the layer's textures under the names its game gives them,
-// and vColorBlendValues when the vertex shader writes it.
+// The shader declares the textures of the layer under the names used by its game,
+// and declares vColorBlendValues when the vertex shader writes it.
 
 struct Layer2_t
 {

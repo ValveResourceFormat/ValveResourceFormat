@@ -4,10 +4,11 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Keeps particles on the hitboxes, or bones, of the model its model input reads: the box and
-    /// the place in it recorded at creation are turned back into a position every step, which the
-    /// particle either snaps to or follows the box's motion toward, fading out over its life. The
-    /// rotation of the box can be passed on to the particle's normal or rotation angles.
+    /// Keeps particles on the hitboxes, or bones, of the model read from the model input. The hitbox
+    /// index and the offset in it, recorded at creation, are turned back into a position every step.
+    /// The particle either snaps to that position or follows the hitbox motion toward it, fading out
+    /// over its life. The rotation of the hitbox can be passed on to the normal or rotation angles
+    /// of the particle.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_LockToBone">C_OP_LockToBone</seealso>
     class LockToBone : ParticleFunctionOperator

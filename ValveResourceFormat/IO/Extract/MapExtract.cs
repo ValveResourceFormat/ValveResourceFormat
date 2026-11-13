@@ -40,15 +40,15 @@ public sealed partial class MapExtract
 
     private readonly Dictionary<string, Vector2?> MaterialTextureSizes = [];
 
-    // units the generated physics surface materials span, declared in their vmat so Hammer projects them the same:
-    // their 64 texel texture at the density of the tool textures (64 texels over 16 units)
+    // units the generated physics surface materials span, declared in the vmat so Hammer projects their
+    // 64 texel texture at the density of the tool textures (64 texels over 16 units)
     private const int AutoPhysicsMaterialWorldMapping = 16;
 
     /// <summary>
     /// The texture size Hammer projects a material with, for faces that have no texture coordinates, in texels at
-    /// <see cref="TextureScale"/>: the units its WorldMappingWidth / WorldMappingHeight attributes
-    /// say the texture spans, else the size of its representative texture. Null when the material declares neither,
-    /// projecting it at the builder's default size.
+    /// <see cref="TextureScale"/>. It is the units the WorldMappingWidth / WorldMappingHeight attributes of the
+    /// material say the texture spans, else the size of the representative texture. Null when the material declares
+    /// neither, which projects it at the builder's default size.
     /// </summary>
     private Vector2? GetMaterialTextureSize(string materialName)
     {
@@ -97,7 +97,7 @@ public sealed partial class MapExtract
     }
 
     /// <summary>
-    /// What one Hammer mesh builder collects: the draw calls of one material with one tint and shadow mode. Geometry
+    /// Key of a Hammer mesh builder: the draw calls of one material with one tint and shadow mode. Geometry
     /// only welds within a material, and a Hammer mesh has a single tint and shadow mode.
     /// </summary>
     private readonly record struct HammerMeshGroup(string Material, Vector4 Tint, int DisableShadows);
@@ -220,7 +220,7 @@ public sealed partial class MapExtract
     }
 
     /// <summary>
-    /// Builds the Hammer vertex paint of one placed model from the vertex streams its world node binds to it,
+    /// Builds the Hammer vertex paint of one placed model from the vertex streams the world node binds to the model,
     /// or <see langword="null"/> when none of them can be carried over.
     /// </summary>
     private CDmExtraVertexData? GetExtraVertexData(string modelName, WorldNode.ExtraVertexStreamOverride[] streamOverrides, VBIB streams)
@@ -272,7 +272,7 @@ public sealed partial class MapExtract
 
             foreach (var attribute in stream.InputLayoutFields)
             {
-                // The material names what it reads from the slot the stream fills
+                // The input signature of the material names the semantic it reads from the slot the stream fills
                 var streamName = Material.FindD3DInputSignatureElement(inputSignature, attribute.SemanticName, attribute.SemanticIndex).Semantic;
 
                 if (string.IsNullOrEmpty(streamName))
@@ -323,8 +323,8 @@ public sealed partial class MapExtract
     private readonly Dictionary<string, Material.VsInputSignature> ExtraVertexStreamInputSignatures = [];
 
     /// <summary>
-    /// The material that replaces every draw call of one placed model, which is all a prop can express in Hammer,
-    /// or <see langword="null"/> when its overrides differ or leave some draw calls alone.
+    /// The material that replaces every draw call of one placed model. A prop can express only this in Hammer.
+    /// <see langword="null"/> when the overrides differ or leave some draw calls alone.
     /// </summary>
     private string? GetWholeModelMaterialOverride(string modelName, WorldNode.MaterialOverride[] materialOverrides)
     {
@@ -1111,8 +1111,8 @@ public sealed partial class MapExtract
                 cMapMeshesToReturn.Add(hammerMesh);
             }
 
-            // physics meshes are welded together and split by connectivity like the render geometry is, however
-            // material doesnt matter and neither does tint
+            // physics meshes are welded together and split by connectivity like the render geometry,
+            // regardless of material and tint
             var physicsMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize, DefaultTextureScale = TextureScale };
 
             foreach (var mesh in meshes)
@@ -1337,8 +1337,8 @@ public sealed partial class MapExtract
     }
 
     /// <summary>
-    /// Converts a scene object to hammer meshes. Returns false when the object is a prop that stays a model, with the
-    /// tint the compiler baked into the draw calls of that model.
+    /// Converts a scene object to hammer meshes. Returns false when the object is a prop that stays a model, and then
+    /// sets <paramref name="drawCallTint"/> to the tint the compiler baked into the draw calls of that model.
     /// </summary>
     private bool TryConvertSceneObjectToHammerMesh(string modelName, Matrix4x4 objectTransform, out Vector4? drawCallTint)
     {

@@ -28,7 +28,7 @@ namespace GUI.Controls
 
         protected override void OnPaint(PaintEventArgs e)
         {
-            // kind of stupid but it works to make the group box seem transparent no matter the order of creation relative to parent
+            // Copy the parent's back color so the group box looks transparent regardless of creation order
             if (Parent != null)
             {
                 BackColor = Parent.BackColor;
@@ -59,9 +59,7 @@ namespace GUI.Controls
             e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-            // Draw the border
             e.Graphics.DrawPath(pen, path);
-            // Draw the text
             if (!string.IsNullOrEmpty(Text))
             {
                 var textRect = new Rectangle(textPoint.X, textPoint.Y - textSize.Height, textSize.Width, textSize.Height * 2);

@@ -284,8 +284,8 @@ public static class ValueParsing
     /// <param name="value">The integer, or zero when there are no digits or it does not fit.</param>
     /// <returns>Whether the text starts with an integer.</returns>
     /// <remarks>
-    /// Like the engine's keyvalue getters, "0x10" reads 0 and a 32-bit overflow fails. Text read with C's <c>atoi</c> differs,
-    /// which reads hex and character literals, wraps on overflow and reads zero after a leading newline, but real data never contains these.
+    /// Like the engine's keyvalue getters, "0x10" reads 0 and a 32-bit overflow fails. C's <c>atoi</c> differs: it reads hex and character literals,
+    /// wraps on overflow and reads zero after a leading newline. Real data never contains these.
     /// Integer fields an entity class declares need the whole text to be an integer, but no shipped map has text where the two rules differ.
     /// </remarks>
     private static bool TryParseLeadingInt(ReadOnlySpan<char> text, out int value)

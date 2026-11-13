@@ -1,8 +1,8 @@
 namespace ValveResourceFormat.Renderer.SceneEnvironment;
 
 /// <summary>
-/// The colour lighting debug views give a light probe volume or an environment map, derived from where
-/// it is so it stays the same between runs and differs between neighbours.
+/// The colour lighting debug views give a light probe volume or an environment map. It is derived from the
+/// origin, so it stays the same between runs and differs between neighbours.
 /// </summary>
 public static class LightingDebugColor
 {

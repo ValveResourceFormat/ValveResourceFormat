@@ -67,8 +67,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         /// <summary>
         /// The playback time of the whole frame nearest <paramref name="time"/>, staying in the cycle being
-        /// played. Sampling an exact frame rather than interpolating moves playback by up to half a frame, and
-        /// this is what says where to.
+        /// played. Sampling an exact frame rather than interpolating moves playback by up to half a frame.
+        /// This returns the moved time.
         /// </summary>
         public float SnapTimeToFrame(float time)
         {
@@ -110,9 +110,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         /// <summary>
         /// Gets or sets whether this animation is additive: its frames are per-bone deltas meant to be
-        /// composed over a base pose. AG2 clips and AG1 sequences both carry what their own data says; the
-        /// owning model then adds the sequences its AG1 graph feeds into additive slots, which is not
-        /// knowable from the animation alone.
+        /// composed over a base pose. AG2 clips and AG1 sequences take the value from the animation data.
+        /// The owning model also sets it for sequences that the AG1 graph feeds into additive slots, which
+        /// the animation data does not show.
         /// </summary>
         public bool IsAdditive { get; set; }
 
@@ -130,7 +130,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// The delta a decoded bone of an additive frame contributes, in the one convention everything
         /// composing deltas expects: add the position and the scale, post-multiply the rotation. The two
-        /// formats do not decode to that convention on their own, which is what this reconciles.
+        /// formats do not decode to that convention, so implementations convert to it.
         /// </summary>
         public abstract FrameBone GetAdditiveDelta(int boneIndex, FrameBone bone);
 

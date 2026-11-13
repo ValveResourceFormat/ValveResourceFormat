@@ -4,9 +4,9 @@ namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
     /// The random generator some particle functions draw from instead of the shared random table: a
-    /// lagged Fibonacci generator of four lanes, started from a fixed seed. Each system holds its own,
-    /// so its values do not depend on what other systems drew. Its draws never move
-    /// <see cref="ParticleRandom"/>.
+    /// lagged Fibonacci generator of four lanes, started from a fixed seed. Each system holds one
+    /// instance, so the values of a system do not depend on what other systems drew. Drawing from it
+    /// never advances <see cref="ParticleRandom"/>.
     /// </summary>
     internal sealed class ThreadRandom
     {

@@ -5,9 +5,9 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The space a player takes up at either end of a ladder, standing at the entity and at its <c>point1</c> key,
-/// which is in the space of the entity, with a line between the two and a handle at the end while the entity
-/// is selected.
+/// The space a player takes up at either end of a ladder: at the entity, and at the point in its <c>point1</c>
+/// key, in the space of the entity. A line joins the two and a handle marks the end while the entity is
+/// selected.
 /// </summary>
 internal sealed class SweptPlayerHullHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
@@ -24,7 +24,7 @@ internal sealed class SweptPlayerHullHelper(IHelperOwner owner, HelperDeclaratio
     private const float HullRadius = 22.6272f;
     private const int HullSegments = 16;
 
-    // The box a player takes up, which is what the entity covers rather than the round hull drawn
+    // The box a player takes up, used for the bounds of the entity instead of the round hull drawn
     private static readonly Vector3 HullMins = new(-16f, -16f, 0f);
     private static readonly Vector3 HullMaxs = new(16f, 16f, HullHeight);
 

@@ -117,8 +117,8 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Gets the pins that hold each procedural cloth root of the skeleton to the first animated bone up its cloth
-        /// control node's parent chain, or else to <see cref="Skeleton.ClothSimulationRoot"/>.
+        /// Gets the pins of the procedural cloth roots of the skeleton. A root is pinned to the first animated bone
+        /// on the parent chain of the cloth control node of the root, or else to <see cref="Skeleton.ClothSimulationRoot"/>.
         /// Cloth roots without an anchor have no pin.
         /// </summary>
         public ClothRootPin[] ClothRootPins => cachedClothRootPins ??= GetClothRootPins();

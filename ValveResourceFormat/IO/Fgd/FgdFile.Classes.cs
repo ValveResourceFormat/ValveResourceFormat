@@ -9,7 +9,7 @@ namespace ValveResourceFormat.IO.Fgd;
 
 public sealed partial class FgdFile
 {
-    // What reading a variable comes to
+    // Outcome of reading a variable
     private enum VariableResult
     {
         Failed,
@@ -936,7 +936,7 @@ public sealed partial class FgdFile
         return true;
     }
 
-    // A default that is none of the values can be the name one of them is shown under
+    // A default that matches no value can be the caption of one of the values
     private void CheckDefaultChoice(FgdTokenizer tokens, FgdVariable variable, FgdVariableType type)
     {
         if (type is not (FgdVariableType.Choices or FgdVariableType.IntChoices or FgdVariableType.FloatChoices) || !variable.HasDefault)

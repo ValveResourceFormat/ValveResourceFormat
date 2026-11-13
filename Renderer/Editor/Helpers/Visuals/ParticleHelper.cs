@@ -89,7 +89,7 @@ internal class ParticleHelper : EntityHelper
         SetControlPoints(Effect);
     }
 
-    /// <summary>Sets the control points the keys of the entity give a value of their own.</summary>
+    /// <summary>Sets the data and tint control points from the keys of the entity.</summary>
     /// <param name="effect">The effect.</param>
     protected virtual void SetControlPoints(ParticleSceneNode effect)
         => InfoParticleSystem.SetDataAndTintControlPoints(effect, Owner.KeyValues);

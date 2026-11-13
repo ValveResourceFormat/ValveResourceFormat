@@ -271,10 +271,10 @@ namespace ValveResourceFormat.Particles.Constraints
         }
 
         /// <summary>
-        /// How the block of four from <paramref name="blockStart"/> responds to contact: every particle
-        /// of it bounces and slides by its own amounts when some particle has a positive bounce or slide
-        /// amount, and every particle of it scatters, from points drawn from the thread generator, when
-        /// some particle has a positive random direction scale.
+        /// How the block of four from <paramref name="blockStart"/> responds to contact. Every particle
+        /// in the block bounces and slides by its own amounts when some particle has a positive bounce or
+        /// slide amount. Every particle in the block scatters, from points drawn from the thread generator,
+        /// when some particle has a positive random direction scale.
         /// </summary>
         private static (bool Bounces, bool Scatters) BlockResponse(ReadOnlySpan<float> bounces, ReadOnlySpan<float> slides, ReadOnlySpan<float> scatters, int blockStart, float bounceOffset)
         {
@@ -354,9 +354,9 @@ namespace ValveResourceFormat.Particles.Constraints
         }
 
         /// <summary>
-        /// Checks a plane set contact fast enough to need it with a real trace from behind the particle to
-        /// past its step, adding the surface found to the set. A contact the trace does not find within the
-        /// step is dropped; one it finds closer moves to where it was found.
+        /// Checks a plane set contact that is fast enough to need it with a real trace from behind the
+        /// particle to past the end of the step. The surface found is added to the set. A contact the trace
+        /// does not find within the step is dropped. A contact the trace finds closer moves to the traced position.
         /// </summary>
         private bool ConfirmContact(IParticleCollision collision, CollisionPlaneSet planeSet, Vector3 start, Vector3 end, Vector3 direction, float frameTime,
             ref float fraction, ref int confirmations)
@@ -412,9 +412,10 @@ namespace ValveResourceFormat.Particles.Constraints
         }
 
         /// <summary>
-        /// Sticks the particle where it rests when it moved less than <paramref name="stop"/> over the step,
-        /// the stop speed times the frame time, or always when that is negative, by caching its position in the stick field, which holds it there on later
-        /// steps. Returns whether it stuck; with a stick field only particles that stick take the contact normal.
+        /// Sticks the particle where it rests by caching its position in the stick field, which holds it there on later
+        /// steps. It sticks when it moved less than <paramref name="stop"/> over the step (the stop speed times the
+        /// frame time), or always when <paramref name="stop"/> is negative. Returns whether it stuck; with a stick field
+        /// only particles that stick take the contact normal.
         /// </summary>
         private static bool Stick(int index, ReadOnlySpan<Vector3> positions, ReadOnlySpan<Vector3> previousPositions, Span<Vector3> stickColumn, float stop)
         {

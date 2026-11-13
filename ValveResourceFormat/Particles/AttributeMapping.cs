@@ -16,7 +16,6 @@ namespace ValveResourceFormat.Particles
         /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/ParticleFloatInputMode_t">ParticleFloatInputMode_t</seealso>
         internal enum PfInputMode
         {
-            /// <summary>Invalid input mode.</summary>
             Invalid = -1,
             /// <summary>Input values are clamped to the defined input range.</summary>
             Clamped,
@@ -30,7 +29,6 @@ namespace ValveResourceFormat.Particles
         /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/ParticleFloatMapType_t">ParticleFloatMapType_t</seealso>
         internal enum PfMapType
         {
-            /// <summary>Invalid mapping type.</summary>
             Invalid = -1,
             /// <summary>Passes the input value through unchanged.</summary>
             Direct,
@@ -60,7 +58,6 @@ namespace ValveResourceFormat.Particles
         /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/ParticleFloatRoundType_t">ParticleFloatRoundType_t</seealso>
         internal enum PfRoundType
         {
-            /// <summary>Invalid rounding mode.</summary>
             Invalid = -1,
             /// <summary>Round to the nearest integer.</summary>
             Nearest,
@@ -181,8 +178,8 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Reads the <c>CParticleRemapFloatInput</c> at <paramref name="key"/>, which only maps a value its
-        /// function supplies, or returns null when the block is absent.
+        /// Reads the <c>CParticleRemapFloatInput</c> at <paramref name="key"/>, which only maps a value supplied
+        /// by its <c>m_nType</c> function, or returns null when the block is absent.
         /// </summary>
         public static AttributeMapping? FromRemapInput(ParticleDefinitionParser parse, string key)
             => parse.Data.GetSubCollection(key) is { IsCollection: true } remap ? new AttributeMapping(parse.Nested(remap), isRemapInput: true) : null;

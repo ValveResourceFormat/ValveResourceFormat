@@ -114,17 +114,17 @@ namespace ValveResourceFormat.Particles.Initializers
             => (particleSystemState.InitializedFields & field.Mask()) == 0;
 
         /// <summary>
-        /// Gets the float <paramref name="field"/> of every particle in <paramref name="run"/> while it is
-        /// still unwritten, or an empty span when a function before this one wrote it, so it is left alone.
+        /// Gets the float <paramref name="field"/> of every particle in <paramref name="run"/> while the field is
+        /// still unwritten, or an empty span when a function before this one wrote it. An empty span leaves the field alone.
         /// </summary>
         protected static Span<float> UnwrittenFloats(ParticleSpan run, ParticleSystemState particleSystemState, ParticleField field)
             => IsUnwritten(particleSystemState, field) ? run.Floats(field) : default;
 
-        /// <summary>Gets the integer <paramref name="field"/> of every particle in <paramref name="run"/>, as <see cref="UnwrittenFloats"/> does.</summary>
+        /// <summary>Gets the integer <paramref name="field"/> of every particle in <paramref name="run"/> while the field is still unwritten, or an empty span.</summary>
         protected static Span<int> UnwrittenIntegers(ParticleSpan run, ParticleSystemState particleSystemState, ParticleField field)
             => IsUnwritten(particleSystemState, field) ? run.Integers(field) : default;
 
-        /// <summary>Gets the vector <paramref name="field"/> of every particle in <paramref name="run"/>, as <see cref="UnwrittenFloats"/> does.</summary>
+        /// <summary>Gets the vector <paramref name="field"/> of every particle in <paramref name="run"/> while the field is still unwritten, or an empty span.</summary>
         protected static Span<Vector3> UnwrittenVectors(ParticleSpan run, ParticleSystemState particleSystemState, ParticleField field)
             => IsUnwritten(particleSystemState, field) ? run.Vectors(field) : default;
 

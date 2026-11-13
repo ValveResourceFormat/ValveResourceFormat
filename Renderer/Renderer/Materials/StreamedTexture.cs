@@ -52,7 +52,7 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>How many mips the issued request reads.</summary>
         public int RequestMipCount;
 
-        /// <summary>Total size of the mips the issued request reads, which it holds of the in-flight byte limit
+        /// <summary>Total size of the mips the issued request reads. Counts against the in-flight byte limit
         /// until its data is applied or dropped.</summary>
         public int GateBytes;
 
@@ -79,7 +79,7 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Most pixels any mesh needed of the texture in the current demand pass.</summary>
         public float DemandPixels;
 
-        /// <summary>Most pixels needed lately, halving every few seconds no mesh asks for them.</summary>
+        /// <summary>Most pixels needed lately. Halves every few seconds while no mesh asks for them.</summary>
         public float SmoothedDemandPixels;
 
         /// <summary>The mip's level in the source texture data, past the user's size cap.</summary>
@@ -127,7 +127,7 @@ namespace ValveResourceFormat.Renderer.Materials
     /// <param name="Stream">The texture the data belongs to.</param>
     /// <param name="Mip">The first (smallest) mip in the buffer.</param>
     /// <param name="MipCount">Number of consecutive planned mips the buffer holds, starting at <paramref name="Mip"/>.</param>
-    /// <param name="ByteSize">The amount this item holds of the in-flight throttle, unwound when it is consumed.</param>
+    /// <param name="ByteSize">Bytes this item counts against the in-flight byte limit, released when it is consumed.</param>
     /// <param name="Buffer">Pooled buffer holding the mips, or null when they are in the texture's staging region.</param>
     readonly record struct LoadedMipBits(StreamedTexture Stream, PlannedMip Mip, int MipCount, int ByteSize, byte[]? Buffer);
 }

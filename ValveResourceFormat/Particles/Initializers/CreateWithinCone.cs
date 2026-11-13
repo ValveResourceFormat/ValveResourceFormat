@@ -4,10 +4,10 @@ namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
     /// Emits particles from a ring around a transform's forward axis, moving outward along a cone at the
-    /// given speed. The full cone angle is drawn between the inner and outer angles. The ring's radius is
-    /// where that cone crosses the offset distance, taken as at least one unit, so a small or zero offset
+    /// given speed. The full cone angle is drawn between the inner and outer angles. The ring radius is
+    /// the cone radius at the offset distance, taken as at least one unit, so a small or zero offset
     /// still leaves a ring around the transform rather than a point. The ring sits the offset along the
-    /// axis, or in the transform's own plane when the offset is collapsed.
+    /// axis, or in the plane of the transform when <c>m_bCollapseOffset</c> is set.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateWithinCone">C_INIT_CreateWithinCone</seealso>
     class CreateWithinCone : ParticleFunctionInitializer

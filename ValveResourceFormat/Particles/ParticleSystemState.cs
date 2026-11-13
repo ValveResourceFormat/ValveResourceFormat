@@ -93,7 +93,7 @@ namespace ValveResourceFormat.Particles
         /// <summary>
         /// While an initializer runs, the collection index the batch ends at, else 0. A varying input
         /// evaluated up to the end of the batch's whole blocks of four goes on drawing for the block of
-        /// the batch's remaining particles, which the call that initializes them draws again.
+        /// the remaining particles of the batch. The call that initializes those particles draws that block again.
         /// </summary>
         internal int InitializerBatchEnd { get; set; }
 
@@ -118,13 +118,13 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// While initializers run, what <see cref="SpawnIndex"/> adds to a particle's index: the particles
+        /// While initializers run, the base <see cref="SpawnIndex"/> adds to a particle's index: the particles
         /// the system's emitters created in earlier frames, less <see cref="InitializedFirst"/>.
         /// </summary>
         internal int SpawnIndexBase { get; set; }
 
         /// <summary>
-        /// While initializers run, what <see cref="ParticleNumber"/> adds to a particle's index:
+        /// While initializers run, the base <see cref="ParticleNumber"/> adds to a particle's index:
         /// <see cref="SpawnIndexBase"/> plus the particles created earlier in the same emission pass.
         /// </summary>
         internal int ParticleNumberBase { get; set; }
@@ -211,16 +211,16 @@ namespace ValveResourceFormat.Particles
         public IParticlePlayer? Player { get; set; }
 
         /// <summary>
-        /// How long the sequence each sequence number reaches on the sheet the drawing layer animates this
-        /// system's particles with runs, in frames, 0 for a number no sequence answers to, or null when
-        /// nothing it draws with carries a sheet. Set by whatever draws
-        /// the system; <c>C_INIT_SequenceLifeTime</c> measures a particle's life against it.
+        /// Length in frames of each sequence of the sheet that animates this system's particles, indexed by
+        /// sequence number. 0 for a number with no sequence, null when nothing the system draws carries a
+        /// sheet. Set by whatever draws the system; <c>C_INIT_SequenceLifeTime</c> measures a particle's
+        /// life against it.
         /// </summary>
         public float[]? SequenceDurations { get; set; }
 
         /// <summary>
         /// The runs of control points this system's <see cref="Operators.SetControlPointsToModelParticles"/>
-        /// bind to particles, for whatever draws those particles as models to bind the models to.
+        /// bind to particles. Whatever draws those particles as models binds the models to these control points.
         /// </summary>
         internal List<ModelParticleControlPoints> ModelParticleControlPoints { get; } = [];
 
@@ -400,8 +400,8 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Copies a control point's position and orientation into this system's one at
-        /// <paramref name="cp"/> and into every system below it, and its attachment into this system's one only.
+        /// Copies the position and orientation of <paramref name="point"/> to control point <paramref name="cp"/>
+        /// of this system and every system below it. The attachment is copied to this system only.
         /// </summary>
         /// <param name="cp">The control point index.</param>
         /// <param name="point">The control point to copy.</param>

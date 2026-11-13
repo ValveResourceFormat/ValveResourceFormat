@@ -99,8 +99,8 @@ namespace Tests.IO
             await Assert.That(string.Join(' ', gameClass.Inputs.Select(static input => input.Name))).IsEqualTo("Kill Enable SetReach");
             await Assert.That(string.Join(' ', gameClass.Outputs.Select(static output => output.Name))).IsEqualTo("OnUsed OnScript");
 
-            // A class that declares no color takes the one of the first class it is based on, even where
-            // that one never declared any
+            // A class that declares no color takes the color of its first base class, even where
+            // that base class never declared one
             var brush = fgd.FindClass("sample_brush")!;
 
             await Assert.That(brush.HasColor).IsTrue();
@@ -117,7 +117,7 @@ namespace Tests.IO
             // The helper of the same name takes the arguments of the override, in its old place
             await Assert.That(string.Join('|', gameClass.Helpers[0].Arguments)).IsEqualTo("models/editor/other");
 
-            // Its color is lost again to the first class the class is based on, as the class itself declared none
+            // The color comes from the first base class again, as the override declares none
             await Assert.That(gameClass.Color).IsEqualTo(FgdClass.DefaultColor);
             await Assert.That(Parse("@PointClass = thing [] @OverrideClass color(10 20 30) = thing []").FindClass("thing")!.Color)
                 .IsEqualTo(new Color32(10, 20, 30));
@@ -185,7 +185,7 @@ namespace Tests.IO
                 .IsEqualTo("1:First:True 2:Second:False 4:Third:True");
             await Assert.That(flags.DefaultString).IsEqualTo("1|4");
 
-            // A default that names a value by what it is shown as becomes that value
+            // A default given as a choice caption becomes the choice value
             var kind = gameClass.FindVariable("kind")!;
 
             await Assert.That(kind.DefaultString).IsEqualTo("2");
@@ -289,7 +289,7 @@ namespace Tests.IO
             await Assert.That(fgd.Errors).IsEmpty();
             await Assert.That(thing.FindVariable("added")).IsNotNull();
 
-            // What the class took before stays as it was
+            // A variable the class already took from the base class keeps its type
             await Assert.That(thing.FindVariable("kept")!.Type).IsEqualTo(FgdVariableType.String);
         }
 
@@ -422,7 +422,7 @@ namespace Tests.IO
                 Directory.CreateDirectory(Path.Combine(root, "game"));
                 Directory.CreateDirectory(Path.Combine(root, "core"));
 
-                // The file the game names is its own, the one that file includes is shared by every game
+                // The file the game names is in the game folder, the file it includes is in core and shared by every game
                 File.Copy(TestFixtures.Path("fgd", "sample.fgd"), Path.Combine(root, "game", "sample.fgd"));
                 File.Copy(TestFixtures.Path("fgd", "sample_base.fgd"), Path.Combine(root, "core", "sample_base.fgd"));
                 await File.WriteAllTextAsync(Path.Combine(root, "game", "gameinfo.gi"), """

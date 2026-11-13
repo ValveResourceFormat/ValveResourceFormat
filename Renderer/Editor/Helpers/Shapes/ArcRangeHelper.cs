@@ -8,8 +8,8 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// <summary>
 /// The range of angles an entity turns or sees through around an axis, as a slice of a disc in the space of
 /// the entity: from a minimum to a maximum angle, or a field of view centered on zero. While the entity is
-/// selected the slice is drawn full size over everything, the part past zero apart from the part before it;
-/// while it is not, it is a faint slice half the size.
+/// selected the slice is drawn full size over everything, with positive and negative angles in different
+/// colors. Otherwise it is a faint slice half the size.
 /// </summary>
 internal sealed class ArcRangeHelper : EntityHelper
 {
@@ -51,13 +51,12 @@ internal sealed class ArcRangeHelper : EntityHelper
     /// </summary>
     private bool IsLocalAxis { get; }
 
-    /// <summary>Gets whether zero degrees is the forward axis of the entity, as near as it can be across the axis.</summary>
+    /// <summary>Gets whether zero degrees is the forward axis of the entity projected onto the plane across the axis.</summary>
     private bool AlignPieToLocalForward { get; }
 
     /// <summary>Gets whether zero degrees is the up axis of the entity, the slice turning about its forward axis.</summary>
     private bool AlignPieToLocalUp { get; }
 
-    /// <summary>Gets the radius of the slice.</summary>
     private float Radius { get; }
 
     /// <summary>Gets whether a triangle points to zero degrees while the entity is selected.</summary>
@@ -105,7 +104,7 @@ internal sealed class ArcRangeHelper : EntityHelper
             return;
         }
 
-        // The angles past zero are told apart from the ones before it, and zero itself is marked
+        // Positive and negative angles get different colors, and a line marks zero
         var (positiveStart, positiveEnd) = (MathF.Max(0f, minAngle), MathF.Max(0f, maxAngle));
         var (negativeStart, negativeEnd) = (MathF.Min(0f, minAngle), MathF.Min(0f, maxAngle));
 
@@ -135,7 +134,7 @@ internal sealed class ArcRangeHelper : EntityHelper
         context.PopTransform();
     }
 
-    // A field of view takes the place of both angles, centered on zero, or on the back for a negative one
+    // A field of view takes the place of both angles, centered on zero, or on 180 degrees for a negative one
     private (float Min, float Max) GetAngles(float fov)
     {
         if (fov == 0f)
@@ -148,8 +147,8 @@ internal sealed class ArcRangeHelper : EntityHelper
         return fov >= 0f ? (-half, half) : (half + 180f, 180f - half);
     }
 
-    // The center of the slice and the axis it turns about, in the space of the entity. The numbers the key
-    // holds replace the default axis one by one, as far as they can be read.
+    // Center of the slice and the axis it turns about, in the space of the entity. Each number read from the key
+    // replaces the matching component of the default axis.
     private (Vector3 Center, Vector3 Direction) GetAxis()
     {
         var start = Vector3.Zero;
@@ -198,7 +197,7 @@ internal sealed class ArcRangeHelper : EntityHelper
             return (Vector3.UnitZ, Vector3.Cross(Vector3.UnitX, Vector3.UnitZ), Vector3.UnitX);
         }
 
-        // Some axis across the direction, turned out of it
+        // Some axis perpendicular to the direction
         var across = MathUtils.Perpendicular(direction);
 
         return (Vector3.Cross(across, direction), across, direction);

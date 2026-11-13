@@ -6,14 +6,14 @@ namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
 /// <c>info_world_layer</c>. Shows or hides a world layer and spawns or destroys the entities in the
-/// layer's entity lump, by entity I/O. The entities spawn as a spawn group of their own, which destroying
-/// them unloads.
+/// layer's entity lump, by entity I/O. The entities spawn as their own spawn group, and destroying
+/// them unloads it.
 /// </summary>
 /// <remarks>
 /// <para>
 /// The layer belongs to the loaded world named by <see cref="WorldName"/> in this entity's world group, which
-/// need not be the world this entity is in. Its group spawns there unplaced and without name fixups, so the
-/// entities stay where they were authored in that world.
+/// need not be the world this entity is in. The entities of the layer spawn there as a group, unplaced and
+/// without name fixups, so they stay where they were authored in that world.
 /// </para>
 /// <para>
 /// Entities spawned by an input after load are not bound to the scene's cubemaps and light probes,

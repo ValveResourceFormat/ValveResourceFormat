@@ -6,15 +6,15 @@ using ValveResourceFormat.Renderer.SceneNodes;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// What the game draws of an entity the editor shows through an object of the game, which the declaration
-/// names: the sprite of an <c>env_sprite</c>, or the panel of a <c>point_clientui_world_text_panel</c>.
+/// An entity the editor shows with a game tool object that the declaration names: the sprite of an
+/// <c>env_sprite</c>, or the panel of a <c>point_clientui_world_text_panel</c>.
 /// </summary>
 internal sealed class ExternalHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;
 
-    /// <summary>Gets the name of the object of the game the entity is shown through, such as <c>ToolObjects/env_sprite</c>.</summary>
+    /// <summary>Gets the name of the tool object that shows the entity, such as <c>ToolObjects/env_sprite</c>.</summary>
     private string ToolObject => GetArgument(0) ?? string.Empty;
 
     /// <inheritdoc/>

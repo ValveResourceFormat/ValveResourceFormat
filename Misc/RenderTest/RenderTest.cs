@@ -113,7 +113,6 @@ internal class RenderTestWindow : GameWindow
     {
         if (fullscreen)
         {
-            // Save current window state
             windowedSize = ClientSize;
             windowedPosition = Location;
 
@@ -126,7 +125,6 @@ internal class RenderTestWindow : GameWindow
         }
         else
         {
-            // Restore windowed mode
             WindowBorder = WindowBorder.Resizable;
             WindowState = WindowState.Normal;
             ClientSize = windowedSize;
@@ -163,13 +161,11 @@ internal class RenderTestWindow : GameWindow
             return;
         }
 
-        // F11 to toggle fullscreen
         if (input.IsKeyPressed(Keys.F11))
         {
             SetFullscreen(!isFullscreen);
         }
 
-        // Map OpenTK keys to TrackedKeys
         var trackedKeys = TrackedKeys.None;
         if (input.IsKeyDown(Keys.W)) trackedKeys |= TrackedKeys.W;
         if (input.IsKeyDown(Keys.S)) trackedKeys |= TrackedKeys.S;
@@ -188,7 +184,6 @@ internal class RenderTestWindow : GameWindow
             return;
         }
 
-        // Get mouse delta
         var mousePos = new Vector2(MouseState.Position.X, MouseState.Position.Y);
         var mouseDelta = Vector2.Zero;
 
@@ -202,7 +197,6 @@ internal class RenderTestWindow : GameWindow
 
         Input!.Tick(deltaTime, trackedKeys, mouseDelta, SceneRenderer!.Camera);
 
-        // Update scene
         var updateContext = new Scene.UpdateContext
         {
             Camera = SceneRenderer.Camera,
@@ -246,7 +240,6 @@ internal class RenderTestWindow : GameWindow
     {
         base.OnRenderFrame(args);
 
-        // Update FPS calculation
         frameCount++;
         fpsUpdateTimer += args.Time;
 
@@ -257,7 +250,6 @@ internal class RenderTestWindow : GameWindow
             fpsUpdateTimer = 0;
         }
 
-        // Clear the screen
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
         RenderScene();
@@ -276,7 +268,6 @@ internal class RenderTestWindow : GameWindow
         textRenderer = new TextRenderer(rendererContext, SceneRenderer.Camera);
         textRenderer.Load();
 
-        // Create framebuffer for rendering
         framebuffer = Framebuffer.Prepare("MainFramebuffer", 4, 4, 4,
             ImageFormat.RGBA16161616F,
             ImageFormat.D32);
@@ -302,7 +293,6 @@ internal class RenderTestWindow : GameWindow
             initializing.Initialize();
         }
 
-        // Set initial camera position
         if (scene.AllNodes.Any())
         {
             var bbox = scene.AllNodes.First().BoundingBox;

@@ -715,8 +715,8 @@ public sealed class TextureExtract
     }
 
     /// <summary>
-    /// A sprite the sheet packs: the rectangle holding its pixels, the bounds of the image it was cut from, and
-    /// whether the sheet kept nothing of that image outside those pixels.
+    /// A sprite the sheet packs: the Pixels rectangle, the Image bounds it was cut from, and
+    /// whether the sheet kept nothing of the image outside Pixels.
     /// </summary>
     public readonly record struct SheetSprite(SKRectI Pixels, SKRectI Image, bool Cropped);
 
@@ -851,15 +851,15 @@ public sealed class TextureExtract
     }
 
     /// <summary>
-    /// Whether this sequence spans the display time of its last frame. A clamping sequence that does not
-    /// runs out at the frame before it, and the sheet compiler drops that last display time.
+    /// Whether the last frame of this sequence has a display time. A clamping sequence without one
+    /// ends on the frame before, and the sheet compiler drops that last display time.
     /// </summary>
     private static bool HoldsLastFrame(Texture.SpritesheetData.Sequence sequence)
         => sequence.Frames.Length > 1 && sequence.Frames[^1].DisplayTime > 0f;
 
     /// <summary>
-    /// Whether the sheet cropped this sequence's images down to the part the alpha channel covers and kept
-    /// nothing of what surrounded it. Such an image reaches outside the texture, which holds the crop alone.
+    /// Whether the sheet cropped the images of this sequence to the part covered by the alpha channel and kept
+    /// nothing outside the crop. Such an image extends outside the texture, which holds only the crop.
     /// </summary>
     private static bool IsCropped(Texture.SpritesheetData.Sequence sequence)
     {
@@ -971,7 +971,7 @@ public sealed class TextureExtract
     private static string GetCubeArraySliceSuffix(uint depth) => $"_f{depth:D2}";
 
     /// <summary>
-    /// The mip algorithm the texture was compiled with, which for a reflection cube is what blurs its mips by roughness.
+    /// The mip algorithm the texture was compiled with. For a reflection cube it blurs the mips by roughness.
     /// </summary>
     private string GetMipAlgorithm()
     {
@@ -1041,7 +1041,6 @@ public sealed class TextureExtract
         var latLongBitmap = new SKBitmap(latLongInfo);
         using var latLongPixels = latLongBitmap.PeekPixels();
 
-        // project faces to latlong layout with bilinear sampling
         // Each row is independent, so we can parallelize over y.
         var width = latLongInfo.Width;
         var height = latLongInfo.Height;
@@ -1143,7 +1142,6 @@ public sealed class TextureExtract
             }
         }
 
-        // convert from [-1,1] to [0,1]
         uc = (uc + 1) / 2;
         vc = (vc + 1) / 2;
 
@@ -1156,7 +1154,6 @@ public sealed class TextureExtract
             _ => (uc, vc)
         };
 
-        // sample from face with bilinear filtering
         var fx = uc * faceWidth - 0.5f;
         var fy = vc * faceHeight - 0.5f;
 
@@ -1170,13 +1167,11 @@ public sealed class TextureExtract
 
         var colorSpan = faceColors[faceIndex].AsSpan();
 
-        // get the four neighboring pixels
         var c00 = SampleCubemapSeamless(colorSpan, x0, y0, faceWidth, faceHeight);
         var c10 = SampleCubemapSeamless(colorSpan, x1, y0, faceWidth, faceHeight);
         var c01 = SampleCubemapSeamless(colorSpan, x0, y1, faceWidth, faceHeight);
         var c11 = SampleCubemapSeamless(colorSpan, x1, y1, faceWidth, faceHeight);
 
-        // bilinear interpolation
         var r = c00.Red * (1 - tx) * (1 - ty) + c10.Red * tx * (1 - ty) + c01.Red * (1 - tx) * ty + c11.Red * tx * ty;
         var g = c00.Green * (1 - tx) * (1 - ty) + c10.Green * tx * (1 - ty) + c01.Green * (1 - tx) * ty + c11.Green * tx * ty;
         var b = c00.Blue * (1 - tx) * (1 - ty) + c10.Blue * tx * (1 - ty) + c01.Blue * (1 - tx) * ty + c11.Blue * tx * ty;
@@ -1187,13 +1182,11 @@ public sealed class TextureExtract
 
     private static SKColorF SampleCubemapSeamless(ReadOnlySpan<SKColorF> colorSpan, int x, int y, int faceWidth, int faceHeight)
     {
-        // if within bounds, sample directly
         if (x >= 0 && x < faceWidth && y >= 0 && y < faceHeight)
         {
             return colorSpan[y * faceWidth + x];
         }
 
-        // clamp out of bounds samples
         var clampedX = Math.Clamp(x, 0, faceWidth - 1);
         var clampedY = Math.Clamp(y, 0, faceHeight - 1);
 

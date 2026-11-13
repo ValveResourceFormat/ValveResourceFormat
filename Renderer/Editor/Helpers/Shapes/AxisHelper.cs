@@ -5,7 +5,7 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The two points of an axis one key of a selected entity holds, such as what a door turns about, with a
+/// The two points of an axis held by a key of a selected entity, such as the axis a door turns about, with a
 /// handle at each over everything and a line between them that is dashed where the scene hides it. The points
 /// are in world space, or in the space of the entity for a local axis.
 /// </summary>

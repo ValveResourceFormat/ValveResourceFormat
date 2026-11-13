@@ -140,7 +140,7 @@ public sealed class ScenePicker
     /// Draws the object id pass if any pick is pending, and reads back every pending point.
     /// </summary>
     /// <param name="renderer">The renderer that draws the scenes.</param>
-    /// <param name="renderContext">The frame's render context, which the pass replaces the shader and target of.</param>
+    /// <param name="renderContext">The frame's render context, with the shader and framebuffer replaced for the pass.</param>
     public void Render(Renderer renderer, Scene.RenderContext renderContext)
     {
         using (requestLock.EnterScope())

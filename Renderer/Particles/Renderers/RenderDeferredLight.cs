@@ -34,7 +34,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             spotFoV = parse.Float("m_flSpotFoV", spotFoV);
         }
 
-        /// <summary>Whether the game the files come from ships the material its deferred lights are drawn with.</summary>
+        /// <summary>Whether the game ships the material the deferred lights are drawn with.</summary>
         public static bool GameHasDeferredLights(RendererContext rendererContext)
             => rendererContext.FileLoader.FindFile(DeferredLocalLightMaterial, logNotFound: false) is not (null, _, null);
 
@@ -71,7 +71,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return true;
         }
 
-        /// <summary>The light of a particle, whose alpha taken with its <see cref="ParticleFunctionRenderer.Alpha2Field"/> is <paramref name="alpha"/>.</summary>
+        /// <summary>The light of a particle. <paramref name="alpha"/> is the particle alpha multiplied by <see cref="ParticleFunctionRenderer.Alpha2Field"/>.</summary>
         private ParticleLightPool.LightState BuildLight(Vector3 position, Vector3 normal, Vector3 particleColor, float radius, float alpha,
             in RendererScales scales, Vector4 colorScale, Vector3 hsvShift)
         {

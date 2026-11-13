@@ -23,7 +23,7 @@ namespace ValveResourceFormat.IO
         private const float FullMotionBiasEpsilon = 1e-6f;
         private const float KelagerHeightFloor = 0.001f;
 
-        /// <summary>The factor over its rest height a Kelager bend's height has to exceed to read as bent.</summary>
+        /// <summary>The minimum ratio of a Kelager bend's height to its rest height for the bend to read as bent.</summary>
         private const float KelagerRestHeightSlack = 1.0001f;
         private const string HingeAnchorPrefix = "$ha_";
 
@@ -215,8 +215,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Reads a sheet-hub bend's fold as a fraction of pi, or marks it shut where its height has fallen to its rest
-        /// distance. Null for a bend whose hub is not a generated node or whose arms are degenerate.
+        /// Reads the fold of a sheet-hub bend as a fraction of pi, or marks the bend shut when the bend height is down to
+        /// the rest height. Null for a bend whose hub is not a generated node or whose arms are degenerate.
         /// </summary>
         private (bool Shut, float Reading)? HubFold(KelagerBend bend)
         {
@@ -244,8 +244,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets the rest lengths of a bend's two arms from its mid node, and the rest height its height is measured
-        /// against. The bend's nodes must index <see cref="FeModelIndex.InitPosePositions"/>.
+        /// Gets the rest length of each arm of a bend from the mid node, and the rest height that the bend height is
+        /// measured against. The bend's nodes must index <see cref="FeModelIndex.InitPosePositions"/>.
         /// </summary>
         private (float L0, float L1, float RestHeight) BendArms(KelagerBend bend)
         {
@@ -416,8 +416,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Tilts a two-node hinge ring's vector along the child quad's diagonals where the quad's four ring-to-ring spans
-        /// tie. <paramref name="toVectorFrame"/> maps model space into the vector's frame.
+        /// Tilts the vector of a two-node hinge ring along the diagonals of the child quad when the four ring-to-ring
+        /// spans of that quad tie. <paramref name="toVectorFrame"/> maps model space into the vector's frame.
         /// </summary>
         private Vector3 BreakHingeFanQuadTie(List<int> ring, Vector3 vector, Quaternion toVectorFrame)
         {

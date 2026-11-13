@@ -3,9 +3,9 @@ using System.Linq;
 namespace ValveResourceFormat.Graphs;
 
 /// <summary>
-/// A graph and everything derivable from it: its nodes and wires, the selection and search state,
-/// the measured geometry, and the layout that arranges it. Holds no drawing or input state, so a
-/// host presents it without the graph needing to know a window exists.
+/// A graph and everything derived from it: nodes, wires, selection and search state, measured
+/// geometry and layout. Holds no drawing or input state, so a host presents it without the graph
+/// needing to know a window exists.
 /// </summary>
 internal sealed class GraphDocument
 {
@@ -39,10 +39,8 @@ internal sealed class GraphDocument
         set => searchHighlight = string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
-    /// <summary>How many nodes the graph holds.</summary>
     public int NodeCount => nodes.Count;
 
-    /// <summary>How many wires the graph holds.</summary>
     public int WireCount => wires.Count;
 
     /// <summary>Adds a node, stamping it with the creation order the layout runs in.</summary>
@@ -247,7 +245,6 @@ internal sealed class GraphDocument
     /// <param name="wire">The wire to toggle.</param>
     public void SelectWire(GraphWire wire) => Selection.SelectWire(wire);
 
-    /// <summary>Clears the current node or wire selection.</summary>
     public void ClearSelection() => Selection.Clear();
 
     /// <summary>Whether a node matches the active search filter.</summary>
@@ -332,7 +329,6 @@ internal sealed class GraphDocument
         }
     }
 
-    /// <summary>Makes every node visible again.</summary>
     public void ShowAllNodes()
     {
         foreach (var node in nodes)
@@ -392,7 +388,6 @@ internal sealed class GraphDocument
     /// <summary>The connected components of the graph, each node in exactly one list.</summary>
     public List<List<GraphNode>> GetComponents() => CollectComponents(includeHidden: true);
 
-    /// <summary>Whether the graph is made of more than one island.</summary>
     public bool HasMultipleIslands() => GetComponents().Count > 1;
 
     /// <summary>
@@ -560,7 +555,7 @@ internal sealed class GraphDocument
         return components;
     }
 
-    /// <summary>The packing components in creation order, each with its nodes in creation order, as the layout runs them.</summary>
+    /// <summary>The packing components in creation order, each holding its nodes in creation order.</summary>
     private List<List<GraphNode>> GetLayoutComponents()
     {
         var components = GetPackingComponents();
@@ -745,7 +740,7 @@ internal sealed class GraphDocument
 
     /// <summary>
     /// Re-runs the passes that follow placement with no time limit, on the islands the layout
-    /// packed, so a graph the budgeted pass gave up on gets the full treatment when the user
+    /// packed. A graph the budgeted pass gave up on gets the full treatment when the user
     /// explicitly asks for it. Wires whose ends moved are routed again.
     /// </summary>
     public void ReduceVisualComplexity()

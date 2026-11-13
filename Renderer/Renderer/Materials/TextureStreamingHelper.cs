@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Renderer.Materials
         // A texture only has one request out at a time, so this is already in chain order
         private readonly ConcurrentQueue<LoadedMipBits> loadedMipBits = new();
 
-        // Filled from loading threads, joins the list the slices own on the next pass
+        // Filled from loading threads, joins streams on the next pass
         private readonly ConcurrentQueue<StreamedTexture> newStreams = new();
 
         private readonly List<StreamedTexture> streams = [];
@@ -48,7 +48,7 @@ namespace ValveResourceFormat.Renderer.Materials
         // Cap on buffer bytes between a load request and its hookup, enough for a few frames of uploads
         private const long MaxBitsInFlight = 64L * 1024 * 1024;
 
-        // Requests read into it and upload from it; one too big for it reads into a pooled array
+        // Requests read into the ring and upload from it; a request too big for the ring reads into a pooled array
         private readonly StagingRing staging = new("Texture Streaming Staging", (int)MaxBitsInFlight);
 
         private long bitsInFlight;
@@ -305,9 +305,9 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         /// <summary>
-        /// Ends the measure <see cref="BeginDemandPass"/> started: points every texture at the mips it needs within
-        /// the video memory budget, queues loads for those short of them and, over budget, shrinks those past
-        /// them. Call before the slice.
+        /// Ends the measure <see cref="BeginDemandPass"/> started: sets the target chain level of every texture
+        /// to the mips it needs within the video memory budget, queues loads for textures short of their target and,
+        /// over budget, shrinks textures that hold more than their target. Call before the slice.
         /// </summary>
         internal void EndDemandPass()
         {
@@ -534,7 +534,7 @@ namespace ValveResourceFormat.Renderer.Materials
         /// with a GL context.
         /// </summary>
         /// <param name="frameTime">Length of the previous frame in seconds. This call gets 20% of it, minus
-        /// what the previous call spent, so its own cost cannot grow its budget.</param>
+        /// the time the previous call spent, so the cost of streaming cannot grow the budget.</param>
         public void Timeslice(float frameTime = 1f / 60f)
         {
             var start = Stopwatch.GetTimestamp();

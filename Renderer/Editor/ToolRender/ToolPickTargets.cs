@@ -1,9 +1,9 @@
 namespace ValveResourceFormat.Renderer.Editor.ToolRender;
 
 /// <summary>
-/// What a <see cref="ToolRenderContext"/> draws inside its pick objects, which a ray through the cursor picks the
-/// nearest of. This is how Hammer finds the part of a tool under the cursor: by the faces and handles it draws for
-/// it, including those drawn in <see cref="ToolRenderMode.PickProxy"/> only to be picked.
+/// The faces and handles a <see cref="ToolRenderContext"/> draws as pick objects. A ray through the cursor picks the
+/// nearest of them. This is how Hammer finds the part of a tool under the cursor, including the faces and handles
+/// drawn in <see cref="ToolRenderMode.PickProxy"/> only to be picked.
 /// </summary>
 public sealed class ToolPickTargets
 {
@@ -25,8 +25,8 @@ public sealed class ToolPickTargets
     internal void AddHandle(Vector3 position, float size, int id) => handles.Add((position, size, id));
 
     /// <summary>
-    /// Finds what is nearest the camera under a point of the screen: faces from either side, and handles by the
-    /// square of their size around where they are on the screen.
+    /// Finds what is nearest the camera under a point of the screen: faces from either side, and handles by a
+    /// square of their size around their screen position.
     /// </summary>
     /// <param name="camera">The camera the shapes are seen with.</param>
     /// <param name="screenPoint">The point, in pixels from the top left of the view.</param>

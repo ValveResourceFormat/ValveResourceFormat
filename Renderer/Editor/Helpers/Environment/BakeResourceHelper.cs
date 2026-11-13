@@ -4,8 +4,8 @@ using ValveResourceFormat.Renderer.SceneEnvironment;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// What an entity gets baked for it when the map is built: the light probe of a light probe volume, or the
-/// cubemap of a cubemap, which the scene is lit with.
+/// The resource baked for an entity when the map is built: the light probe of a light probe volume, or the
+/// cubemap of a cubemap entity. The scene is lit with it.
 /// </summary>
 public sealed class BakeResourceHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
@@ -15,7 +15,7 @@ public sealed class BakeResourceHelper(IHelperOwner owner, HelperDeclaration dec
     private const string LightProbeVolume = "ToolObjects/LightProbeVolume";
     private const string CubeMap = "ToolObjects/CubeMap";
 
-    /// <summary>Gets what is baked, such as <c>ToolObjects/LightProbeVolume</c>.</summary>
+    /// <summary>Gets the tool object that is baked, such as <c>ToolObjects/LightProbeVolume</c>.</summary>
     private string? ToolObject => GetArgument(3);
 
     /// <inheritdoc/>

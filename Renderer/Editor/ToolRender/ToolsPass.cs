@@ -25,7 +25,7 @@ public sealed class ToolsPass : IDisposable
 
     /// <summary>Initializes the pass.</summary>
     /// <param name="rendererContext">Renderer context for loading the tools and grid shaders.</param>
-    /// <param name="sceneFramebuffer">What the scene is rendered into, whose depth hides the shapes.</param>
+    /// <param name="sceneFramebuffer">Framebuffer the scene is rendered into. Its depth hides the shapes.</param>
     public ToolsPass(RendererContext rendererContext, Framebuffer sceneFramebuffer)
     {
         ArgumentNullException.ThrowIfNull(sceneFramebuffer);
@@ -47,14 +47,14 @@ public sealed class ToolsPass : IDisposable
 
     /// <summary>
     /// Post processes the scene, outlines the selected nodes, draws the grid and the occlusion debug of the main
-    /// scene, then its tool shapes, those of the selection and the extra shapes over it, and puts the result in the
-    /// target.
+    /// scene, then the tool shapes of the nodes, those of the selection and the extra shapes over them, and puts the
+    /// result in the target.
     /// </summary>
     /// <param name="renderer">The renderer of the frame.</param>
-    /// <param name="target">Where the final image goes.</param>
-    /// <param name="selection">What is selected, with its shapes in world space.</param>
+    /// <param name="target">Framebuffer that receives the final image.</param>
+    /// <param name="selection">The selection, with its shapes in world space.</param>
     /// <param name="extraShapes">Shapes in world space of the main scene that are not tied to a node or the selection.</param>
-    /// <param name="textRenderer">What the text among the shapes of the main scene is written with.</param>
+    /// <param name="textRenderer">Text renderer for the labels among the shapes of the main scene.</param>
     public void Render(Renderer renderer, Framebuffer target, SelectionVisuals selection, ToolGeometry extraShapes, TextRenderer textRenderer)
     {
         ArgumentNullException.ThrowIfNull(renderer);
@@ -96,7 +96,7 @@ public sealed class ToolsPass : IDisposable
         GL.BlitNamedFramebuffer(output.FboHandle, target.FboHandle, 0, 0, width, height, 0, 0, width, height,
             ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
 
-        // What is drawn over the final image after this, such as text, goes to the target
+        // Text and other content drawn after this goes to the target
         target.Bind(FramebufferTarget.Framebuffer);
     }
 

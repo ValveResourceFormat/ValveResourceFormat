@@ -95,8 +95,8 @@ namespace Tests.Renderer
 
         /// <summary>
         /// Straight up and straight down are the interesting ones: yaw and roll turn about the same axis
-        /// there, so recovering angles from a direction cannot tell them apart. Going the other way, which
-        /// is what the camera does, has no such problem, and the frame stays a frame.
+        /// there, so recovering angles from a direction cannot tell them apart. Going from angles to a
+        /// direction, as the camera does, has no such problem and keeps the basis orthonormal.
         /// </summary>
         [Test]
         public async Task DirectionVectorsSurviveLookingStraightUpAndDown()
@@ -165,9 +165,9 @@ namespace Tests.Renderer
         }
 
         /// <summary>
-        /// Roll turns Up and Right about Forward, leaving the look direction alone. Pinned against the
-        /// entity rotation for the same angles, which fixes the direction it turns: an angle alone would
-        /// be satisfied by rolling either way.
+        /// Roll turns Up and Right about Forward, leaving the look direction alone. Compared against the
+        /// entity rotation for the same angles, which fixes the roll direction. Checking only the roll
+        /// angle would pass for either direction.
         /// </summary>
         [Test]
         public async Task RollTurnsUpAndRightButNotForward()
@@ -196,8 +196,8 @@ namespace Tests.Renderer
         }
 
         /// <summary>
-        /// The view matrix is where looking straight down could have bitten, since it completes its own
-        /// basis with a cross product against the up it is handed.
+        /// The view matrix is where looking straight down could have bitten, since it completes the
+        /// basis with a cross product against the up vector passed in.
         /// </summary>
         [Test]
         public async Task ViewMatrixSurvivesLookingStraightDown()

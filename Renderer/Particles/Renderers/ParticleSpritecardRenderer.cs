@@ -32,7 +32,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>
         /// The control point the whole system samples its lighting at while this renderer is lit, or -1
-        /// to leave it where it is.
+        /// to leave the lighting origin unchanged.
         /// </summary>
         private int LightingControlPoint { get; } = -1;
 
@@ -174,8 +174,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private ParticleAnimationType AnimationType { get; } = ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE;
 
         /// <summary>
-        /// What the age each particle hands the shader is measured by. Normally <see cref="AnimationType"/>,
-        /// while the shader keeps reading the rate by <see cref="AnimationType"/> either way.
+        /// Animation type that measures the age passed to the shader. Normally <see cref="AnimationType"/>.
+        /// The shader reads the rate by <see cref="AnimationType"/> either way.
         /// </summary>
         protected ParticleAnimationType AgeAnimationType { get; init; }
 
@@ -293,23 +293,22 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             };
 
             // Games that switch particle shader features at run time pass these two as feature bits instead of
-            // static combos, and their shader never reads the saturate bit and tests the max luminance bit so
-            // that it never matches
+            // static combos. Their shader never reads the saturate bit, and its max luminance bit test never matches.
             if (gameInfo.ParticleShaderFeatureBranching)
             {
                 MaxLuminanceFrameBlend = false;
                 SaturateColorPreAlphaBlend = false;
             }
 
-            // Shaders that switch features at run time have texture layers, and so do the static combo ones of these games
+            // Shaders that switch features at run time have texture layers, and so do the static combo shaders of Dota and Steampal
             UnsignedBlendAlpha = gameInfo.ParticleShaderFeatureBranching || gameInfo.Game is Game.Dota or Game.Steampal;
             ClampLayers = gameInfo.Game != Game.Csgo;
 
             GammaCorrectVertexColors &= OutputIsColor;
             SaturateColorPreAlphaBlend &= OutputIsColor;
 
-            // Static combo shaders read the modulate-2x base texture as stored, so a stored half is the neutral,
-            // rather than decoded from sRGB like any other layer
+            // Static combo shaders read the modulate-2x base texture as stored, not decoded from sRGB like
+            // any other layer, so a stored 0.5 is neutral
             var rawMod2xBase = !gameInfo.ParticleShaderFeatureBranching && BlendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X;
             BaseTextureSrgbRead = TexturesAreColor && !rawMod2xBase;
 
@@ -354,7 +353,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <inheritdoc/>
-        /// <remarks>The texture is decoded the way the base texture it replaces is.</remarks>
+        /// <remarks>The texture is decoded from sRGB when <see cref="BaseTextureSrgbRead"/> is set, like the base texture it replaces.</remarks>
         public override void SetTextureOverride(string textureName)
         {
             SetTextureOverride(scene.RendererContext.MaterialLoader.GetTexture(textureName, BaseTextureSrgbRead, streaming: true));
@@ -446,9 +445,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// Binds the motion vector sheet, where its sequences sit in the sheet cache, and how far a full
-        /// vector pushes, in units of the base texture: the sheet's maximum distance in texels, scaled per
-        /// axis and divided by the base texture's size.
+        /// Binds the motion vector sheet with its first row and sequence count in the sheet cache, and the
+        /// scale of a full vector in units of the base texture: the sheet's maximum distance in texels,
+        /// scaled per axis and divided by the base texture size.
         /// </summary>
         private void BindMotionVectors(ParticleSystemState systemState)
         {
@@ -510,10 +509,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>
         /// The state a spritecard draw runs under. The translucent pass leaves blend and depth to each
-        /// draw, so blending is enabled and depth writes stopped or the card renders opaque; an opaque
-        /// renderer keeps the pass defaults instead. Modulate-2x scales what is behind it and so needs
-        /// its own factors, lighten keeps the brighter of the card and what is behind it, and everything
-        /// else composites premultiplied. Both faces are drawn, since a card or ribbon can turn either
+        /// draw, so blending is enabled and depth writes stopped or the card renders opaque. An opaque
+        /// renderer keeps the pass defaults instead. Modulate-2x scales the colour behind the card, so it
+        /// needs its own factors. Lighten keeps the brighter of the card and the colour behind it.
+        /// Everything else composites premultiplied. Both faces are drawn, since a card or ribbon can turn either
         /// one toward the camera. The lighten blend mode keeps the depth test whatever the z buffering
         /// settings ask.
         /// </summary>

@@ -350,7 +350,7 @@ public sealed class PolygonMesh
     // Computes the Newell normal directly from face topology without allocating.
     // The positions are taken relative to the first vertex (deviation from S&box): Newell's sums of coordinate
     // products lose precision on map sized coordinates, enough for two coplanar triangles to get normals that
-    // differ in the fourth decimal, relative to the face they are exact.
+    // differ in the fourth decimal. Relative to the first vertex the sums are exact.
     private void PlaneEquation(FaceHandle hFace, out Vector3 pOutNormal, out float pOutPlaneDistance)
     {
         var vNormal = Vector3.Zero;
@@ -1286,8 +1286,8 @@ public sealed class PolygonMesh
             return false;
         }
 
-        // a half edge carries the corner at its end vertex: at the shared edge's end the corners are hEdge on
-        // face A and the edge before the opposite on face B, at its start the edge before hEdge and the opposite
+        // A half edge carries the corner at its end vertex. At the end of the shared edge the corners are hEdge on
+        // face A and the edge before hOpposite on face B. At the start they are the edge before hEdge and hOpposite.
         return CornerDataMatches(hEdge, HalfEdgeMesh.FindPreviousEdgeInFaceLoop(hOpposite))
             && CornerDataMatches(HalfEdgeMesh.FindPreviousEdgeInFaceLoop(hEdge), hOpposite);
     }
@@ -1305,16 +1305,16 @@ public sealed class PolygonMesh
     }
 
     /// <summary>
-    /// Merges what the draw calls of one object were split into back together and separates what never belonged
-    /// together: welds the open edges, then the vertices, that coincide within the distance, and splits the mesh
-    /// into the parts that are connected. The render geometry and the physics geometry of a map go through this.
+    /// Rejoins the meshes that draw calls split one object into, and separates parts that never belonged together.
+    /// Welds the open edges, then the vertices, that coincide within the distance, and splits the mesh
+    /// into its connected parts. The render geometry and the physics geometry of a map go through this.
     /// </summary>
     /// <param name="weldDistance">How far apart coinciding vertices may be.</param>
     /// <returns>The connected parts, each copied into a mesh of its own.</returns>
     public List<PolygonMesh> RemergeDrawCalls(float weldDistance)
     {
-        // connect the faces across the seams the draw call split added, edge by edge, only after try to connect
-        // vertices, connecting vertices blindly can lead to bad topology
+        // Connect the faces across the seams the draw call split added, edge by edge. Only then connect
+        // vertices, because connecting vertices blindly can lead to bad topology
         MergeCoincidentOpenEdges(weldDistance);
         MergeVerticesWithinDistance(weldDistance);
 
@@ -1461,8 +1461,8 @@ public sealed class PolygonMesh
         var maxDistanceSquared = maxDistance * maxDistance;
         var invCellSize = 1f / maxDistance;
 
-        // vertices by position cell, so the copies of a position can be looked up; handles go stale when
-        // vertices are merged, that is checked on lookup, new vertices are added as they appear
+        // Vertices by position cell, to look up the copies of a position. Handles go stale when
+        // vertices are merged, so they are checked on lookup. New vertices are added as they appear
         var cells = new Dictionary<(int X, int Y, int Z), List<VertexHandle>>();
 
         (int X, int Y, int Z) CellOf(Vector3 p) => ((int)MathF.Floor(p.X * invCellSize), (int)MathF.Floor(p.Y * invCellSize), (int)MathF.Floor(p.Z * invCellSize));
@@ -1571,9 +1571,9 @@ public sealed class PolygonMesh
             }
 
             // MergeEdges merges the two end point pairs one after the other. The first pair can be merged
-            // while the second is refused, in which case it reports failure but has already made the first
-            // merged vertex, so whatever vertices come back get their position, no matter the result.
-            // The topology doesn't know positions, the merged vertices sit where the edge was
+            // while the second is refused. It then reports failure but has already created the first merged
+            // vertex, so every returned vertex gets its position regardless of the result.
+            // The topology doesn't know positions, so the merged vertices are placed where the edge was
             var success = Topology.MergeEdges(hEdge, hPartner, out var hNewVertexA, out var hNewVertexB);
 
             foreach (var (hNewVertex, position) in new[] { (hNewVertexA, endPosition), (hNewVertexB, startPosition) })

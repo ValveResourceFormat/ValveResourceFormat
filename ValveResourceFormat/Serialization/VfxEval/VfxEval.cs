@@ -170,9 +170,9 @@ namespace ValveResourceFormat.Serialization.VfxEval
         private const uint TRUE_BLOCK_FIRST = 0;
         private const uint FALSE_BLOCK_FIRST = 1;
 
-        // Each expression has two renderings, as its consumer is unknown when it is built. Text is how
-        // it reads anywhere in the tree, ResultText where its value becomes the whole expression's value,
-        // the only place literals name a render state value.
+        // Each expression has two renderings, since the consumer is unknown when it is built.
+        // Text is used anywhere in the tree. ResultText is used where the value becomes the value of
+        // the whole expression, the only place literals name a render state value.
         private readonly struct Expression(string text, string resultText, Precedence precedence)
         {
             public string Text { get; } = text;
@@ -443,8 +443,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     : trueBlockFirst && whenTrue.Text == "1" ? Fold("||", Precedence.Or, whenFalse)
                     : null;
 
-                // A conditional choosing between two values is the same bytes as a fold, so where both results
-                // name a value, the conditional is what reads in result position, and the fold elsewhere.
+                // A conditional choosing between two values is the same bytes as a fold.
+                // When both results name a value, restore the conditional in result position and the fold elsewhere.
                 var namedResults = TryGetValueName(whenTrue.Text, out _) && TryGetValueName(whenFalse.Text, out _);
 
                 // A conditional nested in the false result chains into a readable series of cases; the

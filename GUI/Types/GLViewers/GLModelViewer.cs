@@ -1140,7 +1140,7 @@ namespace GUI.Types.GLViewers
         }
 
         /// <summary>
-        /// Places the animated nodes at <paramref name="transform"/>, keeping the dynamic set in step.
+        /// Places the animated nodes at <paramref name="transform"/> and updates them in the scene's DynamicSet.
         /// </summary>
         private void SetRootMotionTransform(Matrix4x4 transform)
         {
@@ -1202,7 +1202,7 @@ namespace GUI.Types.GLViewers
             {
                 var selected = !Selection.IsEmpty;
 
-                // The graph only records what it did while that is on screen
+                // The graph only records update details while a node is selected
                 if (animGraph != null && animGraph.RecordUpdateDetails != selected)
                 {
                     animGraph.RecordUpdateDetails = selected;

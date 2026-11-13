@@ -58,8 +58,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         protected bool OutputIsColor => !OnlyRenderInEffectsWaterPass;
 
         /// <summary>
-        /// The view a screen-space system is drawn through, which camera-facing geometry turns to, or null
-        /// when the system draws in the world. The camera handed to each call stays the scene camera.
+        /// The camera a screen-space system is drawn through. Camera-facing geometry turns to it.
+        /// Null when the system draws in the world. The camera handed to each call stays the scene camera.
         /// </summary>
         public Camera? ScreenSpaceCamera { get; set; }
 
@@ -211,9 +211,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>
         /// A particle's colour and alpha combined with the colour and alpha scale, in 0 to 1. The alpha
-        /// is taken with its <see cref="Alpha2Field"/> value <paramref name="alpha2"/>,
-        /// <paramref name="alphaPrescale"/> and the visible alpha, and both are clamped to bytes before
-        /// they combine.
+        /// is the product of <paramref name="alpha"/>, its <see cref="Alpha2Field"/> value <paramref name="alpha2"/>,
+        /// <paramref name="alphaPrescale"/> and the visible alpha. Colour and alpha are clamped to bytes
+        /// before they combine.
         /// </summary>
         protected Vector4 BlendColor(Vector3 color, float alpha, float alpha2, in RendererScales scales, float alphaPrescale = 1f)
             => ParticleColorBlend.Apply(ColorBlendType,
@@ -250,12 +250,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public RenderPass Pass { get; protected set; } = RenderPass.Translucent;
 
         /// <summary>
-        /// The scene node the system this belongs to renders under, when it was created for one.
-        /// Set by the system renderer; renderers that light themselves read its bindings through it.
+        /// The scene node the owning particle system renders under, when the system was created for one.
+        /// Set by the system renderer. Renderers that light themselves read the bindings of this node.
         /// </summary>
         public SceneNode? OwnerNode { get; set; }
 
-        /// <summary>Called as the system finishes each step of a frame. Runs on the pool, so touch only what this renderer owns.</summary>
+        /// <summary>Called as the system finishes each step of a frame. Runs on the pool, so touch only fields of this renderer.</summary>
         /// <param name="particles">The system's particles, as the step left them.</param>
         /// <param name="systemState">The state the system's functions read it through.</param>
         public virtual void Simulate(ParticleCollection particles, ParticleSystemState systemState)
@@ -264,7 +264,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>
         /// Called once the initializers have run over particles the system just created. Runs on the
-        /// pool, so touch only what this renderer owns.
+        /// pool, so touch only fields of this renderer.
         /// </summary>
         /// <param name="particles">The system's particles.</param>
         /// <param name="systemState">The state the system's functions read it through.</param>
@@ -279,7 +279,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>
         /// Called when particles of the system raise an event, during the step. Runs on the pool, so
-        /// touch only what this renderer owns.
+        /// touch only fields of this renderer.
         /// </summary>
         /// <param name="particles">The system's particles; particles being killed are still in place.</param>
         /// <param name="eventType">The event, a single flag.</param>
@@ -288,7 +288,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
         }
 
-        /// <summary>Finishes work done on <see cref="Simulate"/>, for what reaches past the system.</summary>
+        /// <summary>Applies what <see cref="Simulate"/> left to things outside the system, such as sounds, decals, scene nodes and lights.</summary>
         /// <param name="particles">The system's particles, as the step left them.</param>
         /// <param name="systemState">The state the system's functions read it through.</param>
         public virtual void Act(ParticleCollection particles, ParticleSystemState systemState)
@@ -367,8 +367,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public virtual void SetTextureOverride(RenderTexture texture) { }
 
         /// <summary>
-        /// Replaces the texture this renderer draws with by the texture of that name, loaded the way the
-        /// texture it replaces is.
+        /// Replaces the texture this renderer draws with by the texture of that name, loaded with the
+        /// sRGB read setting of the texture it replaces.
         /// </summary>
         public virtual void SetTextureOverride(string textureName) { }
 

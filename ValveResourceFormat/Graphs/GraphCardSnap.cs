@@ -9,10 +9,10 @@ namespace ValveResourceFormat.Graphs;
 /// are judged on the straight run between the socket pivots.
 /// </summary>
 /// <remarks>
-/// Candidate heights come from a target per card, normally the solved placement, which may be
-/// taken at no gain, and from the height that levels each wire of a card against where its other
-/// end sits now, which has to level something more and keep the island within its current top and
-/// bottom. Groups of cards whose wires are all level at their targets move together first. A card
+/// Candidate heights come from two sources. One is a target per card, normally the solved
+/// placement, and a move to it may gain nothing. The other is the height that levels each wire of
+/// a card against where its other end sits now. Such a move has to level something more and keep
+/// the island within its current top and bottom. Groups of cards whose wires are all level at their targets move together first. A card
 /// carries along the cards its level wires join it to and the cards it would land on, so levelling
 /// one wire does not cost the ones already level. Wires are bucketed on a grid along their length
 /// and cards over their box, and a move re-buckets only what it touched. A card that found no move
@@ -43,14 +43,14 @@ internal sealed class CardSnap
     private readonly int[] cardSeen;
     private int stamp;
 
-    /// <summary>Cards being moved by the move under evaluation; their grid entries are where they were.</summary>
+    /// <summary>Cards in the move under evaluation; their grid entries still hold the positions they were bucketed at.</summary>
     private readonly HashSet<int> moving = [];
     private readonly List<int> movingWires = [];
     private readonly HashSet<int> movingWireSet = [];
     private readonly List<int> found = [];
     private readonly List<(int, int)> cells = [];
 
-    /// <summary>The card whose crossings and covered count where it stands are cached below, or -1.</summary>
+    /// <summary>Card that the cached crossings and covered counts below were taken for, or -1.</summary>
     private int cachedCard = -1;
     private int? cachedCrossings;
     private int? cachedCovered;
@@ -58,7 +58,7 @@ internal sealed class CardSnap
     private (float Top, float Bottom) extent;
     private bool extentStale = true;
 
-    /// <summary>Cards tried since anything near them last moved, which would be refused again.</summary>
+    /// <summary>Cards that found no move, skipped until something near them moves.</summary>
     private readonly bool[] settled;
 
     /// <summary>Where each card was when it was last bucketed.</summary>
@@ -211,8 +211,8 @@ internal sealed class CardSnap
     }
 
     /// <summary>
-    /// Cards joined by wires that are level at both ends' targets, among the cards away from their
-    /// target, as groups of two or more.
+    /// Groups of two or more cards that are away from their targets and joined by wires that are
+    /// level at those targets.
     /// </summary>
     private List<List<int>> Groups(float[] targets)
     {
@@ -426,9 +426,9 @@ internal sealed class CardSnap
     }
 
     /// <summary>
-    /// Re-buckets cards that moved since they were indexed, with their wires, and has the cards at
-    /// both ends of those wires and every card and wire end near where the cards were or now are
-    /// tried again.
+    /// Re-buckets cards that moved since they were indexed, along with their wires. Clears
+    /// <see cref="settled"/> for the cards at both ends of those wires, for every card near where the
+    /// moved cards were or now are, and for the cards at both ends of every wire there.
     /// </summary>
     public void Reindex(IReadOnlyCollection<int> nodes)
     {

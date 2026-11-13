@@ -19,15 +19,15 @@ namespace ValveResourceFormat.Renderer.World;
 /// <para>
 /// A group's entities are created first, then the groups they place finish spawning, then the group spawns and
 /// activates its own entities as one batch. Unloading a group unloads its child groups first, then removes the
-/// entities it owns. Its entities join <see cref="Owner"/> instead when it has one, and once spawned it hands its
-/// child groups to the owner and unloads, leaving nothing behind.
+/// entities it owns. A group with an <see cref="Owner"/> adds its entities to the owner instead. Once spawned, it
+/// hands its child groups to the owner and unloads, leaving nothing behind.
 /// </para>
 /// <para>
 /// The manager gives a group its world before any of its entities spawn. A group that names an entity lump
-/// spawns it from the loaded world of that name. One that spawns a whole map loads its own copy of the map, placed
-/// where the group is. Only a group drawn as a scene of its own, such as a 3D sky, unloads its geometry and
-/// collision. One loaded into the scene of the map that placed it, such as a prefab, leaves them in that scene,
-/// where spawning the map at the same place again finds them.
+/// spawns it from the loaded world of that name. A group that spawns a whole map loads a copy of the map at the
+/// group's <see cref="Transform"/>. Only a group with <see cref="HasOwnScene"/>, such as a 3D sky, unloads the
+/// geometry and collision of that map. A group loaded into the scene of the map that placed it, such as a prefab,
+/// leaves them in that scene, so spawning the map at the same place again finds them.
 /// </para>
 /// </remarks>
 public sealed class SpawnGroup

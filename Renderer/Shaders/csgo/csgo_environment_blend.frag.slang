@@ -293,12 +293,12 @@ void CompositeLayerStack(inout LayerStack_t stack, float occlusion, vec3 color, 
     stack.Height.a = metalness;
 }
 
-// What both upper layers need to weigh themselves against the layers below
+// Blend inputs shared by layers 2 and 3
 struct BlendState_t
 {
     bool NewBlending;
     float BlendFactor2;
-    float Paint3;       // Layer 3's blend factor before its facing direction, which reads the normal layer 2 leaves
+    float Paint3;       // Layer 3's blend factor before the facing direction mask, which reads the normal that layer 2 leaves
     vec3 PaintShares;
     float RangeSoftness1;
     float RangeSoftness2;
@@ -333,7 +333,7 @@ HeightLayer_t SampleLayer3(BiplanarFrame_t biplanar)
 #endif
 }
 
-// A detail texture that inherits its layer's UV set also tiles with the layer's scale, on top of its own
+// A detail texture that inherits the UV set of the layer is also scaled by the layer's texcoord scale, on top of the detail scale
 vec2 DetailInheritedScale(int detailUvSet, vec2 layerScale)
 {
     return (detailUvSet == -1) ? layerScale : vec2(1.0);
@@ -436,8 +436,8 @@ LayerStack_t StartLayerStack(HeightLayer_t layer1, vec3 normalTs)
     stack.Occlusion = LayerOcclusion(layer1.Occlusion, g_vAmbientOcclusionLevels1);
 #endif
 
-    // Wetness height and darkening blend up the layers the way colour does. Without the new blending, wetness
-    // judges the layers' own heights instead.
+    // Wetness height and darkening are blended up the layers with the same weights as the color.
+    // Without the new blending, wetness judges the raw height of each layer instead.
     stack.WetHeight = WetnessHeight(layer1.Height.r, g_flHeightMapZeroPoint1, g_flHeightMapScale1);
     stack.RawHeight = WetnessHeightOld(layer1.Height.r, g_flHeightMapZeroPoint1, g_flHeightMapScale1);
     return stack;
@@ -610,8 +610,8 @@ void BlendLayer3(inout LayerStack_t stack, BlendState_t blend, HeightLayer_t lay
             g_vBorderLayerAmount3, g_bBorderTintMask3, F_BORDER_BLEND_MODE_3,
             F_BORDER_ROUGHNESS_3 == 1, g_fBorderRoughness3);
 
-        // Layer 3 decorates its seam against the composite below it, so both its height
-        // scale and its tint mask come from layers 1 and 2 blended together.
+        // The seam of layer 3 is drawn against the composite below it, so the height scale
+        // and the tint mask come from layers 1 and 2 blended together.
         float tintMask3 = mix(tintMaskBelow, layer3.TintMask, weight3);
 
         SeamFrame seam3 = GetSeamFrame(carry3.difference, blendFactor3,
@@ -678,7 +678,7 @@ float GetWetDarkening(float share2, float weight3)
 }
 
 #if (F_SHARED_COLOR_OVERLAY == 1)
-// How much of the overlay a layer takes with the previous blending: the layers it applies to, and the ones whose tint mask gates it
+// Overlay amount of a layer with the previous blending, from the layers the overlay applies to and the layers whose tint mask gates it
 float OldOverlayLayerAmount(float tintMask, int layer, float share)
 {
     float layerEnabled = float(g_nColorOverlayMode == 0 || g_nColorOverlayMode == layer);
@@ -758,7 +758,6 @@ void ApplyAlphaTest(inout MaterialProperties_t mat, HeightLayer_t layer1, vec2 t
 #endif
 }
 
-// Get material properties from two or three layers
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 {
     MaterialProperties_t mat;

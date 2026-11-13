@@ -9,8 +9,8 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 internal static class CameraFrustum
 {
     /// <summary>
-    /// The field of view of the views of the editor, which a camera path takes where its nodes give none. It is
-    /// a setting of the editor; this is its default.
+    /// Default field of view of the editor views, an editor setting. A camera path uses it where its nodes give
+    /// none.
     /// </summary>
     public const float ViewFov = 90f;
 
@@ -41,7 +41,7 @@ internal static class CameraFrustum
     private const float FaceAlphaScale = 0.5f;
 
     /// <summary>Draws the frustum, in the space of the camera.</summary>
-    /// <param name="context">What the frustum is drawn with.</param>
+    /// <param name="context">The render context.</param>
     /// <param name="fov">The horizontal field of view, in degrees.</param>
     /// <param name="nearPlane">The distance to the near plane.</param>
     /// <param name="farPlane">The distance to the far plane.</param>
@@ -74,10 +74,10 @@ internal static class CameraFrustum
     }
 
     /// <summary>
-    /// Draws the frustum of a camera entity at a transform, after what is translucent and with its faces half as
-    /// opaque as its color.
+    /// Draws the frustum of a camera entity at a transform, in the post translucent layer and with faces half as
+    /// opaque as the color.
     /// </summary>
-    /// <param name="context">What the frustum is drawn with.</param>
+    /// <param name="context">The render context.</param>
     /// <param name="transform">The space of the camera.</param>
     /// <param name="fov">The horizontal field of view, in degrees.</param>
     /// <param name="nearPlane">The distance to the near plane.</param>

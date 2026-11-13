@@ -5,10 +5,10 @@ namespace ValveResourceFormat.Particles.Operators
     /// <summary>
     /// Binds each particle to a parent particle once, then copies one attribute from that parent every
     /// step, scaled and blended toward the copy by <c>m_flInterpolation</c>. Particles not yet bound
-    /// take the parent the walk over the parent list has reached, which advances by
-    /// <c>m_nIncrement</c> per particle, or by one parent each time the increments add up to a whole
-    /// one with sub-sampling, where the copy also blends toward the next parent by the fraction
-    /// carried. <c>m_nMissingParentBehavior</c> decides what a particle whose parent died does.
+    /// take the parent the walk over the parent list has reached. The walk advances by
+    /// <c>m_nIncrement</c> per particle. With sub-sampling it advances by one parent each time the
+    /// increments add up to a whole one, and the copy also blends toward the next parent by the
+    /// fraction carried. <c>m_nMissingParentBehavior</c> decides what a particle whose parent died does.
     /// </summary>
     /// <remarks>
     /// The bind test runs before the dead parent test, so a particle a parent kill marked before it

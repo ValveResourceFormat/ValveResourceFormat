@@ -179,7 +179,7 @@ public abstract class BaseModelEntity : BaseEntity
             }
 
             // Owned by the entity, not the model node: a collision-only brush has no model node,
-            // and what the tool draws of its collision is all there is to show.
+            // and the collision visuals are all there is to show.
             foreach (var node in EntitySystem.ToolVisuals?.CreateCollisionVisuals(Scene, physics, modelName, this) ?? [])
             {
                 AddNode(node);
@@ -213,8 +213,8 @@ public abstract class BaseModelEntity : BaseEntity
         return value.ToInt32OrDefault() is 1 or 3;
     }
 
-    // The model state sets the material group and the body groups, then picks between the configs of the
-    // model, which a model with a spawn config is built from even when the entity has no model state
+    // The model state sets the material group and the body groups, then selects among the model configs.
+    // A model with a spawn config is built from it even when the entity has no model state
     private void ApplyModelState(Model model, ModelSceneNode node)
     {
         var modelState = ParseCollectionProperty("model_state");
@@ -250,8 +250,8 @@ public abstract class BaseModelEntity : BaseEntity
                 ? block
                 : null;
 
-    // The game picks at random on every spawn, while a viewer that picks the same for an entity on every load
-    // shows a map the same way each time it is opened
+    // The game picks at random on every spawn. The seed is derived from the entity, so the viewer
+    // picks the same config on every load of a map
     private Random CreateConfigRandom()
     {
         var seed = Data?.GetStringProperty("hammeruniqueid") is { Length: > 0 } id

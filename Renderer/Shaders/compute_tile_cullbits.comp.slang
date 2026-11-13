@@ -17,7 +17,8 @@ layout(binding = 11, std430) readonly buffer CullPlanesBuffer
 
 // The coarse mask has to cover the whole group, and a subgroup is only guaranteed to be a part of one:
 // Intel runs this at SIMD8 or SIMD16, so subgroupOr alone would leave each subgroup seeing only the
-// items its own lanes loaded. Subgroup arithmetic still pre-reduces into this, it just cannot replace it.
+// items loaded by its lanes. Subgroup arithmetic still pre-reduces the lane bits before the atomic
+// into g_nGroupMask, but cannot replace g_nGroupMask.
 shared uint g_nGroupMask;
 
 const bool OCCLUSION_CULL = true;

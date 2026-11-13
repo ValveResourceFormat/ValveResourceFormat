@@ -78,7 +78,7 @@ public sealed partial class FgdFile
     /// <summary>Gets the bounds of a map along each axis, where a file of an older game declares them.</summary>
     public (int Low, int High)? MapSize { get; private set; }
 
-    /// <summary>Gets the filters a file declares for what is shown of a map, as the keys they are declared with.</summary>
+    /// <summary>Gets the vis group filters a file declares, as the keys they are declared with.</summary>
     public List<KVObject> VisGroupFilters { get; } = [];
 
     /// <summary>Gets the material folders the material browser leaves out, where a file of an older game declares them.</summary>
@@ -94,13 +94,13 @@ public sealed partial class FgdFile
     public int? Version { get; private set; }
 
     /// <summary>
-    /// Gets what could not be read. Reading carries on past it at the next section, or the next key of a class
-    /// where only the key is wrong, so everything else of a file is still read.
+    /// Gets the errors found while reading. Reading continues at the next section, or at the next key of a class
+    /// when only the key is wrong, so the rest of a file is still read.
     /// </summary>
     public List<FgdError> Errors { get; } = [];
 
     /// <summary>
-    /// Initializes classes that find the files they read on disk: a file named without a folder is looked for
+    /// Initializes a new instance that reads files from disk. A file named without a folder is looked for
     /// next to the file that includes it, and then in the current folder.
     /// </summary>
     public FgdFile()
@@ -108,8 +108,8 @@ public sealed partial class FgdFile
     }
 
     /// <summary>
-    /// Initializes classes that open the files named without a folder through a file system first, such as
-    /// the one a game mounts, before they are looked for on disk.
+    /// Initializes a new instance that opens files named without a folder through a file system, such as
+    /// the one a game mounts, before looking for them on disk.
     /// </summary>
     /// <param name="openFile">Opens a file by its name, or gives <see langword="null"/> where there is none.</param>
     public FgdFile(Func<string, Stream?> openFile)
@@ -120,7 +120,7 @@ public sealed partial class FgdFile
     }
 
     /// <summary>
-    /// Gets or sets the classes <see cref="FindClass"/> looks in for a class none is declared under here.
+    /// Gets or sets the file <see cref="FindClass"/> searches for a class that is not declared in this one.
     /// Classes are still only based on the classes of their own FGD files.
     /// </summary>
     public FgdFile? Fallback { get; set; }
@@ -164,8 +164,8 @@ public sealed partial class FgdFile
     /// Adds the <see cref="FgdClassType.ExtendClass"/> classes read so far to the classes they extend, then
     /// gives every class what it takes from the classes it is based on: their variables, inputs and outputs,
     /// their tags and keys, and their size and color where it declares none. Helpers are not taken. It can be
-    /// called again after more files are read: what a class has by then counts as its own, so it keeps the
-    /// variables it already took over the ones its bases have since changed, and gains the ones they added.
+    /// called again after more files are read. The variables a class already has are applied again over those
+    /// of its bases, so they win over changes made to the bases since, and variables added to the bases are gained.
     /// </summary>
     public void ResolveBaseClasses()
     {
@@ -282,7 +282,7 @@ public sealed partial class FgdFile
             gameClass.HasSize = true;
         }
 
-        // The first class it is based on gives the color, even where that one never declared any
+        // The first base class gives the color, even where the base class never declared any
         if (!gameClass.HasColor)
         {
             gameClass.Color = baseClass.Color;
@@ -547,7 +547,7 @@ public sealed partial class FgdFile
     {
         foreach (var helper in overriding.Helpers)
         {
-            // A helper an override declares reads its block of keys, which is empty where it was given arguments
+            // A helper declared with arguments has no block of keys, so it gets an empty one
             helper.Metadata ??= new KVObject();
 
             if (existing.Helpers.Find(other => other.Name.Equals(helper.Name, StringComparison.OrdinalIgnoreCase)) is { } replaced)
@@ -640,7 +640,7 @@ public sealed partial class FgdFile
             return false;
         }
 
-        // Unlike everywhere else, the name has to be written the way the class is declared
+        // Unlike everywhere else, the class name is matched case-sensitively
         var index = Classes.FindIndex(gameClass => gameClass.Name.Equals(name.Text, StringComparison.Ordinal));
 
         if (index < 0)

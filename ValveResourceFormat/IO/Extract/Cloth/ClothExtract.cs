@@ -20,7 +20,7 @@ internal sealed partial class ClothExtract(Model? model, PhysAggregateData? phys
     // Sheets declared with flex_cloth_borders, recorded while the vmdl is emitted and read when their DMX is built
     private readonly HashSet<ProxyMesh> flexedProxies = [];
 
-    // The vmdl and each sheet's DMX both ask which selection a sheet stands for
+    // Vertex map name of each sheet, used by both the vmdl and the sheet's DMX
     private readonly Dictionary<ProxyMesh, string?> proxyVertexMapNames = [];
     private List<ProxyMesh>? proxyGroup;
 

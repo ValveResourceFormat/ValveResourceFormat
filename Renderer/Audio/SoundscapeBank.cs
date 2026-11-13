@@ -36,8 +36,8 @@ public sealed class SoundscapeBank
     private readonly Dictionary<string, SoundscapeEvent[]> resolved = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// One sound event a scripted soundscape starts, with the volume it plays at relative to its own
-    /// authored volume - the product of the "volume" on every "playsoundscape" that pulled it in.
+    /// One sound event a scripted soundscape starts. The volume is the product of the "volume" on every
+    /// "playsoundscape" that pulled it in.
     /// </summary>
     /// <param name="Name">Name of the sound event, as it is known to the <see cref="SoundEventBank"/>.</param>
     /// <param name="Volume">Multiplier applied on top of the event's own volume.</param>
@@ -110,8 +110,8 @@ public sealed class SoundscapeBank
                 {
                     // A soundscape pulled in by another one is mixed under it at its own master volume,
                     // e.g. the same street ambience layered in quieter from inside a building. Authored as
-                    // a range like everything else in these scripts; the engine draws from it per
-                    // activation, this resolution happens once so it rolls once and keeps the result.
+                    // a range like everything else in these scripts. The engine draws from the range per
+                    // activation. This resolution happens once, so the volume is rolled once and kept.
                     var (min, max) = SoundscapeOperatorParsing.ReadRange(operation.Value.GetStringProperty("volume"), 1f);
                     var nestedVolume = volume * MathUtils.Saturate(MathUtils.Lerp(min, max, Random.Shared.NextSingle()));
 

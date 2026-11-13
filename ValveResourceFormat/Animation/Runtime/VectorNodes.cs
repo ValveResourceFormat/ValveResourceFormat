@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Animation
     {
         Vector3 cachedValue;
 
-        // Returns the node's value, evaluating it at most once per graph update (matches the C++ WasUpdated guard).
+        // Returns the node's value, evaluating it at most once per graph update.
         public Vector3 GetValue(GraphContext ctx)
         {
             if (!WasUpdated(ctx))
@@ -44,7 +44,6 @@ namespace ValveResourceFormat.Animation
 
             InputValueNode.Initialize(ctx);
 
-            // Cache on entry
             if (Mode == CachedValueMode.OnEntry)
             {
                 CachedValue = InputValueNode.GetValue(ctx);
@@ -134,8 +133,8 @@ namespace ValveResourceFormat.Animation
         protected override Vector3 GetValueInternal(GraphContext ctx) => ChildNode.GetValue(ctx);
     }
 
-    // Extracts a float from a vector input: a component, the length, or a character-space angle
-    // (Esoterica VectorInfoNode; vectors are assumed to be in character space, forward = -Y).
+    // Extracts a float from a vector input: a component, the length, or a character-space angle.
+    // Vectors are assumed to be in character space, forward = -Y.
     partial class VectorInfoNode
     {
         VectorValueNode InputValueNode;
@@ -204,7 +203,7 @@ namespace ValveResourceFormat.Animation
 
         static readonly Vector3 WorldForward = new(0f, -1f, 0f);
 
-        // Signed rotation around Z between the reference and v (Esoterica CalculateYawAngleBetweenVectors)
+        // Signed rotation around Z between the reference and v
         static float CalculateYawAngleDegrees(Vector3 reference, Vector3 v)
         {
             // Faster than AsVector2().Length()
@@ -228,7 +227,7 @@ namespace ValveResourceFormat.Animation
             return float.RadiansToDegrees(angle);
         }
 
-        // Elevation angle difference (Esoterica CalculatePitchAngleBetweenUnitVectors, unit inputs)
+        // Elevation angle difference of unit inputs
         static float CalculatePitchAngleDegrees(Vector3 reference, Vector3 v)
         {
             var vElevationAngle = MathF.Asin(Math.Clamp(v.Z, -1f, 1f));

@@ -896,9 +896,10 @@ internal static class GraphLayout
         }
 
         /// <summary>
-        /// Where a socket sits within its rank, normalised into [0,1]. Each node of the rank owns an
-        /// equal share of that range and its sockets fall inside the share at their height on the
-        /// card, so wires into one card at different rows have a defined order.
+        /// Where a socket sits within the rank of its node, normalised into [0,1]. Each node of the
+        /// rank has an equal share of that range, and sockets are placed inside the share by their
+        /// anchor height on the card. Wires into one card at different rows therefore have a
+        /// defined order.
         /// </summary>
         /// <param name="node">The node the socket is on.</param>
         /// <param name="slot">The position of that node within its rank.</param>
@@ -946,12 +947,12 @@ internal static class GraphLayout
         }
 
         /// <summary>
-        /// Crossings contributed by the wires of two neighbours of one rank, with <paramref name="a"/>
-        /// at <paramref name="slot"/> and <paramref name="b"/> directly after it, and with the two
-        /// the other way round. A pair crosses when the two wires have traded places by the last
-        /// rank boundary they both reach, with each wire running straight from its node towards the
-        /// far node, so wires spanning several ranks are judged as <see cref="CountCrossings"/>
-        /// projects them. Positions are taken per node, not per socket.
+        /// Crossings between the wires of two neighbours of one rank, counted with
+        /// <paramref name="a"/> at <paramref name="slot"/> and <paramref name="b"/> directly after
+        /// it, and again with the two swapped. Each wire is projected as a straight line from its
+        /// node towards the far node, as <see cref="CountCrossings"/> projects wires spanning
+        /// several ranks. A pair crosses when the two wires have traded places at the last rank
+        /// boundary both reach. Positions are taken per node, not per socket.
         /// </summary>
         private (int AFirst, int BFirst) LocalCrossings(int a, int b, int slot)
         {
@@ -1014,9 +1015,9 @@ internal static class GraphLayout
         /// Inversions across every rank boundary, counted with a Fenwick tree so hub-heavy ranks
         /// stay affordable. A wire spanning several ranks is projected onto each boundary it
         /// crosses, so ordering sees the wires that have no dummies standing in for them too.
-        /// Heights are socket positions normalised per rank, so the two sides of a boundary compare
-        /// and two wires into one card cross when their sources sit in the opposite order to the
-        /// rows they dock at.
+        /// Heights are socket positions normalised per rank, so the two sides of a boundary are
+        /// comparable. Two wires into one card cross when their sources sit in the opposite order
+        /// to the rows they dock at.
         /// </summary>
         /// <returns>The crossing count, or -1 when the layout deadline passed before it was complete.</returns>
         private int CountCrossings()
@@ -1137,9 +1138,9 @@ internal static class GraphLayout
         /// <summary>
         /// Gives every rank one column, or several height-capped sub-columns when it is oversized.
         /// The rank order is dealt across its sub-columns in turn, so each one spans the whole rank.
-        /// Cards feeding one consumer are dealt as one run, right to left, with the card docking
-        /// lowest nearest the consumer, so the farther cards' wires pass over the nearer ones into
-        /// higher sockets.
+        /// Cards feeding one consumer are dealt as one run, right to left, so the card docking
+        /// lowest sits nearest the consumer. The wires of the farther cards then pass over the
+        /// nearer cards into higher sockets.
         /// </summary>
         private void AssignColumns()
         {
@@ -1324,9 +1325,9 @@ internal static class GraphLayout
                 }
             }
 
-            // One wire per pair of joined stacks, heaviest first, is drawn level by shifting whole
-            // stacks, and with the stacks' gap edges those wires make the tight spanning tree the
-            // simplex starts from.
+            // Wires are taken heaviest first, one per pair of joined stacks, and drawn level by
+            // shifting whole stacks. Together with the gap edges inside the stacks they form the
+            // tight spanning tree the simplex starts from.
             var joined = new DisjointSets(stacks.Count);
             var spanning = new List<(int Other, int Wire)>[stacks.Count];
             var levelled = new bool[wires.Count];
@@ -1435,8 +1436,8 @@ internal static class GraphLayout
                 : NodeSpacing;
 
         /// <summary>
-        /// Where the snap draws each card after the repair has moved cards: the placement solved
-        /// once more on the order the repair left each column in, with the long-wire dummies free.
+        /// Top edge of each card for the snap, after the repair has moved cards. The placement is
+        /// solved once more on the order the repair left each column in, with the long-wire dummies free.
         /// </summary>
         private float[] SnapTargets()
         {
@@ -1476,14 +1477,15 @@ internal static class GraphLayout
         }
 
         /// <summary>
-        /// Solves the heights of the long-wire dummies with every card held where it landed. Each
-        /// column's dummies are ordered by where the straight line between their wire's sockets
-        /// crosses it, dealt over the gaps between its cards no more into a gap than it holds, and
-        /// then placed exactly for the levelest chains within their gaps.
+        /// Solves the heights of the long-wire dummies with every card held where it landed. The
+        /// dummies of a column are ordered by where the straight line between the sockets of their
+        /// wire crosses the column. They are dealt over the gaps between the cards of the column,
+        /// with no gap getting more than it holds, and then placed exactly within their gaps for
+        /// the levelest chains.
         /// </summary>
         /// <remarks>
-        /// Simplex node 0 is the origin card heights are measured from, the dummies follow it in
-        /// order, and then one auxiliary node per wire.
+        /// Simplex node 0 is the origin that card heights are measured from. The dummies follow in
+        /// order, then one auxiliary node per wire.
         /// </remarks>
         private void PlaceDummies()
         {

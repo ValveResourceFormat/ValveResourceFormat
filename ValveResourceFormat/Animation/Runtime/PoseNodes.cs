@@ -11,10 +11,10 @@ namespace ValveResourceFormat.Animation
         /// <summary>The node's duration in seconds.</summary>
         public float Duration { get; protected internal set; }
 
-        /// <summary>Where the node is, as a percentage through its duration.</summary>
+        /// <summary>Current time of the node, as a percentage through its duration.</summary>
         public float CurrentTime { get; protected internal set; }
 
-        /// <summary>Where the node was at the previous update, as a percentage through its duration.</summary>
+        /// <summary>Time of the node at the previous update, as a percentage through its duration.</summary>
         public float PreviousTime { get; protected internal set; }
 
         GraphContext? poseBufferSource;

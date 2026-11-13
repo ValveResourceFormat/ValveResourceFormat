@@ -57,8 +57,9 @@ namespace ValveResourceFormat.Animation
         FrameTime warpStartTime;
         Transform warpStartWorldTransform = Transform.Identity;
 
-        // The warp target that was requested, and the one we can achieve based on the events
+        // The requested warp target
         Transform requestedWarpTarget = Transform.Identity;
+        // The warp target achievable based on the events
         Transform warpTarget = Transform.Identity;
 
         Transform[] warpedTransforms = [];
@@ -891,7 +892,7 @@ namespace ValveResourceFormat.Animation
                     return false;
                 }
             }
-            else // Update check
+            else
             {
                 Debug.Assert(internalState == InternalState.AllowUpdates);
 
@@ -1054,7 +1055,6 @@ namespace ValveResourceFormat.Animation
             // Generate the warped root motion if needed
             var wasWarpUpdated = UpdateWarp(ctx, clip);
 
-            // Step time on the target node
             var result = ClipReferenceNode.Update(ctx, updateRange);
             Duration = ClipReferenceNode.Duration;
             PreviousTime = ClipReferenceNode.PreviousTime;

@@ -4,8 +4,8 @@ using ValveResourceFormat.Renderer.SceneNodes;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The rope of a <c>path_particle_rope</c>, hung between the nodes of its path, which stops moving once it
-/// has simulated for as long as the entity says.
+/// The rope of a <c>path_particle_rope</c>, hung between the nodes of the path. It stops moving once it has
+/// simulated for as long as the <c>max_simulation_time</c> key says.
 /// </summary>
 internal sealed class ParticleRopeHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {

@@ -42,9 +42,9 @@ namespace ValveResourceFormat.Particles.Constraints
             var parentRadii = parentParticles.ReadFloats(ParticleField.Radius);
 
             // A per-particle parent radius scale is evaluated over this system's particles, not the
-            // parent's, and evaluated again for every block of four; parent j reads the value of
-            // particle j. Parents beyond this system's particle count, which would read past the
-            // evaluated values, take 1. Any other input gives every parent its collection value
+            // parent's, and again for every block of four. Parent j reads the value of particle j.
+            // Parents beyond this system's particle count take 1, as there is no value to read for them.
+            // Any other input gives every parent the same value from the collection
             var parentRadiusScales = ParticleScratch.Floats(current.Length);
             var isPerParticle = parentRadiusScale.IsPerParticle;
             var scaleBeyondParticles = 1f;

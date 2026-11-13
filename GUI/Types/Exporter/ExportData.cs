@@ -14,8 +14,8 @@ namespace GUI.Types.Exporter
 
         /// <summary>
         /// Gets whether files are loaded past the context's resource cache. The cache of a viewer tab's context holds
-        /// the resources its renderer uses, which have dropped the mesh data they uploaded and must not be disposed by
-        /// an extract.
+        /// the resources used by the renderer. They have dropped the mesh data they uploaded, so an extract must not
+        /// dispose them.
         /// </summary>
         public bool BypassResourceCache { get; init; }
 

@@ -84,7 +84,6 @@ namespace ValveResourceFormat.Animation
             LayerContext = ownLayerContext;
             Pose = new Pose(owner.GraphSkeleton);
 
-            // Create nodes
             var nodeArray = graph.GetArray("m_nodes");
             Nodes = new GraphNode[nodeArray.Count];
 
@@ -173,8 +172,8 @@ namespace ValveResourceFormat.Animation
         internal ValueNode? GetParameterNode(string name)
             => parameterLookup.TryGetValue(name, out var nodeIdx) ? (ValueNode)Nodes[nodeIdx] : null;
 
-        // Layer context. Transitions temporarily swap in a scratch context for their target state
-        // (Esoterica swaps the m_pLayerContext pointer), so the reference is settable.
+        // Layer context. Transitions temporarily swap in a scratch context for their target state,
+        // so LayerContext is settable.
         public bool IsInLayer { get; set; }
         public LayerContext LayerContext { get; set; }
 
@@ -197,7 +196,7 @@ namespace ValveResourceFormat.Animation
         }
 
         // A referenced graph evaluates within its parent's layer, branch and world
-        /// <summary>What the update records, shared with referenced graphs, or null when not recording.</summary>
+        /// <summary>Sampled clips and graph timings of the update, shared with referenced graphs, or null when not recording.</summary>
         internal GraphUpdateDetails? UpdateDetails { get; set; }
 
         /// <summary>How deeply this graph is referenced in the current evaluation.</summary>

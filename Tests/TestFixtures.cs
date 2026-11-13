@@ -62,7 +62,6 @@ namespace Tests
             return [.. files.Select(file => System.IO.Path.GetRelativePath(directory, file))];
         }
 
-        /// <summary>Reads a compiled resource.</summary>
         public static Resource Load(string fileName)
         {
             var resource = new Resource();
@@ -83,7 +82,6 @@ namespace Tests
         public static KVObject ExtractValveModelDocument(string fileName)
             => ParseKV3(ExtractValveModel(fileName));
 
-        /// <summary>Parses KV3 text into a document.</summary>
         public static KVObject ParseKV3(string text)
         {
             using var stream = new StringStream(text, Encoding.UTF8);

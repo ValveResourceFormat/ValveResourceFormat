@@ -19,7 +19,7 @@ public enum LightProbeDebugGridMode
     All,
 }
 
-/// <summary>What the environment map debug colours show.</summary>
+/// <summary>Which environment map debug views are shown.</summary>
 public enum EnvMapDebugColorsMode
 {
     /// <summary>Nothing.</summary>
@@ -86,7 +86,7 @@ public sealed class SceneLightingDebug
     /// <summary>Gets or sets the metalness of grid samples.</summary>
     public float LightProbeGridMetalness { get; set; }
 
-    /// <summary>Gets or sets what the environment map debug colours show.</summary>
+    /// <summary>Gets or sets which environment map debug views are shown.</summary>
     public EnvMapDebugColorsMode EnvMapColors { get; set; }
 
     internal void Update(Scene.UpdateContext updateContext)

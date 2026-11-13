@@ -32,8 +32,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
         public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
-            // The inputs are set up before the lerp is evaluated and read after it, so only inputs drawing per block
-            // draw after the lerp
+            // Inputs that do not draw per block are evaluated before the lerp.
+            // Inputs that draw per block are evaluated after it.
             var setUpVec1 = input1.DrawsPerBlock ? Vector3.Zero : input1.NextVector(particleSystemState);
             var setUpVec2 = input2.DrawsPerBlock ? Vector3.Zero : input2.NextVector(particleSystemState);
             float lerpAmount;

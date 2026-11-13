@@ -118,9 +118,6 @@ namespace ValveResourceFormat.Particles
             => field is ParticleField.Color or ParticleField.Alpha or ParticleField.AlphaAlternate
                 or ParticleField.GlowRgb or ParticleField.GlowAlpha;
 
-        /// <summary>
-        /// Whether the field is <see cref="ParticleField.Alpha"/> or <see cref="ParticleField.AlphaAlternate"/>.
-        /// </summary>
         public static bool IsAlpha(this ParticleField field)
             => field is ParticleField.Alpha or ParticleField.AlphaAlternate;
     }

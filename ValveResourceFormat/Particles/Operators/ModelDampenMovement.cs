@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Particles.Operators
     /// <summary>
     /// Drags the movement of particles that are inside the hitboxes, or bones, of the model a
     /// control point carries, or with <c>m_bOutside</c> outside them, keeping the same share of
-    /// their step's motion per second however the steps fall. The tested point can be offset per
+    /// their step's motion per second regardless of the step length. The tested point can be offset per
     /// particle, and <c>m_bBoundBox</c> tests the box around all of them instead.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ModelDampenMovement">C_OP_ModelDampenMovement</seealso>

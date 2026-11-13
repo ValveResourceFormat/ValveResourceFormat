@@ -36,8 +36,8 @@ namespace ValveResourceFormat.Particles.Utils
         }
 
         /// <summary>
-        /// Loads the snapshot a particle system authors as <c>m_hSnapshot</c>, which it publishes on a
-        /// control point for its own functions and its children to read. This is the producing side of
+        /// Loads the snapshot a particle system authors as <c>m_hSnapshot</c>. The system publishes it on a
+        /// control point for its functions and children to read. This is the producing side of
         /// a binding; everything else on this class is the consuming side.
         /// </summary>
         public static ParticleSnapshot? LoadAuthored(ParticleDefinitionParser parse, IFileLoader fileLoader)

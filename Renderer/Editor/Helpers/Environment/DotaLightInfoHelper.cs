@@ -5,8 +5,8 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The day or night lighting of a <c>dota_light_info</c>, which it previews. While the entity is the
-/// <c>fog</c> global, the map has the fog color and distances of the time of day it previews.
+/// The day or night lighting preview of a <c>dota_light_info</c>. While the entity is the <c>fog</c> global,
+/// the map has the fog color and distances of the previewed time of day.
 /// </summary>
 internal sealed class DotaLightInfoHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration), ILinearFogSource
 {
@@ -21,7 +21,7 @@ internal sealed class DotaLightInfoHelper(IHelperOwner owner, HelperDeclaration 
         var time = isNight ? "night" : "day";
         var colorKey = isInspectorView ? $"inspector_view_fog_color_{time}" : $"fog_color_{time}";
 
-        // Only the color and the distances are given, the rest of the fog stays as no fog has it
+        // Only the color and the distances are set, the rest of the fog keeps the values of LinearFog.None
         var fog = LinearFog.None;
 
         if (ValueParsing.TryParseColor(GetStringKey(colorKey), out var color))
@@ -29,7 +29,7 @@ internal sealed class DotaLightInfoHelper(IHelperOwner owner, HelperDeclaration 
             fog = fog with { Color = color.ToLinearColor().AsVector3() };
         }
 
-        // The inspector view always fogs the same distances
+        // The inspector view uses fixed fog distances
         return isInspectorView
             ? fog with { Start = 1200f, End = 4000f }
             : fog with { Start = GetFloatKey($"fog_start_{time}"), End = GetFloatKey($"fog_end_{time}") };

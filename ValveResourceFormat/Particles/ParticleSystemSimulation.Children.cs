@@ -23,9 +23,9 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Restarts <paramref name="numberOfChildren"/> of the direct children tagged with
-        /// <paramref name="groupId"/>, rounded up, picked at random, and stops the rest of the group with
-        /// their particles removed. Children in other groups are untouched.
+        /// Restarts <paramref name="numberOfChildren"/>, rounded up, randomly picked direct children tagged
+        /// with <paramref name="groupId"/>. The rest of the group stops and has its particles removed.
+        /// Children in other groups are untouched.
         /// </summary>
         internal void ChooseRandomChildrenInGroup(int groupId, float numberOfChildren)
         {

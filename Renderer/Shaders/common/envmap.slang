@@ -99,8 +99,8 @@ float GetEnvMapNormalization(float rough, float bakedLuma, vec3 irradiance)
     return min(GetLuma(irradiance) / bakedLuma, ceiling);
 }
 
-// Lightmapped non-metals switch from the environment maps to the lightmap's own lighting as their
-// roughness goes from 0.2 to 0.3, as a bias and scale on roughness.
+// Lightmapped non-metals switch from the environment maps to the lightmap lighting as the
+// roughness goes from 0.2 to 0.3. Stored as a bias and scale on roughness.
 const vec2 LightmapReflectionRoughnessRange = vec2(-0.2 / (0.3 - 0.2), 1.0 / (0.3 - 0.2));
 
 // How far the reflection stays toward the mirror direction rather than the normal, from 1 for a mirror to 0
@@ -111,7 +111,7 @@ float GetDominantReflectionFactor(float roughnessSquared)
     return smoothness * (sqrt(smoothness) + roughnessSquared);
 }
 
-// The reflection bent toward the normal as the surface gets rougher, where most of what it reflects comes from
+// The reflection direction bent toward the normal as the surface gets rougher, to point where most of the reflected light comes from
 vec3 GetDominantReflectionDirection(MaterialProperties_t mat, vec3 reflectionNormal)
 {
     vec3 R = reflect(-mat.ViewDir, reflectionNormal);
@@ -164,7 +164,7 @@ EnvBRDF_t EnvBRDF(vec3 specColor, float perceptualRoughness, vec3 N, vec3 V, flo
         brdf.SingleScatter = mix(brdf.SingleScatter, clothReflectance, clothMask);
     }
 
-    // What a single bounce misses, fed back through the average Fresnel of a Schlick lobe.
+    // Energy missing from a single bounce, fed back through the average Fresnel of a Schlick lobe.
     float energyMissing = 1.0 - lut.y;
     vec3 averageFresnel = specColor + (vec3(1.0) - specColor) * (1.0 / 21.0);
 
@@ -205,7 +205,7 @@ EnvBRDF_t EnvBRDF(vec3 specColor, float perceptualRoughness, vec3 N, vec3 V, flo
 vec3 GetCorrectedSampleCoords(vec3 R, vec3 reflectionNormal, EnvMapData envData, vec3 envMapLocalPos, float roughness)
 {
     #if (ENV_SPECULAR_SIMPLE)
-        // The point the reflection hits in the box, not its direction, is what the normal pulls on,
+        // The normal is mixed with the point the reflection hits in the box, not with its direction,
         // so the parallax correction stays until the surface is fully rough
         vec3 simpleLocalReflection = mat4x3(envData.WorldToLocal) * vec4(R, 0.0);
         vec3 simpleHit = simpleLocalReflection;
@@ -271,7 +271,7 @@ void AddEnvMapSample(inout vec3 envMap, inout vec4 normalizationSH, EnvMapData e
     normalizationSH += envData.NormalizationSH * weight;
 }
 
-// The index of the environment map picked for the whole object, when it has none
+// Index stored for an object that has no environment map picked
 #define NO_ENV_MAP 0xFFFFu
 
 bool ObjectHasEnvMap()
@@ -311,7 +311,7 @@ vec3 SampleObjectEnvMap(vec3 R, vec3 reflectionNormal, float perceptualRoughness
     // Parallax corrected against the box, giving way to the normal as the surface gets rougher
     vec3 coords = normalize(mix(boxIntersection, reflectionNormal, sqrt(perceptualRoughness)));
 
-    // The tint of the map scales what it reflects
+    // The environment map tint scales the sampled reflection
     return textureLod(g_tEnvironmentMap, vec4(coords, envData.ArrayIndex), lod).rgb * envData.Color;
 }
 
@@ -414,9 +414,8 @@ vec3 BlendEnvMaps(vec3 R, float perceptualRoughness, float lod)
 }
 
 #if (ENV_SPECULAR_SCHLICK)
-// The environment map picked for the object. The reflection is not bent toward the normal by the roughness. Its mip
-// is the one that the blur asks for, or the one that matches the texel footprint of the reflection if that is coarser,
-// and never coarser than the 4 by 4 mip.
+// The environment map picked for the object. The reflection is not bent toward the normal by the roughness.
+// The mip is blurLod, or footprintLod when that is coarser, and never coarser than the 4 by 4 mip.
 vec3 GetProbeReflection(MaterialProperties_t mat)
 {
     if (g_vEnvMapSizeConstants.y == 0.0)

@@ -30,7 +30,7 @@ public class PlayerMovement : IPlayerController
         }
     }
 
-    // Movement constants from Source engine (movevars_shared.cpp)
+    // Default values of the movement convars
     private const float GravityValue = 800f;              // sv_gravity
     private const float FrictionValue = 5.2f;             // sv_friction
     private const float StopSpeedValue = 80f;             // sv_stopspeed
@@ -47,7 +47,7 @@ public class PlayerMovement : IPlayerController
 
     // A hard landing lowers the max speed and the next jump, sv_bhop_time_window around it is a perfect hop
     private const float LandingPenaltyPerSpeed = 0.0005f;
-    private const float LandingSpeedRecoveryRate = 1.1111894f; // Valve pulled this out of their ass, literally
+    private const float LandingSpeedRecoveryRate = 1.1111894f;
     private const float LandingJumpRecoveryRate = 0.6f;
     private const double BhopWindowTicks = 0.25;
 
@@ -228,7 +228,7 @@ public class PlayerMovement : IPlayerController
     /// <inheritdoc/>
     public Vector3 ViewForward => Input.Camera.Forward;
 
-    // Buttons seen since the entity tick last collected them, and what it collected that time. Frames
+    // Buttons pressed since the last entity tick collected them, and the buttons that tick collected. Frames
     // are folded together rather than replaced so a tap between two ticks survives to be reported.
     private TrackedKeys PendingButtons;
     private TrackedKeys HeldButtons;
@@ -401,8 +401,8 @@ public class PlayerMovement : IPlayerController
             Velocity = Input.Velocity;
             Initialize = false;
 
-            // Nothing pressed while the camera was flying was pressed at anything in the world, and a key
-            // held across the switch is not a fresh press either, so start from what is down right now
+            // Presses made while the camera was flying do not count, and neither does a key held across
+            // the switch, so start from the keys that are down right now
             PendingButtons = Input.Keys;
             HeldButtons = Input.Keys;
             LastCollectedButtons = Input.Keys;
@@ -624,7 +624,7 @@ public class PlayerMovement : IPlayerController
             return;
         }
 
-        // CBasePlayer::UpdateStepSound
+        // Count down to the next step sound
         StepSoundTime = Math.Max(StepSoundTime - deltaTime, 0f);
         if (StepSoundTime > 0f)
         {
@@ -992,7 +992,6 @@ public class PlayerMovement : IPlayerController
 
             SnapToGround(ref position, trace, snapDownOnly: true);
 
-            // Feed downward stair snaps into the view smoothing
             SmoothStep(position.Z - preSnapZ);
         }
     }

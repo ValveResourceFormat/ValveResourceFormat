@@ -4,8 +4,8 @@ namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
     /// Gives each new particle the hitbox, or bone, of the model a control point carries that is
-    /// closest to it, and a place in that box, optionally moving the particle there. Without the
-    /// closest point option the box is the one whose origin is nearest and the place is random.
+    /// closest to it, and a point in that box, optionally moving the particle there. Without the
+    /// closest point option the box is the one whose origin is nearest and the point is random.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_SetHitboxToClosest">C_INIT_SetHitboxToClosest</seealso>
     class SetHitboxToClosest : ParticleFunctionInitializer

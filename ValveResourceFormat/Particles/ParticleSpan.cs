@@ -53,9 +53,8 @@ namespace ValveResourceFormat.Particles
         internal ParticleSpan WithEnd(int end) => new(buffer, start, end - start);
 
         /// <summary>
-        /// Enumerates the span block by block of four by storage index, the unit a varying random input
-        /// draws once for, as <c>foreach (var (offset, block) in span.Blocks())</c>, each block with its
-        /// offset in the span.
+        /// Enumerates the span in blocks of four by storage index, as <c>foreach (var (offset, block) in span.Blocks())</c>,
+        /// each block with its offset in the span. A varying random input draws once per block.
         /// </summary>
         internal BlockEnumerator Blocks() => new(this);
 
@@ -71,8 +70,8 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Evaluates two vector inputs for every particle in the span into scratch columns, as a function
-        /// that sets up the first and then the second, and evaluates them in that order in each block.
+        /// Evaluates two vector inputs for every particle in the span into scratch columns. Prepares the
+        /// first and then the second, then evaluates them in that order in each block.
         /// </summary>
         internal void FillVectorInputs(IVectorProvider first, IVectorProvider second, ParticleSystemState particleSystemState,
             out Span<Vector3> firstValues, out Span<Vector3> secondValues)
@@ -88,11 +87,11 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Enumerates the blocks of four a function walks its vector inputs in, as
+        /// Enumerates the blocks of four in which vector inputs are evaluated, as
         /// <c>foreach (var (offset, block, lane) in span.InputBlocks())</c>, each block with its offset in
-        /// the span and the lane its first particle reads. The blocks are taken by storage index, or with
-        /// <paramref name="blocksFromStart"/> from the span's first particle, as a function counts them
-        /// for inputs it set up from the first block of the collection.
+        /// the span and the lane its first particle reads. The blocks are taken by storage index. With
+        /// <paramref name="blocksFromStart"/> they are counted from the span's first particle, for inputs
+        /// prepared from the first block of the collection.
         /// </summary>
         internal InputBlockEnumerator InputBlocks(bool blocksFromStart = false) => new(this, blocksFromStart);
 
@@ -129,7 +128,7 @@ namespace ValveResourceFormat.Particles
             }
         }
 
-        /// <summary>Walks a span in the blocks of four a function evaluates its vector inputs in.</summary>
+        /// <summary>Walks a span in the blocks of four in which vector inputs are evaluated.</summary>
         internal struct InputBlockEnumerator
         {
             private readonly ParticleSpan span;

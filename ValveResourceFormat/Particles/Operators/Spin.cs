@@ -31,8 +31,8 @@ namespace ValveResourceFormat.Particles.Operators
         /// turn per second). Strength scales the rate, and a zero result spins nothing. With a stop time,
         /// the step decays linearly to 0 over that fraction of the particle's lifetime; without one, a
         /// step longer than a turn wraps. The minimum rate, which strength does not scale, floors the
-        /// step either way. The angle itself is kept within one turn either side of 0, except while the
-        /// step is one the drawing layer blends back from, so the blend never crosses a wrap.
+        /// step either way. The angle is wrapped to within one turn either side of 0, except while
+        /// renderers blend from the previous step, so the blend never crosses a wrap.
         /// </summary>
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {

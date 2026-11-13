@@ -1103,7 +1103,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     private ExceptionDispatchInfo? PrewarmFailure;
 
     /// <summary>Runs the warm-up loading is waiting on, if any, and reports whether it did. Called by the
-    /// render loop thread, which is the one the driver has to see the draws come from.</summary>
+    /// render loop thread, because the driver has to see the draws come from that thread.</summary>
     public bool TryPrewarm()
     {
         if (!PrewarmPending)
@@ -1266,7 +1266,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         GL.LoadBindings(provider);
     }
 
-    /// <summary>Captures what the viewer exports as an image, which by default is the frame the window shows.</summary>
+    /// <summary>Captures the image the viewer exports. By default that is the frame the window shows.</summary>
     protected virtual SkiaSharp.SKBitmap? ReadPixelsToBitmap() => ReadWindowPixels();
 
     internal SkiaSharp.SKBitmap? CaptureFrame() => ReadPixelsToBitmap();

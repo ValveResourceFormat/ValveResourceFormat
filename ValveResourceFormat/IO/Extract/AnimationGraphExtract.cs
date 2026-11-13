@@ -566,9 +566,9 @@ public partial class AnimationGraphExtract : IDisposable
     private const long InvalidEditorNodeId = 0xFFFFFFFF;
 
     /// <summary>
-    /// Fields naming a node's inputs. animgraph1 names the source node alone, animgraph19 wraps it
-    /// in a connection alongside the output it reads, so a node carries one vocabulary or the other
-    /// and both are tried against every node.
+    /// Fields naming a node's inputs. animgraph1 names the source node alone. animgraph19 wraps it
+    /// in a connection alongside the output it reads. A node uses one form or the other, so every
+    /// field is tried against every node.
     /// </summary>
     private static readonly string[] EditorChildFields =
     [
@@ -1105,7 +1105,7 @@ public partial class AnimationGraphExtract : IDisposable
 
     private KVObject ExtractParameterID(KVObject? paramHandle, bool requireFloat = false)
     {
-        // Older graphs omit the handle where the parameter is optional, same as one bound to nothing.
+        // Older graphs omit the handle where the parameter is optional. It is written as id -1.
         if (paramHandle == null)
         {
             return MakeNodeIdObjectValue(-1);
@@ -2679,7 +2679,6 @@ public partial class AnimationGraphExtract : IDisposable
             return CreateBlendMotionNode(compiledMotionNode, motionParamIds, idMap);
         }
 
-        // Default fallback
         var defaultNode = MakeNode("CSequenceAnimNode");
         defaultNode.Add("m_sName", compiledMotionNode.GetStringProperty("m_name") ?? "Unnamed");
         defaultNode.Add("m_sequenceName", "");
@@ -2696,7 +2695,7 @@ public partial class AnimationGraphExtract : IDisposable
     /// Writes an animation node's authored name, which the compiled graph carries under a different key.
     /// A node with no name keeps a placeholder.
     /// </summary>
-    /// <returns>The name written, which a caller that derives more from it can read back.</returns>
+    /// <returns>The name written, for callers that derive more from it.</returns>
     private static string AddNodeName(KVObject node, object value)
     {
         var name = value.ToString() ?? "Unnamed";

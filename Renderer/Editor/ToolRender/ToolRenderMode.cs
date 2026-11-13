@@ -100,7 +100,7 @@ public enum ToolRenderMode
     PickProxy,
 }
 
-/// <summary>What a <see cref="ToolRenderMode"/> draws with.</summary>
+/// <summary>Drawing flags of a <see cref="ToolRenderMode"/>.</summary>
 [Flags]
 public enum ToolRenderModeFlags
 {
@@ -135,7 +135,7 @@ public enum ToolRenderModeFlags
     ThickLines = 0x100,
 }
 
-/// <summary>Where the shapes of each mode are drawn, in the order the layers are drawn.</summary>
+/// <summary>Draw layers of the shapes of each mode, in drawing order.</summary>
 public enum ToolRenderLayer
 {
     /// <summary>Opaque, hidden by the scene.</summary>
@@ -208,7 +208,7 @@ public static class ToolRenderModes
         ToolRenderModeFlags.NoZ, // PickProxy
     ];
 
-    /// <summary>Gets what a mode draws with.</summary>
+    /// <summary>Gets the drawing flags of a mode.</summary>
     /// <param name="mode">The mode.</param>
     /// <returns>The flags of the mode.</returns>
     public static ToolRenderModeFlags GetFlags(ToolRenderMode mode) => Flags[(int)mode];
@@ -219,7 +219,7 @@ public static class ToolRenderModes
     public static bool IsSelectionOverlay(ToolRenderMode mode)
         => mode is ToolRenderMode.SelectionOverlay or ToolRenderMode.SelectionOverlayNoCull or ToolRenderMode.SelectionOverlay30;
 
-    /// <summary>Gets the layer shapes drawn with some flags go in.</summary>
+    /// <summary>Gets the layer for shapes drawn with the flags.</summary>
     /// <param name="flags">The flags.</param>
     /// <returns>The layer.</returns>
     public static ToolRenderLayer GetLayer(ToolRenderModeFlags flags)

@@ -17,14 +17,11 @@ internal static class MapAutoPhysTextureGenerator
 
     private static readonly SKTypeface Typeface = LoadTypeface();
 
-    /// <summary>
-    /// Generates a texture with the surface name for auto physics.
-    /// </summary>
     public static SKBitmap GenerateTexture(string surfaceName)
         => GenerateTexture(surfaceName, new SKColor(52, 58, 90), SKColors.White);
 
     /// <summary>
-    /// Generates the texture of a label, such as that of a tools material, an entity volume or a set of collision layers.
+    /// Generates the texture for a label, such as the name of a tools material, an entity volume or a set of collision layers.
     /// </summary>
     /// <param name="label">The label.</param>
     /// <param name="backgroundOpacity">The alpha of the background. The text is always opaque.</param>

@@ -128,7 +128,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     public float Brightness { get; set; } = 1.0f;
 
     /// <summary>Gets or sets the linear intensity a barn, rect or omni2 light reaches <see cref="LinearBrightnessDistance"/>
-    /// units in front of its luminaire, which is what their faces are lit with.</summary>
+    /// units in front of the luminaire. The faces of these lights are lit with it.</summary>
     public float LinearBrightness { get; set; } = 1.0f;
 
     /// <summary>Gets or sets the color temperature in Kelvin that <see cref="Color"/> comes from, or <see langword="null"/>
@@ -235,8 +235,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
     /// <summary>
     /// Gets the factor that turns this light's baked strengths into its intensity. The strengths hold the
-    /// attenuation divided by <see cref="BakedLightIndexScale"/>, and the brightness is stated 100 units
-    /// from the light, which the attenuation terms brighten by <c>l*100 + q*10000</c>.
+    /// attenuation divided by <see cref="BakedLightIndexScale"/>. The brightness is stated 100 units
+    /// from the light, where the attenuation terms brighten it by <c>l*100 + q*10000</c>.
     /// </summary>
     public float BakedStrengthScale
     {
@@ -1230,7 +1230,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         const float ApexCullNearPlane = 0.001f;
         var faceFlags = light.LuminaireShape == -1 ? 0xFFFF0000u | LitInsideNearPlaneFlag : 0xFFFF0000u;
 
-        // For the shaders that shade a rect light as the rectangle or disc it is
+        // Luminaire size and shape flag for the shaders that shade a rect light as a rectangle or disc
         var luminaireHalfSize = Vector2.Zero;
         var luminaireFlags = 0u;
         if (light.Entity == EntityType.Rect)
@@ -1359,11 +1359,11 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             : MathUtils.Saturate(diagonal / (MathF.Sqrt(distanceSq) * tanHalfHorizontalFov));
     }
 
-    /// <summary>The center of the light's bounds, which its distance to the camera is measured to.</summary>
+    /// <summary>The center of the light bounds, the point the distance to the camera is measured to.</summary>
     internal Vector3 BoundsCenter => PrecomputedFieldsValid ? PrecomputedBounds.Center : Position;
 
     /// <summary>
-    /// How much of the light, and of its shadows, is left after fading out with the fraction of the screen its bounds cover.
+    /// How much of the light and of the light shadows is left after fading out with the fraction of the screen the light bounds cover.
     /// </summary>
     /// <param name="screenSize">Result of <see cref="ComputeScreenSize"/>.</param>
     internal (float Light, float Shadow) ComputeScreenSizeFades(float screenSize)
@@ -1526,12 +1526,12 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     #region Gpu face visibility
 
     // Per face verdicts from LightBinner's cull mask readback, kept here because the light reference is
-    // the only identity that survives between frames: the binned slot order is rebuilt every one.
+    // the only identity that survives between frames: the binned slot order is rebuilt every frame.
 
     /// <summary>Disagreeing readbacks before a face loses its shadow. One agreeing readback restores it.</summary>
     private const int GpuVisibilityTtl = 4;
 
-    /// <summary>Faces the countdowns pack into, one byte each. Above the 6 an omni light has.</summary>
+    /// <summary>Faces the countdowns pack into, one byte each. More than the 6 faces of an omni light.</summary>
     private const int GpuVisibilityFaces = 8;
 
     /// <summary>Starts saturated, so a face nothing has measured is lit.</summary>

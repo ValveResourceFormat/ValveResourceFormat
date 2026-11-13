@@ -3,10 +3,9 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// What a tool draws for entities beyond what the game shows: a stand-in for an entity with nothing of its
-/// own to draw, nodes relating entities to each other, and the collision of the world and its entities. The
-/// renderer only draws what the game does, and
-/// leaves the rest to whoever sets <see cref="EntitySystem.ToolVisuals"/>.
+/// Tool-only visuals for entities: a stand-in for an entity with nothing of its own to draw, nodes relating
+/// entities to each other, and the collision of the world and its entities. The renderer only draws what
+/// the game draws and leaves these to whoever sets <see cref="EntitySystem.ToolVisuals"/>.
 /// </summary>
 public interface IEntityToolVisuals
 {
@@ -28,12 +27,12 @@ public interface IEntityToolVisuals
     SceneNode? CreateStandIn(BaseEntity entity, ObjectTypeFlags flags);
 
     /// <summary>
-    /// Builds what the tool draws of some collision, which the game does not draw, such as the tools materials it was
+    /// Builds nodes showing a collision, which the game does not draw, such as the tools materials it was
     /// built from. The nodes are not added to the scene, and are in the space of the collision.
     /// </summary>
     /// <param name="scene">The scene the nodes are for.</param>
     /// <param name="physics">The collision.</param>
-    /// <param name="name">What the nodes are named.</param>
+    /// <param name="name">The name of the nodes.</param>
     /// <param name="entity">The entity the collision belongs to, or <see langword="null"/> for the collision of the world.</param>
     /// <returns>The nodes.</returns>
     IEnumerable<SceneNode> CreateCollisionVisuals(Scene scene, PhysAggregateData physics, string name, BaseEntity? entity);

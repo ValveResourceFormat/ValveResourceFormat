@@ -391,8 +391,8 @@ namespace ValveResourceFormat.IO
         internal IReadOnlyDictionary<int, SkinInfluence[]> DeferredOffsetSkinWeights => SkinWeights.Deferred;
 
         /// <summary>
-        /// Gets the proxy mesh indices compiled without back-solving: no <c>m_FitWeights</c> range names their vertices, and
-        /// every position-driven bone their simulated vertices bind to is fit over another mesh.
+        /// Gets the proxy mesh indices compiled without back-solving: no <c>m_FitWeights</c> range names the mesh vertices, and
+        /// every position-driven bone the simulated mesh vertices bind to is fit over another mesh.
         /// </summary>
         internal IReadOnlySet<int> UnbackSolvedProxyMeshes => SkinWeights.UnbackSolvedMeshes;
 
@@ -502,7 +502,7 @@ namespace ValveResourceFormat.IO
                 Adopt(follow.ChildNode, follow.ParentNode);
             }
 
-            // A twist followed by its reverse is consumed as one link that hangs its end off its orient node.
+            // A twist followed by the reverse twist is consumed as one link that makes the end node a child of the orient node.
             var names = fe.CtrlName;
             var twists = fe.Twists;
             for (var k = 0; k < twists.Length; k++)

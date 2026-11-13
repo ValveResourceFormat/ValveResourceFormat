@@ -4,19 +4,18 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The spline through the nodes of a path entity, in the world: a cubic Bezier between each two nodes, out of
-/// one along its out handle and into the next along its in handle.
+/// The spline through the nodes of a path entity, in the world: a cubic Bezier between each two nodes, leaving
+/// the first node along its <c>OutTangent</c> and entering the next along its <c>InTangent</c>.
 /// </summary>
 internal sealed class PathSpline
 {
     private const string NodesKey = "pathnodes";
     private const string ClosedLoopKey = "closed_loop";
 
-    // A segment is measured with twice as many points each time, until its length changes by less than this part
+    // A segment is measured with twice as many points each time, until the length changes by less than this fraction
     private const float LengthTolerance = 0.01f;
     private const int MaxLengthPoints = 128;
 
-    /// <summary>Gets the length of the spline.</summary>
     public float Length { get; }
 
     private PathSpline(PathParticleRopeNode[] nodes)
@@ -40,10 +39,10 @@ internal sealed class PathSpline
         return nodes.Length >= 2 ? new PathSpline(nodes) : null;
     }
 
-    /// <summary>Reads the nodes of a path, which it keeps in its own space, placed in the world.</summary>
+    /// <summary>Reads the nodes of a path, which are stored in the space of the path entity, and places them in the world.</summary>
     /// <param name="owner">The path entity.</param>
     /// <param name="includeClosingNode">
-    /// Whether a closed path keeps the copy of its first node it ends on, as its spline does.
+    /// Whether a closed path keeps the final node, a copy of the first node, as the spline does.
     /// </param>
     /// <returns>The nodes.</returns>
     public static PathParticleRopeNode[] ReadNodes(IHelperOwner owner, bool includeClosingNode)
@@ -75,7 +74,7 @@ internal sealed class PathSpline
         return placed;
     }
 
-    // The length of the lines through evenly spaced points of the curve, with more points until it settles
+    // Length of the polyline through evenly spaced points of the curve, with more points until the length settles
     private static float MeasureSegment(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3)
     {
         var a = p1 * 3f - p0 - p2 * 3f + p3;

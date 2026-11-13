@@ -187,7 +187,7 @@ public sealed class FgdVariable
     /// <summary>Gets the values of a variable that has a list of them.</summary>
     public List<FgdChoice> Choices { get; internal set; } = [];
 
-    /// <summary>Gets what else is declared of the variable, such as <c>report</c> or <c>group</c>.</summary>
+    /// <summary>Gets the metadata keys declared on the variable, such as <c>report</c> or <c>group</c>.</summary>
     public KVObject Metadata { get; internal set; } = new();
 
     internal FgdVariable Clone()
@@ -209,13 +209,13 @@ public sealed class FgdInputOutput
     /// <summary>Gets the type of the value that goes with it.</summary>
     public FgdInputOutputType Type { get; internal set; }
 
-    /// <summary>Gets whether it is declared as <c>api</c>, which the game declares the type of.</summary>
+    /// <summary>Gets whether it is declared as <c>api</c>, in which case the game declares the type of the value.</summary>
     public bool IsApi { get; internal set; }
 
     /// <summary>Gets the description.</summary>
     public string Description { get; internal set; } = string.Empty;
 
-    /// <summary>Gets what else is declared of it, with the class, file and line it comes from.</summary>
+    /// <summary>Gets the metadata keys declared on it, with the class, file and line it comes from.</summary>
     public KVObject Metadata { get; internal set; } = new();
 
     internal void CopyFrom(FgdInputOutput other)
@@ -230,7 +230,7 @@ public sealed class FgdInputOutput
 
 /// <summary>
 /// A class of an FGD file: an entity class, or one of the other kinds of class the tools declare
-/// the same way.
+/// with the same syntax.
 /// </summary>
 public sealed class FgdClass
 {
@@ -313,7 +313,9 @@ public sealed class FgdClass
     }
 
     /// <summary>
-    /// Adds a variable the way the editor does, where the class may have one of that name already.
+    /// Adds a variable. A variable of the same name already in the class is replaced, or removed when the new one
+    /// is of type <see cref="FgdVariableType.RemoveKey"/>. When both have the same type with a list of values, the
+    /// values of the old one that the new one lacks are kept, as the editor does.
     /// </summary>
     internal void AddVariable(FgdVariable variable)
     {
@@ -384,7 +386,7 @@ public sealed class FgdClass
 public sealed record FgdEntityGroup(string Name, bool StartExpanded);
 
 /// <summary>
-/// A group of the editor that shows or hides the entities of the classes it lists, under a group of its own.
+/// A group of the editor that shows or hides the entities of the classes it lists. It is listed under another group.
 /// </summary>
 /// <param name="Parent">Name of the group it is listed under.</param>
 /// <param name="Name">Name of the group.</param>

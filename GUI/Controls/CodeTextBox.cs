@@ -183,7 +183,7 @@ namespace GUI.Controls
         }
 
         /// <summary>
-        /// Removes what <see cref="ShowException"/> set up, so that the next text is shown normally.
+        /// Removes the header lines and word wrap set by <see cref="ShowException"/>, so that the next text is shown normally.
         /// </summary>
         public void ClearException()
         {

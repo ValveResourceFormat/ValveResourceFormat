@@ -40,14 +40,14 @@ public sealed class SunCascades
     // coverage is small enough that an eighth of it would hug the camera.
     private const float MinHalfExtent = 128f;
 
-    // The most the shadow bias may cover in world units. It is normalized depth, so a deep cascade, such as
-    // one holding a 3D sky, would otherwise hide the shadows of anything close to what it falls on.
+    // The most the shadow bias may cover, in world units. The bias is normalized depth, so a deep cascade, such as
+    // one holding a 3D sky, would otherwise hide shadows close to the surface they fall on.
     private const float MaxWorldBias = 4f;
 
     // The shadow bias of a scene fitted to its bounds, in shadow map texels
     private const float SceneBoundsBiasTexels = 3f;
 
-    // The depth kept around the sphere a scene fitted to its bounds, as a fraction of its radius
+    // Depth margin around the bounding sphere of the scene, as a fraction of its radius
     private const float SceneBoundsDepthMargin = 0.1f;
 
     // Radius steps a scene fitted to its bounds snaps to, in world units
@@ -134,8 +134,8 @@ public sealed class SunCascades
             }
         }
 
-        // A sun pointing straight down leaves no horizontal axis to snap against, and world up is
-        // no use as a reference either, so the frame is completed against forward instead
+        // A sun pointing straight down is parallel to world up and leaves no horizontal axis to snap against,
+        // so the frame is built against the X axis instead
         var upReference = MathF.Abs(sunDir.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitX;
         var right = Vector3.Normalize(Vector3.Cross(sunDir, upReference));
         var up = Vector3.Cross(right, sunDir);
@@ -170,8 +170,8 @@ public sealed class SunCascades
             }
             else
             {
-                // A 3D sky is seen magnified, so both cascades widen with its scale. The outer one by half of it
-                // and the inner one by most of its square root, which keeps their sharpness from drifting too far apart.
+                // A 3D sky is seen magnified, so the cascades widen with skyScale. The outer one by half of skyScale
+                // and the inner ones by 0.75 of its square root, which keeps their sharpness from drifting too far apart.
                 var scale = MathF.Max(cascade == ActiveCount - 1 ? skyScale * 0.5f : MathF.Sqrt(skyScale) * 0.75f, 1f);
 
                 bbox = MathF.Max(baseHalfExtent * extentFractions[cascade], MinHalfExtent) * scale;

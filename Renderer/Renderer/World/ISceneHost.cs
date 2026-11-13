@@ -1,8 +1,8 @@
 namespace ValveResourceFormat.Renderer.World;
 
 /// <summary>
-/// Draws the scenes of the spawn groups loaded into scenes of their own, such as a 3D sky. It only knows scenes,
-/// grouped by their world group, and never the spawn groups that load them.
+/// Draws the scenes that spawn groups load separately from the map scene, such as a 3D sky. It only knows scenes,
+/// grouped by world group, and never the spawn groups that load them.
 /// </summary>
 public interface ISceneHost
 {

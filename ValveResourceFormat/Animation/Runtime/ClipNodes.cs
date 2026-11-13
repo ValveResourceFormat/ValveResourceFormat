@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Animation
             ctx.SetOptionalNodeFromIndex(ResetTimeValueNodeIdx, ref ResetTimeValueNode);
             ctx.SetOptionalNodeFromIndex(PlayInReverseValueNodeIdx, ref PlayInReverseValueNode);
 
-            // DataSlotIdx can be -1 (no clip bound) — leave the node invalid in that case.
+            // DataSlotIdx can be -1 (no clip bound). Leave the node invalid in that case.
             if (DataSlotIdx < 0 || DataSlotIdx >= ctx.Graph.DataSlots.Length)
             {
                 Clip = null;
@@ -45,7 +45,7 @@ namespace ValveResourceFormat.Animation
         SyncTrack? syncTrackWithOffset;
 
         // Whether the clip currently plays backwards. Time still advances forward; pose and event
-        // sampling mirror through (1 - t) (Esoterica AnimationClipNode::CalculateResult).
+        // sampling mirror through (1 - t).
         bool shouldPlayInReverse;
         bool shouldSampleRootMotion = true;
         bool warnedReverseDuringSync;
@@ -56,7 +56,6 @@ namespace ValveResourceFormat.Animation
 
             PlayInReverseValueNode?.Initialize(ctx);
 
-            // Initialize state data
             if (Clip != null)
             {
                 // The exposed duration folds in the speed multiplier so parents see scaled time
@@ -96,7 +95,6 @@ namespace ValveResourceFormat.Animation
 
             Debug.Assert(CurrentTime >= 0f && CurrentTime <= 1f);
 
-            // Handle single frame animations
             if (clip.FrameCount == 1)
             {
                 PreviousTime = 1f;
@@ -374,7 +372,6 @@ namespace ValveResourceFormat.Animation
                 Duration = Clip.Duration;
             }
 
-            // Set the initial time from the parameters
             SetCurrentTimeFromParameters(ctx);
             PreviousTime = CurrentTime;
 
@@ -404,7 +401,6 @@ namespace ValveResourceFormat.Animation
                 CurrentTime = 1f;
             }
 
-            // Handle negative input values
             if (CurrentTime < 0f)
             {
                 CurrentTime = 1f - MathF.Abs(CurrentTime);
@@ -412,7 +408,6 @@ namespace ValveResourceFormat.Animation
 
             Debug.Assert(CurrentTime >= 0f && CurrentTime <= 1f);
 
-            // Invert input time if we are in-reverse
             if (shouldPlayInReverse)
             {
                 CurrentTime = 1f - CurrentTime;
@@ -434,7 +429,6 @@ namespace ValveResourceFormat.Animation
                 ctx.LogWarning(NodeIdx, "Time controlled nodes ignore synchronization!");
             }
 
-            // Should we change the playback direction?
             if (PlayInReverseValueNode != null && shouldPlayInReverse != PlayInReverseValueNode.GetValue(ctx))
             {
                 shouldPlayInReverse = !shouldPlayInReverse;
@@ -456,7 +450,6 @@ namespace ValveResourceFormat.Animation
                 PreviousTime = CurrentTime;
                 SetCurrentTimeFromParameters(ctx);
 
-                // Check for looping
                 if (CurrentTime < PreviousTime)
                 {
                     hasLooped = true;
@@ -559,7 +552,7 @@ namespace ValveResourceFormat.Animation
             base.Instantiate(ctx);
             ctx.SetOptionalNodeFromIndex(PoseTimeValueNodeIdx, ref PoseTimeValueNode);
 
-            // DataSlotIdx can be -1 (no clip bound) — leave the node invalid in that case.
+            // DataSlotIdx can be -1 (no clip bound). Leave the node invalid in that case.
             if (DataSlotIdx < 0 || DataSlotIdx >= ctx.Graph.DataSlots.Length)
             {
                 Clip = null;
@@ -605,13 +598,11 @@ namespace ValveResourceFormat.Animation
 
             var timeValue = PoseTimeValueNode?.GetValue(ctx) ?? UserSpecifiedTime;
 
-            // Optional remap
             if (InputTimeRemapRange.IsSet)
             {
                 timeValue = InputTimeRemapRange.GetPercentageThroughClamped(timeValue);
             }
 
-            // Convert to percentage
             if (UseFramesAsInput)
             {
                 timeValue /= clip.FrameCount - 1;

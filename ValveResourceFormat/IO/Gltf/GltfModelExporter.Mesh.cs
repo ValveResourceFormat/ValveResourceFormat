@@ -566,7 +566,6 @@ public partial class GltfModelExporter
         return exportedMaterial;
     }
 
-    // Copied from ValveResourceFormat.Renderer.SceneAggregate.CreateFragments
     private bool AggregateCreateFragments(ModelRoot exportedModel, Scene scene, VModel model, KVObject aggregateSceneObject, string name)
     {
         var embeddedMeshes = model.GetEmbeddedMeshes().ToList();

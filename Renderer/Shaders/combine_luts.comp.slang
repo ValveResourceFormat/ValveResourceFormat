@@ -23,7 +23,7 @@ void main()
         return;
     }
 
-    // What an identity LUT stores at this voxel: the first voxel is 0 and the last is 1
+    // Value of an identity LUT at this voxel: 0 at the first voxel and 1 at the last
     vec3 vIdentity = vec3(vCoord) / vec3(vDim - 1);
 
     vec3 vColor = vIdentity * g_flIdentityWeight

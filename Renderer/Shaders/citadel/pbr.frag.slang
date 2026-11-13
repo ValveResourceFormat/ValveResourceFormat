@@ -48,7 +48,7 @@ uniform bool g_bMaskVertexColorTint1 = true;
 uniform bool g_bApplyTintToVertexColors = false;
 uniform float g_fVertexColorStrength1 = 1.0;
 
-// Every sampled texture scrolls on its own clock.
+// Scroll speed and quantization of each sampled texture.
 uniform vec2 g_vAlbedoScrollSpeed1 = vec2(0.0);
 uniform float g_flAlbedoScrollQuantize1 = 0.0;
 uniform vec2 g_vNormalAndRoughnessScrollSpeed1 = vec2(0.0);
@@ -160,7 +160,7 @@ uniform float g_flNormalAndRoughnessScrollQuantize1 = 0.0;
     uniform float g_flOverrideBloomAmount1 = 1.0;
 #endif
 
-// How much of each fog the material takes
+// Amount of each fog applied to the material
 uniform float g_flGradientFogAmount = 1.0;
 uniform float g_flCubmapFogAmount = 1.0;
 uniform float g_flVolumeFogAmount = 1.0;
@@ -200,8 +200,8 @@ float GetTintMask(vec2 albedoTexCoord, out float rimLightMask)
 #endif
 }
 
-// The vertex colour goes in either side of the colour correction, which is the
-// difference between tinting the texture and tinting the corrected result.
+// The vertex colour is applied before or after the colour correction, by g_bApplyTintToVertexColors.
+// Before tints the texture, after tints the corrected result.
 vec3 GetCitadelAlbedo(vec3 textureColor, float tintMask)
 {
     float vertexColorAmount = (g_bMaskVertexColorTint1 ? tintMask : 1.0) * g_fVertexColorStrength1;
@@ -443,7 +443,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     ApplySelfIllumFresnel(mat, illumMask, albedo, illumTint);
 
     // Self illumination replaces the albedo rather than adding to it. The deferred pass
-    // re-derives the emissive from the same mask, which is what the second line does.
+    // re-derives the emissive from the same mask, which is what the mat.IllumColor line does.
     float illumAmount = illumMask * saturate(illumScale);
     mat.Albedo = mix(albedo, illumTint, illumAmount);
     mat.IllumColor = mat.Albedo * (illumMask * illumScale);

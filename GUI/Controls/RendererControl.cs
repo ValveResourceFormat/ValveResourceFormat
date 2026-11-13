@@ -436,7 +436,7 @@ partial class RendererControl : UserControl
     public CheckedListBox AddMultiSelection<T>(string name, Action<CheckedListBox>? initializeCallback, Action<IEnumerable<T>> changeCallback, int? height = null)
         => AddMultiSelectionControl(name, initializeCallback, changeCallback, height).CheckedListBox;
 
-    // The items of the list are of one type, which the callback is given the checked ones as
+    // The list items are of type T, and the callback receives the checked ones as T
     public GLViewerMultiSelectionControl AddMultiSelectionControl<T>(string name, Action<CheckedListBox>? initializeCallback, Action<IEnumerable<T>> changeCallback, int? height = null)
     {
         var selectionControl = new GLViewerMultiSelectionControl(name);
@@ -482,7 +482,7 @@ partial class RendererControl : UserControl
     /// <param name="paths">The paths of the items. Each group a path passes through gets an item too.</param>
     /// <param name="changeCallback">Called with the paths of the checked items whenever one changes.</param>
     /// <param name="initiallyChecked">Whether the items start checked.</param>
-    /// <param name="foldGroups">Whether the groups start folded away, but for a lone item at the top, which lists them.</param>
+    /// <param name="foldGroups">Whether the groups start folded away. A lone item at the top stays expanded so it lists the groups.</param>
     public GLViewerTreeSelectionControl AddTreeSelection(string name, IEnumerable<string> paths, Action<IEnumerable<string>> changeCallback, bool initiallyChecked = true, bool foldGroups = false)
         => AddTreeSelection(name, paths, changeCallback, _ => initiallyChecked, foldGroups);
 
@@ -742,7 +742,7 @@ partial class RendererControl : UserControl
 
         void CenterItems(object? sender, EventArgs e)
         {
-            // In the middle of the toolbar, unless the items on either side reach that far, the left ones winning
+            // Centered in the toolbar, unless the left or right items reach that far. The left items win.
             var middle = (toolbar.ClientSize.Width - centeredItems.Width) / 2;
             var left = Math.Max(items.Right, Math.Min(middle, rightItems.Left - centeredItems.Width));
             centeredItems.Location = new Point(left, padding);
@@ -757,7 +757,7 @@ partial class RendererControl : UserControl
         toolbarCenteredItems = centeredItems;
         toolbarRightItems = rightItems;
 
-        // In whichever side of the splitter the viewport is, which preview mode swaps
+        // Added to the splitter panel that holds the viewport. Preview mode swaps the panels.
         var host = glControlContainer.Parent ?? splitContainer.Panel2;
         host.Controls.Add(toolbar);
 

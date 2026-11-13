@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Particles.Constraints
     /// <summary>
     /// Keeps every particle within a distance band around a point that travels along a path with the
     /// particle's age, reaching the end after <c>m_flTravelTime</c> (scaled per particle by
-    /// <c>m_nFieldScale</c>), or at the parameter <c>m_nManualTField</c> holds. The maximum distance
+    /// <c>m_nFieldScale</c>), or at the parameter read from <c>m_nManualTField</c>. The maximum distance
     /// runs from <c>m_flMaxDistance0</c> at the start through <c>m_flMaxDistanceMid</c> to
     /// <c>m_flMaxDistance1</c> at the end. Every maximum is raised to at least the minimum, so the
     /// -1 defaults of the middle and end only mean "same as before" with a negative minimum. Only
@@ -13,8 +13,8 @@ namespace ValveResourceFormat.Particles.Constraints
     /// </summary>
     /// <remarks>
     /// Particles are handled in blocks of four. When any of a block exceeds the largest of the three
-    /// distances, the block is clamped with the maximum distances the last block that did not left
-    /// behind, rather than with each particle's own.
+    /// distances, the block is clamped with the maximum distances left by the last block with
+    /// no such particle, rather than with each particle's own maximum.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ConstrainDistanceToPath">C_OP_ConstrainDistanceToPath</seealso>
     class ConstrainDistanceToPath : ParticleFunctionConstraint

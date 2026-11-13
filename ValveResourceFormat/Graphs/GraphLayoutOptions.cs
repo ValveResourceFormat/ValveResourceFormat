@@ -2,7 +2,7 @@ namespace ValveResourceFormat.Graphs;
 
 /// <summary>
 /// Wall-clock cutoff shared by the refining passes of one island's layout. A default instance
-/// never expires, which is what the unlimited full-quality command runs with.
+/// never expires. The unlimited full-quality command uses it.
 /// </summary>
 readonly struct LayoutDeadline
 {

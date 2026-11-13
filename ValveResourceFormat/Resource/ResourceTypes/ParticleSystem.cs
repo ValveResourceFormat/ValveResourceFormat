@@ -61,8 +61,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>Builds a particle system from the provided keyvalues.</summary>
         /// <param name="data">The particle system definition.</param>
         /// <param name="format">The KV3 format the definition is authored in. Defaults to the
-        /// newest format, which is what a definition built in memory against the current schema
-        /// is; pass an older one only for data that really is authored in it.</param>
+        /// newest format, as used by a definition built in memory against the current schema.
+        /// Pass an older one only for data authored in it.</param>
         public static ParticleSystem Create(KVObject data, KV3ID? format = null)
         {
             var system = new ParticleSystem

@@ -18,7 +18,7 @@ public interface IParticleCollision
     /// <param name="rayEnd">End of the ray.</param>
     /// <param name="position">The nearest hit point, or <paramref name="rayEnd"/> on a miss.</param>
     /// <param name="normal">The surface normal at the hit point, facing the ray, or zero on a miss.</param>
-    /// <param name="fraction">How far along the ray the hit is, from 0 at its start to 1 at its end, which it is on a miss.</param>
+    /// <param name="fraction">How far along the ray the hit is, from 0 at the start to 1 at the end. It is 1 on a miss.</param>
     /// <returns>Whether the ray hit anything.</returns>
     bool TraceRay(Vector3 rayStart, Vector3 rayEnd, out Vector3 position, out Vector3 normal, out float fraction);
 

@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.Renderer.Editor.ToolRender;
 
 /// <summary>
-/// Tool shapes that are part of the scene, such as what an entity's helpers draw while it is not selected. They
+/// Tool shapes that are part of the scene, such as the helper shapes of an entity while it is not selected. They
 /// are culled and shown with the layer they are on, drawn in the tools pass, and picked with the scene.
 /// </summary>
 public sealed class ToolSceneNode : SceneNode
@@ -10,8 +10,8 @@ public sealed class ToolSceneNode : SceneNode
     public ToolGeometry Geometry { get; } = new();
 
     /// <summary>
-    /// Gets or sets whether the shapes are not drawn because what they belong to is selected, and is drawn the
-    /// way it is while selected instead.
+    /// Gets or sets whether the shapes are hidden while their owner is selected. The owner is drawn as a selected
+    /// one instead.
     /// </summary>
     public bool IsHiddenWhileSelected { get; set; }
 
@@ -22,7 +22,7 @@ public sealed class ToolSceneNode : SceneNode
         RenderPasses = CustomRenderPasses.Opaque | CustomRenderPasses.Tools;
     }
 
-    /// <summary>Draws shapes into the node, and fits its bounds to everything it holds.</summary>
+    /// <summary>Draws shapes into the node, and sets the node bounds to the bounds of the geometry.</summary>
     /// <param name="draw">Draws the shapes, in the space of the node.</param>
     public void Draw(Action<ToolRenderContext> draw)
     {

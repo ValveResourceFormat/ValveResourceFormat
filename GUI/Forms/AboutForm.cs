@@ -127,7 +127,7 @@ namespace GUI.Forms
                 downloadButton.Enabled = false;
             }
 
-            // Switching channels would not change what the pending restart installs, or the install in progress
+            // Switching channels would not affect an installed update awaiting restart or an install in progress
             updateChannelComboBox.Enabled = installed == null && !UpdateInstaller.IsInstalling;
 
             if (offer != null && !string.IsNullOrEmpty(offer.ReleaseNotesUrl))

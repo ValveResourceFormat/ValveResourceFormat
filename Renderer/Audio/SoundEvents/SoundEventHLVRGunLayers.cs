@@ -11,8 +11,8 @@ namespace ValveResourceFormat.Renderer.Audio;
 /// <remarks>
 /// The distant layer's authored crossfade ("distant_xfade_start"/"distant_xfade_end") is not modeled - the
 /// per-layer falloff ranges already fade the layers in and out over distance. Each layer is wrapped as an
-/// anonymous "hlvr_default_3d" child (see <see cref="SoundEventHLVRDefault"/>) rather than given its own
-/// sample-provider plumbing, the same way <see cref="SoundEventHLVRAmbientMultiVsnd"/> handles its layers.
+/// anonymous "hlvr_default_3d" child (see <see cref="SoundEventHLVRDefault"/>) instead of adding
+/// sample-provider plumbing to this class, as <see cref="SoundEventHLVRAmbientMultiVsnd"/> does.
 /// </remarks>
 internal sealed class SoundEventHLVRGunLayers : SoundEvent
 {

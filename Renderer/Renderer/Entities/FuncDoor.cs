@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBaseDoor">CBaseDoor</seealso>
 public class FuncDoor : BaseToggle
 {
-    /// <summary>What a <c>func_door</c>'s <c>spawnflags</c> mean.</summary>
+    /// <summary>The <c>spawnflags</c> of a <c>func_door</c>.</summary>
     [Flags]
     public enum SpawnFlag : uint
     {
@@ -76,7 +76,7 @@ public class FuncDoor : BaseToggle
     /// </summary>
     public bool ForceClosed { get; private set; }
 
-    /// <summary>Gets where the door is in its travel.</summary>
+    /// <summary>Gets the travel state: at either end, or moving towards one.</summary>
     protected ToggleState State { get; set; }
 
     /// <summary>Gets the place the door rests when closed.</summary>
@@ -100,7 +100,7 @@ public class FuncDoor : BaseToggle
     private MoveDoneFunction moveDoneFunction;
     private string? chainTarget;
 
-    // A touch that sets the door going is the last until it comes back
+    // After a touch sets the door going, touches are ignored until the door comes back
     private bool isTouchArmed;
 
     // Stops chained doors passing a touch back

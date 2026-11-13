@@ -41,14 +41,14 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Whether the input takes its random draws block by block as the function walks its particles,
-        /// rather than when the function sets its inputs up.
+        /// Whether the input takes random draws block by block while the function walks the particles,
+        /// rather than when the function prepares the inputs.
         /// </summary>
         bool DrawsPerBlock => false;
 
         /// <summary>
-        /// Writes the values of <paramref name="block"/>, the up to four particles one evaluation of the
-        /// input covers, the first of which reads lane <paramref name="lane"/> of it. Only an input that
+        /// Writes the values of <paramref name="block"/>, up to four particles covered by one evaluation of the
+        /// input. The first particle of the block reads lane <paramref name="lane"/>. Only an input that
         /// <see cref="DrawsPerBlock"/> fills a block differently from any other span.
         /// </summary>
         void FillBlock(ParticleSpan block, int lane, ParticleSystemState renderState, Span<Vector3> values)
@@ -87,10 +87,10 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Sets the input up as <see cref="Prepare(ParticleSpan, ParticleSystemState)"/> does, for a function
-        /// that sets it up over <paramref name="evaluated"/>, which contains <paramref name="particles"/>,
-        /// such as every live particle. Returns the column of <paramref name="particles"/>, each of them
-        /// reading its own value.
+        /// Sets the input up over <paramref name="evaluated"/>, which contains <paramref name="particles"/>,
+        /// such as every live particle, as <see cref="Prepare(ParticleSpan, ParticleSystemState)"/> does.
+        /// Returns the slice of the column for <paramref name="particles"/>, where each particle reads
+        /// its own value.
         /// </summary>
         Span<Vector3> Prepare(ParticleSpan particles, ParticleSpan evaluated, ParticleSystemState renderState)
             => Prepare(evaluated, renderState).Slice(particles.Start - evaluated.Start, particles.Length);
@@ -197,7 +197,7 @@ namespace ValveResourceFormat.Particles
     {
         private readonly Vector3 vectorAttributeScale = Vector3.One;
 
-        /// <summary>The velocity at its own scale, which an input defaulting to this type reads.</summary>
+        /// <summary>The velocity with a scale of one, for an input that defaults to this type.</summary>
         public ParticleVelocityVectorProvider()
         {
         }
@@ -230,8 +230,8 @@ namespace ValveResourceFormat.Particles
     }
 
     /// <summary>
-    /// PVEC_TYPE_NAMED_VALUE. The system's vector named value, as it stands now when following it and
-    /// as the system started with otherwise. Zero when it has none.
+    /// PVEC_TYPE_NAMED_VALUE. The system's vector named value: the current one when following it,
+    /// otherwise the one the system started with. Zero when it has none.
     /// </summary>
     readonly struct NamedValueVectorProvider : IVectorProvider
     {
@@ -512,8 +512,8 @@ namespace ValveResourceFormat.Particles
 
     /// <summary>
     /// PVEC_TYPE_FLOAT_INTERP_CLAMPED, PVEC_TYPE_FLOAT_INTERP_OPEN and PVEC_TYPE_FLOAT_INTERP_GRADIENT.
-    /// A float input placed in its input range, then blended between the two outputs or looked up in
-    /// the gradient.
+    /// A float input mapped over the range from input0 to input1, then blended between the two
+    /// outputs or looked up in the gradient.
     /// </summary>
     readonly struct FloatInterpolationVectorProvider : IVectorProvider
     {

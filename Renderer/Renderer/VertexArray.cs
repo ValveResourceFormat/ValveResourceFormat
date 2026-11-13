@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public static class VertexArray
     {
-        /// <summary>What a VAO supplies: location bitmasks, and the names when the geometry knows them.</summary>
+        /// <summary>Attribute location bitmasks of a VAO, and the attribute names when the geometry declares them.</summary>
         private record struct Supplies(int Locations, int AsInteger, string[]? Names);
 
         private static readonly Dictionary<int, Supplies> SuppliesByVao = [];

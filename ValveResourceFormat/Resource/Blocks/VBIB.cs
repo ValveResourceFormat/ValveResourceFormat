@@ -482,8 +482,8 @@ namespace ValveResourceFormat.Blocks
         */
 
         /// <summary>
-        /// Determines whether two vertex buffers hold the same attributes at the same offsets, which is
-        /// what makes their vertices interchangeable.
+        /// Determines whether two vertex buffers hold the same attributes at the same offsets.
+        /// Such buffers have interchangeable vertices.
         /// </summary>
         public static bool HasSameLayout(OnDiskBufferData a, OnDiskBufferData b)
         {

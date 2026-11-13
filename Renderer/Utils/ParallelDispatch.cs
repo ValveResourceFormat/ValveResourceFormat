@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Utils;
 /// </summary>
 public interface IParallelWork
 {
-    /// <summary>Runs one item, alongside other indices. Touch only what this index owns.</summary>
+    /// <summary>Runs one item, alongside other indices. Must not touch state shared with other indices.</summary>
     /// <param name="index">Item to run, within the count passed to <see cref="ParallelDispatch.Run"/>.</param>
     void Execute(int index);
 }

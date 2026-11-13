@@ -25,8 +25,8 @@ public class NmClipExtract
     private int? sharedSourceStartFrame;
 
     /// <summary>
-    /// Whether this clip writes its frames to a file of its own, because another clip compiled from
-    /// the same source animation writes that file and this clip's frames are not part of it.
+    /// Whether this clip writes its frames to a separate file. Another clip compiled from the same
+    /// source animation writes the shared file, and the frames of this clip are not part of it.
     /// </summary>
     private bool separateFromSharedSource;
 
@@ -158,7 +158,7 @@ public class NmClipExtract
     /// <summary>
     /// Points clips that were cut from the same source animation at one file. The longest clip of
     /// each source writes it, and every clip whose frames are a run of that clip's frames reads its
-    /// range from it. A clip that is no such run writes its frames to a file of its own, so that no
+    /// range from it. A clip that is no such run writes its frames to a separate file, so that no
     /// two clips write the same file.
     /// </summary>
     internal static void ShareSourceAnimations(IEnumerable<NmClipExtract> extracts)
@@ -238,9 +238,10 @@ public class NmClipExtract
     }
 
     /// <summary>
-    /// Whether two clips can share a source animation: neither is additive, which is generated against
-    /// frames of the whole source before the range is cut, they play at one frame rate, which would
-    /// otherwise need the duration overridden, and their animations drive the same tracks.
+    /// Whether two clips can share a source animation. Neither may be additive, since an additive is
+    /// generated against frames of the whole source before the range is cut. They must play at one
+    /// frame rate, since otherwise the duration would need overriding. Their animations must drive
+    /// the same tracks.
     /// </summary>
     private static bool HasSameLayout(AnimationClip clip, AnimationClip other)
     {
@@ -380,8 +381,8 @@ public class NmClipExtract
     /// </summary>
     /// <param name="skeletonSourceFiles">The content files every referenced skeleton was compiled from.</param>
     /// <param name="skeletonSourcesKnown">
-    /// Whether every skeleton the clip references was loaded. A skeleton that was not leaves its own
-    /// source files out of <paramref name="skeletonSourceFiles"/>.
+    /// Whether every skeleton the clip references was loaded. The source files of a skeleton that
+    /// was not loaded are missing from <paramref name="skeletonSourceFiles"/>.
     /// </param>
     private (string? DocumentFileName, string? SourceFileName) FindAuthoredSourceFiles(HashSet<string> skeletonSourceFiles, bool skeletonSourcesKnown)
     {
@@ -563,7 +564,6 @@ public class NmClipExtract
         return kvDocEventTrack;
     }
 
-    // Returns a full event track.
     private static KVObject BuildDocEventBasedOnEventClass(KVObject kvCompiledEvent, string className, bool isSyncTrack)
     {
         // From testing one event track in doc seems to correspond to one event in compiled asset

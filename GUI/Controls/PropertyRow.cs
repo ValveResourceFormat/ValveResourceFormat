@@ -17,7 +17,7 @@ internal sealed class PropertyRow : Panel
     /// <summary>The controls that edit the value, beside the name, one for each component of a vector.</summary>
     public IReadOnlyList<Control> Editors => editors;
 
-    /// <summary>Where the name sits within its half of the row.</summary>
+    /// <summary>Alignment of the name within its half of the row.</summary>
     public System.Drawing.ContentAlignment NameAlign
     {
         get => nameLabel?.TextAlign ?? System.Drawing.ContentAlignment.MiddleLeft;
@@ -101,7 +101,7 @@ internal sealed class PropertyRow : Panel
             return;
         }
 
-        // Right now sits a gap short of the first trailing control, or at the edge without any
+        // The right edge is a gap short of the first trailing control, or at the edge without any
         var available = Math.Max(0, right - left - gap * (editors.Length - 1));
 
         for (var i = 0; i < editors.Length; i++)

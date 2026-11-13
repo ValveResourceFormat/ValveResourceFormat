@@ -45,7 +45,7 @@ namespace ValveResourceFormat.Renderer
             return delta;
         }
 
-        // Root motion is measured between the times the pose was sampled at, so whatever moves the pose moves it.
+        // Root motion is measured between consecutive pose sample times, so seeking contributes as well as playback.
         private float sampledTime;
         private bool hasSampledTime;
 

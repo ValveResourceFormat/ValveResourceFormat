@@ -15,7 +15,7 @@ using VWorldNode = ValveResourceFormat.ResourceTypes.WorldNode;
 namespace ValveResourceFormat.IO;
 
 /// <summary>
-/// Exports the models world nodes place, the entities lumps declare, and the lights they carry.
+/// Exports the models placed by world nodes, the entities declared in entity lumps, and the lights of those entities.
 /// </summary>
 public partial class GltfModelExporter
 {

@@ -114,7 +114,7 @@ namespace ValveResourceFormat.Renderer
         /// Moves the jiggle bones and their descendants in a pose that holds the animated transforms.
         /// </summary>
         /// <param name="pose">Model space transforms of the bones.</param>
-        /// <param name="modelToWorld">The transform of the model, which gives gravity its direction and the model's own movement its effect.</param>
+        /// <param name="modelToWorld">The transform of the model. It sets the direction of gravity and the effect of the model's own movement.</param>
         /// <param name="timeStep">Seconds since the last evaluation, above zero.</param>
         public void Evaluate(Matrix4x4[] pose, Matrix4x4 modelToWorld, float timeStep)
         {
@@ -349,8 +349,8 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Keeps the angle of the tip toward <paramref name="side"/> within a range. At a limit the tip slides onto the limit
-        /// plane, which holds <paramref name="axis"/>, friction slows its motion along that plane and its velocity off the plane bounces.
+        /// Keeps the angle of the tip toward <paramref name="side"/> within a range. At a limit the tip is moved onto the limit
+        /// plane, which contains <paramref name="axis"/>. Friction slows the tip along that plane, and the tip velocity normal to the plane bounces.
         /// </summary>
         private static void ApplyAngleRange(ref State state, Vector3 goalPosition, Vector3 forward, Vector3 side, Vector3 axis,
             float min, float max, float friction, float bounce)
@@ -416,8 +416,8 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Pushes the tip out of the collision shapes of the soft body that overlap the capsule of the bone. The capsule
-        /// stands in the bone frame of the tip before any push, and a push moves the tip by its depth scaled by how
-        /// much farther the tip is from the bone origin than the contact. Afterwards the tip velocity loses its part
+        /// is placed in the bone frame of the tip before any push. A push moves the tip by the overlap depth, scaled by how
+        /// much farther the tip is from the bone origin than the contact. Afterwards the tip velocity loses its component
         /// along the total push.
         /// </summary>
         private static void Collide(FeModel.FeJiggleBone jiggle, ref State state, in Goal goal, in SimulationContext context)

@@ -34,7 +34,7 @@ namespace GUI.Utils
 
             var exception = new AssertFailedException(text);
 
-            // Asserts fire mid update, while the graph that tripped them can still describe itself
+            // An assert can fire in the middle of an animation graph update. Attach the state of the updating graph to the exception.
             if (AnimationGraph.DescribeUpdatingGraph() is { } graphState)
             {
                 exception.Data[AnimationGraph.ExceptionDataKey] = graphState;

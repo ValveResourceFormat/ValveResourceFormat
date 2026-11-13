@@ -125,7 +125,6 @@ namespace GUI.Forms
                 return;
             }
 
-            // Show loading state
             using var _ = filterKeyComboBox.SuspendPainting();
             filterKeyComboBox.Items.Clear();
             filterKeyComboBox.Items.Add("Loading asset info\u2026");

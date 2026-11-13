@@ -149,7 +149,6 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
         return true;
     }
 
-    // Convert to pixel coordinates
     vec2 pixelMin = uvMin * vec2(g_nDepthPyramidWidth, g_nDepthPyramidHeight);
     vec2 pixelMax = uvMax * vec2(g_nDepthPyramidWidth, g_nDepthPyramidHeight);
     vec2 pixelSize = ceil(pixelMax) - floor(pixelMin);
@@ -157,7 +156,6 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     // Calculate mip level based on coverage
     int mipLevel = min(g_nDepthPyramidMaxMip, int(ceil(log2(max(max(pixelSize.x, pixelSize.y), 1.0)))));
 
-    // Convert pixel coords to texel coords at chosen mip level
     ivec2 texelMin = ivec2(pixelMin) >> mipLevel;
     ivec2 texelMax = ivec2(pixelMax) >> mipLevel;
 
@@ -169,7 +167,6 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
         texelMax = ivec2(pixelMax) >> mipLevel;
     }
 
-    // Clamp to valid texel range at this mip level
     ivec2 mipSize = ivec2(max(1, g_nDepthPyramidWidth >> mipLevel), max(1, g_nDepthPyramidHeight >> mipLevel));
     ivec2 maxTexel = mipSize - ivec2(1);
 
@@ -177,7 +174,6 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     texelMin = clamp(texelMin, ivec2(0), maxTexel);
     texelMax = clamp(texelMax, ivec2(0), maxTexel);
 
-    // Sample 4 corners using texelFetch
     float depth0 = texelFetch(g_tDepthPyramid, texelMin, mipLevel).r;
     float depth1 = texelFetch(g_tDepthPyramid, ivec2(texelMax.x, texelMin.y), mipLevel).r;
     float depth2 = texelFetch(g_tDepthPyramid, ivec2(texelMin.x, texelMax.y), mipLevel).r;
@@ -243,7 +239,6 @@ vec3 unpackAABB(vec3 min, vec3 max, uint packedVec)
 
 vec4 unpackSByteVector(uint packedData)
 {
-    // Extract each byte
     uint b0 = (packedData >> 0u) & 0xFFu;
     uint b1 = (packedData >> 8u) & 0xFFu;
     uint b2 = (packedData >> 16u) & 0xFFu;

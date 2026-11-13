@@ -75,7 +75,7 @@ public readonly struct EntityInputData
         return new Vector3(components);
     }
 
-    /// <summary>Reads the parameter as an "R G B" or "R G B A" color, which is its red, green and blue as 0-255.</summary>
+    /// <summary>Reads the parameter as an "R G B" or "R G B A" color, with red, green and blue as 0-255.</summary>
     /// <returns>The color, or null when the parameter is not three or four numbers.</returns>
     public Vector3? Color()
     {

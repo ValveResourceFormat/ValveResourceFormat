@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// Everything <see cref="EntityFactory"/> needs to spawn an entity: its keyvalues and the spawn group spawning it.
 /// </summary>
 /// <param name="Data">The entity's keyvalues, as authored in the map.</param>
-/// <param name="SpawnGroup">The spawn group spawning the entity, whose scene its nodes render into, whose placement moves its authored origin and angles, and whose layers its nodes are on.</param>
+/// <param name="SpawnGroup">The spawn group spawning the entity. The entity's nodes render into the scene of the group and are on the layers of the group. The placement of the group moves the authored origin and angles.</param>
 public readonly record struct EntitySpawnInfo(Entity Data, SpawnGroup SpawnGroup);
 
 /// <summary>
@@ -60,7 +60,7 @@ public abstract class BaseEntity
     /// </summary>
     public Entity? SpawnData { get; }
 
-    /// <summary>Gets what the spawning group put in place of the markers in this entity's names.</summary>
+    /// <summary>Gets the name fixup of the spawn group, which replaces the markers in this entity's names.</summary>
     public EntityNameFixup NameFixup { get; } = EntityNameFixup.None;
 
     /// <summary>
@@ -111,7 +111,7 @@ public abstract class BaseEntity
     // A null MoveParent alone cannot tell unresolved from having no parent
     internal bool IsMoveParentResolved { get; private set; }
 
-    // What the move parent frame is: the parent entity, or an attachment point or bone of its model
+    // Kind of the move parent frame: the parent entity, or an attachment point or bone of its model
     private enum ParentFrameKind
     {
         None,
@@ -177,7 +177,7 @@ public abstract class BaseEntity
             return;
         }
 
-        // Its world pose has to be final before this one is made relative to it
+        // The move parent's world pose has to be final before this entity is made relative to it
         EntitySystem.ResolveMoveParentChain(MoveParent);
 
         if (IsMoveAncestor(MoveParent))
@@ -539,8 +539,8 @@ public abstract class BaseEntity
         => (SpawnFlags & Unsafe.BitCast<TSpawnFlags, uint>(flags)) != 0;
 
     /// <summary>
-    /// Sets up the entity (model, class keyvalues, first think). Called once its spawn group has created all of
-    /// its entities, after its move parent has spawned.
+    /// Sets up the entity (model, class keyvalues, first think). Called once the entity's spawn group has created
+    /// all entities of the group, after the move parent has spawned.
     /// </summary>
     /// <remarks>
     /// An override calls this first: it builds the node from <see cref="CreateRootNode"/> and snaps the entity
@@ -606,7 +606,7 @@ public abstract class BaseEntity
 
     /// <summary>
     /// Whether this entity accepts a touch from <paramref name="other"/>. Refusing keeps the touch link
-    /// from opening, which is where a trigger's filters belong.
+    /// from opening. A trigger's filters belong here.
     /// </summary>
     protected virtual bool AcceptsTouchFrom(BaseEntity other) => true;
 
@@ -628,7 +628,7 @@ public abstract class BaseEntity
     {
     }
 
-    /// <summary>Gets what this entity can do, which the player's use trace checks.</summary>
+    /// <summary>Gets the capability flags of this entity, checked by the player's use trace.</summary>
     public virtual EntityCapability ObjectCaps => EntityCapability.None;
 
     /// <summary>
@@ -866,8 +866,8 @@ public abstract class BaseEntity
     /// <summary>
     /// Pusher physics, run right after this entity's own move. Everything parented to the pusher moves
     /// with it as one body. A player standing on any of it, or overlapped by the new pose, is moved by the
-    /// whole push, cut short only by whatever else is in the way. If that leaves them inside something,
-    /// they block the pusher, which takes its motion back.
+    /// whole push, cut short only by whatever else is in the way. If that leaves the player inside something,
+    /// the player blocks the pusher, and the pusher takes its motion back.
     /// </summary>
     /// <returns>What blocked the push, or <see langword="null"/>.</returns>
     private PlayerEntity? PushPlayer(float moveTime)
@@ -1110,8 +1110,8 @@ public abstract class BaseEntity
             direction = distance > 0f ? push / distance : Vector3.Zero;
         }
 
-        // Slid again from where that left them while they are still inside something: a turn up to three
-        // more times, a straight push once more unless they stand on this very pusher
+        // Slide again from where the push so far left the player while the player is still inside something: a turn up to three
+        // more times, a straight push once more unless the player stands on this very pusher
         var slides = rotational ? 4 : groundRoot != this ? 2 : 1;
 
         for (var slide = 0; slide < slides; slide++)
@@ -1340,7 +1340,7 @@ public abstract class BaseEntity
         _ => Matrix4x4.Identity,
     };
 
-    // The frame the drawn transform is in this frame
+    // The parent frame the drawn transform is relative to, as of this frame
     private Matrix4x4 GetParentRenderFrame() => parentFrameKind switch
     {
         ParentFrameKind.Entity => MoveParent!.renderFrame,
@@ -1402,7 +1402,7 @@ public abstract class BaseEntity
         node.EntityData = Data;
         node.EntityInstance = this;
 
-        // A node that came with layers of its own, such as an effect or an editor marker, is on them too
+        // A node that already has layers, such as an effect or an editor marker, keeps them and is on the entity layers too
         node.AddLayers(Layers);
 
         if (followsEntity)

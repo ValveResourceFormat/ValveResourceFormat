@@ -77,7 +77,7 @@
 
 // Light probe volumes
 #define PROBE_BLENDING ((S_LIGHTMAP_VERSION_MINOR >= 2) && !VR_SHADING) // Else the one volume picked for the object
-#define PROBES_FROM_ENVMAPS (S_LIGHTMAP_VERSION_MINOR >= 3) // Through the environment map sharing their handshake
+#define PROBES_FROM_ENVMAPS (S_LIGHTMAP_VERSION_MINOR >= 3) // Through the AssociatedLPV of the environment maps
 
 // BRDF
 #define MULTISCATTER (!VR_SHADING && !ENV_SPECULAR_SIMPLE) // Also takes the energy it reflects off the diffuse
@@ -96,14 +96,14 @@
 
 // Fog
 #define FOG_GRADIENT_HORIZONTAL_DISTANCE (VR_SHADING || (S_LIGHTMAP_VERSION_MINOR >= 3)) // Else the distance from the camera
-// Cubemap fog is the stronger of its distance and height terms, without an opacity cap, past its start or above its culling height
+// Cubemap fog is the stronger of the distance and height terms, without an opacity cap, past the fog start or above the culling height
 #define FOG_CUBE_BLEND_MAX (S_FOG_CUBE_BLEND_MAX == 1)
 // The color of the cube map is scaled by the exposure bias of the fog
 #define FOG_CUBE_EXPOSURE_BIAS (S_LIGHTMAP_VERSION_MINOR >= 2)
-// Fog takes the pixels past its start or above its culling height. Else the pixels past its start and on the side
-// of the culling height its height range grows to.
+// Fog takes the pixels past the fog start or above the culling height. Else the pixels past the fog start and on the side
+// of the culling height that the height range grows to.
 #define FOG_CULLING_FIXED_HEIGHT_SIDE (S_LIGHTMAP_VERSION_MINOR < 1)
-// Fog takes only the pixels past its start and below its culling height, whatever side its height range grows to
+// Fog takes only the pixels past the fog start and below the culling height, whatever side the height range grows to
 #define FOG_CULLING_BELOW_HEIGHT (S_LIGHTMAP_VERSION_MINOR == 1)
 
 #endif

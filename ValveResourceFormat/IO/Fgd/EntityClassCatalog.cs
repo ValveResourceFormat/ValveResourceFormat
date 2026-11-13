@@ -9,10 +9,10 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.IO.Fgd;
 
 /// <summary>
-/// Gives the entity classes a map is shown with, from the tables built into the library. Each game whose
-/// classes are known has a table of its own, found by its <see cref="GameInfo.Game"/>. Any other game is
-/// shown with the classes of every known game, each the version most of them declare, and the ones kept by
-/// hand for entities none of them declares.
+/// Gives the entity classes a map is shown with, from the tables built into the library. A game whose
+/// classes are known has its own table, found by <see cref="GameInfo.Game"/>. Any other game uses the merged table:
+/// the classes of every known game, taking for each class the version most games declare, plus the classes kept by
+/// hand for entities no game declares.
 /// </summary>
 public static class EntityClassCatalog
 {
@@ -28,7 +28,7 @@ public static class EntityClassCatalog
     /// everything that shows its entities shares them.
     /// </summary>
     /// <param name="fileLoader">The file loader of the map.</param>
-    /// <param name="logger">Where it is said which classes are used.</param>
+    /// <param name="logger">Logger that reports which classes are used.</param>
     /// <returns>The classes of the game, or the ones of every game where it is not one whose classes are known.</returns>
     public static EntityClassTable Get(IFileLoader fileLoader, ILogger logger)
     {
@@ -79,8 +79,8 @@ public static class EntityClassCatalog
         var generated = ReadResource(GeneratedFileName);
         var extra = ReadResource(ExtraFileName);
 
-        // A class is kept once for each way games declare it: under its name where they all declare it alike, and
-        // under an id naming a game that declares it so where they do not
+        // A class that all games declare alike is kept under its name. A class that games declare differently is
+        // kept once per variant, under an id naming a game that declares that variant
         var definitions = new Dictionary<string, EntityClass>(StringComparer.Ordinal);
 
         foreach (var data in generated.GetArray("classes") ?? [])
@@ -111,7 +111,7 @@ public static class EntityClassCatalog
             mergedGridNav ??= gridNav;
         }
 
-        // Of versions as many games declare, it is the one of the game with the lowest app id
+        // The version most games declare. On a tie, the one of the game with the lowest app id
         var mergedClasses = gameClasses
             .GroupBy(static entityClass => entityClass.Name, StringComparer.OrdinalIgnoreCase)
             .Select(static versions => versions.CountBy(static version => version).MaxBy(static pair => pair.Value).Key);

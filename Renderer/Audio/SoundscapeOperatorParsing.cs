@@ -16,8 +16,8 @@ internal readonly record struct SoundLevelRange(float Min, float Max, bool IsAtt
     public static SoundLevelRange Default { get; } = new(75f, 75f, false);
 
     /// <summary>
-    /// Gets a level for an operator that picks once: a value is picked in the range first and then converted
-    /// to a level, which a sound level truncates to a whole number.
+    /// Gets a level for an operator that picks once: a value is picked in the range first, then converted
+    /// to a level. The level is truncated to a whole number.
     /// </summary>
     /// <param name="amount">The position in the range, from 0 to 1.</param>
     public float Pick(float amount)
@@ -171,16 +171,16 @@ internal static class SoundscapeOperatorParsing
     }
 
     /// <summary>
-    /// Converts a sound level in decibels into the distance multiplier: the reciprocal of the distance the
-    /// sound stays at full volume out to, past which it follows the inverse distance law (see
-    /// <see cref="SampleProviders.SampleProvider3D.DistanceMult"/>). Zero means it never attenuates
-    /// (SNDLVL_NONE).
+    /// Converts a sound level in decibels into the distance multiplier. The multiplier is the reciprocal of the
+    /// distance out to which the sound stays at full volume. Past that distance the sound follows the inverse
+    /// distance law (see <see cref="SampleProviders.SampleProvider3D.DistanceMult"/>). Zero means no
+    /// attenuation (SNDLVL_NONE).
     /// </summary>
     /// <remarks>
     /// A sound level is the sound pressure the source is authored at, so the model is the physical one:
     /// a source at <see cref="ReferenceDecibels"/> is played at full volume out to
     /// <see cref="ReferenceDistance"/> units, and every doubling of distance past that halves the
-    /// amplitude. It never reaches zero - which is the point of it, a loud sound stays faintly audible far
+    /// amplitude. The amplitude never reaches zero, so a loud sound stays faintly audible far
     /// past where a "range" would have cut it off entirely.
     /// </remarks>
     public static float SoundLevelToDistanceMult(float db)

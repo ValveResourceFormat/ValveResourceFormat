@@ -1,9 +1,10 @@
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Rebuilds a vector attribute of every particle each step from an offset stored in another,
-    /// placed in a control point's current frame, so particles stay rigidly attached to it. The
-    /// offset can be scaled by a component of another control point's position.
+    /// Rebuilds the output vector attribute of every particle each step from the offset stored in the
+    /// input attribute, placed in the current frame of a control point, so particles stay rigidly
+    /// attached to that control point. The offset can be scaled by a component of the position of
+    /// another control point.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_MovementRigidAttachToCP">C_OP_MovementRigidAttachToCP</seealso>
     class MovementRigidAttachToCP : ParticleFunctionOperator

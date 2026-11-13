@@ -109,14 +109,12 @@ vec3 CalculateIridescence(float hueAngle, float intensity)
     float segmentIndex = floor(hueAngle * 6.0);
     float segmentPhase = fract(hueAngle * 6.0);
 
-    // Calculate transition values
     float fadeOut = intensity * (1.0 - segmentPhase);
     float fadeIn = intensity * segmentPhase;
 
     // Use modulo arithmetic to create a smooth color wheel
     int colorIndex = int(segmentIndex) % 6;
 
-    // Return color based on segment
     switch(colorIndex)
     {
         case 0: return vec3(intensity, fadeIn, 0.0);  // Red -> Yellow

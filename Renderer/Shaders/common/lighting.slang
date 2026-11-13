@@ -58,7 +58,7 @@ vec3 GetMultiBounceOcclusion(vec3 albedo, float occlusion)
     return ((a * occlusion + b) * occlusion + c) * occlusion;
 }
 
-// Surfaces that accept the screen space ambient occlusion darken their indirect light and their light without shadows by it
+// Surfaces that accept the screen space ambient occlusion darken the indirect light and the light without shadows by the occlusion
 #ifndef SCREEN_SPACE_AO
     #define SCREEN_SPACE_AO 0
 #endif
@@ -487,7 +487,7 @@ vec3 ComputeLightmapShading(vec3 irradianceColor, vec3 irradianceDirection, Mate
 uniform float g_flDirectionalLightmapStrength = 1.0;
 uniform float g_flDirectionalLightmapMinZ = 0.05;
 
-// The direction is used as baked, its z kept above a per material minimum where it is divided by
+// The direction is used as baked. Its z is kept above g_flDirectionalLightmapMinZ where it is the divisor
 vec3 ComputeLightmapShading(vec3 irradianceColor, vec3 irradianceDirection, MaterialProperties_t mat)
 {
     vec2 directionXY = UnpackFromColor(irradianceDirection.xy);
@@ -500,8 +500,8 @@ vec3 ComputeLightmapShading(vec3 irradianceColor, vec3 irradianceDirection, Mate
 
 #endif
 
-// Second order spherical harmonics, one set per color channel. The directional textures hold each
-// channel's L1 band relative to its L0 band, which the irradiance texture holds. A ZH3 band is
+// Second order spherical harmonics, one set per color channel. The directional textures hold the L1
+// band of each channel relative to its L0 band. The irradiance texture holds the L0 band. A ZH3 band is
 // rebuilt along the luminance weighted L1 direction.
 struct LightmapSH_t
 {
@@ -716,7 +716,7 @@ void ApplyMultiscatter(inout LightingTerms_t lighting, EnvBRDF_t envBrdf, Materi
 }
 
 #if (ENV_SPECULAR_SCHLICK)
-// How far the surface is turned from the eye, raised to the power that Schlick's fresnel rises by
+// One minus the cosine of the angle to the eye, raised to FresnelExponent
 float GetSchlickGrazing(MaterialProperties_t mat)
 {
     float turned = 1.0 - saturate(dot(mat.ViewDir, mat.AmbientNormal));
@@ -724,7 +724,7 @@ float GetSchlickGrazing(MaterialProperties_t mat)
     return pow(turned, mat.FresnelExponent);
 }
 
-// The fresnel of the reflectance by the angle to the eye, which metals tint with the albedo
+// Schlick fresnel from Reflectance and the grazing term, tinted by the albedo for metals
 vec3 GetSchlickEnvironmentScale(MaterialProperties_t mat)
 {
     float fresnel = mat.Reflectance + (1.0 - mat.Reflectance) * GetSchlickGrazing(mat);
@@ -894,8 +894,8 @@ void ApplyNprBounce(inout LightingTerms_t lighting, MaterialProperties_t mat)
 #endif
 
 #if (ENV_SPECULAR_SCHLICK)
-// The baked light is not given the share of the reflectance that the direct light is, so it takes back what DiffuseColor
-// gave up. Where an environment map is reflected, the fresnel gives up the part that the angle to the eye adds.
+// DiffuseColor gives up a share of the reflectance for the direct light, and the baked light does not give it up.
+// This scale takes it back. Where an environment map is reflected, the fresnel gives up the part that the angle to the eye adds.
 float GetBakedDiffuseScale(MaterialProperties_t mat)
 {
     #if (IBL == 1)

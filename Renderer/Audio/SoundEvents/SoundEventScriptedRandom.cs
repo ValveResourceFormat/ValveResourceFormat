@@ -26,8 +26,7 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
     private const float FirstIntervalScale = 0.5f;
 
     /// <summary>
-    /// How far from the listener a "position" "random" sound is placed. Only the direction is randomized:
-    /// scaling by the audible range puts it far enough out that the falloff swallows it.
+    /// Distance in world units from the listener of a "position" "random" sound. Only the direction is random.
     /// </summary>
     private const float RandomPositionRadius = 100f;
 
@@ -82,8 +81,8 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
     private protected override bool StayAliveAfterFinishing() => RetriggerArmed;
 
     /// <summary>
-    /// Picks a random direction around the listener, at a fixed distance. A real soundscape would pick
-    /// between a handful of map-authored position markers instead - we don't have those wired through.
+    /// Picks a random direction around the listener, at <see cref="RandomPositionRadius"/>.
+    /// The position targets of the soundscape entity are not used.
     /// </summary>
     private Vector3 PickRandomPosition()
     {

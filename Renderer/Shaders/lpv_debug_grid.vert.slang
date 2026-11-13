@@ -18,7 +18,7 @@ flat out uint g_nObjectIndex;
     out vec3 vPerVertexLightingOut;
 #endif
 
-// The instance index is taken by the samples, so the node is named by a uniform
+// Each instance is one sample, so the object's index into the instance buffer comes from a uniform
 uniform uint uObjectIndex = 0u;
 uniform float g_flSampleSize = 10.0;
 

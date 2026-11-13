@@ -4,8 +4,8 @@ using ValveResourceFormat.Particles;
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
-    /// Entries kept per particle at the slot its handle names less one. A slot freed when its particle dies is
-    /// reused by the next particle.
+    /// Entries kept per particle, at the slot of the particle handle minus one. When a particle dies,
+    /// the slot is freed and reused by the next particle.
     /// </summary>
     internal sealed class ParticleHandlePool<T>
     {

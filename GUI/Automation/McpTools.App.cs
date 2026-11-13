@@ -26,7 +26,7 @@ internal sealed partial class McpTools
 {
     private static readonly long StartedAt = Stopwatch.GetTimestamp();
 
-    /// <summary>What failed while each tab opened, kept by <see cref="KeepLoadErrors"/>.</summary>
+    /// <summary>Load error messages of each tab, kept by <see cref="KeepLoadErrors"/>.</summary>
     private readonly ConditionalWeakTable<TabPage, List<string>> TabLoadErrors = [];
 
     [Tool("Return the viewer status and the open tabs. 'vsync' is the swap interval (0 is off) and the only frame cap. 'last_error' would have shown a dialog. A map tab has 'simulation' unless it is stopped. Answers while another call runs. 'ui_busy' replaces the tabs when the UI thread is busy.", Concurrent = true)]
@@ -269,7 +269,7 @@ internal sealed partial class McpTools
 
     /// <summary>
     /// Waits for a tab that was just opened to load. It fails with <paramref name="crash"/> when an error is
-    /// reported first, and keeps the errors its viewers logged after <paramref name="logCursor"/>.
+    /// reported first. It keeps the errors that the tab's viewers logged after <paramref name="logCursor"/>.
     /// </summary>
     private async Task<object> WaitForTab(TabPage page, string what, Task<string> crash, long logCursor, CancellationToken cancellationToken)
     {
@@ -318,7 +318,7 @@ internal sealed partial class McpTools
     }
 
     /// <summary>
-    /// Keeps what failed while a tab opened. Its viewers show these failures in their own error tabs,
+    /// Keeps the load errors of a tab. The tab's viewers show them in error tabs
     /// and log them as <c>Failed to open "path": exception</c>.
     /// </summary>
     private void KeepLoadErrors(TabPage page, string displayPath, long logCursor)
@@ -351,7 +351,7 @@ internal sealed partial class McpTools
         }
     }
 
-    /// <summary>What failed while the tab opened, or null when nothing did.</summary>
+    /// <summary>Load errors kept for the tab, or null when there are none.</summary>
     private List<string>? LoadErrors(TabPage page)
     {
         if (!TabLoadErrors.TryGetValue(page, out var errors))
@@ -473,7 +473,7 @@ internal sealed partial class McpTools
 
         matches.Sort(static (a, b) => string.Compare(a.Path, b.Path, StringComparison.OrdinalIgnoreCase));
 
-        // Only a path that a link escapes differs from the package link followed by the path
+        // Null unless escaping changes the path, because otherwise it is the package link followed by the path
         string? OpenPath(string path)
         {
             var escaped = VpkLink.EscapePath(path);

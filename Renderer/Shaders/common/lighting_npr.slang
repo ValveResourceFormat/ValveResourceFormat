@@ -49,7 +49,7 @@ float NprStep(float x, float sharpness)
     return whole + (upperHalf ? 1.0 - bent : bent);
 }
 
-// What the diffuse term of a light is, from the cosine of the angle to it
+// Diffuse term of a light from NoL
 float NprDirectDiffuse(float NoL)
 {
     if (!g_bNPRDirectDiffuse)
@@ -126,7 +126,7 @@ vec3 NprMultiBounceOcclusion(vec3 albedo, float occlusion)
     return mix(vec3(1.0), GetMultiBounceOcclusion(albedo, occlusion), g_flNPRDiffusePbrBlend);
 }
 
-// Fades the rim by where the surface faces: an empty range is a step at its start
+// Fades the rim by the z of the normal. An empty range is a step at the start of the ramp
 float NprRimUpRamp(float normalZ)
 {
     float range = g_vNPRRimLightUpRamp.y - g_vNPRRimLightUpRamp.x;
@@ -139,7 +139,7 @@ float NprRimUpRamp(float normalZ)
     return saturate((normalZ - g_vNPRRimLightUpRamp.x) / range);
 }
 
-// The distance along the view direction to what the scene depth holds at a pixel, infinite at the far plane
+// The view space depth of the scene at a pixel, infinite at the far plane
 float GetNprSceneViewDepth(ivec2 pixel)
 {
     ivec2 texel = min(pixel * ivec2(g_vSceneDepthFetchScale), textureSize(g_tSceneDepth, 0) - 1);
@@ -149,9 +149,9 @@ float GetNprSceneViewDepth(ivec2 pixel)
     return 1.0 / fma(normalizedDepth, g_vInvProjRow3.z, g_vInvProjRow3.w);
 }
 
-// Keeps the rim only where the scene a short step out from the surface lies well behind it, which is
-// along the silhouette. The scene depth is the one resolved after the opaque pass, so the surface reads
-// the depth of the previous frame and the rim trails a moving camera by one frame.
+// Keeps the rim only where the scene a short step out from the surface lies well behind it, along the silhouette.
+// The scene depth is resolved after the opaque pass. The surface reads the depth of the previous frame,
+// so the rim trails a moving camera by one frame.
 float NprRimDepthOcclusion(vec3 positionWs, vec3 normal)
 {
     if (!g_bNPRRimLightingDepthOcclusion)

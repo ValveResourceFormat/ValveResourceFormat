@@ -617,7 +617,7 @@ class Converter
     private readonly Dictionary<string, string?> classHierarchies = [];
     private readonly Dictionary<string, HashSet<string>> ownPropertyNames = [];
 
-    // Properties of each class and of the classes deriving from it, which a nested type must not share a name with
+    // Property names of each class and of the classes deriving from it. A nested type must not share a name with them
     private readonly Dictionary<string, HashSet<string>> propertyNames = [];
 
     private static readonly HashSet<string> MatchingTypes =

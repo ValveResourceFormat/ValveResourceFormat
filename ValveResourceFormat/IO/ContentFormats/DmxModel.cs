@@ -334,8 +334,8 @@ public class DmeFlexRuleExpression : DMElement
 }
 
 /// <summary>
-/// The rules driving one mesh's morph targets. A combination operator that targets these instead of
-/// the meshes themselves gets its flex rules from them rather than one per morph target.
+/// The rules driving the morph targets of one mesh. A combination operator that targets a rule set
+/// instead of the mesh takes the flex rules from the set, rather than one per morph target.
 /// </summary>
 [CamelCaseProperties]
 public class DmeFlexRules : DMElement

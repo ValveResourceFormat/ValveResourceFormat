@@ -5,10 +5,10 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
-    /// The hitboxes, or the bones, of the model a control point carries, refreshed at most once per
-    /// system time and keeping the boxes of the refresh before, so functions can tell how the model
-    /// moved. Each system holds one per control point, and the first function to read it at a given
-    /// time decides whether it holds hitboxes or bones and which hitbox set. Without hitboxes, a
+    /// The hitboxes, or the bones, of the model a control point carries. It is refreshed at most once
+    /// per system time and keeps the boxes of the previous refresh, so functions can tell how the model
+    /// moved. Each system holds one per control point. The first function to read it at a given
+    /// time decides whether it holds hitboxes or bones, and which hitbox set. Without hitboxes, a
     /// system that falls back to render bounds reads one box around the model's bounds, or an empty
     /// box at the world origin when the control point carries no model.
     /// </summary>
@@ -30,13 +30,13 @@ namespace ValveResourceFormat.Particles.Utils
         /// <summary>How many boxes the last refresh found.</summary>
         public int Count { get; private set; }
 
-        /// <summary>How many boxes the refresh before found.</summary>
+        /// <summary>How many boxes the previous refresh found.</summary>
         public int PreviousCount { get; private set; }
 
         /// <summary>The system time of the last refresh, or -1 before the first.</summary>
         public float UpdateTime { get; private set; } = -1f;
 
-        /// <summary>The system time of the refresh before, or -1 when there was none.</summary>
+        /// <summary>The system time of the previous refresh, or -1 when there was none.</summary>
         public float PreviousUpdateTime { get; private set; } = -1f;
 
         /// <summary>The sum of every box's <see cref="HitBox.Volume"/>.</summary>
@@ -51,10 +51,10 @@ namespace ValveResourceFormat.Particles.Utils
         /// <summary>The boxes of the last refresh.</summary>
         public ReadOnlySpan<HitBox> Current => current.AsSpan(0, Count);
 
-        /// <summary>The boxes of the refresh before.</summary>
+        /// <summary>The boxes of the previous refresh.</summary>
         public ReadOnlySpan<HitBox> Previous => previous.AsSpan(0, PreviousCount);
 
-        /// <summary>Whether there are boxes and the refresh before found as many, so the two can be paired.</summary>
+        /// <summary>Whether there are boxes and the previous refresh found as many, so the two can be paired.</summary>
         public bool IsStable => Count != 0 && Count == PreviousCount;
 
         /// <summary>
@@ -245,8 +245,8 @@ namespace ValveResourceFormat.Particles.Utils
         }
 
         /// <summary>
-        /// Picks a random point inside the boxes. Each of <see cref="HitBoxSampling.Tries"/> plus one
-        /// candidates draws a box and a position in it, and with more than one try the candidate
+        /// Picks a random point inside the boxes. <see cref="HitBoxSampling.Tries"/> plus one
+        /// candidates are drawn, each a box and a position in it. With more than one try, the candidate
         /// furthest along the direction bias from <paramref name="origin"/>, give or take a random
         /// amount, wins. Without boxes the point is <paramref name="origin"/> in box 0.
         /// </summary>
@@ -385,12 +385,12 @@ namespace ValveResourceFormat.Particles.Utils
         /// is not negative, and a place in it as a fraction of the box's extent per axis.
         /// </summary>
         /// <remarks>
-        /// Without <paramref name="closestPoint"/> the nearest box is the one whose origin is nearest,
-        /// and every box that comes nearer than the ones before draws a random place in the part of
-        /// it <paramref name="scale"/> covers. With it, the point is carried into each box's space
-        /// and measured against the closest point of the box shaped as <paramref name="testType"/>
-        /// says, and that closest point, scaled about the box centre by <paramref name="scale"/>, is
-        /// the place. A box with no extent is passed over. Without boxes the answer is box 0 at
+        /// Without <paramref name="closestPoint"/> the nearest box is the one whose origin is nearest.
+        /// Every box that comes nearer than the ones before draws a random place in the part of
+        /// it <paramref name="scale"/> covers. With <paramref name="closestPoint"/>, the point is carried
+        /// into each box's space and measured against the closest point of the shape given by
+        /// <paramref name="testType"/>. That closest point, scaled about the box centre by
+        /// <paramref name="scale"/>, is the place. A box with no extent is passed over. Without boxes the answer is box 0 at
         /// fraction 0.
         /// </remarks>
         public (Vector3 Fraction, int Index) Closest(ParticleSystemState systemState, Vector3 point, int desiredHitbox, Vector3 scale,
@@ -481,7 +481,7 @@ namespace ValveResourceFormat.Particles.Utils
         }
 
         /// <summary>
-        /// The velocity of box <paramref name="index"/> between the refresh before and the last one, or
+        /// The velocity of box <paramref name="index"/> between the previous refresh and the last one, or
         /// null when the box was not there both times or no time passed between them.
         /// </summary>
         public Vector3? BoxVelocity(int index)
@@ -525,14 +525,14 @@ namespace ValveResourceFormat.Particles.Utils
         /// The linear blend skinning transform of a particle bound to up to four bones of the boxes
         /// read as bones: each valid bone's bind pose inverse followed by its box transform, weighted
         /// by <paramref name="weights"/> and the remainder of 1 for the fourth. A bone is valid when it
-        /// is not 0xFFFF and both this and, with <paramref name="computePrevious"/>, the refresh before
-        /// hold it. A single valid bone is taken whole.
+        /// is not 0xFFFF and the last refresh holds it, and with <paramref name="computePrevious"/> the
+        /// previous refresh does too. A single valid bone is taken whole.
         /// </summary>
         /// <param name="boneIndices">Four 16-bit bone indices from the low bits up.</param>
         /// <param name="weights">The weights of the first three bones.</param>
-        /// <param name="computePrevious">Also build the transform of the refresh before.</param>
+        /// <param name="computePrevious">Also build the transform of the previous refresh.</param>
         /// <param name="skin">The transform at the last refresh.</param>
-        /// <param name="previousSkin">The transform at the refresh before, identity unless asked for.</param>
+        /// <param name="previousSkin">The transform at the previous refresh, identity unless asked for.</param>
         /// <returns>Whether any bone was valid.</returns>
         public bool ComputeSkinningMatrix(ulong boneIndices, Vector3 weights, bool computePrevious, out Matrix4x4 skin, out Matrix4x4 previousSkin)
         {

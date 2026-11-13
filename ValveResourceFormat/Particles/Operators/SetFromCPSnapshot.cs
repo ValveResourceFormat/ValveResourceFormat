@@ -164,9 +164,11 @@ namespace ValveResourceFormat.Particles.Operators
 
                 var value = ReadVector(vectors, row, positions, i, frameTime, particleSystemState);
 
-                // Random, reversed and stepped rows are sub-sampled too, but always against row floor(start point)
-                // (mirrored when reversed), so with a whole-number start every particle gets that one row.
-                // Each row blends toward its own neighbour here, and random rows are not blended
+                // The engine also sub-samples random, reversed and stepped rows, always against the fixed row
+                // floor(start point), or rowCount - floor(start point) - 1 when reversed.
+                // With a whole-number start every particle then gets that one row.
+                // Here sequential, reversed and stepped rows blend with their own neighbour.
+                // Random rows are not blended.
                 if (subSample && !random)
                 {
                     var neighbour = MathUtils.WrapIndex(walked - subSampleOffset, rowCount);

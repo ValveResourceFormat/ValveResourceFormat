@@ -29,7 +29,6 @@ namespace Tests.Resources
 
             ms.Position = 0;
 
-            // Now try to parse what we just wrote
             using var resource = new Resource
             {
                 FileName = file,

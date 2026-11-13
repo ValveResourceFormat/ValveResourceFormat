@@ -186,7 +186,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private SequenceAnimation(KVObject seqDesc, KVObject? animDesc, AnimationSegmentTable segments,
             string[] sequenceNameArray, string[] boneMaskNames, string[] poseParamNames)
         {
-            // Name and metadata from sequence descriptor
             Name = seqDesc.GetStringProperty("m_sName");
 
             var seqFlags = seqDesc.GetSubCollection("m_flags");
@@ -203,14 +202,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             IsAdditive = Delta || AnimGraphAdditive;
 
-            // Activities from sequence descriptor
             Activities = seqDesc.GetArray("m_activityArray")
                 .Select(x => new AnimationActivity(x))
                 .ToArray();
 
             LocalHierarchy = GetLocalHierarchy(animDesc);
 
-            // Transition params from sequence descriptor
             var transition = seqDesc.GetSubCollection("m_transition");
             SequenceParams = new AnimationSequenceParams(transition);
 
@@ -563,8 +560,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         /// <summary>
         /// Sequences decode into a bind-pose frame and only write the channels they animate (see
-        /// <see cref="BuildAnimatedChannels"/>), so a channel the animation leaves alone holds the bind
-        /// pose rather than a delta, and has to be neutralized before it is composed onto a pose.
+        /// <see cref="BuildAnimatedChannels"/>). A channel the animation leaves alone holds the bind
+        /// pose rather than a delta. It has to be neutralized before it is composed onto a pose.
         /// </summary>
         public override FrameBone GetAdditiveDelta(int boneIndex, FrameBone bone)
         {
@@ -574,8 +571,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var position = (channels & AnimatedChannels.Position) != 0 ? bone.Position : Vector3.Zero;
             var angle = (channels & AnimatedChannels.Angle) != 0 ? bone.Angle : Quaternion.Identity;
 
-            // Sequence scale is authored around one rather than around zero, so the delta is what it is
-            // over one. That is also zero for a bone this animation does not scale, masking it for free.
+            // Sequence scale is authored around one rather than around zero, so the delta is the scale minus one.
+            // That is also zero for a bone this animation does not scale, masking it for free.
             return new FrameBone(position, bone.Scale - 1f, angle);
         }
 
@@ -610,8 +607,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         /// <summary>
         /// Returns, per bone, which transform channels this animation actually writes, derived from
-        /// the segment decoders' bone targets and channel attributes. Bones past the end of it are
-        /// animated by nothing.
+        /// the segment decoders' bone targets and channel attributes. Bones past the end of the array are
+        /// not animated.
         /// </summary>
         private AnimatedChannels[] BuildAnimatedChannels()
         {

@@ -25,7 +25,7 @@ uniform float g_flAlphaTestReference = 0.5;
 
 out vec4 outputColor;
 
-// Editor sprites are unlit: the texture in the tint, cut out where it is faint
+// Editor sprites are unlit: the texture multiplied by the tint, cut out by the alpha test where its alpha is low
 void main()
 {
 #if (F_ALPHA_TEST == 1)
@@ -39,7 +39,7 @@ void main()
     color *= vTintOut;
 
 #if (D_BORDER == 1)
-    // How many pixels the sides are away, from how far the texture moves across a pixel
+    // Pixels to the nearest side on each axis, from the texcoord change per pixel (fwidth)
     vec2 pixelsToSides = min(vTexCoordOut, 1.0 - vTexCoordOut) / fwidth(vTexCoordOut);
 
     if (min(pixelsToSides.x, pixelsToSides.y) < g_flBorderWidthPx)
@@ -54,7 +54,7 @@ void main()
     color.a = 1.0;
 #endif
 
-    // Without post processing, as in every debug render mode, the color is shown as it is written
+    // Render modes skip post processing, so the color is converted to gamma here
     if (g_iRenderMode != 0)
     {
         color.rgb = SrgbLinearToGamma(color.rgb);

@@ -77,7 +77,7 @@ namespace ValveResourceFormat.Particles.Operators
             }
         }
 
-        /// <summary>Turns the control point the way the authored method takes from a particle, when it gives a way.</summary>
+        /// <summary>Turns the control point to the velocity, normal or rotation of the particle, as chosen by orientationType.</summary>
         private void SetParticleOrientation(ControlPoint controlPoint, ParticleSpan live, int index)
         {
             switch (orientationType)

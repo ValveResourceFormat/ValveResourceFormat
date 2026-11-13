@@ -33,7 +33,7 @@ namespace ValveResourceFormat.Renderer.World
         public LinearFog? LinearFog { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether what is drawn takes the <see cref="LinearFog"/> as its gradient fog,
+        /// Gets or sets a value indicating whether objects take the <see cref="LinearFog"/> as their gradient fog,
         /// as in Dota, where the fog controller fogs the whole scene.
         /// </summary>
         public bool ObjectsUseLinearFog { get; set; }
@@ -133,8 +133,9 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         // The gradient fog of the shaders covers a pixel by pow(saturate(distance * scale + bias), exponent) times its
-        // opacity, with a height term of a constant 1. Linear fog culls nothing: the older culling tests the horizontal
-        // distance to the start, which would leave the ground below a high camera unfogged.
+        // opacity, with a height term of a constant 1. Linear fog culls nothing: FOG_CULLING_BELOW_HEIGHT and
+        // FOG_CULLING_FIXED_HEIGHT_SIDE test the horizontal distance to the start, which would leave the ground below
+        // a high camera unfogged.
         private static void SetLinearFogUniforms(ViewConstants viewConstants, bool viewerFogEnabled, LinearFog fog, FogSpace fogSpace, Vector3 viewForward)
         {
             var start = fogSpace.Distance(fog.Start);

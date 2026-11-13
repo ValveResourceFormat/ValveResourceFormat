@@ -7,7 +7,7 @@
 #include "lighting_common.slang"
 #include "shadow_pcf.slang"
 
-// A light that is not a point never shines sharper than a roughness of its own
+// A light that is not a point never shines sharper than minRoughness
 void ApplyMinRoughness(inout MaterialProperties_t mat, float minRoughness)
 {
     mat.IsometricRoughness = max(mat.IsometricRoughness, minRoughness);
@@ -106,7 +106,7 @@ float GetBarnLightVisibility(BarnLightConstants barnLight, vec4 bakedShadow)
     return visibility;
 }
 
-// Whether the position is inside the light's frustum and volume, with its position in the frustum
+// Whether the position is inside the light's frustum and volume. ndc is the position in the frustum
 bool GetBarnLightNdc(BarnLightConstants barnLight, vec3 positionWS, out vec3 ndc)
 {
     vec4 clipPos = barnLight.m_mBarnFrustum * vec4(positionWS, 1.0);

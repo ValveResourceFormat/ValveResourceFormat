@@ -18,23 +18,23 @@ public sealed class ToolsVisibility : IDrawFilter
     private readonly HashSet<SceneNode> selectedNodes = [];
 
     /// <summary>
-    /// Gets or sets whether what only the tools draw is drawn: entities that only exist in the editor and tools
-    /// materials. Off, only what the game shows is drawn.
+    /// Gets or sets whether tools-only content is drawn: entities that only exist in the editor and tools
+    /// materials. Off, only the content the game shows is drawn.
     /// </summary>
     public bool ShowTools { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets the groups of tools materials hidden, see <see cref="ToolBrushGroups"/>, which hide whatever else
-    /// shows tools materials. A group with no entity class is hidden whole, and one with a class only on the brushes
-    /// of entities of that class, see <see cref="ToolBrushGroups.GetEntityClass"/>. It is replaced whole, so a frame
-    /// being drawn never reads it half changed.
+    /// Gets or sets the hidden groups of tools materials, see <see cref="ToolBrushGroups"/>. A hidden group stays
+    /// hidden whatever else shows tools materials. A group with no entity class is hidden whole, and one with a class
+    /// only on the brushes of entities of that class, see <see cref="ToolBrushGroups.GetEntityClass"/>. The set is
+    /// replaced whole, so a frame being drawn never reads it half changed.
     /// </summary>
     public IReadOnlySet<(string Group, string? EntityClass)> HiddenToolBrushGroups { get; set; } = FrozenSet<(string, string?)>.Empty;
 
     /// <summary>
-    /// Gets or sets the collision drawn, by what it collides as, see <see cref="PhysSceneNode.CollisionLabels"/>.
-    /// Collision is drawn while any of its labels is. It is replaced whole, so a frame being drawn never reads it half
-    /// changed.
+    /// Gets or sets the collision labels that are drawn, see <see cref="PhysSceneNode.CollisionLabels"/>.
+    /// Collision is drawn while any of its labels is. The set is replaced whole, so a frame being drawn never reads it
+    /// half changed.
     /// </summary>
     public IReadOnlySet<string> ShownCollision { get; set; } = FrozenSet<string>.Empty;
 
@@ -45,8 +45,8 @@ public sealed class ToolsVisibility : IDrawFilter
     public bool OpaqueCollision { get; set; }
 
     /// <summary>
-    /// Shows the collision among some nodes that <see cref="ShownCollision"/> names, and draws it and the shapes of
-    /// tools materials as <see cref="OpaqueCollision"/> says.
+    /// Shows the collision nodes that <see cref="ShownCollision"/> names, and draws them and the shapes of tools
+    /// materials opaque or translucent as <see cref="OpaqueCollision"/> says.
     /// </summary>
     /// <param name="nodes">The nodes, of which only collision and the shapes of tools materials are changed.</param>
     public void ApplyCollisionVisibility(IEnumerable<SceneNode> nodes)
@@ -66,7 +66,7 @@ public sealed class ToolsVisibility : IDrawFilter
         }
     }
 
-    /// <summary>Gets what the collision among some nodes collides as, once each, in order.</summary>
+    /// <summary>Gets the distinct collision labels of the nodes, sorted.</summary>
     /// <param name="nodes">The nodes, of which only collision that shows no tools material is read.</param>
     /// <returns>The labels, see <see cref="PhysSceneNode.CollisionLabels"/>.</returns>
     public static string[] GetCollisionLabels(IEnumerable<SceneNode> nodes)
@@ -80,7 +80,7 @@ public sealed class ToolsVisibility : IDrawFilter
     }
 
     /// <summary>
-    /// The layers to enable out of those chosen, without the ones only the tools draw while they are hidden, see
+    /// The chosen layers to enable. Tools-only layers are left out while <see cref="ShowTools"/> is off, see
     /// <see cref="WorldLayer.IsToolsOnly"/>.
     /// </summary>
     /// <param name="chosenLayers">The layers chosen to be shown.</param>
@@ -91,7 +91,7 @@ public sealed class ToolsVisibility : IDrawFilter
             : [.. chosenLayers.Where(static layer => !layer.IsToolsOnly)];
     }
 
-    /// <summary>Sets the nodes that are selected, which draw their tools materials while those are hidden.</summary>
+    /// <summary>Sets the selected nodes. They draw their tools materials even while those are hidden.</summary>
     /// <param name="nodes">The selected nodes.</param>
     public void SetSelectedNodes(IReadOnlyList<SceneNode> nodes)
     {
@@ -120,7 +120,7 @@ public sealed class ToolsVisibility : IDrawFilter
             return DrawVisibility.Drawn;
         }
 
-        // A hidden group hides its materials entirely, while hidden tools materials that block light still do
+        // A hidden group hides its materials entirely, but hidden tools materials that block light still cast shadows
         return !hiddenByGroup && material.BlocksLight ? DrawVisibility.ShadowOnly : DrawVisibility.Hidden;
     }
 }

@@ -16,10 +16,10 @@ internal readonly record struct SceneView
     /// <summary>The frustum culling is frozen at, or <see langword="null"/> to follow <see cref="Camera"/>.</summary>
     public Frustum? LockedCullFrustum { get; init; }
 
-    /// <summary>The camera whose light binning this view reuses, or <see langword="null"/> when it has its own.</summary>
+    /// <summary>The camera whose light binning this view reuses, or <see langword="null"/> when this view bins lights itself.</summary>
     public Camera? BinnedFor { get; init; }
 
-    /// <summary>The 2D sky this view replaces its scenes' own with, or <see langword="null"/> to keep theirs.</summary>
+    /// <summary>The 2D sky that replaces the 2D skies of the scenes of this view, or <see langword="null"/> to keep the skies of the scenes.</summary>
     public SceneSkybox2D? SkyOverride { get; init; }
 
     public bool SkyCastsSunShadows { get; init; }

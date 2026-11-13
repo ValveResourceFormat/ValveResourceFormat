@@ -42,7 +42,7 @@ internal sealed class SpawnGroupLoader
 
     private List<BaseEntity> Spawn()
     {
-        // Created with the first map, before any of its entities so it owns them all
+        // The world entity is created with the first map, before the map entities, so it owns them all
         entitySystem.SpawnWorld(group.Scene);
 
         if (group.EntityLumpName == null)
@@ -143,8 +143,7 @@ internal sealed class SpawnGroupLoader
             }
         }
 
-        // Once every entity is created, as the game spawns the groups placed by this one only once it has
-        // created all of its own
+        // Placed groups spawn only after every entity of this group is created, as in the game
         foreach (var (entity, classname) in placements)
         {
             try
@@ -182,10 +181,9 @@ internal sealed class SpawnGroupLoader
     internal static string? GetPlacedWorldGroup(Entity placement, string? parentWorldGroup)
         => placement.GetStringProperty("worldgroupid") is { Length: > 0 } worldGroup ? worldGroup : parentWorldGroup;
 
-    // Loads the map an entity places as a child group of the one placing it, from the entity's keyvalues
-    // alone. A 3D sky is no different from a prefab, other than going into a world group of its own, which
-    // is drawn as a scene of its own. Compiled maps have prefabs merged in already; the ones left are loaded
-    // by the game at runtime.
+    // Loads the map an entity places as a child group of this group, from the entity's keyvalues alone.
+    // A 3D sky loads like a prefab, but into a world group of its own, drawn as a separate scene.
+    // Compiled maps have prefabs merged in already; the ones left are loaded by the game at runtime.
     private void HandlePointPrefab(Entity placement, string classname)
     {
         if (placement.GetStringProperty("targetmapname") is not { Length: > 0 } targetMapName)
@@ -254,8 +252,8 @@ internal sealed class SpawnGroupLoader
         skyScene.ToViewerWorld = sky.SkyToWorld;
         skyScene.MarkerScale = 1f / sky.Scale;
 
-        // The scale is only known once the sky map has loaded, so the markers it shrinks are already
-        // placed. Whatever an entity owns it re-places itself from here on.
+        // The scale is only known once the sky map has loaded, when its markers are already placed, so
+        // their placement scale is applied here. Entities apply it themselves from here on.
         foreach (var marker in skyScene.AllNodes)
         {
             if (marker.PlacementScale != 1f)
@@ -265,8 +263,8 @@ internal sealed class SpawnGroupLoader
         }
     }
 
-    // A placed map keeps the fixups of the group that placed it, unless asked to set its names apart with a
-    // numbered prefix of its own
+    // A placed map keeps the name fixup of the group that placed it, unless the entity sets fixupnames,
+    // which gives the map names a numbered prefix
     private EntityNameFixup ChildNameFixup(Entity placement)
         => placement.GetBooleanProperty("fixupnames")
             ? group.NameFixup with { Parent = string.Create(CultureInfo.InvariantCulture, $"{entitySystem.SpawnGroupManager.NextNameFixupIndex()}d_{group.NameFixup.Parent}") }

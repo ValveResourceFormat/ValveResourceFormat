@@ -13,8 +13,8 @@ namespace ValveResourceFormat.IO
         private HashSet<int>? reverseOffsetBones;
 
         /// <summary>
-        /// Gets whether <paramref name="node"/> was authored with <c>lock_translation</c>: its parent or goal lock is one
-        /// that the fit-influence pass could not have written for it.
+        /// Gets whether <paramref name="node"/> was authored with <c>lock_translation</c>: the parent or goal lock on the node
+        /// is one the fit-influence pass could not have written.
         /// </summary>
         internal bool LocksTranslation(int node, int chainVersion = 2, BoneChain? chain = null)
             => (Index.IsLockedToParent(node) && !((chainVersion < 2 || !ChainPresetsJoint(node, chain))
@@ -268,8 +268,8 @@ namespace ValveResourceFormat.IO
 
         /// <summary>
         /// Whether the original compiled <paramref name="chain"/> with the reverse offsets a <c>ClothChain</c> of version 2
-        /// or above records against its joints' preset bases: true when every read joint names the Y1 node of the preset
-        /// basis graded over its own extrusion vector and its child's, false when one names none, null when no joint is read.
+        /// or above records against the preset bases of the joints: true when every read joint names the Y1 node of the preset
+        /// basis graded over the joint's extrusion vector and the child's, false when one names none, null when no joint is read.
         /// </summary>
         internal bool? ChainReverseOffsetsArePreset(BoneChain chain)
         {
@@ -310,7 +310,7 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Whether the original's own basis for <paramref name="node"/> is <paramref name="scan"/>'s basis with its Y pair swapped,
+        /// Whether the original's basis for <paramref name="node"/> is the basis of <paramref name="scan"/> with the Y pair swapped,
         /// with the handedness that orders the pair inside <see cref="NodeBaseTieMargin"/>.
         /// </summary>
         private bool NodeBaseYPairTies(int node, NodeBaseScan scan)
@@ -321,8 +321,8 @@ namespace ValveResourceFormat.IO
             => basis == want || NodeBaseFoldReaches(basis, want);
 
         /// <summary>
-        /// Gets whether a chain joint with a chain child carries an ungraded <c>m_DynNodeWindBases</c> hint whose X pair its
-        /// twist or rope wrote, which marks a chain of version 0.
+        /// Gets whether a chain joint with a chain child carries an ungraded <c>m_DynNodeWindBases</c> hint whose X pair
+        /// the twist or rope source wrote, which marks a chain of version 0.
         /// </summary>
         internal bool ChainHintsAreTwistWritten(BoneChain chain)
         {

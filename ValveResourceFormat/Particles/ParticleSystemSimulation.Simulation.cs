@@ -137,8 +137,8 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Holds every system below this one in place. <see cref="Operators.EndCapTimedFreeze"/> freezes
-        /// its own system directly and the rest of the tree through here.
+        /// Freezes every system below this one. <see cref="Operators.EndCapTimedFreeze"/> freezes the
+        /// system it runs in directly and the rest of the tree through here.
         /// </summary>
         public void FreezeChildren()
         {
@@ -209,8 +209,8 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>
         /// Replays the system from scratch, as if it had just been created, discarding the particles
-        /// still alive first. It keeps its seed, the draws run on and the control points
-        /// keep what functions wrote to them, unless a pinned seed (<see cref="PinRandomSeed"/>) starts the
+        /// still alive first. The random seed is kept, so the draws continue, and the control points
+        /// keep what functions wrote to them. A pinned seed (<see cref="PinRandomSeed"/>) starts the
         /// draws over and puts those control points back.
         /// </summary>
         public void Replay()
@@ -485,8 +485,8 @@ namespace ValveResourceFormat.Particles
             // Ages are measured from the end of the step
             particleCollection.Time = systemState.Age;
 
-            // Each function that runs displaces the per-particle draws of the ones after it. emitters
-            // and initializers inherit whatever the pre-emission walk left behind.
+            // Each function that runs advances the operator offset of the random draws for the functions
+            // after it. Emitters and initializers use the offset the pre-emission operators left.
             systemState.Random.ResetOperatorOffset();
 
             foreach (var preEmissionOperator in preEmissionOperators)
@@ -678,10 +678,10 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Runs the emitters and initializes what they create. With <see cref="ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE"/>
-        /// these are the emitters that run every step; otherwise the ones listening for
-        /// <paramref name="eventType"/>, for an event the parent raised on the particles at
-        /// <paramref name="parentIndices"/>, and their particles do not count toward the frame.
+        /// Runs the emitters and initializes the particles they create. With <see cref="ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE"/>
+        /// these are the emitters that run every step. Otherwise they are the emitters listening for
+        /// <paramref name="eventType"/>, an event the parent raised on the particles at
+        /// <paramref name="parentIndices"/>, and the particles they create do not count toward the frame.
         /// </summary>
         private void Emit(ParticleEventType eventType, List<int>? parentIndices)
         {
@@ -957,10 +957,10 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Points every child particle's <see cref="ParticleField.ParentParticleIndex"/> back at its parent
-        /// particle after this system's particles moved, finding the parent by its particle id. A child
-        /// particle whose parent is gone has its <see cref="ParticleField.ParentParticleId"/> set to
-        /// <see cref="int.MinValue"/>.
+        /// Points <see cref="ParticleField.ParentParticleIndex"/> of every child particle back at the parent
+        /// particle after this system's particles moved. The parent is the particle whose id matches
+        /// <see cref="ParticleField.ParentParticleId"/>. A child particle whose parent is gone gets
+        /// <see cref="ParticleField.ParentParticleId"/> set to <see cref="int.MinValue"/>.
         /// </summary>
         private void RebindChildParents()
         {
@@ -970,7 +970,7 @@ namespace ValveResourceFormat.Particles
             {
                 var childParticles = childSimulation.particleCollection.Current;
 
-                // A child that stores no parent links has none to point back, and one that stores only one of them is skipped too
+                // A child that does not store both parent links has nothing to point back
                 if ((childSimulation.particleCollection.StoredFields & ParentLinkFields) != ParentLinkFields)
                 {
                     continue;

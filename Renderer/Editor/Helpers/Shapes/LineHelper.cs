@@ -91,7 +91,8 @@ internal sealed class LineHelper : EntityHelper
             return;
         }
 
-        // Lines from more than one entity are told apart from a single one while selected
+        // While selected, lines from more than one entity use the overlay selection color,
+        // and lines from a single one use the selection color
         var color = !state.IsSelected ? GetDrawColor(state) : startCount > 1 ? SelectionOverlayColor : SelectionColor;
 
         context.PushRenderMode(ToolRenderMode.Wireframe);

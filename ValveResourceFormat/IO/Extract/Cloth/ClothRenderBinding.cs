@@ -30,7 +30,7 @@ internal sealed class ClothRenderBinding
         this.surface = surface;
     }
 
-    /// <summary>Gets where each skeleton bone lands in the emitted joint list, see <see cref="ClothBones.Compaction"/>.</summary>
+    /// <summary>Gets the index of each skeleton bone in the emitted joint list, negative for a generated proxy bone, see <see cref="ClothBones.Compaction"/>.</summary>
     internal int[] Compaction { get; }
 
     /// <summary>Gets whether painted vertices are bound to a proxy surface, which needs their positions.</summary>
@@ -314,7 +314,7 @@ internal sealed class ClothRenderBinding
 
 /// <summary>
 /// The faces of a model's cloth proxies, for predicting how the compiler binds a painted render vertex: the nearest face
-/// binds all its corners from its interior, or the two ends of its nearest edge from outside it. Every rotation-free
+/// binds all of its corners from inside the face, or the two ends of the nearest edge from outside. Every rotation-free
 /// generated node a binding reaches is given a <c>$cloth</c> bone.
 /// </summary>
 internal sealed class ClothProxySurface

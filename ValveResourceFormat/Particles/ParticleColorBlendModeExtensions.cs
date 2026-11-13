@@ -2,7 +2,7 @@ namespace ValveResourceFormat.Particles
 {
     static class ParticleColorBlendModeExtensions
     {
-        // Combines a colour with a tint the way a ParticleColorBlendMode_t field asks. DEFAULT replaces.
+        // Combines a colour with a tint using the blend mode. DEFAULT replaces the colour with the tint.
         public static Vector3 Blend(this ParticleColorBlendMode mode, Vector3 color, Vector3 tint) => mode switch
         {
             ParticleColorBlendMode.PARTICLEBLEND_OVERLAY => new Vector3(Overlay(color.X, tint.X), Overlay(color.Y, tint.Y), Overlay(color.Z, tint.Z)),

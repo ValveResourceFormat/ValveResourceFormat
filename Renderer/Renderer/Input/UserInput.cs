@@ -104,7 +104,7 @@ public class UserInput
     /// </summary>
     public bool ShowCrosshair => Viewmodel?.ShowCrosshair ?? WalkMode;
 
-    /// <summary>The buttons down as of this frame's sample, which movement folds into its own tick state.</summary>
+    /// <summary>Buttons down as of this frame's sample. <see cref="PlayerMovement"/> copies them into its tick state.</summary>
     internal TrackedKeys Keys { get; private set; }
 
     private TrackedKeys PreviousKeys;
@@ -433,10 +433,10 @@ public class UserInput
     /// lerping towards.
     /// </summary>
     /// <remarks>
-    /// Handing control to the player means the camera stops being something the view chases and starts
-    /// being the body's eyes: the body is seeded from where the camera is, and drawn there, so a view
-    /// still lerping in from behind would watch itself materialise in front of it. Adopting the pose the
-    /// transition had reached rather than its destination keeps the player where they were looking from.
+    /// When the player takes control, the camera is the player's eye position and the view no longer chases it.
+    /// The body is seeded from the camera and drawn there, so a view still lerping in from behind would see
+    /// the body appear in front of it. Adopting the pose the transition had reached, not its destination,
+    /// keeps the player where the view was.
     /// </remarks>
     private void SettleCamera()
     {
@@ -667,9 +667,9 @@ public class UserInput
     }
 
     /// <summary>
-    /// Fits the free-flight speed to a scene of the given size: it starts at the default speed, or slower
-    /// when the scene would be crossed in a few seconds, and scrolls from well below where it starts to well
-    /// above the speed that crosses it.
+    /// Fits the free-flight speed to a scene of the given size. The start speed is the default speed, or the
+    /// crossing speed when that is lower. Scrolling ranges from well below the start speed to well above the
+    /// crossing speed.
     /// </summary>
     /// <param name="sceneSize">The extent of the scene in world units; non-finite or below one unit uses the default speed.</param>
     public void SetMoveSpeedRange(float sceneSize)

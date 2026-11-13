@@ -18,11 +18,11 @@ internal static class SelectionBounds
     private static readonly Color32 AxisZ = new(140, 140, 255);
 
     /// <summary>Draws the bounds of a box placed in the world.</summary>
-    /// <param name="context">What the bounds are drawn with.</param>
-    /// <param name="transform">Where the box is.</param>
+    /// <param name="context">The context the bounds are drawn into.</param>
+    /// <param name="transform">Transform of the box into the world.</param>
     /// <param name="box">The box, in the space it is placed in.</param>
     /// <param name="camera">The camera, to find the corner nearest it.</param>
-    /// <param name="textRenderer">What the lengths are written with.</param>
+    /// <param name="textRenderer">The text renderer the lengths are written with.</param>
     public static void Draw(ToolRenderContext context, in Matrix4x4 transform, in AABB box, Camera camera, TextRenderer textRenderer)
     {
         context.PushTransform(transform);

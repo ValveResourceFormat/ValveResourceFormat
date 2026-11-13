@@ -4,11 +4,11 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Lights the scene with one point light standing for the whole collection. It sits at the
-    /// particles' centre weighted by their brightness and volume, takes its colour from their summed
-    /// tinted volume spread over a sphere of its range, and reaches a multiple of the size of the
-    /// system's bounds. It eases towards each new placement, and goes out while the bounds are empty
-    /// or it would be too small or too dim.
+    /// Lights the scene with one point light for the whole collection. The light sits at the
+    /// particles' centre weighted by brightness and volume. Its colour is the summed tinted volume
+    /// of the particles spread over a sphere of the light's range, and its range is a multiple of
+    /// the size of the system's bounds. The light eases towards each new placement, and goes out
+    /// while the bounds are empty or the range is too small or the colour too dim.
     /// </summary>
     /// <remarks>
     /// The light is published through <see cref="IParticleSystemObserver.OnLightSourceUpdated"/>.

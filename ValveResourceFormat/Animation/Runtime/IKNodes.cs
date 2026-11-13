@@ -269,7 +269,7 @@ namespace ValveResourceFormat.Animation
                     return result;
                 }
 
-                // A single foot runs the two bone IK task, which converts world targets the other way round
+                // A single foot runs the two bone IK task, which multiplies a world target by WorldTransformInverse in the opposite operand order
                 target.TryGetTransform(solvePose, out var targetTransform);
                 if (!target.IsBoneTarget && IsTargetInWorldSpace)
                 {

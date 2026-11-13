@@ -4,13 +4,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
     /// The scene lights a light renderer keeps, each following one particle by id. Every simulation
-    /// step marks the slots it updates; at its end the slots it did not touch go dark and come free
-    /// for other particles. The steps only decide what each slot shows; <see cref="Apply"/> hands that
-    /// to the scene lights, on the main thread, since the scene's light list is shared. Only grows.
+    /// step marks the slots it updates. At the end of the step, slots it did not touch go dark and come
+    /// free for other particles. The steps only set the <see cref="LightState"/> of each slot.
+    /// <see cref="Apply"/> copies it to the scene lights on the main thread, since the scene's light
+    /// list is shared. Only grows.
     /// </summary>
     internal sealed class ParticleLightPool(Scene scene, Func<SceneLight> createLight)
     {
-        /// <summary>What one light shows while it follows a particle.</summary>
+        /// <summary>Settings of one light while it follows a particle.</summary>
         /// <param name="Color">The light colour, 0 to 1.</param>
         /// <param name="LinearBrightness">The brightness.</param>
         /// <param name="BrightnessScale">Scales the brightness.</param>
@@ -55,7 +56,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             /// <summary>Gets or sets whether the light was updated this step.</summary>
             public bool Touched { get; set; }
 
-            /// <summary>Gets or sets what the light shows while it is in use.</summary>
+            /// <summary>Gets or sets the light settings while the slot is in use.</summary>
             public LightState State { get; set; }
 
             /// <summary>Gets or sets the scene light, created by the first <see cref="Apply"/> after the slot.</summary>
@@ -126,7 +127,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
         }
 
-        /// <summary>Makes the scene lights show what the slots hold, putting out the free ones.</summary>
+        /// <summary>Copies the <see cref="LightState"/> of each slot to its scene light, and puts out the lights of free slots.</summary>
         public void Apply()
         {
             foreach (var slot in slots)

@@ -6,8 +6,8 @@ namespace ValveResourceFormat.Particles.Utils
     internal readonly record struct LightFalloff(float Constant, float Linear, float Quadratic)
     {
         /// <summary>
-        /// A distance past which the light is cut off and the intensity subtracted so it reaches
-        /// zero there, both zero when the light has none.
+        /// The distance past which the light is cut off, and the intensity subtracted so it reaches
+        /// zero there. Both are zero when the light has no cutoff.
         /// </summary>
         public readonly record struct Cutoff(float Range, float Offset);
 

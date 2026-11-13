@@ -48,9 +48,6 @@ namespace GUI.Forms
             }
         } = true;
 
-        /// <summary>
-        /// Time elapsed since the dialog was shown.
-        /// </summary>
         internal TimeSpan Elapsed => Stopwatch.GetElapsedTime(startTimestamp);
 
         /// <summary>

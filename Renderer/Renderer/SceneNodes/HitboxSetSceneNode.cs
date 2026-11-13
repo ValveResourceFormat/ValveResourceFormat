@@ -52,7 +52,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 var hitbox = hitboxSet[i];
                 var sceneNode = HitboxSceneNode.Create(Scene, hitbox);
 
-                // Registered with the scene so it gets an instance slot for its transform, updated and shown by this node
+                // Added to the scene so the hitbox node gets an instance slot for its transform. This node updates and shows it
                 sceneNode.Parent = this;
                 sceneNode.Visible = false;
                 Scene.Add(sceneNode, true);

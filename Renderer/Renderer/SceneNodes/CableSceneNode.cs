@@ -128,8 +128,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         /// <remarks>
         /// Positions stay in the entity's space, as the path nodes are authored. The effects read the snapshot
-        /// relative to control point 0, which follows the entity, so the rope moves with it and simulates in
-        /// world space from there, gravity world-down.
+        /// relative to control point 0, which follows the entity. The rope moves with the entity and simulates in
+        /// world space from there, with gravity world-down.
         /// </remarks>
         internal static ParticleSnapshot BuildSnapshot(List<RopeSample> samples, Vector3 colorTint)
         {

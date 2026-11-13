@@ -62,8 +62,8 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     InitProperties(mat, vertexNormals, vFragPosition, vTangentOut.xyz, GetBitangent(vNormalOut, vTangentOut));
 
 #if (F_DECAL_SPACE_NORMALS == 1)
-    // The decal brings its own frame, so its normal map reads the same whatever it
-    // was projected onto.
+    // The normal frame comes from the decal, so the normal map reads the same whatever
+    // surface the decal is projected onto.
     mat.GeometricNormal = normalize(cross(vProjectionDir.xyz, vTangentOut.xyz));
 #endif
 

@@ -93,7 +93,7 @@ uniform float g_flOpacityScale = 1.0;
     #include "../features/blend_second_layer.slang"
 #endif
 
-// How the second layer sits over the first
+// Blend factor, vertex blend, mask and texcoord of the second layer
 struct LayerBlend_t
 {
     float Factor;

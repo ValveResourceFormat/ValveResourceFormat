@@ -152,7 +152,7 @@ struct OldBlend_t
 {
     float Weight;           // the upper layer's [0, 1] weight
     float Below;            // the lower layers' height above their zero point
-    float BelowScale;       // their height scale with its softness
+    float BelowScale;       // their height scale plus the softness
     float BelowOffset;      // where the paint puts them in the range
     float BelowZero;        // layer 1's shifted zero point
     float BelowHeight;      // their height in the range
@@ -242,9 +242,9 @@ float GetOldNormalReplaceGate(OldBlend_t blend)
     return saturate((blend.AboveDelta * blend.AboveScale + blend.AboveOffset + blend.AboveZero) - blend.BelowHeight);
 }
 
-// How much of the border applies at this pixel: the product of how far the upper layer's band grown by the spread
-// overlaps the layers below, and how far they grown by it overlap the upper layer. The band only exists where the
-// paint is mid-transition.
+// How much of the border applies at this pixel: the product of aboveShare and belowShare. aboveShare is how far the
+// upper layer's band, grown by the spread, overlaps the layers below. belowShare is how far the bands of the layers
+// below, grown by the spread, overlap the upper layer. The band only exists where the paint is mid-transition.
 float GetOldBorderAmount(OldBlend_t blend, float blendFactor, float spread, float offset, float softness)
 {
     float paintMask = PaintTransitionMask(blendFactor, 10.0);
@@ -395,7 +395,7 @@ vec3 FoldBevelNormal(vec3 normal, vec3 geometricNormal, vec3 tangent, vec3 bitan
 {
     vec3 bevel = normalize(mix(geometricNormal, normalize(slope), amount));
 
-    // The slope comes out of world space; the normal it folds into has not been there yet
+    // The slope is in world space and the normal is in tangent space, so convert the bevel to tangent space first
     vec3 bevelTs = vec3(dot(bevel, tangent), dot(bevel, bitangent), dot(bevel, geometricNormal));
 
     return normalize(normal + bevelTs - Up);

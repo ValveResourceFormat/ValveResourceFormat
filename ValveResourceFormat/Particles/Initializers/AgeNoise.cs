@@ -3,9 +3,9 @@ using ValveResourceFormat.Particles.Utils;
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
-    /// Starts particles partly aged: the value lattice sampled at the particle's scaled creation
-    /// position with a time term added to every component maps to a clamped fraction of the
-    /// particle's lifetime. Decorrelates bursts that would otherwise animate in lockstep.
+    /// Starts particles partly aged. Value noise sampled at the scaled creation position, shifted by
+    /// the scaled creation time on every axis, gives a clamped fraction of the lifetime that is taken
+    /// off the creation time. Decorrelates bursts that would otherwise animate in lockstep.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_AgeNoise">C_INIT_AgeNoise</seealso>
     class AgeNoise : ParticleFunctionInitializer

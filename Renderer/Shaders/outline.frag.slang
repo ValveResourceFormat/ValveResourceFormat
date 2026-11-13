@@ -16,7 +16,7 @@ layout (location = 0) out vec2 outOutlineMask;
 
 void main()
 {
-    // What is cut out of an object is not part of its outline
+    // Pixels removed by the alpha test are not outlined
     #if (F_ALPHA_TEST == 1)
         if (texture(g_tColor, texCoord).a - 0.001 < g_flAlphaTestReference)
         {

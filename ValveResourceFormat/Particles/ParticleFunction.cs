@@ -89,7 +89,7 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>
         /// Bit mask over <see cref="ParticleField"/> of the attributes an emitter or initializer also
-        /// rewrites on particles created earlier, which keeps their initial values in a copy of their own.
+        /// rewrites on particles created earlier, so their initial values need a separate copy.
         /// </summary>
         public virtual ulong LiveWrittenFields => 0;
 

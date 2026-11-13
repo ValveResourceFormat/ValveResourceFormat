@@ -7,11 +7,11 @@ namespace ValveResourceFormat.Renderer.Audio;
 /// <summary>
 /// Implements the "hlvr_start_multi" sound event type: starts every child listed in
 /// "soundevent_01".."soundevent_24" whose matching "use_NN" flag (only authored on the first few slots)
-/// isn't explicitly disabled. Also implements "hlvr_start_multi_quad", which uses the same child-list
-/// shape (its 4 slots are the L/R/LS/RS channels of a quad-panned ambient bed) plus an optional
-/// "rand_delay_min"/"rand_delay_max" that staggers each child's <see cref="SoundEvent.DelayOverride"/> so
-/// near-identical channels don't loop in phase lock; absent on plain "hlvr_start_multi" events, where it
-/// has no effect. A simplified stand-in for the other "hlvr_start_multi_*" variants (switch, sequence,
+/// isn't explicitly disabled. Also implements "hlvr_start_multi_quad", which has the same child list
+/// (4 slots, the L/R/LS/RS channels of a quad-panned ambient bed) plus an optional
+/// "rand_delay_min"/"rand_delay_max". Those stagger the <see cref="SoundEvent.DelayOverride"/> of each child
+/// so near-identical channels don't loop in phase lock. Plain "hlvr_start_multi" events don't author them,
+/// so they have no effect there. A simplified stand-in for the other "hlvr_start_multi_*" variants (switch, sequence,
 /// distance delay, ...), which pick or sequence among their children instead of starting all of them.
 /// </summary>
 internal sealed class SoundEventHLVRMulti : SoundEvent

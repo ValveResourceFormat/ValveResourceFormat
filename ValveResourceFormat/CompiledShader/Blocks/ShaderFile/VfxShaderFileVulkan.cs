@@ -32,7 +32,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
         public ushort ActiveImageBindingMask { get; init; }
         public short NumActiveUniformTexelBuffers { get; init; }
         public ulong[] ActiveUniformTexelBufferBindingMask { get; init; } = [];
-        // Read out-of-band on the wire (after push constants), so this is the only mutable field.
+        // Read after the push constants, out of order with the other fields, so this is the only mutable field.
         public ushort ActiveStorageTexelBufferBindingMask { get; set; }
     }
 

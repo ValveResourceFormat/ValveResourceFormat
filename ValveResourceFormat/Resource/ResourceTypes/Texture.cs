@@ -180,7 +180,7 @@ namespace ValveResourceFormat.ResourceTypes
                 public Dictionary<string, float> FloatParams { get; } = [];
 
                 /// <summary>
-                /// Gets the playback time span of this sequence, or one second when it has no total of its own.
+                /// Gets the playback time span of this sequence, or one second when <see cref="TotalTime"/> is not positive.
                 /// </summary>
                 public float EffectiveTotalTime => TotalTime > 0f ? TotalTime : 1f;
 

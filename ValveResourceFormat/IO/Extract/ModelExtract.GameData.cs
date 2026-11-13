@@ -245,7 +245,6 @@ partial class ModelExtract
     {
         var children = KVObject.Array();
 
-        // Field mappings from compiled to source names
         var footFieldMappings = new (string CompiledName, string SourceName)[]
         {
             ("m_name", "name"),
@@ -266,7 +265,6 @@ partial class ModelExtract
 
             var footNode = MakeNode("Foot");
 
-            // Map compiled field names to source field names
             foreach (var (compiledName, sourceName) in footFieldMappings)
             {
                 if (footEntry.TryGetValue(compiledName, out var footValue))
@@ -288,7 +286,6 @@ partial class ModelExtract
 
         var feetNode = MakeNode("Feet", ("children", children));
 
-        // Parent-level field mappings
         var parentFieldMappings = new (string CompiledName, string SourceName)[]
         {
             ("m_flLockTolerance", "locktolerance"),
@@ -296,7 +293,6 @@ partial class ModelExtract
             ("m_bSanitizeTrajectories", "sanitizetrajectories"),
         };
 
-        // Add parent-level properties if they exist
         foreach (var (compiledName, sourceName) in parentFieldMappings)
         {
             if (feetSettings.TryGetValue(compiledName, out var feetValue))
@@ -315,7 +311,6 @@ partial class ModelExtract
             return;
         }
 
-        // Remove quotes from keys by rebuilding the object
         var cleanedData = KVObject.Collection();
         foreach (var (key, value) in genericData.Children)
         {

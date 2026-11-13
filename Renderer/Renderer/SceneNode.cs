@@ -73,7 +73,7 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Gets or sets the visibility layers of the node, set before it is added to the scene. The node is shown
-        /// only while every one of them is enabled, and one on no layer is never hidden by one.
+        /// only while all of its layers are enabled. A node with no layers is never hidden by layers.
         /// </summary>
         public ImmutableArray<WorldLayer> Layers { get; set => field = value.IsDefault ? [] : value; } = [];
 
@@ -197,8 +197,8 @@ namespace ValveResourceFormat.Renderer
         public bool KeepsWorldAxes { get; set; }
 
         /// <summary>
-        /// How large this node is drawn next to whatever places it. Only a marker differs, and only where its
-        /// scene is magnified.
+        /// Scale of the transform this node is placed at: <see cref="Scene.MarkerScale"/> when <see cref="KeepsMarkerSize"/>
+        /// is set, otherwise 1. It differs from 1 only where the scene is magnified.
         /// </summary>
         internal float PlacementScale => KeepsMarkerSize ? Scene.MarkerScale : 1f;
 

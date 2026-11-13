@@ -25,7 +25,6 @@ internal readonly record struct DmxMeshBuildOptions
     /// <summary>Pre-parsed input signatures used to map DirectX semantic names to engine semantic names.</summary>
     public Dictionary<string, Material.VsInputSignature>? MaterialInputSignatures { get; init; }
 
-    /// <summary>Remap table for the mesh bone indices.</summary>
     public int[]? BoneRemapTable { get; init; }
 
     /// <summary>
@@ -51,9 +50,9 @@ internal static class DmxMeshBuilder
     private static readonly string[] NamedVertexStreams = ["VertexPaintBlendParams", "VertexPaintTintColor", "PivotPaint", "FoliageAnimation"];
 
     /// <summary>
-    /// The values the streams of one vertex data element are decoded against: the input signature of the
-    /// first material its draw calls use that has one, the mesh's skinning, and the cloth binding with the triangles
-    /// its <c>cloth_enable</c> paint is grown over.
+    /// Inputs for decoding the streams of one vertex data element: the input signature of the first material
+    /// of the draw calls that has one, the bone weight count and remap table of the mesh, and the cloth binding
+    /// with the triangles the <c>cloth_enable</c> paint is grown over.
     /// </summary>
     private readonly record struct VertexStreams(Material.VsInputSignature MaterialInputSignature, int BoneWeightCount, int[]? BoneRemapTable,
         ClothRenderBinding? Cloth, List<int>? ClothTriangles);
@@ -343,9 +342,6 @@ internal static class DmxMeshBuilder
     private static bool HasStream(DmeVertexData vertexData, string name)
         => vertexData.VertexFormat.Contains(name, StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Converts a mesh to a datamodel mesh representation.
-    /// </summary>
     public static Datamodel.Datamodel Build(Mesh mesh, string name, DmxMeshBuildOptions options)
     {
         var mdat = mesh.Data;

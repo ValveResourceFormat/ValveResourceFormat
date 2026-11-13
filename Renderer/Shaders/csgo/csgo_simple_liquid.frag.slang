@@ -78,7 +78,7 @@ uniform float g_flBackgroundRefractionBlendStrength = 1.0;
     in vec3 vLiquidUpWs;
     in vec3 vLiquidGravityWs;
 
-    // What GetMaterial() works out of the liquid for the lighting steps of main()
+    // Liquid terms that GetMaterial() computes for the lighting in main()
     struct LiquidState_t
     {
         float Coverage; // Where the liquid is seen through the glass
@@ -93,13 +93,13 @@ uniform float g_flBackgroundRefractionBlendStrength = 1.0;
     LiquidState_t g_Liquid;
 #endif
 
-// The color texture, where the glass is from the liquid mask, and how much its edge thickens
+// Color texture, glass mask from the liquid mask, and the edge amount and Fresnel thickness of the glass
 vec3 g_vTextureColor = vec3(0.0);
 float g_flGlassMask = 0.0;
 float g_flGlassEdge = 0.0;
 float g_flGlassFresnel = 0.0;
 
-// What the light refracts through, the glass or the liquid behind it
+// Normal and index of refraction of the glass or of the liquid behind it
 vec3 g_vRefractionNormal = vec3(0.0);
 float g_flRefractionIndex = 1.0;
 
@@ -133,7 +133,7 @@ vec3 GetLiquidAlbedo(MaterialProperties_t mat, vec4 normalTexture, vec3 glassAlb
     float wobbleTime = 3.0 * GetLiquidTime() * floor(g_flLiquidWobbleSpeed * 200.0);
     float bubbleTime = wobbleTime * 0.005;
 
-    // The position on the screen plane, along the direction gravity pulls on the screen and across it
+    // Position on the screen plane, along and across the screen space gravity direction
     vec3 centerToSurfaceVs = (g_matWorldToView * vec4(mat.PositionWS - vLiquidCenterWs, 0.0)).xyz;
     vec3 gravityVs = (g_matWorldToView * vec4(gravity, 0.0)).xyz;
     vec3 screenDown = normalize(vec3(gravityVs.xy, 0.0));
@@ -169,7 +169,7 @@ vec3 GetLiquidAlbedo(MaterialProperties_t mat, vec4 normalTexture, vec3 glassAlb
     float height = dot(mat.PositionWS, up);
     float viewAlongGravity = dot(viewToSurface, gravity);
 
-    // The bubbles, four layers of them drifting up, as the size of their cells and as the normal they bend
+    // Four layers of rising bubbles, giving the cell size and the bend of the normal
     vec2 bubbleSpace = screenPosition * g_flBubbleSpaceScale + (normalTexture.xy - vec2(0.5)) * 0.25;
     float bubbleAmount = mix(g_flBubblesMinimum, g_flBubblesMaximum, pow(testAgitation, 9.0) + vVertexColorOut.g * 0.25);
     float bubbleSize = (1.5 * g_flBubbleScale * bubbleAmount) / (1.0 + abs(((level + surfaceTension + wobble) - height) * g_flBubbleDepthFalloff));
@@ -248,7 +248,7 @@ vec3 GetLiquidAlbedo(MaterialProperties_t mat, vec4 normalTexture, vec3 glassAlb
     albedo += (((liquid * g_flLiquidBrightness) * pow(rim, 3.0)) * coverageMasked) / (1.0 + max(surfaceHeight - height, 0.0)) * g_flLiquidInnerGlow;
     albedo *= 1.0 + (g_flBrightenEmptyArea * g_flGlassMask) * saturate(1.0 - coverage);
 
-    // The normal of the liquid, which the bubbles bend and which turns to the flat surface of the liquid where that is seen
+    // Liquid normal. The bubbles bend it, and it turns to the flat liquid surface where that is seen
     vec3 bentNormal = normalize(mix(mat.Normal, mat.ViewDir, -0.3) + ((g_vCameraUpDirWs * bubbleBend.y + cross(g_vCameraUpDirWs, viewToSurface) * bubbleBend.x) * g_flBubbleStrength));
     vec3 flatNormal = normalize(vec3(wobble * 0.5, 0.0, 0.0) - gravity);
     float flatAmount = ((saturate(1.0 - ((saturate(depthBelowSurface) - saturate(backDepth)) * 0.5)) * saturate(coverage)) * backSurface) * (0.25 + (backFade * (2.0 / 3.0)));
@@ -309,7 +309,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
 #if (S_MODE_DEPTH == 0)
 
-// The light of the scene behind the surface, which the reflection captured in the environment map is scaled by.
+// Irradiance of the scene behind the surface, used to scale the reflection captured in the environment map.
 // TODO: The game reads the light probe volumes here, also on lightmapped objects.
 vec3 GetIrradianceBehind(MaterialProperties_t mat)
 {
@@ -341,7 +341,7 @@ vec3 GetIrradianceBehind(MaterialProperties_t mat)
     }
 #endif
 
-// What the environment shows through the surface, refracted, in the color of the surface
+// Environment map refracted through the surface and tinted by the surface color
 vec3 GetCubeRefraction(MaterialProperties_t mat, float transparency)
 {
     vec3 viewToSurface = -mat.ViewDir;

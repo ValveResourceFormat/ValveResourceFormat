@@ -4,8 +4,9 @@ namespace ValveResourceFormat.Particles;
 
 /// <summary>
 /// The object a control point is bound to when it carries a model, such as the entity an effect is
-/// attached to: where it stands, how its skeleton is posed and which sequence it plays. The model
-/// functions place particles on its hitboxes and bones, skin snapshots to it and read its scale.
+/// attached to. It gives the transform, the pose of the skeleton and the sequence being played. The
+/// model functions place particles on the hitboxes and bones of the model, skin snapshots to the
+/// model and read the scale of the transform.
 /// </summary>
 public interface IParticleModelObject
 {

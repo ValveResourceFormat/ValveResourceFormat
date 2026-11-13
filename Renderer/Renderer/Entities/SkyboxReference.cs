@@ -3,8 +3,8 @@ using ValveResourceFormat.Renderer.World;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>skybox_reference</c>. Places a map as the 3D sky, which the last one to activate shows, seen through the
-/// first <c>sky_camera</c> of the sky's world group.
+/// <c>skybox_reference</c>. Places a map as the 3D sky, seen through the first <c>sky_camera</c> of the sky's
+/// world group. The last reference to activate is the one shown.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -24,8 +24,8 @@ public sealed class SkyboxReference : BaseEntity
     private SkyCamera? skyCamera;
 
     /// <summary>
-    /// Gets the world group the sky is loaded into, the reference's own when it names none, such as
-    /// <c>skyboxWorldGroup0</c>.
+    /// Gets the world group the sky is loaded into, such as <c>skyboxWorldGroup0</c>. It is the world group of
+    /// the reference when it names none.
     /// </summary>
     public string? SkyWorldGroup { get; }
 

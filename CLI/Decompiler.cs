@@ -235,7 +235,7 @@ namespace CLI
                         return 1;
                     }
 
-                    // A folder is matched the same as --vpk_filepath, but a file has to match exactly
+                    // A folder becomes a path prefix filter, but a file has to match exactly
                     if (linkedPath.EndsWith('/', StringComparison.Ordinal))
                     {
                         vpk_filepath = linkedPath;
@@ -1459,7 +1459,7 @@ namespace CLI
         }
 
         /// <summary>
-        /// Writes a decoded non-resource file next to where the input would go, with the extension of what it was decoded to.
+        /// Writes a decoded non-resource file to the output path of the input, with the extension of the decoded file name.
         /// </summary>
         private void DumpNonResourceContentFile(string path, ContentFile content)
         {

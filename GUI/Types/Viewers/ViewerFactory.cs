@@ -6,7 +6,6 @@ using ValvePak;
 
 namespace GUI.Types.Viewers;
 
-// detects correct viewer for file and creates it
 static class ViewerFactory
 {
     public static async Task<IViewer> CreateAndLoadAsync(VrfGuiContext vrfGuiContext, PackageEntry? entry, ResourceViewMode viewMode)

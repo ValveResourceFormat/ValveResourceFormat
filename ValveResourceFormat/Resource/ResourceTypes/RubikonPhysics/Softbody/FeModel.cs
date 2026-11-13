@@ -446,7 +446,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public FeTreeChildren[] TreeChildren => treeChildren ??= ReadArray(Data, "m_TreeChildren", static o => new FeTreeChildren(
             ReadInt32Array(o, "nChild")));
 
-        /// <summary>Gets <c>m_FitMatrices</c>. Each fit covers the <see cref="FitWeights"/> from the previous one's end to its own.</summary>
+        /// <summary>Gets <c>m_FitMatrices</c>. Each fit covers the <see cref="FitWeights"/> from the <c>End</c> of the previous fit to the <c>End</c> of this fit.</summary>
         public FeFitMatrix[] FitMatrices => fitMatrices ??= ReadArray(Data, "m_FitMatrices", static o => new FeFitMatrix(
             ReadTransform(o.GetSubCollection("bone")), ReadVector3(o.GetSubCollection("vCenter")),
             o.GetInt32Property("nEnd"), o.GetInt32Property("nNode"), o.GetInt32Property("nBeginDynamic"), o.GetNullableInt32Property("nCtrl")));

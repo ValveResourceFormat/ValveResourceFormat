@@ -451,7 +451,7 @@ public partial class HalfEdgeMesh
             newFaces.Add(hFace, AllocateFace(Face.Invalid));
         }
 
-        // half edges of the faces and their twins, allocated in pairs so twins stay adjacent, vertices as met
+        // Allocate the half edges of the faces and their twins in pairs so twins stay adjacent. Allocate vertices in the order they are met.
         foreach (var hFace in faces)
         {
             var hEdge = hFace.Edge;
@@ -507,8 +507,8 @@ public partial class HalfEdgeMesh
             }
             else
             {
-                // only a boundary half edge can leave the set, its next edge is the open edge of the
-                // other fan at the end vertex; rotating on from there reaches the copied fan at its open edge
+                // Only a boundary half edge can leave the set. Its next edge is the open edge of the
+                // other fan at the end vertex. Rotating on from there reaches the open edge of the copied fan.
                 hNewHalfEdge.NextEdge = newHalfEdges[FindNextOutgoingEdgeInSet(hHalfEdge.NextEdge, newHalfEdges)];
             }
         }

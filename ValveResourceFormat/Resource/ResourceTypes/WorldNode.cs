@@ -171,8 +171,8 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// A material that replaces the one of a single draw call of one of <see cref="SceneObjects"/>,
-        /// or of all its draw calls when <see cref="DrawCallIndex"/> is <see cref="AllDrawCalls"/>.
+        /// A material that replaces the material of a single draw call of one of <see cref="SceneObjects"/>,
+        /// or of every draw call of that scene object when <see cref="DrawCallIndex"/> is <see cref="AllDrawCalls"/>.
         /// </summary>
         /// <param name="SceneObjectIndex">Index into <see cref="SceneObjects"/>.</param>
         /// <param name="SubSceneObject">Index of the mesh within the scene object's model, ignored for <see cref="AllDrawCalls"/>.</param>
@@ -193,7 +193,7 @@ namespace ValveResourceFormat.ResourceTypes
             public bool IsWholeModel => DrawCallIndex == AllDrawCalls;
 
             /// <summary>
-            /// Gets the material that replaces one draw call of a scene object's model, or <see langword="null"/> when it keeps its own.
+            /// Gets the material that replaces one draw call of a scene object's model, or <see langword="null"/> when the draw call keeps its material.
             /// </summary>
             /// <param name="materialOverrides">The overrides of the scene object.</param>
             /// <param name="meshIndex">Index of the mesh within the model.</param>

@@ -30,8 +30,8 @@ namespace ValveResourceFormat.IO
         public GameInfo GameInfo => FoundGameInfo ?? GameInfoFallback?.GameInfo ?? GameInfo.Empty;
 
         /// <summary>
-        /// Gets a loader whose game gives the settings read from <c>gameinfo.gi</c> while this one has found no game of
-        /// its own, such as the loader of the file this one's file was opened from.
+        /// Gets a loader that supplies the settings read from <c>gameinfo.gi</c> while this loader has found no game,
+        /// such as the loader of the file this loader's file was opened from.
         /// </summary>
         protected virtual GameFileLoader? GameInfoFallback => null;
 
@@ -384,8 +384,8 @@ namespace ValveResourceFormat.IO
         /// <c>csgo_addons/example</c>, when no game was found otherwise.
         /// </summary>
         /// <remarks>
-        /// Call it for each opened file before loading its dependencies. It is passed on to <see cref="GameInfoFallback"/>,
-        /// so the package the file was opened from is still searched before the game.
+        /// Call it for each opened file before loading the dependencies of the file. The call is passed on to
+        /// <see cref="GameInfoFallback"/>, so the package the file was opened from is still searched before the game.
         /// </remarks>
         /// <param name="resource">The opened resource.</param>
         public void FindGameFromResource(Resource resource)

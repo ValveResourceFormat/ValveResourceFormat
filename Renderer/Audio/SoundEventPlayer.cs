@@ -238,9 +238,9 @@ public sealed class SoundEventPlayer : IDisposable
 
             if (startMul != 1f || endMul != 1f)
             {
-                // Interpolate the gain across the chunk so a fade (or master volume change) does not step;
-                // the last frame must land exactly on endMul so chunks join without a gain step, so it takes
-                // endMul directly: the lerp at 1 can round off the end value
+                // Interpolate the gain across the chunk so a fade (or master volume change) does not step.
+                // The last frame takes endMul directly because the lerp at 1 can round off the end value,
+                // and chunks must join without a gain step.
                 var frames = buffer.Length / channelCount;
                 var lastFrame = frames - 1;
                 var index = 0;
@@ -755,8 +755,8 @@ public sealed class SoundEventPlayer : IDisposable
 
     /// <summary>
     /// Whether nothing solid stands between the listener and a soundscape entity. An env_soundscape only
-    /// claims the listener when it can see them, so one across a wall or floor cannot take over the room
-    /// they are in. Without an <see cref="OcclusionTrace"/> every region counts as visible.
+    /// claims the listener when the listener can see the entity, so a soundscape across a wall or floor
+    /// cannot take over the room the listener is in. Without an <see cref="OcclusionTrace"/> every region counts as visible.
     /// </summary>
     private bool HasLineOfSight(Vector3 listenerPosition, Vector3 position)
     {
@@ -805,9 +805,9 @@ public sealed class SoundEventPlayer : IDisposable
     }
 
     /// <summary>
-    /// Publishes what the audio threads did to the active <see cref="PerfStats"/>. Counted here once a
-    /// frame rather than accumulated as it happens: these are snapshots of state owned by the mixing and
-    /// decode threads, and the counters reset every frame, so one assignment per frame is the whole tally.
+    /// Publishes the audio thread stats to the active <see cref="PerfStats"/> once a frame. These are
+    /// snapshots of state owned by the mixing and decode threads, and the counters reset every frame,
+    /// so one assignment per frame is the whole tally.
     /// </summary>
     private void ReportStats()
     {
@@ -984,15 +984,15 @@ public sealed class SoundEventPlayer : IDisposable
 
         if (closest == null)
         {
-            // Nothing in range to take over. A soundscape is not a trigger volume the ambience stops at
-            // the edge of - the last one to claim the listener keeps playing until another one does, so
-            // walking out of a radius (or losing sight of the entity) does not drop the map into silence.
+            // Nothing in range to take over. A soundscape is not a trigger volume: the last one to claim
+            // the listener keeps playing until another one does, so walking out of a radius (or losing
+            // sight of the entity) does not drop the map into silence.
             return;
         }
 
-        // Compare by name (not handle): an active soundscape with no event still started (e.g. every
-        // one-shot finished without retriggering, or every event failed to resolve/play) no longer
-        // counts as active, so re-entering the area retries it instead of staying silent forever.
+        // Compare by name, not by handle. A soundscape counts as active only while one of its events is started.
+        // When every one-shot finished without retriggering, or every event failed to resolve or play,
+        // it is no longer active, so re-entering the area retries it instead of staying silent forever.
         var currentStillActive = activeSoundscapeEvents.Exists(static e => e.Started);
 
         if (currentStillActive

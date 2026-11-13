@@ -13,11 +13,11 @@ struct EnvMapData
     uint ArrayIndex;
     vec3 BoxMaxs; // A sphere's radius on every axis
     uint _padding1;
-    vec4 InvEdgeWidth; // A sphere's on every axis, from its single fade distance
+    vec4 InvEdgeWidth; // A sphere has the same value on every axis, from its single fade distance
     vec3 Origin;
     uint ProjectionType; // 0 sphere, 1 box
     vec3 Color;
-    int AssociatedLPV; // The light probe volume sharing its handshake, -1 when none
+    int AssociatedLPV; // Index of the associated light probe volume, -1 when none
     vec4 NormalizationSH;
     vec3 ProjectionMins; // The box a box projected reflection hits, in local space
     float InvRadius; // Of the influence sphere
@@ -25,7 +25,6 @@ struct EnvMapData
     uint _padding2;
 };
 
-// Maximum number of environment maps supported
 #define MAX_ENVMAPS 320
 
 layout(std140, binding = 2) uniform EnvMapArray

@@ -65,7 +65,7 @@ float GetGradientFogDistanceSquared(vec3 cameraCenteredPixelPos)
     #endif
 }
 
-// The culling height is where a height term reaches zero, and the term grows on the side of it its scale points to.
+// The culling height is where a height term reaches zero. The term grows on the side that the sign of the scale points to.
 // Without a height range the scale is 0 and the term is 1 at every height.
 bool IsFogHeightInRange(float height, float heightScale, float cullingHeight)
 {
@@ -157,7 +157,7 @@ void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToC
 
 uniform sampler3D g_tFogVolume; // reserved
 
-// The volumetric fog between the camera and a position: the light it scatters in rgb, what it lets through in a.
+// The volumetric fog between the camera and a position: the light it scatters in rgb, the transmittance in a.
 // The volume is a grid of the screen, with slices at near + range * w^2 along the view direction.
 vec4 GetVolumetricFog(vec3 positionWS)
 {

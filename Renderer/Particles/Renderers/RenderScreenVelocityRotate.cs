@@ -3,9 +3,9 @@ using ValveResourceFormat.Particles;
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
-    /// Draws nothing. Every frame it turns each particle's roll to the direction the particle moved on
-    /// screen over its last step, offset by the forward angle, for the renderers after it this frame and
-    /// all of them the next. The roll it writes stays on the particle like any other.
+    /// Draws nothing. Every frame, sets the roll of each particle to the direction the particle moved on
+    /// screen over its last step, offset by the forward angle. The renderers after this one see the roll
+    /// this frame, and all renderers see it the next frame. The roll stays on the particle like any other.
     /// </summary>
     /// <remarks>
     /// The rotate rate is authored but has no effect.

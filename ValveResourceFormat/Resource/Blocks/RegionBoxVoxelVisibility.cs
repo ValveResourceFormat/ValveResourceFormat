@@ -180,7 +180,7 @@ namespace ValveResourceFormat.Blocks
                 reader.BaseStream.Position += 2;
             }
 
-            // Each node's box in grid cells, the same box halving the bounds down the tree gives
+            // Skip the box of each node in grid cells. Halving the bounds down the tree gives the same box.
             reader.BaseStream.Position += (long)nodeCount * NodeExtraBytes;
 
             var mergeLists = data.GetArray("m_mergeLists") ?? [];

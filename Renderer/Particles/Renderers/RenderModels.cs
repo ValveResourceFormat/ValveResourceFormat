@@ -19,9 +19,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// the materials of every mesh.
     /// </summary>
     /// <remarks>
-    /// Each particle picks its model's mesh groups and, when animated, the sequence and the point in it
-    /// it is posed at. Cloth and material variables are not applied. Models that should draw only into
-    /// the effects bloom or water effects pass are not drawn at all.
+    /// Each particle picks the mesh groups of its model and, when animated, the sequence and the point
+    /// within it that the model is posed at. Cloth and material variables are not applied. Models that
+    /// should draw only into the effects bloom or water effects pass are not drawn at all.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderModels">C_OP_RenderModels</seealso>
     internal class RenderModels : ParticleFunctionRenderer
@@ -81,7 +81,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>The dynamic combo <c>m_szRenderAttribute</c> sets on the model's materials, or null for none.</summary>
         private readonly (string Name, byte Value)? renderAttributeCombo;
 
-        /// <summary>What each node shows beyond its placement, kept with the node while it waits to be reused.</summary>
+        /// <summary>Mesh group mask and sequence of each node, kept while the node waits to be reused.</summary>
         private readonly Dictionary<ModelSceneNode, NodeState> nodeStates = [];
 
         private sealed class NodeState(ulong meshGroupMask)
@@ -94,9 +94,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// The model each particle was given when it was created, with the node drawing it and that node's
-        /// skin, at the slot the particle's handle names less one. A particle no model was picked for, or
-        /// that is hidden, has no node.
+        /// The model index each particle was given when it was created, with the node drawing it and the
+        /// skin of that node, at the slot of the particle's handle minus one. A particle with no picked
+        /// model, or a hidden one, has no node.
         /// </summary>
         private readonly ParticleHandlePool<(ModelSceneNode? Node, int Model, int Skin)> pool = new();
         private readonly Action<(ModelSceneNode? Node, int Model, int Skin)> releaseNode;
@@ -516,7 +516,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return picked;
         }
 
-        /// <summary>Where a model a control point supplies sits in the model list, adding it with no spawn weight the first time.</summary>
+        /// <summary>Index in the model list of a model a control point supplies. Adds it with zero spawn weight the first time.</summary>
         private int InputModelIndex(Model model)
         {
             if (!inputModels.TryGetValue(model, out var index))
@@ -591,9 +591,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// Picks the mesh groups the particle's model draws from its sub-model attribute, starting from the
-        /// model's defaults: a choice of the body group its body group attribute names, a single mesh group
-        /// in place of the others of its body group, or a whole mask.
+        /// Picks the mesh groups the particle's model draws from the sub-model attribute, starting from the
+        /// default mask. The attribute is, by sub-model field type, a choice within the body group the body
+        /// group attribute names, a mesh group that replaces the other choices of its body group, or a
+        /// whole mask.
         /// </summary>
         private void SelectMeshGroups(ModelSceneNode node, NodeState state, ModelMeshGroups meshGroups, in SubModelColumns columns, int index)
         {
@@ -639,7 +640,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             node.SetActiveMeshGroups(names);
         }
 
-        /// <summary>The mask with the choice of a body group drawn in place of the others of that group, or as it was when either is out of range.</summary>
+        /// <summary>The mask with a choice of a body group drawn in place of its other choices, or unchanged when the body group or the choice is out of range.</summary>
         private static ulong WithBodyGroupChoice(ulong mask, ModelMeshGroups meshGroups, int bodyGroup, int choice)
         {
             if ((uint)bodyGroup >= (uint)meshGroups.BodyGroups.Count)
@@ -657,7 +658,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return WithChoice(mask, group, group.Choices[choice].GroupIndex);
         }
 
-        /// <summary>The mask with a mesh group drawn in place of the others of its body group, or as it was when no body group holds it.</summary>
+        /// <summary>The mask with a mesh group drawn in place of the other choices of its body group, or unchanged when no body group holds it.</summary>
         private static ulong WithMeshGroup(ulong mask, ModelMeshGroups meshGroups, int group)
         {
             if ((uint)group >= (uint)meshGroups.Names.Count)
@@ -699,11 +700,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// The time and rate the particle plays its sequence at: the manual frame attribute at a rate of one
-        /// when the frame is set manually, otherwise its age at the animation rate, scaled by the rate scale
-        /// attribute when enabled. Once the system enters its endcap, a renderer that resets its animation on
-        /// stop plays every particle from the endcap's start instead, which a stop without an endcap leaves
-        /// unset, so the time is then far past any sequence's end.
+        /// The time and rate the particle plays its sequence at. A manually set frame gives the manual frame
+        /// attribute at a rate of one. Otherwise the time is the particle age and the rate is the animation
+        /// rate, scaled by the rate scale attribute when enabled. Once the system enters its endcap, a
+        /// renderer that resets its animation on stop plays every particle from the start of the endcap
+        /// instead. A stop without an endcap leaves that start unset, so the time is then far past the end
+        /// of any sequence.
         /// </summary>
         private (float Time, float Rate) PlaybackTimeAndRate(ParticleSpan particles, ParticleSystemState systemState, in AnimationColumns columns, float rate, int index)
         {
@@ -726,10 +728,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// Gives the particle's model the sequence the particle plays and poses it at the point its time and
-        /// rate reach. The rate counts frames per second, so the point is the frames played over the frame
-        /// intervals of one cycle. A looping sequence, or any sequence when looping is forced, keeps the
-        /// fraction of that past its whole cycles; any other holds its first and last frames.
+        /// Gives the particle's model the sequence the particle plays and poses it at a point in the cycle.
+        /// The rate counts frames per second, so the cycle position is the frames played divided by the
+        /// frame intervals of one cycle. A looping sequence, or any sequence when looping is forced, keeps
+        /// only the fraction past whole cycles. Any other sequence holds its first and last frames.
         /// </summary>
         private void Animate(ModelSceneNode node, NodeState state, AnimationBase? sequence, float time, float rate)
         {
@@ -830,7 +832,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             /// <summary>The sequence each particle plays, or empty without a usable attribute.</summary>
             public ReadOnlySpan<float> Sequences { get; }
 
-            /// <summary>What each particle's animation rate is scaled by, or empty without a usable attribute.</summary>
+            /// <summary>The animation rate scale of each particle, or empty without a usable attribute.</summary>
             public ReadOnlySpan<float> RateScales { get; }
 
             /// <summary>The frame each particle is posed at when set manually, or empty without a usable attribute.</summary>
@@ -969,7 +971,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             nodeStates.Clear();
         }
 
-        /// <summary>Takes a node out of the scene and deletes it, unless the scene no longer holds it, as when it deletes all of its nodes itself.</summary>
+        /// <summary>Takes a node out of the scene and deletes it. A node the scene no longer holds, as when the scene deletes all nodes itself, is left alone.</summary>
         private void RemoveNode(ModelSceneNode node)
         {
             if (scene.Remove(node, true))

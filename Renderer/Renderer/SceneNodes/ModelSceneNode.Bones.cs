@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly ReadOnlyMemory<int> remappingTable;
 
         /// <summary>
-        /// The inverse bind pose of every slot of <see cref="remappingTable"/>, as the slot's mesh is skinned with it.
+        /// The inverse bind pose of every slot of <see cref="remappingTable"/>, taken from the mesh that owns the slot.
         /// </summary>
         private readonly Matrix4x4[] slotInverseBindPose;
 

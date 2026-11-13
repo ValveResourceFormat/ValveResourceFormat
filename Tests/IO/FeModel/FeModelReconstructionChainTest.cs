@@ -271,7 +271,7 @@ namespace Tests.IO
 
         /// <summary>
         /// A static root over static arms a0 and b0, each with two free joints below, held to the root by a parent lock;
-        /// the root's fit holds a0, a1 and b0, a0's its own arm and b0's its own.
+        /// the root's fit holds a0, a1 and b0, and a0 and b0 each have a fit over their own arm.
         /// </summary>
         private static ClothReconstruction OneWideEntryTree()
         {

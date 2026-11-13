@@ -56,7 +56,7 @@ namespace ValveResourceFormat.Particles.Operators
             var output = particles.Current.Floats(outputField);
             var initial = particles.Initial.ReadFloats(outputField);
 
-            // The value by the set method, then the change toward it at the run strength
+            // Apply the set method to the value, then lerp the output toward the result by strength
             var changes = ParticleScratch.Floats(output.Length);
             changes.Fill(value);
             ParticleFieldExtensions.ApplySetMethod(changes, initial, output, particleSystemState.CurrentStep, setMethod);

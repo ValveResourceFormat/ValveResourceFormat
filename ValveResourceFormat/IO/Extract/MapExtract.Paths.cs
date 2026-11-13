@@ -307,9 +307,9 @@ public sealed partial class MapExtract
     private readonly record struct RingSeam(float AroundStart, float AroundEnd, bool HasSeam);
 
     /// <summary>
-    /// Reads the tube the compiler built for a cable back into the cable's own attributes: the compiled
-    /// map holds them nowhere but in that mesh. Every ring of the tube is one path sample, its vertices run
-    /// around the tube once with a seam vertex repeated for the texture, and the texture coordinates carry
+    /// Reads the tube the compiler built for a cable back into the cable attributes. The compiled
+    /// map holds them only in that mesh. Every ring of the tube is one path sample. The vertices of a ring
+    /// run around the tube once, with a seam vertex repeated for the texture. The texture coordinates carry
     /// the scale, repeats, offsets and orientation the tube was textured with.
     /// </summary>
     private void RecoverCableAttributes(CMapCable cable, string className, Entity compiledEntity, string modelName, List<PathParticleRopeNode> nodes)
@@ -603,9 +603,9 @@ public sealed partial class MapExtract
     }
 
     /// <summary>
-    /// A negative texture scale makes the coordinate fall along the path, which puts the rings in the
-    /// wrong order when sorted by it: the first ring must sit on node 0 and, on a closed loop where both
-    /// ends do, leave it along node 0's outgoing handle.
+    /// A negative texture scale makes the coordinate fall along the path, so rings sorted by it come out in
+    /// the wrong order. The first ring must sit on node 0. On a closed loop both ends sit on node 0, and the
+    /// first ring must leave it along the outgoing handle of node 0.
     /// </summary>
     private static bool IsRingOrderReversed(List<CableRing> rings, List<PathParticleRopeNode> nodes, bool closedLoop)
     {

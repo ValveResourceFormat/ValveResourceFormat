@@ -194,8 +194,9 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         }
     }
 
-    // Every graph gets its own file as the compiler rejects several in one, and all compile in one run as graphs
-    // inline the other graphs of their folder. Only sounds from the same compiler can be compared exactly.
+    // Every graph gets its own file because the compiler rejects several graphs in one file.
+    // All graphs compile in one run because a graph inlines the other graphs of its folder.
+    // Only sounds from the same compiler can be compared exactly.
     [Test, MethodDataSource(nameof(GraphCases))]
     public async Task RecompileDecompiledGraphs(WorkshopToolsGame game)
     {

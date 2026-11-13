@@ -153,8 +153,8 @@ namespace ValveResourceFormat.Particles.Operators
         }
 
         /// <summary>
-        /// Releases the particle pinned last step once another particle has become the last, handing it
-        /// the velocity it was created with, turned with the control point, when that is retained.
+        /// Releases the particle pinned last step once another particle has become the last.
+        /// With retained initial velocity, the released particle gets its initial velocity back, rotated by the control point.
         /// </summary>
         private void SwitchLastPinned(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, ControlPoint cp)
         {

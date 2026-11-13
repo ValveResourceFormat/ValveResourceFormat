@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Renderer
             /// <summary>One node at a time, in scene order.</summary>
             Place,
 
-            /// <summary>Across the thread pool. Touch only what the node owns.</summary>
+            /// <summary>Across the thread pool. Touch only the node's own state.</summary>
             Simulate,
 
             /// <summary>Finish work done on simulate. Back on the calling thread.</summary>
@@ -124,12 +124,12 @@ namespace ValveResourceFormat.Renderer
         public string? WorldGroup { get; init; }
 
         /// <summary>
-        /// How large an editor marker is drawn here next to the entity it marks. A 3D sky is magnified by
-        /// the camera it is drawn through, so its markers shrink to come back out at their normal size.
+        /// Scale of the editor markers drawn next to entities in this scene. A 3D sky is magnified by the
+        /// camera that draws it, so the markers in it shrink to appear at their normal size.
         /// </summary>
         internal float MarkerScale { get; set; } = 1f;
 
-        /// <summary>Maps this scene's space to where the main camera sees it. Identity, except for a 3D sky.</summary>
+        /// <summary>Transform from this scene's space to the world space of the main camera. Identity, except for a 3D sky.</summary>
         public Matrix4x4 ToViewerWorld { get; internal set; } = Matrix4x4.Identity;
 
         /// <summary>Gets or sets the voxel visibility data.</summary>
@@ -472,7 +472,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Forgets what the scene's entities registered with it and left on it, once they are removed: the
+        /// Clears the state that entities registered in the scene, once they are removed: the
         /// environment maps and light probe volumes, post processing and decals.
         /// </summary>
         internal void ClearEntityState()
@@ -529,8 +529,8 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// An entity can own several nodes, such as its model and the collision hulls drawn for it, and the
-        /// one to hand out for it is the one it is drawn as, whichever was added to the scene first.
+        /// An entity can have several nodes, such as its model and the collision hulls drawn for it.
+        /// Returns the entity's <c>RootNode</c> instead of the node that was added to the scene first.
         /// </summary>
         private static SceneNode? PreferRootNode(SceneNode? node) => node?.EntityInstance?.RootNode ?? node;
 
@@ -593,8 +593,8 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// The dynamic nodes are the work: the index picks one, so no filtered list is kept in step
-        /// with the scene. Holds the list itself, not a copy, so running it allocates nothing.
+        /// Parallel work over the dynamic nodes, picked by index, so no filtered list has to be kept in
+        /// sync with the scene. Holds the list itself, not a copy, so running it allocates nothing.
         /// </summary>
         private sealed class SimulationWork(Scene scene, List<SceneNode> nodes) : IParallelWork
         {
@@ -783,7 +783,7 @@ namespace ValveResourceFormat.Renderer
             firstDynamicId = entryCount;
 
             // Mesh draw calls get entries of their own behind the node entries, since tint and skinning differ
-            // per draw. The dynamic nodes' come last, so the per frame refresh uploads one span.
+            // per draw. The dynamic nodes' draw entries come last, so the per frame refresh uploads one span.
             var totalEntryCount = entryCount;
 
             AssignObjectIndices(staticNodes, ref totalEntryCount);
@@ -839,7 +839,7 @@ namespace ValveResourceFormat.Renderer
                 }
                 else if ((node.AdditionalFlags & SceneNodeFlags.PreTransformedVertices) != 0 || (neverChangesTransform && node.Transform.IsIdentity))
                 {
-                    transformIndex = 0; // Reuse identity transform at index 0
+                    transformIndex = 0;
                 }
                 else
                 {
@@ -1051,7 +1051,7 @@ namespace ValveResourceFormat.Renderer
             UploadRange(InstanceBufferGpu, instanceDataCpu, firstDynamicId, objectEntryCount);
             UploadRange(InstanceBufferGpu, instanceDataCpu, drawEntryStart, drawEntryEnd);
 
-            // Static skinned models' bones sit before the dynamic span, and move it down when they changed
+            // Static skinned models' bones sit before the dynamic span, so a change in them lowers the upload start
             transformUploadStart = Math.Min(transformUploadStart, dynamicTransformStart);
             UploadRange(TransformBufferGpu, transforms, transformUploadStart, transforms.Length);
             transformUploadStart = int.MaxValue;
@@ -1083,7 +1083,6 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        // Gives a node that has no lighting cache yet one
         private static SceneNodeLightingCache EnableLightingCache(SceneNode node)
             => node.LightingCache ??= new SceneNodeLightingCache();
 
@@ -1300,7 +1299,7 @@ namespace ValveResourceFormat.Renderer
                                 count = 0;
                             }
 
-                            // what is meshlet.VertexOffset used for?
+                            // Indices are relative to drawCall.BaseVertex, so meshlet.VertexOffset is not needed
 
                             indirectDrawsGpu[commandIndex] = new DrawElementsIndirectCommand
                             {
@@ -1584,7 +1583,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Assigns sequential scene-unique IDs to all static and dynamic nodes, starting at 1 (0 is reserved as an invalid ID).</summary>
         public void UpdateNodeIndices()
         {
-            uint index = 1; // 0 is reserved for invalid index
+            uint index = 1;
 
             foreach (var node in staticNodes)
             {
@@ -2023,7 +2022,6 @@ namespace ValveResourceFormat.Renderer
 
         private readonly List<SceneEnvMap> overlappingEnvMaps = [];
 
-        // Where a node samples lighting from: its lighting origin, or else its bounds center
         private static Vector3 LightingPosition(SceneNode node) => node.LightingOrigin ?? node.BoundingBox.Center;
 
         // Picks the one environment map a node reflects from the ones it overlaps
@@ -2090,7 +2088,7 @@ namespace ValveResourceFormat.Renderer
                 }
                 else if (LightingInfo.LightmapGameVersionNumber >= 2)
                 {
-                    // CS2 Mapping docs say that the lighting origin should point at an exact cubemap.
+                    // A lighting origin within 0.1 units of an env map origin selects only that env map
                     foreach (var envMap in LightingInfo.EnvMaps)
                     {
                         if (Vector3.DistanceSquared(envMap.Transform.Translation, lightingOrigin) < 0.01f)

@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Particles.Initializers
         protected override void InitializeBlocks(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             // The inputs are evaluated for every live particle, and each particle of the run reads its own value
-            // rather than the value of the particle as far into the collection as it is into the run
+            // rather than the value of the collection particle at the same index
             InitializeRun(run, particles.Current, particleSystemState, blockRun: true);
         }
 

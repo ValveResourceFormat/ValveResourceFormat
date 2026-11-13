@@ -277,8 +277,8 @@ public abstract class SoundEvent
     private protected virtual SoundEventCurve? FadeOutCurve => null;
 
     /// <summary>
-    /// Gets the authored stop-fade length in seconds, overriding the fallback <see cref="FadeOutAndStop"/>
-    /// is called with. Zero leaves the caller's fallback in place.
+    /// Gets the authored stop-fade length in seconds. When positive, it overrides the fallback passed to
+    /// <see cref="FadeOutAndStop"/>.
     /// </summary>
     private protected virtual float FadeOutSeconds => Definition.FadeOut;
 

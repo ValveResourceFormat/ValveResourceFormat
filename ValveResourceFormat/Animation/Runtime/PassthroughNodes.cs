@@ -2,8 +2,7 @@ using System.Diagnostics;
 
 namespace ValveResourceFormat.Animation
 {
-    // Passes its child pose node through unchanged. Base for speed/duration scaling and (later)
-    // root-motion override / warp / IK nodes.
+    // Passes its child pose node through unchanged. Base for speed/duration scaling nodes and other nodes that wrap one child pose.
     public partial class PassthroughNode
     {
         // Resolved by reference when the graph is instantiated
@@ -176,8 +175,7 @@ namespace ValveResourceFormat.Animation
         }
     }
 
-    // Scales the playback speed of the child by adjusting the delta time. Unsynchronized only for now;
-    // the synchronized (transition-driven) path is handled in the later sync-track refine pass.
+    // Scales the playback speed of the child by adjusting the delta time. Synchronized updates keep their time step.
     partial class SpeedScaleBaseNode
     {
         public FloatValueNode? InputValueNode;

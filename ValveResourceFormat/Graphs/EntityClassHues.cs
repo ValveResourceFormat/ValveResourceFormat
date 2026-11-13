@@ -58,7 +58,7 @@ internal static class EntityClassHues
     }
 
     /// <summary>
-    /// Names a hue's members: families every present member of which shares the hue collapse to
+    /// Names the members of a hue. A family whose present members all share the hue collapses to
     /// "prefix*", anything left is named outright, and a long tail becomes a count.
     /// </summary>
     private static string DescribeMembers(List<string> members, SortedSet<string> allPresent)
@@ -72,7 +72,7 @@ internal static class EntityClassHues
         {
             var mine = remaining.FindAll(c => c.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
 
-            // The family speaks for this hue only when every present member of it lands here.
+            // Collapse a family only when all of its present classnames land on this hue.
             if (mine.Count < 2 || allPresent.Count(c => c.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) != mine.Count)
             {
                 continue;

@@ -5,11 +5,11 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Editor;
 
 /// <summary>
-/// The groups Hammer's Auto Vis Groups sort tools materials into under "Tool Brushes", as CS2 declares them with the
+/// The groups Hammer's Auto Vis Groups sort tools materials into under "Tool Brushes". CS2 declares them with the
 /// <c>toolsMaterial</c> filters of its FGD files, which hold the groups older Hammer builds have built in. A group
 /// holds only the materials named for it, so a group below a hidden one can still be shown. The root group holds the
-/// tools materials no group names. Unlike Hammer, which files the clips of each surface together under Clip, each has
-/// a group of its own.
+/// tools materials no group names. Hammer files the clips of each surface together under Clip. Here each clip
+/// material has a group of its own.
 /// </summary>
 public static class ToolBrushGroups
 {
@@ -88,7 +88,7 @@ public static class ToolBrushGroups
         return node.EntityData?.GetStringProperty("classname") ?? "worldspawn";
     }
 
-    /// <summary>Gets a group and the groups its path continues, outermost last.</summary>
+    /// <summary>Gets a group and its parent groups, outermost last.</summary>
     /// <param name="group">The group, such as <c>Tool Brushes/Clip/Player Clip</c>.</param>
     public static IEnumerable<string> GetGroupAndParents(string group)
     {

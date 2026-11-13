@@ -1,11 +1,11 @@
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Lays the particles out as dashes along a ballistic arc, each one a segment from its previous
-    /// position to its position, with the dashes travelling along the arc over time. Everything about
-    /// the arc comes from control points: its start, launch velocity, (mode, duration, alpha), two
-    /// colours, and (fade start, unused, speed scale). Dashes past the fade start take the second
-    /// colour and fade out by the end of the arc.
+    /// Lays the particles out as dashes along a ballistic arc, each one a segment from the previous
+    /// position to the position, with the dashes travelling along the arc over time. The arc is read
+    /// from control points: start position, launch velocity, misc (mode, duration, alpha), color,
+    /// invalid color, and extra arc data (fade start, unused, speed scale). Dashes past the fade
+    /// start take the invalid color and fade out by the end of the arc.
     /// </summary>
     /// <remarks>
     /// The dashes keep their phase across restarts.

@@ -48,8 +48,8 @@ namespace ValveResourceFormat.Particles.Initializers
                 return;
             }
 
-            // Angles are authored in degrees and stored in radians, the same conversion the dedicated
-            // rotation initializers do. The scaling set methods take a unitless multiplier, not an angle,
+            // Angles are authored in degrees and stored in radians.
+            // The scaling set methods take a unitless multiplier, not an angle,
             // so they are left alone.
             var convertAngle = outputField.IsAngleField()
                 && setMethod is not (ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE);

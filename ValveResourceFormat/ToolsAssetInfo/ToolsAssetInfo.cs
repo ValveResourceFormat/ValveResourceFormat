@@ -563,7 +563,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 }
 
                 var kv3magic = reader.ReadUInt32();
-                reader.BaseStream.Position -= 4; // rewind
+                reader.BaseStream.Position -= 4;
 
                 if (!BinaryKV3.IsBinaryKV3(kv3magic))
                 {

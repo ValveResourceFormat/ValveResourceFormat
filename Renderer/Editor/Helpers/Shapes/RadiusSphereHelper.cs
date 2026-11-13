@@ -5,9 +5,9 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The sphere an occluder hides what is behind with, or the one a viewer sees within, around the entity as
-/// far as one of its keys. It is drawn whether or not the entity is selected, red for an occluder and green
-/// for a viewer, whatever color the declaration gives.
+/// The sphere of an occluder, which hides what is behind it, or of a viewer, which sees within it. The radius
+/// is one of the keys of the entity. It is drawn whether or not the entity is selected, red for an occluder
+/// and green for a viewer, whatever color the declaration gives.
 /// </summary>
 internal sealed class RadiusSphereHelper : EntityHelper
 {

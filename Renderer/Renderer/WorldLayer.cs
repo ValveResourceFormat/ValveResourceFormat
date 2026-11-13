@@ -43,7 +43,7 @@ public sealed class WorldLayer
     /// <summary>Gets whether the layer is switched by the renderer alone and not offered to the user, such as the first person model.</summary>
     public bool IsInternal { get; internal init; }
 
-    /// <summary>Gets whether the layer only holds what the editor draws, hidden while only what the game shows is.</summary>
+    /// <summary>Gets whether the layer only holds editor tool visuals, which are hidden while only the visuals of the game are shown.</summary>
     public bool IsToolsOnly { get; internal init; }
 
     /// <summary>Gets whether the layers nested under this one are listed unfolded while the other groups start folded.</summary>

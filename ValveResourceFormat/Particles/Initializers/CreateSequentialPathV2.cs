@@ -93,8 +93,8 @@ namespace ValveResourceFormat.Particles.Initializers
                     || MathF.Abs(startPos.Z - endPos.Z) > 0.001f;
             }
 
-            // The jitter is evaluated for every live particle, and each particle of the run reads its own value
-            // rather than the value of the particle as far into the collection as it is into the run
+            // The jitter is evaluated for every live particle, and each particle of the run reads its own value,
+            // not the value at the same offset from the start of the collection
             var jitters = maxDistance.Fill(run, particles.Current, particleSystemState);
 
             var creationTimes = run.ReadFloats(ParticleField.CreationTime);

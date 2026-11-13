@@ -100,9 +100,10 @@ namespace GUI.Forms
         }
 
         /// <summary>
-        /// Shows an entity's properties, connections and references. <paramref name="entities"/> is the
-        /// world the entity is in, searched for the entities its properties name, the entities whose
-        /// properties name it, the connections targeting it and the targets of its own.
+        /// Shows the properties, connections and references of an entity. <paramref name="entities"/> is the
+        /// world the entity is in. It is searched for the entities named by the properties of the entity,
+        /// the entities whose properties name the entity, the connections targeting the entity and the
+        /// targets of the connections of the entity.
         /// </summary>
         public void PopulateFromEntity(List<Entity> entities, Entity entity)
         {
@@ -190,9 +191,9 @@ namespace GUI.Forms
         }
 
         /// <summary>
-        /// The bare text of a string property. The KV3 form a value serializes to carries its quotes
-        /// and, for a resource, its type prefix (<c>resource_name:"particles/foo.vpcf"</c>), which is
-        /// neither what the grid should show nor a path anything can be looked up by.
+        /// The bare text of a string property. The serialized KV3 form of a value carries quotes
+        /// and, for a resource, a type prefix (<c>resource_name:"particles/foo.vpcf"</c>). The grid
+        /// should show neither, and the serialized form is not a path to look up.
         /// </summary>
         internal static string? BareText(KVObject value)
             => value.ValueType == KVValueType.String ? (string)value : null;

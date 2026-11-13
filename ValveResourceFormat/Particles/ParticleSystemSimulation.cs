@@ -502,9 +502,9 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Seeds this system and its children, starts their draws over and rebuilds every function's
-        /// state from it. Every entry of <c>m_Children</c> steps the seed by 129, including entries that
-        /// are skipped, so the child in slot n takes the seed 129 * (n + 1) above it and this system the
+        /// Seeds this system and its children, starts their draws over and rebuilds the state of every
+        /// function from the seed. Every entry of <c>m_Children</c> steps the seed by 129, including
+        /// skipped entries. The child in slot n takes seed + 129 * (n + 1) and this system takes the
         /// step after the last slot. A new system is seeded from its name rather than the clock, so
         /// instances of one effect play out alike unless each is seeded apart, such as from where it is
         /// placed.

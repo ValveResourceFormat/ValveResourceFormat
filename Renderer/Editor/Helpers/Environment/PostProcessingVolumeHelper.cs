@@ -5,8 +5,8 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The post processing of a <c>post_processing_volume</c>: its exposure and the post processing resource it
-/// names, under the keys its declaration gives.
+/// The post processing of a <c>post_processing_volume</c>: the exposure keys and the post processing
+/// resource named by the key the declaration gives.
 /// </summary>
 internal sealed class PostProcessingVolumeHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
@@ -22,7 +22,7 @@ internal sealed class PostProcessingVolumeHelper(IHelperOwner owner, HelperDecla
         var scene = Owner.Scene;
         var defaults = new ExposureSettings();
 
-        // An exposure limit of zero or less is given as a power of two instead. Every volume is used,
+        // An exposure limit of zero or less is read from the log exposure key as a power of two. Every volume is used,
         // whether or not it starts disabled.
         var volume = new ScenePostProcessVolume(scene)
         {

@@ -97,7 +97,7 @@ internal abstract class PointKeyHelper : EntityHelper
         return Vector3.Transform(point, Owner.RigidTransform);
     }
 
-    // Whether the first model of the entity has a list of what it breaks into
+    // Whether the first model of the entity has a break_list
     private bool HasBreakableModel()
     {
         if (Owner.Helpers.OfType<ModelHelper>().FirstOrDefault() is not { ModelName: { } modelName })

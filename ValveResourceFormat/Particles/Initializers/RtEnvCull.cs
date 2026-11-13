@@ -147,8 +147,8 @@ namespace ValveResourceFormat.Particles.Initializers
         }
 
         /// <summary>
-        /// The lifetime a particle in the whole blocks of four of a batch is left with. These decide by a
-        /// rule of their own: with <c>m_bCullOnMiss</c> a miss, or a hit with the test normal when one is
+        /// The lifetime left to a particle in a whole block of four of a batch. Whole blocks follow a
+        /// different rule: with <c>m_bCullOnMiss</c> a miss, or a hit with the test normal when one is
         /// set, ends the particle; otherwise a hit with the test normal, or any hit when none is set. With
         /// the velocity, an ended particle is culled, or with <c>m_bLifeAdjust</c> lives until it reaches
         /// the hit, and a miss never shortens its life.

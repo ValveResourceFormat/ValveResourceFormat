@@ -32,8 +32,8 @@ namespace ValveResourceFormat.Animation
         // Scratch for EvaluateTransitions (cleared per use, no per-frame allocation)
         readonly List<StateNode> forceableTargetStatesUsingCachedPoses = [];
 
-        // Matches Esoterica: a state machine is valid when it has a valid active state index;
-        // the active state's own validity is deliberately not consulted.
+        // A state machine is valid when it has a valid active state index;
+        // the validity of the active state itself is deliberately not consulted.
         public override bool IsValid => base.IsValid && ActiveStateIndex >= 0 && ActiveStateIndex < States.Length;
         public StateInfo ActiveState => States[ActiveStateIndex];
         public StateNode ActiveStateNode => ActiveState.StateNode;
@@ -95,9 +95,8 @@ namespace ValveResourceFormat.Animation
         }
 
         /// <summary>
-        /// Picks the state to start in and initializes it: all entry
-        /// conditions are initialized in advance (so value caching works), evaluated in order, and
-        /// shut down again.
+        /// Picks the state to start in. All entry conditions are initialized in advance so value caching
+        /// works, evaluated in order, and shut down again.
         /// </summary>
         private StateIndex SelectDefaultState(GraphContext ctx)
         {
@@ -137,7 +136,6 @@ namespace ValveResourceFormat.Animation
             Debug.Assert(ActiveTransition == null);
             base.InitializeInternal(ctx, initialTime);
 
-            // Determine the default state and initialize it
             ActiveStateIndex = SelectDefaultState(ctx);
             var activeState = ActiveState.StateNode;
             activeState.Initialize(ctx, initialTime);
@@ -169,7 +167,6 @@ namespace ValveResourceFormat.Animation
         {
             var result = base.Update(ctx);
 
-            // Check active transition
             if (ActiveTransition != null && ActiveTransition.IsComplete(ctx))
             {
                 // Clear transition flags from target
@@ -186,7 +183,7 @@ namespace ValveResourceFormat.Animation
                 PreviousTime = activeState.StateNode.PreviousTime;
                 CurrentTime = activeState.StateNode.CurrentTime;
             }
-            else // Update the transition
+            else
             {
                 result = ActiveTransition.Update(ctx, updateRange);
                 Duration = ActiveTransition.Duration;
@@ -236,9 +233,6 @@ namespace ValveResourceFormat.Animation
                 return currentResult;
             }
 
-            //-------------------------------------------------------------------------
-            // Start new transition
-            //-------------------------------------------------------------------------
             Debug.Assert(transitionIdx >= 0 && transitionIdx < activeState.Transitions.Length);
             var selectedTransition = activeState.Transitions[transitionIdx];
 
@@ -261,7 +255,6 @@ namespace ValveResourceFormat.Animation
             // Check if we have a forceable transition back to our current state, if so we need to immediately start caching the source pose
             var startCachingSourcePose = forceableTargetStatesUsingCachedPoses.Contains(activeState.StateNode);
 
-            // Notify the current transition of the new transition about to start
             ActiveTransition?.NotifyNewTransitionStarting(ctx, targetStateInfo.StateNode, forceableTargetStatesUsingCachedPoses);
 
             // Start the new transition (the transition will initialize the target state)

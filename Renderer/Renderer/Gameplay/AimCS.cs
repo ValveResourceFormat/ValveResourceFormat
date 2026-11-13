@@ -286,7 +286,7 @@ sealed class AimCSSolver
         }
     }
 
-    // How the weapons of each category are aimed
+    // Aim Category and Weapon per weapon category name
     static readonly Dictionary<StringToken, (Category Category, Weapon Weapon)> WeaponCategories = new()
     {
         ["weapon_category_knife"] = (Category.Knife, Weapon.Other),

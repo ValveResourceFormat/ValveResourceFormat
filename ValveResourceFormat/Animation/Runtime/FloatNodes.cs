@@ -47,7 +47,6 @@ namespace ValveResourceFormat.Animation
 
             InputValueNode.Initialize(ctx);
 
-            // Cache on entry
             if (Mode == CachedValueMode.OnEntry)
             {
                 CachedValue = InputValueNode.GetValue(ctx);
@@ -533,7 +532,6 @@ namespace ValveResourceFormat.Animation
         protected override float GetValueInternal(GraphContext ctx)
         {
             // Select value
-            //-------------------------------------------------------------------------
             var inputTargetValue = DefaultValue;
             for (var i = 0; i < ConditionNodes.Length; i++)
             {
@@ -550,7 +548,6 @@ namespace ValveResourceFormat.Animation
             }
 
             // Perform easing
-            //-------------------------------------------------------------------------
             FloatEaseNode.PerformRangeEase(
                 ctx.DeltaTime,
                 inputTargetValue,

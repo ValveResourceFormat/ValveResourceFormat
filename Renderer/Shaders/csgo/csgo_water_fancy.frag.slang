@@ -145,7 +145,7 @@ WaterView_t GetWaterView(vec3 positionWs)
     return view;
 }
 
-// What is behind the water surface, as the scene color and depth buffers have it
+// Scene color and depth behind the water surface
 struct SceneBehind_t
 {
     float RefractionDistortion;
@@ -183,7 +183,7 @@ SceneBehind_t SampleSceneBehind(WaterView_t view, vec3 positionWs)
     return scene;
 }
 
-// A value between its range ends by the vertex painted amount
+// Interpolates between rangeMin and rangeMax by the vertex painted amount
 float GetPaintedRange(float rangeMin, float rangeMax, float paintedAmount)
 {
     return ClampToPositive(mix(rangeMin, rangeMax, paintedAmount));
@@ -501,7 +501,7 @@ FoamDebris_t GetFoamAndDebris(WaterView_t view, vec3 positionWs, WaterEffects_t 
     return fd;
 }
 
-// Where the surface is, and how deep the water column is beneath it
+// Position of the water surface and the depth of the water column beneath it
 void GetWaterSurfacePosition(WaterView_t view, SceneBehind_t scene, vec3 positionWs, WaterEffects_t effects, float surfaceHeight,
     float edgeFactor, out vec3 surfacePos, out float columnDepth)
 {
@@ -548,7 +548,7 @@ void GetWaterNormals(inout MaterialProperties_t mat, SceneBehind_t scene, WaterV
     }
 }
 
-// Everything about the water surface that the shading needs
+// View, scene behind, roughness, foam and debris, normals and depth terms of the water surface
 struct WaterSurface_t
 {
     WaterView_t View;

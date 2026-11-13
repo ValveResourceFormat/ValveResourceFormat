@@ -154,8 +154,8 @@ public sealed class Globals : Buffer
 
     /// <summary>Uploads any pending writes and binds this buffer to <see cref="ReservedBufferSlots.Globals"/>.</summary>
     /// <remarks>
-    /// Binds unconditionally. Which buffer occupies the slot is state of the GL context, which outlives any
-    /// one thread and can be swapped for another, so there is nothing safe to cache it in.
+    /// Binds unconditionally. The buffer in the slot is state of the GL context. The context outlives any
+    /// one thread and can be swapped for another, so there is nothing safe to cache the binding in.
     /// </remarks>
     public void Bind()
     {

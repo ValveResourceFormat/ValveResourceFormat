@@ -806,7 +806,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             if (bitmap.ColorType == SKColorType.Rgb888x)
             {
-                // DXGI has no RGBX storage; keep alpha reading as one like the old Rgb8 storage did.
+                // DXGI has no RGBX storage; swizzle alpha to always read as 1.
                 texture.SetParameter(TextureParameterName.TextureSwizzleA, (int)All.One);
             }
 
@@ -865,7 +865,7 @@ namespace ValveResourceFormat.Renderer.Materials
             texture.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
             texture.SetWrapMode(clamp ? RsTextureAddressMode.Clamp : RsTextureAddressMode.Wrap);
 
-            // sRGB storage, so a sample lands in linear space like every other layer's texture.
+            // sRGB storage, so a sample is converted to linear space.
             GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.Srgb8Alpha8, Width, 1);
             GL.TextureSubImage2D(texture.Handle, 0, 0, 0, Width, 1, PixelFormat.Rgba, PixelType.UnsignedByte, texels);
 

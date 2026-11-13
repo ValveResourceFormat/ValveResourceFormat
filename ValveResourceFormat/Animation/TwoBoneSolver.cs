@@ -37,7 +37,6 @@ public static class TwoBoneSolver
             prevTransform = modelSpaceTransforms[i];
         }
 
-        // Blend effector target
         var hasBlendWeight = blendWeight != 1f;
         if (hasBlendWeight && blendMode == IKBlendMode.Effector)
         {

@@ -74,10 +74,13 @@ Standard Microsoft C# conventions, plus:
 
 ### Comments and Documentation
 
-- `//` comments only for non-obvious logic, workarounds, and TODOs; explain "why", not "what"
+- `//` comments only for non-obvious logic, workarounds, TODOs and values the name does not explain; say "why", not "what"
+- Keep a comment to one clause of about a dozen words, using identifiers from the code and standard technical terms; only a workaround or a non-obvious reason gets more
+- A value gets a noun phrase with the unit, sentinel or index order; a statement gets an imperative phrase
+- No stand-in clauses ("what the X does"), comparisons to another code path, coined terms, clause chains, or pile-ups of "its" and "this"
 - Plain ASCII only: no em-dashes, curly quotes, ellipsis, or Unicode math symbols
 - Never mention where format knowledge came from (other codebases, tools, game internals) in comments or commit messages
-- A type that models a Source 2 schema class, enum or entity links it after its summary with `/// <seealso href="https://s2v.app/SchemaExplorer/<game>/<module>/<Name>"><Name></seealso>`. Prefer `cs2`; an entity class links the class its classname creates. This is the only way to name an engine type; check names and modules against `schemas/<game>.json` in the SchemaExplorer repo
+- A type that models a Source 2 schema class, enum or entity links it after its summary with `/// <seealso href="https://s2v.app/SchemaExplorer/<game>/<module>/<Name>"><Name></seealso>`. Prefer `cs2`; an entity class links the class its classname creates. This is the only way to name an engine class, enum or entity; check names and modules against `schemas/<game>.json` in the SchemaExplorer repo
 - Don't narrate the change, this conversation, or session codenames; no decorative dividers
 - Leave existing comments alone if they are clear and correct
 - Public APIs in ValveResourceFormat and Renderer require concise XML docs; use `<inheritdoc/>` on overrides that add nothing new

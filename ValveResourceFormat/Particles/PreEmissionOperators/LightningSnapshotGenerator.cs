@@ -271,8 +271,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 var offsetScale = ScaleBranchOffset ? generation * BranchOffsetScale : 1f;
 
                 var wander = Random.NextInUnitBall(out _);
-                // The mean of three quarters of the span to the point a quarter of the way to the end
-                // and three quarters of the first span of the bolt
+                // The mean of 0.75 times a quarter of the distance from the midpoint to the end
+                // and 0.75 times the length of the first span of the bolt
                 var quarterTowardEnd = origin.Position - (((origin.Position - End) * 0.75f) + End);
                 var length = ((quarterTowardEnd.Length() * 0.75f) + (Vector3.Distance(rows[0].Position, rows[1].Position) * 0.75f)) * 0.5f;
                 var direction = MathUtils.SafeNormalize(origin.Position - rows[index].Position);

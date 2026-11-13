@@ -64,8 +64,8 @@ internal sealed partial class McpTools
     private sealed record EntityRow(int Id, EntityLump.Entity Data, SpawnGroup? Group, BaseEntity? Instance, Vector3 Position);
 
     /// <summary>
-    /// Every entity of the map and of the spawn groups it loaded, such as its 3D sky, indexed by id.
-    /// The map's come first, so their ids are their index in it. Call between frames.
+    /// Every entity of the map and of the spawn groups loaded with it, such as the 3D sky, indexed by id.
+    /// The entities of the map come first, so their ids are their index in the map. Call between frames.
     /// </summary>
     private EntityTable Entities(GLWorldViewer viewer)
     {
@@ -600,8 +600,8 @@ internal sealed partial class McpTools
     }
 
     /// <summary>
-    /// Queues a pick on the viewer's own picker, which hands the result to the viewer as a click does,
-    /// and draws frames until it has. Pick redraws, so its tab is already shown.
+    /// Queues a pick on the picker of the viewer and draws frames until the pick completes. The picker hands
+    /// the result to the viewer as a click does. Pick redraws, so the tab is already shown.
     /// </summary>
     private static async Task<PickResult> RequestPick(GLSceneViewer viewer, ScenePicker picker, PickRequest request, CancellationToken cancellationToken)
     {
@@ -623,8 +623,8 @@ internal sealed partial class McpTools
     }
 
     /// <summary>
-    /// The world point a pixel's depth puts it at, where the main camera sees it. Each view draws into
-    /// its own slice of the reverse-Z depth range, so the slice says which camera to unproject through.
+    /// The world point at a pixel and depth, seen from the main camera. Each view draws into a separate
+    /// slice of the reverse-Z depth range, so the slice of the depth selects the camera to unproject through.
     /// </summary>
     private static Vector3? Unproject(ValveResourceFormat.Renderer.Renderer renderer, Scene scene, float u, float v, float depth)
     {

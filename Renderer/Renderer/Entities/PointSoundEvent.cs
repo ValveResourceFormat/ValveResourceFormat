@@ -114,7 +114,7 @@ public sealed class PointSoundEvent : BaseEntity
             return sourceModel.GetAttachmentTransform(attachmentName).Translation;
         }
 
-        // The offset is authored relative to the source, and this entity was placed at the result of it
+        // The offset is relative to the source, and this entity is already placed at the source plus the offset
         if (KeyValues.GetBooleanProperty("uselocaloffset"))
         {
             return Transform.Translation;

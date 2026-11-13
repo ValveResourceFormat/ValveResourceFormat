@@ -144,7 +144,7 @@ namespace ValveResourceFormat.Renderer
 
                 if (Vector.AllWhereAllBitsSet(outside))
                 {
-                    continue; // whole vector culled
+                    continue;
                 }
 
                 for (var lane = 0; lane < width; lane++)
@@ -187,7 +187,7 @@ namespace ValveResourceFormat.Renderer
 
                 if (Vector.NoneWhereAllBitsSet(inside))
                 {
-                    continue; // whole vector missed
+                    continue;
                 }
 
                 for (var lane = 0; lane < width; lane++)

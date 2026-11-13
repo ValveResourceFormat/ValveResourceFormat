@@ -1,8 +1,8 @@
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
-    /// Remaps the index of the sequence the object a control point is bound to plays into an
-    /// attribute of new particles, and can store its playback rate in another. Particles are left
+    /// Remaps the playing sequence index of the object bound to a control point into an
+    /// attribute of new particles, and can store the sequence playback rate in another. Particles are left
     /// alone when the control point is bound to no object.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_InitialSequenceFromModel">C_INIT_InitialSequenceFromModel</seealso>

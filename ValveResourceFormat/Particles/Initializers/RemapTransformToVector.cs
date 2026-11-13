@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Particles.Initializers
     /// <summary>
     /// Remaps a transform input's position, component by component, from an input range to an
     /// output range at spawn, gated by an optional creation time window. An optional local-space
-    /// transform rotates the output range by its orientation (its position is unused), and a
+    /// transform rotates the output range by the transform's orientation (the position is unused), and a
     /// non-0.5 bias reshapes the remapped output while clamping it into [0, 1].
     /// </summary>
     /// <remarks>
@@ -141,7 +141,7 @@ namespace ValveResourceFormat.Particles.Initializers
         }
 
         // Components that fall past the end of the batch are dropped on write and read as 0 instead of
-        // whatever those slots last held, which only reaches the offset path's previous position.
+        // whatever those slots last held. Only the offset path's previous position sees this.
         private static Vector3 ReadScalarComponents(ReadOnlySpan<float> values, int index)
         {
             var y = index + 4 < values.Length ? values[index + 4] : 0f;

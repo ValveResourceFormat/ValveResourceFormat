@@ -7,8 +7,8 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The volume a selected fog controller covers, dashed over the scene, with the volume of every fog volume of
-/// its map: the box around all of them, or the box of the controller itself while the map has none.
+/// The box a selected fog controller covers, dashed over the scene, and the box of every fog volume of the map.
+/// The covered box is around all fog volumes, or the box of the controller itself while the map has none.
 /// </summary>
 internal sealed class VolumetricFogControllerHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {

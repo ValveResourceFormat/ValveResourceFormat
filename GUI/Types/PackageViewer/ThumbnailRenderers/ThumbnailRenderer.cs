@@ -73,7 +73,7 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         RendererContext.Logger.LogInformation("Loading scene...");
 
-        // Create TextRenderer (needed for Scene.Update)
+        // Needed for Scene.Update
         textRenderer = new TextRenderer(RendererContext, SceneRenderer.Camera);
         textRenderer.Load();
 
@@ -180,7 +180,7 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         SetResource(resource);
 
-        // Initialize scene (creates lighting buffers, spatial sets, etc.)
+        // Creates lighting buffers, spatial sets, etc.
         SceneRenderer.Scene.Initialize();
 
         RendererContext.MaxTextureSize = size;

@@ -128,7 +128,7 @@ public sealed class InfoSpawnGroupLoadUnload : BaseEntity
                 transform = Matrix4x4.CreateTranslation(landmarkOrigin - groupLandmarkOrigin);
             }
 
-            // Owns the scene and the package once loaded, which unloading it releases
+            // Owns the scene and the package once loaded. Unloading the group releases both.
             group = new SpawnGroup(mapName, new Scene(EntitySystem.RendererContext), transform)
             {
                 HasOwnScene = true,
@@ -163,7 +163,7 @@ public sealed class InfoSpawnGroupLoadUnload : BaseEntity
         return group;
     }
 
-    // By the names the group spawns its entities with, which a group loaded by landmark leaves without fixups
+    // Searches the entity lumps by the original target name, since a group loaded by landmark has no name fixups
     private Vector3? FindLoadedLandmarkOrigin(string mapResourceName)
     {
         var fileLoader = EntitySystem.RendererContext.FileLoader;

@@ -86,9 +86,6 @@ public class VfxStaticComboVcsEntry
         return VfxStaticComboData.ReadAttributes(pooledStream, ParentProgramData);
     }
 
-    /// <summary>
-    /// Decompresses the static combo data stream.
-    /// </summary>
     internal static PooledMemoryStream GetUncompressedStaticComboDataStream(BinaryReader reader)
     {
         var compressionTypeOrSize = reader.ReadInt32();

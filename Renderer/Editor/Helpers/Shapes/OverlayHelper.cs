@@ -5,9 +5,9 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The material an overlay projects onto what is behind it, through a box as wide and high as its keys say,
-/// centered on the entity by its center keys, and as deep as its depth key on both sides of it. The box is
-/// drawn while the entity is selected.
+/// The material an overlay projects onto the geometry behind the entity, through a box sized by the width,
+/// height and depth keys of the entity. The center keys place the box on the entity, and the depth is split
+/// over both sides of the entity. The box is drawn while the entity is selected.
 /// </summary>
 internal sealed class OverlayHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {

@@ -183,7 +183,7 @@ vec2 GetSpatioTemporalNoise(uvec2 pixel)
 }
 
 // The depth of the mip texel that covers a pixel. Mip sizes are rounded down, so scaling a texture coordinate
-// by them would drift away from the 2^n pixel blocks pass 0 filtered when the size is not a multiple of them.
+// by the mip size would drift away from the 2^n pixel blocks pass 0 filtered when the size is not a multiple of 2^n.
 float GetMipDepth(ivec2 pixel, int mipLevel)
 {
     ivec2 maxMipPixel = textureSize(g_tWorkingDepth, mipLevel) - 1;
@@ -214,7 +214,7 @@ vec3 GetViewNormal(ivec2 pixel, vec4 neighborDepths, float centerDepth)
 
     vec2 uv = (vec2(pixel) + 0.5) * g_vPixelSize;
 
-    // Not scaled like the center of the horizon search, which would add an offset to one side of each difference
+    // Uses centerDepth unscaled, unlike pixelDepth in main, since the scale would add an offset to one side of each difference
     vec3 center = GetViewPosition(uv, centerDepth);
 
     vec3 horizontal = abs(depthLeft - centerDepth) < abs(depthRight - centerDepth)

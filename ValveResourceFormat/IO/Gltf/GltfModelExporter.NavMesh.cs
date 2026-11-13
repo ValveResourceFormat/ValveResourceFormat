@@ -113,7 +113,6 @@ public partial class GltfModelExporter
         var top1 = ladder.Top - sidewaysVector;
         var top2 = ladder.Top + sidewaysVector;
 
-        // Two triangles forming a quad
         AddTriangleWithNormal(bottom2, bottom1, top1, verts, normals, uvs, indices);
         AddTriangleWithNormal(bottom2, top1, top2, verts, normals, uvs, indices);
     }

@@ -248,7 +248,7 @@ namespace ValveResourceFormat.Renderer.World
                 var tint = overlay.GetSubCollection("m_vTintColor").ToVector4();
                 tint = new Vector4(ColorSpace.SrgbGammaToLinear(tint.AsVector3()), tint.W);
 
-                // The transform places a box a unit on each side, which its width, height and depth stretch
+                // A unit cube scaled by the width, height and depth, then placed by the transform
                 var box = Matrix4x4.CreateScale(size) * overlay.GetSubCollection("m_transform").ToMatrix4x4() * root;
 
                 decals.Add(decal, box, tint, permanent: true);

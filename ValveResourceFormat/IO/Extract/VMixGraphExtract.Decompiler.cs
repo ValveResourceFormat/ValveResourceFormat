@@ -1184,7 +1184,7 @@ public sealed partial class VMixGraphExtract
                 return SplitterBlock(i);
             }
 
-            // Older graphs compile an amp to a copy in place, its debug name and its meter; its volume meter names it
+            // Older graphs compile an amp to an in-place copy, a debug name and a meter. The meter of the volume value names the amp
             if (command.OutputSubmix == command.InputSubmix0 && next is { Op: MixOp.SubmixDebug }
                 && Next(i + 2, MixOp.SubmixMeter) is { } ampMeter && ampMeter.InputSubmix0 == command.OutputSubmix
                 && MeteredAmp(command.Value0) is { } amp)
@@ -1980,7 +1980,7 @@ public sealed partial class VMixGraphExtract
         public Func<IReadOnlyCollection<string>, string?> FindSubgraph { get; init; } = static _ => null;
 
         /// <summary>
-        /// The outputs of subgraphs as graphs that inline them name them: the graph, what the output reads there, and its name.
+        /// The outputs of subgraphs as graphs that inline them name them: the graph, the Source the output reads there, and the output name.
         /// </summary>
         public List<(string Graph, PlugSource Source, string Output)> SubgraphOutputs { get; } = [];
 
@@ -1990,8 +1990,8 @@ public sealed partial class VMixGraphExtract
         public Func<PlugSource, string?> OutputName { get; init; } = static _ => null;
 
         /// <summary>
-        /// Outputs keep no internal name when their meter has a friendly one, but graphs that inline this one
-        /// name them in their plugs, so they get those names back.
+        /// An output keeps no internal name when its meter has a friendly one. Graphs that inline this graph
+        /// name the output in their plugs, and the output takes that name again.
         /// </summary>
         private void RenameOutputs()
         {

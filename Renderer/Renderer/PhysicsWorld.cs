@@ -89,13 +89,13 @@ public sealed class PhysicsWorld
         return closest;
     }
 
-    /// <summary>Traces a ray, giving the result as where along it the hit is.</summary>
+    /// <summary>Traces a ray, returning the hit as a fraction along the ray.</summary>
     /// <param name="from">Start of the ray.</param>
     /// <param name="to">End of the ray.</param>
     /// <param name="collisionName">Collision interaction name used to filter shapes.</param>
     /// <param name="position">The nearest hit point, or <paramref name="to"/> on a miss.</param>
     /// <param name="normal">The surface normal at the hit point, or zero on a miss.</param>
-    /// <param name="fraction">How far along the ray the hit is, from 0 at its start to 1 at its end, which it is on a miss.</param>
+    /// <param name="fraction">Fraction along the ray of the hit, from 0 at the start to 1 at the end. 1 on a miss.</param>
     /// <returns>Whether the ray hit anything.</returns>
     public bool TraceRay(Vector3 from, Vector3 to, string collisionName, out Vector3 position, out Vector3 normal, out float fraction)
     {

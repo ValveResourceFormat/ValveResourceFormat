@@ -13,8 +13,8 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <remarks>
 /// Every tick it moves, it looks 0.1 seconds of travel ahead along the path, passes the nodes in between,
 /// and aims its velocity at that point and its angular velocity at the orientation it should have. Not
-/// simulated: driving it with the use key or train controls, the damage and shove it gives what blocks it
-/// (the player never blocks a train), and the pitch and volume its move sound takes from its speed.
+/// simulated: driving with the use key or train controls, the damage and shove applied to what blocks the
+/// train (the player never blocks a train), and the pitch and volume of the move sound from the speed.
 /// </remarks>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CFuncTrackTrain">CFuncTrackTrain</seealso>
 public class FuncTrackTrain : BaseModelEntity
@@ -949,7 +949,7 @@ public class FuncTrackTrain : BaseModelEntity
         Next();
     }
 
-    /// <summary>Turns the way it goes along the track around, keeping its speed.</summary>
+    /// <summary>Reverses the direction along the track, keeping the speed.</summary>
     [EntityInput("Reverse")]
     protected void InputReverse(EntityInputData data)
     {

@@ -44,8 +44,8 @@ namespace ValveResourceFormat.Particles.Operators
             var blackColorSlot = useNormal && halfLambert;
             var authored = new List<Light>(LightCount);
 
-            // The fourth light copies the third light's settings and keeps only its own position and dynamic color,
-            // so it takes the third light's color, type and falloff there; every light keeps its own values here
+            // In the game the fourth light copies the third light's settings and keeps only its own position and dynamic color.
+            // It takes the third light's color, type and falloff. Here every light keeps its own values.
             for (var i = 1; i <= LightCount; i++)
             {
                 // Spot lights have no direction and a zero cone, so they add nothing.

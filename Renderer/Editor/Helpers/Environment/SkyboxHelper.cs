@@ -17,7 +17,7 @@ internal sealed class SkyboxHelper(IHelperOwner owner, HelperDeclaration declara
     private string? MaterialName => GetStringKey("skyname") is { Length: > 0 } name
         && Path.GetExtension(name).Equals(".vmat", StringComparison.OrdinalIgnoreCase) ? name : null;
 
-    /// <summary>Gets what the brightness of the sky is scaled by, as the entity gives it.</summary>
+    /// <summary>Gets the brightness scale of the sky from the entity.</summary>
     private float BrightnessScale => GetFloatKey("brightnessscale", 1f);
 
     /// <inheritdoc/>
@@ -30,7 +30,7 @@ internal sealed class SkyboxHelper(IHelperOwner owner, HelperDeclaration declara
 
         var tint = ValueParsing.TryParseColor(GetStringKey("tint_color"), out var tintColor) ? tintColor.ToLinearColor().AsVector3() : Vector3.One;
 
-        // The sky is infinitely far away, so only the way the entity is turned moves it
+        // The sky is infinitely far away, so only the rotation of the entity applies
         var transform = Owner.RigidTransform with { Translation = Vector3.Zero };
         var fogType = (SkyFogType)GetIntegerKey("fog_type", (int)SkyFogType.Distance);
         var angularFog = new Vector4(

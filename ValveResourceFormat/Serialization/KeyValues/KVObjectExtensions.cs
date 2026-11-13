@@ -81,8 +81,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
             => obj.TryGetValue(name, out var value) ? value.ToInt32OrDefault(defaultValue) : defaultValue;
 
         /// <summary>
-        /// Converts a value to an integer. Text is read as the integer it starts with, a typed number is cast the way C does
-        /// and a boolean is 0 or 1. Text that holds no integer is 0.
+        /// Converts a value to an integer. Text is read as the integer it starts with, a typed number is converted unchecked, with floats
+        /// truncated toward zero, and a boolean is 0 or 1. Text that holds no integer is 0.
         /// </summary>
         /// <param name="obj">The value.</param>
         /// <param name="defaultValue">The result for empty or white space text and for any kind of value that is not text, a number or a boolean.</param>
@@ -187,14 +187,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
         /// <summary>
         /// Gets a 64-bit integer property from the key-value object. Text is read as the integer it starts with,
-        /// a typed number is cast the way C does and a boolean is 0 or 1. Text that holds no integer is 0.
+        /// a typed number is converted unchecked, with floats truncated toward zero, and a boolean is 0 or 1.
+        /// Text that holds no integer is 0.
         /// </summary>
         public static long GetIntegerProperty(this KVObject obj, string name, long defaultValue = 0)
             => obj.TryGetValue(name, out var value) ? value.ToInt64OrDefault(defaultValue) : defaultValue;
 
         /// <summary>
-        /// Converts a value to a 64-bit integer. Text is read as the integer it starts with, a typed number is cast
-        /// the way C does and a boolean is 0 or 1. Text that holds no integer is 0.
+        /// Converts a value to a 64-bit integer. Text is read as the integer it starts with, a typed number is converted
+        /// unchecked, with floats truncated toward zero, and a boolean is 0 or 1. Text that holds no integer is 0.
         /// </summary>
         /// <param name="obj">The value.</param>
         /// <param name="defaultValue">The result for empty or white space text and for any kind of value that is not text, a number or a boolean.</param>
@@ -256,7 +257,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
         /// <summary>
         /// Converts a value to a three component vector. Text is split on spaces and each part is read as a whole float, with extra
-        /// parts ignored, so a color with its alpha reads as its color. An array must have exactly three elements. Text with
+        /// parts ignored, so a color with alpha reads as the color. An array must have exactly three elements. Text with
         /// fewer than three parts, empty or white space text, an array of any other length and a value of any other kind
         /// give <paramref name="defaultValue"/>.
         /// </summary>

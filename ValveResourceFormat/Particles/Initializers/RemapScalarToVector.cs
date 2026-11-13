@@ -4,8 +4,8 @@ namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
     /// Remaps a scalar particle field into a vector field by interpolating between a minimum and
-    /// maximum output vector. A position output is placed around a control point, in its frame with
-    /// local coordinates, which is how muzzle flashes lay their sprites out along the barrel axis.
+    /// maximum output vector. A position output is placed around a control point, in the control point's
+    /// frame with local coordinates. Muzzle flashes use this to lay their sprites out along the barrel axis.
     /// Other outputs are written as remapped. Creation times are measured from the last restart.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RemapScalarToVector">C_INIT_RemapScalarToVector</seealso>

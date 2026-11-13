@@ -4,7 +4,7 @@ namespace ValveResourceFormat.Renderer;
 
 /// <summary>
 /// Screen space ambient occlusion computed from the resolved depth of the depth prepass, with a ground truth
-/// ambient occlusion filter. The surfaces that accept it darken their indirect light by it.
+/// ambient occlusion filter. Surfaces that accept the occlusion darken their indirect light with it.
 /// </summary>
 internal sealed class ScreenSpaceAo(RendererContext rendererContext)
 {
@@ -70,7 +70,7 @@ internal sealed class ScreenSpaceAo(RendererContext rendererContext)
     /// <param name="sceneDepth">The resolved window space depth of the view.</param>
     public void Run(RenderTexture sceneDepth)
     {
-        // Too small for the depth mips, which a view this size does not show anything in
+        // Too small for the depth mips. A view this size does not show anything
         if (Math.Min(sceneDepth.Width, sceneDepth.Height) < (1 << DepthMipCount))
         {
             return;

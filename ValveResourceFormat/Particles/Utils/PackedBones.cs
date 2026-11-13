@@ -12,10 +12,8 @@ namespace ValveResourceFormat.Particles.Utils
         /// <summary>The index of a slot that holds no bone.</summary>
         public const int None = 0xFFFF;
 
-        /// <summary>Every slot holding no bone.</summary>
         public const ulong AllNone = ulong.MaxValue;
 
-        /// <summary>The bone in <paramref name="slot"/>.</summary>
         public static int Get(ulong bones, int slot) => (int)((bones >> (16 * slot)) & None);
 
         /// <summary><paramref name="bone"/> placed in <paramref name="slot"/>, for combining with the other slots.</summary>

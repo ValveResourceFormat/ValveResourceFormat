@@ -6,10 +6,11 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>ent_dota_lightinfo</c>: lighting, fog and sky of the area around it. The game follows the camera: the
-/// first light info whose inner radius holds it wins outright, otherwise the ones around it blend. A viewer
-/// has no camera at load, so the <see cref="EnvGlobalLight"/> stands in for it, and takes the sun, ambient
-/// light, fog and sky from the <see cref="Blend"/> picked there.
+/// <c>ent_dota_lightinfo</c>: lighting, fog and sky of the area around the entity. The game selects by the
+/// camera position: the first light info whose inner radius contains the camera wins outright, otherwise the
+/// light infos around the camera blend. A viewer has no camera at load, so the <see cref="EnvGlobalLight"/>
+/// stands in for the camera. It takes the sun, ambient light, fog and sky from the <see cref="Blend"/>
+/// selected at its position.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/dota2/client/C_DOTA_LightInfo">C_DOTA_LightInfo</seealso>
 public sealed class DotaLightInfo : BaseEntity
@@ -19,7 +20,7 @@ public sealed class DotaLightInfo : BaseEntity
     {
         private readonly List<(DotaLightInfo LightInfo, float Weight)> members;
 
-        /// <summary>Gets the light info that counts most, which gives what cannot blend, like the sky.</summary>
+        /// <summary>Gets the light info that counts most, which provides the values that cannot blend, such as the sky.</summary>
         private DotaLightInfo Dominant { get; }
 
         /// <summary>Initializes the blend of light infos whose weights add up to one.</summary>
@@ -45,7 +46,7 @@ public sealed class DotaLightInfo : BaseEntity
         /// direction of the sun, and the shadow colors and scales as the sky and ground ambient light.
         /// </summary>
         /// <param name="sun">The directional light, which keeps its position.</param>
-        /// <param name="ambientScale">What the ambient intensities are multiplied by.</param>
+        /// <param name="ambientScale">Multiplier of the ambient intensities.</param>
         public void ApplyTo(SceneLight sun, float ambientScale)
         {
             var sunDirection = GetDirection("light_direction_day");
@@ -70,7 +71,7 @@ public sealed class DotaLightInfo : BaseEntity
             sun.SpecularIndependence = GetFloat("specular_independence_day");
         }
 
-        /// <summary>Replaces the color and distances of the fog of a scene, and leaves its density and exponent.</summary>
+        /// <summary>Replaces the color and distances of the fog of a scene, and leaves the fog density and exponent.</summary>
         public void ApplyFog(Scene scene)
         {
             var start = GetFloat("fog_start_day");
@@ -227,7 +228,7 @@ public sealed class DotaLightInfo : BaseEntity
             return null;
         }
 
-        // Each one counts for what the others leave of it
+        // Each weight is scaled by one minus the weight of every other light info
         var weights = new float[partial.Count];
         var total = 0f;
 

@@ -36,7 +36,7 @@ vec3 GetWorldPositionFromDepthValue(float flSceneDepth, vec3 vCameraRay)
     return GetWorldPositionFromNormalizedDepth(flSceneDepthNormalized, vCameraRay);
 }
 
-/// A vector from the camera toward a pixel, for a pass that has no world position of its own to take one from.
+/// A vector from the camera toward a pixel, for a pass that has no world position to derive it from.
 /// vFragCoord: the pixel, in gl_FragCoord units.
 vec3 GetCameraRay(vec2 vFragCoord)
 {
@@ -68,8 +68,8 @@ float GetFurthestSceneDepth(ivec2 vOrigin, ivec2 vScale)
 
 /// Reconstructs the world position the scene depth holds under a pixel.
 /// vScreenPosition: the pixel of the target being drawn, in gl_FragCoord units.
-/// A reduced resolution layer reads the furthest of the scene depth texels under its pixel, the same
-/// depth it is seeded with and occluded by.
+/// A reduced resolution layer reads the furthest of the scene depth texels under the pixel. The layer
+/// is seeded with and occluded by that same depth.
 vec3 GetWorldPositionFromDepth(ivec2 vScreenPosition, vec3 vCameraRay)
 {
     ivec2 vScale = ivec2(g_vSceneDepthFetchScale);

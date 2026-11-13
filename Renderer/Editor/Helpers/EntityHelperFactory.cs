@@ -25,7 +25,7 @@ public static class EntityHelperFactory
     /// <param name="owner">The entity the helper is for.</param>
     /// <param name="declaration">The helper as the class of the entity declares it.</param>
     /// <returns>
-    /// The helper, or <see langword="null"/> when nothing creates helpers of that name, or no helper goes by it.
+    /// The helper, or <see langword="null"/> when the name is unknown or has no creator.
     /// </returns>
     public static EntityHelper? Create(IHelperOwner owner, HelperDeclaration declaration)
     {
@@ -46,9 +46,9 @@ public static class EntityHelperFactory
     }
 
     /// <summary>
-    /// Creates everything an entity is drawn with: the box of a class that declares a size, the helpers its
-    /// class declares, one for each of its keys that is drawn, and a box where none of those is seen, unless it
-    /// is made of map geometry, a path, or a node of one.
+    /// Creates all helpers of an entity: the box of a class that declares a size, the helpers the class
+    /// declares, one for each key that is drawn, and a box where none of those is seen. There is no box for an
+    /// entity made of map geometry, a path, or a path node.
     /// </summary>
     /// <param name="owner">The entity.</param>
     /// <returns>The helpers, in the order they were created.</returns>
@@ -78,7 +78,7 @@ public static class EntityHelperFactory
             }
         }
 
-        // An entity made of map geometry is seen by that, and a node of a path by the path it is on
+        // A solid entity shows its map geometry and a path node shows its path, so neither gets a box
         if (entityClass is { Kind: EntityClassKind.Solid or EntityClassKind.PathNode })
         {
             return helpers;
@@ -99,7 +99,7 @@ public static class EntityHelperFactory
         return helpers;
     }
 
-    // Each unknown name is only said once, as long as there are few enough of them to remember
+    // Returns true the first time a name is seen. Past MaxRememberedUnknownNames names, new ones are no longer remembered.
     private static bool RememberUnknownName(string name)
     {
         lock (UnknownNames)

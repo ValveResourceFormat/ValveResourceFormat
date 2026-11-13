@@ -78,7 +78,7 @@ public struct InstanceDataStandard
     public uint TintAlpha;
     /// <summary>Index into the transform buffer.</summary>
     public uint TransformIndex;
-    /// <summary>The scene node drawn, which replacement shaders can tell draws apart by, and the index of its own entry.</summary>
+    /// <summary>Id of the scene node drawn. Replacement shaders tell draws apart by it, and it is also the index of the node's entry.</summary>
     public uint Identification;
     /// <summary>Skinning of the mesh drawn: bit 31: enabled, bits 16-30: bone count, bits 0-15: mesh bone offset.</summary>
     public uint MeshBoneData;
@@ -226,7 +226,7 @@ public struct CullParams
     public float NearPlane;
     /// <summary>
     /// First mask index of batch 0, always zero. Both shaders compare the dispatch's mask axis against
-    /// these to find which batch they belong to, and their mask index within it.
+    /// these to find the batch of the dispatched mask and its mask index within that batch.
     /// </summary>
     public uint FirstMaskForBatch0;
     /// <summary>First mask index of batch 1.</summary>

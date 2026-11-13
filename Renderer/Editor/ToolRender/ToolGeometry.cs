@@ -5,8 +5,8 @@ using ValveResourceFormat.Renderer.Buffers;
 namespace ValveResourceFormat.Renderer.Editor.ToolRender;
 
 /// <summary>
-/// A vertex of the tool shapes. A line keeps where it starts, which its dashes run from, and a thick line
-/// keeps both its ends and which corner of the quad the vertex is.
+/// A vertex of the tool shapes. A line vertex keeps the start of the line, which the dashes run from.
+/// A thick line vertex keeps both ends of the line and which corner of the quad the vertex is.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 internal record struct ToolVertex(
@@ -32,8 +32,8 @@ internal record struct ToolHandleVertex(
 }
 
 /// <summary>
-/// What the shapes of one batch are drawn with: the flags of their mode, the width of their lines, and the layer
-/// they are drawn in when it is not the one of their mode.
+/// Render state of the shapes of one batch: the mode flags, the line width, and the layer when it is not
+/// the layer of the mode.
 /// </summary>
 internal readonly record struct ToolRenderState(ToolRenderModeFlags Flags, float LineWidth, ToolRenderLayer? LayerOverride = null)
 {
@@ -42,7 +42,7 @@ internal readonly record struct ToolRenderState(ToolRenderModeFlags Flags, float
     public bool IsThick => (Flags & ToolRenderModeFlags.ThickLines) != 0;
 }
 
-/// <summary>What the handles of one batch are drawn with.</summary>
+/// <summary>Render state of the handles of one batch.</summary>
 internal readonly record struct ToolHandleState(ToolHandleType Type, bool NoZ, bool Border, bool Translucent, ToolRenderLayer? LayerOverride = null)
 {
     public ToolRenderLayer Layer => LayerOverride ?? (NoZ
@@ -57,14 +57,14 @@ internal readonly record struct ToolHandleState(ToolHandleType Type, bool NoZ, b
 public readonly record struct ToolLabel(Vector3 Position, string Text, Color32 Color);
 
 /// <summary>
-/// The shapes a <see cref="ToolRenderContext"/> draws, batched by what they are drawn with, and the GL objects
+/// The shapes a <see cref="ToolRenderContext"/> draws, batched by render state, and the GL objects
 /// they are drawn from once uploaded.
 /// </summary>
 public sealed class ToolGeometry
 {
     private sealed class Batch
     {
-        // Lines as two vertices each, which also pick thick lines
+        // Lines as two vertices each. Thick lines are added here too, so another shader such as the picking one draws them as plain lines
         public List<ToolVertex> Lines { get; } = [];
 
         // Thick lines as two triangles each
@@ -261,7 +261,7 @@ public sealed class ToolGeometry
         handleVertexBuffer.Upload(MemoryMarshal.AsBytes(CollectionsMarshal.AsSpan(uploadHandleVertices)));
     }
 
-    /// <summary>Draws the batches of one layer with the tools shaders, the GL state set from what each is drawn with.</summary>
+    /// <summary>Draws the batches of one layer with the tools shaders, setting the GL state from the render state of each batch.</summary>
     internal void DrawLayer(ToolRenderLayer layer, ToolShaders shaders, uint objectId)
     {
         Upload();

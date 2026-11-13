@@ -54,7 +54,8 @@ vec4 ShadeUnlit(MaterialProperties_t mat, out LightingTerms_t lighting)
 }
 
 // Lights the material into the diffuse and specular light that reach the eye.
-// Ambient occlusion also darkens the direct diffuse light when OccludeDirectDiffuse is set, the direct AO weights scale its effect on the direct light.
+// Ambient occlusion also darkens the direct diffuse light when OccludeDirectDiffuse is set.
+// DirectDiffuseAO and DirectSpecularAO scale the effect of the occlusion on the direct light.
 // SpecularIndirectScale scales the indirect specular light after the occlusion, and IndirectLightScale both indirect lights.
 void LightSurface(inout MaterialProperties_t mat, out LightingTerms_t lighting, SurfaceOptions_t options, out vec3 diffuseLighting, out vec3 specularLighting)
 {

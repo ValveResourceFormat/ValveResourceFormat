@@ -95,7 +95,7 @@ uniform bool uAlphaReference = false;
 uniform vec2 uAlphaReferenceOpaque = vec2(0.0);
 uniform vec2 uAlphaReferenceSoftness = vec2(0.0);
 
-// The card draws the opaque scene behind it, pushed aside by its texture, rather than the texture itself.
+// Refraction: the card shows the opaque scene behind it, offset by the card texture, instead of the texture color.
 #define S_REFRACT 0
 #if S_REFRACT
 uniform sampler2D g_tSceneColor; // reserved
@@ -211,8 +211,8 @@ vec4 ZoomSample(int layer, vec2 uv, float rate)
     return mix(tight, wide, eased * eased);
 }
 
-// A distortion layer never shows its own texture: its red and green drive an offset that the layer
-// beneath it is re-sampled through, so what reaches the accumulator is the layer below, warped.
+// A distortion layer never shows its texture. Its red and green channels offset the uv at which the layer
+// beneath is re-sampled, so what reaches the accumulator is the layer below, warped.
 vec4 DistortPrevious(int previousLayer, vec4 source, vec2 previousUv, float strength)
 {
     vec2 offset = (SrgbLinearToGamma(source.rgb).xy - vec2(0.5)) * 2.0;
@@ -221,8 +221,8 @@ vec4 DistortPrevious(int previousLayer, vec4 source, vec2 previousUv, float stre
 }
 
 // A 1D ramp, looked up by the luminance of whatever is beneath this layer. The lookup runs in gamma
-// space. The layer's controls place the luminance across the ramp, and alone pick the row, so the row
-// is the same over the whole particle.
+// space. The layer controls x and z offset and scale the luminance across the ramp and y picks the row.
+// They are per particle, so the row is the same over the whole particle.
 vec4 SampleGradientRamp(int layer, vec4 previous, int maskMode, vec4 controls)
 {
     vec2 flags = MASK_RAMP_FLAGS[maskMode];
@@ -304,8 +304,8 @@ vec4 LayerUvs(int layer)
     return uvs;
 }
 
-// How far between its two sheet frames a layer has crossed. Only the first two layers cross-fade, each by its
-// own blend; later layers always show their current frame.
+// Blend between the current and next sheet frame of a layer. Only the first two layers cross-fade, each by its
+// own component of vFrameBlendOut; later layers always show the current frame.
 float LayerFrameBlend(int layer)
 {
     if (layer == 0)
@@ -503,8 +503,7 @@ vec4 CompositeLayers()
 
         if (effectMode == SPRITECARD_TEXTURE_1D_COLOR_LOOKUP)
         {
-            // Effects read the layer's own sample on layer 0 and the accumulator on later layers, which
-            // keeps this a special case rather than something that folds away.
+            // Layer 0 has nothing beneath it, so the ramp reads the layer's own sample. Later layers read the accumulator.
             layer = SampleGradientRamp(i, i == 0 ? layer : accum, maskMode, controls);
             blendWeight = controls.w;
         }

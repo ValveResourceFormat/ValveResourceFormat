@@ -77,8 +77,8 @@ namespace ValveResourceFormat.IO
         public bool ComposeAdditiveAnimations { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether animation keys that linear interpolation of the
-        /// kept keys reproduces within a small tolerance are dropped. When false, every frame is written.
+        /// Gets or sets a value indicating whether animation keys are dropped when linear interpolation of the
+        /// remaining keys reproduces them within a small tolerance. When false, every frame is written.
         /// </summary>
         public bool ReduceAnimationKeyframes { get; set; } = true;
 
@@ -508,7 +508,7 @@ namespace ValveResourceFormat.IO
             var meshes = LoadModelMeshes(model, name).ToList();
 
             // Animation frames are sized from flex controllers, so read them before writing animations.
-            // The model's morph block wins; a model with its morph set in a separate vmorf falls back to its meshes'.
+            // Morph data in the model wins. When the model has none, it is loaded from the separate vmorf of each mesh.
             if (model.FlexControllers.Length == 0)
             {
                 foreach (var m in meshes)
@@ -673,7 +673,7 @@ namespace ValveResourceFormat.IO
             var skeleton = renderSkeleton != null ? Skeleton.FromRenderSkeleton(renderSkeleton) : null;
             var (_, joints) = skeleton != null ? CreateGltfSkeleton(scene, skeleton, name) : (null, null);
 
-            // The mesh's own blend indices already address its render skeleton directly.
+            // Blend indices of the mesh already address the render skeleton directly.
             var identityRemapTable = joints != null ? Enumerable.Range(0, skeleton!.Bones.Length).ToArray() : null;
 
             AddMeshNode(exportedModel, scene, name, Vector4.One, mesh, mesh.VBIB, joints, meshNode: out _, identityRemapTable, inverseBindPose: mesh.ReadInverseBindPose());

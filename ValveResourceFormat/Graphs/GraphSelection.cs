@@ -20,7 +20,6 @@ internal sealed class GraphSelection
     /// <summary>One-hop downstream neighbors (over the primary node's outputs).</summary>
     public HashSet<GraphNode> DirectOut { get; } = [];
 
-    /// <summary>Whether nothing is selected.</summary>
     public bool IsEmpty => PrimaryNode == null && Wire == null;
 
     // Clicking a wire focuses just its two endpoint nodes; clicking it again deselects.
@@ -44,7 +43,6 @@ internal sealed class GraphSelection
         CollectDirectNeighbors(node);
     }
 
-    /// <summary>Clears the selection.</summary>
     public void Clear()
     {
         PrimaryNode = null;

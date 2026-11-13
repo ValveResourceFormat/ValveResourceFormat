@@ -62,9 +62,9 @@ partial class Skeleton
 
     const float UnsetWeight = -1f;
 
-    // A mask lists only some bones. Unlisted bones below a listed one take its weight, and a listed bone
-    // with unlisted parents feathers its weight up the chain towards the nearest listed ancestor, or to
-    // zero when there is none.
+    // A mask lists only some bones. Unlisted bones below a listed bone take that bone's weight.
+    // A listed bone with unlisted parents feathers its weight up the chain towards the nearest listed
+    // ancestor, or to zero when there is none.
     void FillUnsetWeights(float[] weights)
     {
         var originalWeights = (float[])weights.Clone();

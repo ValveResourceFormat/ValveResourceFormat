@@ -183,7 +183,7 @@ partial class ModelExtract
     /// <summary>
     /// Converts an animation to DMX format. Generated cloth proxy bones are written as ordinary joints only when
     /// <paramref name="keepClothProxyBones"/> is set. With <paramref name="composeAdditive"/>, the frames of an
-    /// additive are composed over the bind pose of their skeleton, as written for one generated relative to it.
+    /// additive are composed over the bind pose of the skeleton, as for an additive generated relative to that pose.
     /// </summary>
     internal static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, AnimationBase anim,
         IReadOnlyList<(Skeleton Skeleton, AnimationBase Animation)> secondaryAnimations, bool nmSkelAxisFixup, bool keepClothProxyBones,
@@ -191,7 +191,7 @@ partial class ModelExtract
     {
         using var dmx = new Datamodel.Datamodel("model", 22);
 
-        // The frames below get the axis fixup, so the bind pose it is written against has to have it too
+        // The frames below get the axis fixup, so the bind pose must have it as well
         var dmeSkeleton = BuildDmeDagSkeleton(skeleton, out var transforms, nmSkelAxisFixup, keepClothProxyBones: keepClothProxyBones);
 
         var animationList = new DmeAnimationList();
@@ -263,7 +263,7 @@ partial class ModelExtract
 
     /// <summary>
     /// Every frame of an animation, laid out as the log layer values of each bone and flex controller.
-    /// Bones that are not exported have no values, and no bone has scales when they are not written.
+    /// Bones that are not exported have no values, and no bone has scales when bone scale is not written.
     /// </summary>
     private readonly record struct DecodedTracks(Vector3[]?[] Positions, Quaternion[]?[] Orientations, float[]?[] Scales, float[][] FlexValues);
 
@@ -364,9 +364,6 @@ partial class ModelExtract
         return new DecodedTracks(positions, orientations, scales, flexValues);
     }
 
-    /// <summary>
-    /// Key times for every frame of an animation.
-    /// </summary>
     private static TimeSpan[] GetFrameTimes(AnimationBase anim)
     {
         var times = new TimeSpan[anim.FrameCount];

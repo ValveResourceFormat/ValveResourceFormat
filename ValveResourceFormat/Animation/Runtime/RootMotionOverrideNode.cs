@@ -273,7 +273,7 @@ namespace ValveResourceFormat.Animation
         {
             var result = base.Update(ctx, updateRange);
 
-            // Valve addition: an optional enable input bypasses the override
+            // An optional enable input bypasses the override
             if (EnabledNode == null || EnabledNode.GetValue(ctx))
             {
                 // Always modify root motion even if the child is invalid

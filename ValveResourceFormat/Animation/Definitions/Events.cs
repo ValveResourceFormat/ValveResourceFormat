@@ -138,7 +138,7 @@ public partial class ParticleEvent : Event
     public ParticleEvent.ParticleEventType Type { get; }
     public EventTargetEntity Target { get; }
     [KVProperty("m_hParticleSystem")]
-    public string ParticleSystem { get; } // InfoForResourceTypeIParticleSystemDefinition
+    public string ParticleSystem { get; }
     public string Tags { get; }
     public bool StopImmediately { get; }
     public bool DetachFromOwner { get; }

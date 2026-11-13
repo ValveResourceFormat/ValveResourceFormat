@@ -40,7 +40,7 @@ vec3 DiffuseWrapped(vec3 vNormal, vec3 vLightVector, vec3 wrapColor)
 // D = Normal distribution (Distribution of the microfacets)
 
 // No 1/PI unlike most GGX, s2 lights probably carry it instead. Diffuse is NoL rather than albedo/PI,
-// so lightColor is really E/PI and specular owes a PI back, which omitting the divide here repays.
+// so lightColor is really E/PI and specular owes a PI back. Omitting the divide here repays it.
 float D_GGX(float NoH, float roughness)
 {
 	float oneMinusNoHSquared = 1.0 - pow2(NoH);

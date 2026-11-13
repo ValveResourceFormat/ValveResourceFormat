@@ -93,7 +93,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             public int ParticleIndex;
 
-            /// <summary>The bits of the split field, which segments are told apart by.</summary>
+            /// <summary>The bits of the split field, which identify the segment.</summary>
             public int SegmentBits;
 
             public Vector3 Position;
@@ -204,9 +204,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// Writes each particle's place in its rope segment to <see cref="ParticleField.RopeSegmentData"/>:
-        /// how many particles of the segment come before it in x, that as a fraction of the segment's
-        /// last place in y, and the last place in z. Segments are told apart by the bits of their value.
+        /// Writes the place of each particle within its rope segment to <see cref="ParticleField.RopeSegmentData"/>.
+        /// X is the number of particles of the segment before it, y is x as a fraction of the last place
+        /// of the segment, and z is that last place. Segments are told apart by the bits of the split field value.
         /// Also groups the particles by segment into <see cref="segmentOrder"/>, keeping the walk order
         /// within each segment and ordering the segments by where each first appears in the walk.
         /// </summary>
@@ -445,8 +445,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             using var nodeBuffer = new RentedBuffer<RopeNode>(particleBag.Count);
             var nodeCount = CollectNodes(particleBag, systemState, camera, nodeBuffer.Span);
 
-            // A frame with no radius or alpha scale returns before the carried V offset sees a new first
-            // particle, where only a collection of fewer than two particles should skip it
+            // A radius or alpha scale of 0 also returns here, before CarryVOffset sees a new first
+            // particle. Only a collection of fewer than two particles should skip it.
             if (nodeCount < 2)
             {
                 return 0;
@@ -592,9 +592,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>
         /// Writes the four corners between two samples of the segment that starts at
-        /// <paramref name="segmentStart"/>, which every corner takes its particle values from. The
-        /// samples lie <paramref name="startT"/> and <paramref name="endT"/> along the segment, which
-        /// places them along the card, and have the raw V <paramref name="vStart"/> and <paramref name="vEnd"/>.
+        /// <paramref name="segmentStart"/>. Every corner takes its particle values from that particle.
+        /// The samples lie <paramref name="startT"/> and <paramref name="endT"/> along the segment,
+        /// which places them along the card. They have the raw V <paramref name="vStart"/> and
+        /// <paramref name="vEnd"/>.
         /// </summary>
         private static void WriteQuad(Span<SpritecardVertex> vertices, int quadIndex, in RopeNode segmentStart,
             in RibbonSample start, in RibbonSample end, float startT, float endT, float vStart, float vEnd, float sheetAge)
@@ -603,7 +604,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var startCornerY = 1f - (2f * startT);
             var endCornerY = 1f - (2f * endT);
 
-            // A rope hands over no random value, and the system's age in place of the particle's
+            // The random value is 0 and the sheet age is the system age instead of the particle age
             var sheetInputs = new Vector4(0f, segmentStart.ExtraData1, sheetAge, segmentStart.ExtraData2);
 
             var quadStart = quadIndex * 4;

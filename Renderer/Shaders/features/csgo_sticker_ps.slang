@@ -62,8 +62,8 @@ vec3 DecodeGlitterNormal(vec4 glitterTexel)
     return flakeNormal;
 }
 
-// Two layers of glitter flakes. Returns the glitter color, lit like the diffuse albedo,
-// tilts the sticker normal and raises its metalness.
+// Two layers of glitter flakes. Returns the glitter color, lit like the diffuse albedo.
+// Also tilts the sticker normal and raises the metalness.
 vec3 ApplyStickerGlitter(vec2 stickerCoord, vec3 color, float glitterAmount, MaterialProperties_t mat, inout vec3 normal, inout float metallic)
 {
     float scale = 2.5 * g_flGlitterScaleSticker0;

@@ -151,9 +151,9 @@ namespace Tests.Renderer
                 await Assert.That(source).Contains($"layout (location = {(int)VertexSlot.BlendIndices}) in float vAttr1;");
                 await Assert.That(source).Contains($"layout (location = {(int)VertexSlot.BlendWeight}) in float vAttr3;");
 
-                // The struct declares the same names and reaches the same locations, which is what lets its
-                // vertex array object feed this shader. A custom attribute carries the semantic of the slot it
-                // landed on, which is how the mesh path resolves it back.
+                // The struct declares the same names and reaches the same locations, so the vertex array object
+                // built from it can feed this shader. A custom attribute carries the semantic of the slot it
+                // landed on. The mesh path resolves it back through that semantic.
                 await Assert.That(SemanticOf(fields, "vAttr1")).IsEqualTo(VertexAttributeLocations.GetSemantic((int)VertexSlot.BlendIndices));
                 await Assert.That(SemanticOf(fields, "vAttr3")).IsEqualTo(VertexAttributeLocations.GetSemantic((int)VertexSlot.BlendWeight));
                 await Assert.That(SemanticOf(fields, "vAttr2")).IsEqualTo(VertexAttributeLocations.GetSemantic(12));

@@ -12,7 +12,7 @@
 #define renderMode_Normals 0
 #define renderMode_VertexColor 0
 
-// Order independent transparency: writes the fragment into the layers of the nearest two instead of its color.
+// Order independent transparency: stores the fragment in the two nearest layers instead of writing a color.
 // With D_LINES, the lines read the layers instead, to fade behind the fills in front of them.
 #define D_OIT 0
 
@@ -88,7 +88,7 @@ float SharpenToolTextureOpacity(float alpha, float fillAlpha)
 }
 
 #if (D_LINES == 1 && D_OIT == 1)
-// What the fills in front of a line let through. Past the nearest two only their count is known.
+// Transmittance of the fills in front of a line. Past the nearest two only their count is known.
 float TransmittanceOfFillsInFront(float distance)
 {
     ivec2 pixel = ivec2(gl_FragCoord.xy);
@@ -211,7 +211,7 @@ void main(void)
     ivec2 pixel = ivec2(gl_FragCoord.xy);
     uint fragment = PackOrderIndependentFragment(outputColor.rgb, outputColor.a, length(camPos - vtxPosWs));
 
-    // The first layer keeps the nearer of it and this fragment, and passes the farther on to the second
+    // The first layer keeps the nearer of the stored fragment and this one, and passes the farther on to the second
     uint previous = imageAtomicMax(g_tOrderIndependentLayers, ivec3(pixel, 0), fragment);
 
     if (previous != 0u)

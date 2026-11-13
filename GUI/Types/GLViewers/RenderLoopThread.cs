@@ -36,7 +36,7 @@ namespace GUI.Types.GLViewers
             SignalIfAttached();
         }
 
-        // Nothing is seen while minimized, so the viewer gives back what it holds for drawing
+        // Nothing is seen while minimized, so the control the loop draws is detached
         private static void OnAppResized(object? sender, EventArgs e)
         {
             if (sender is Form { WindowState: FormWindowState.Minimized } form)

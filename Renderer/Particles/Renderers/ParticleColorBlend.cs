@@ -4,8 +4,7 @@ using ValveResourceFormat.Particles.Utils;
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
-    /// Combines a particle's colour with a renderer's colour scale the way <c>m_nColorBlendType</c>
-    /// asks. Colours are in byte units, 0 to 255, and the result is saturated to that range.
+    /// Combines a particle's colour with a renderer's colour scale as selected by <c>m_nColorBlendType</c>. Colours are in byte units, 0 to 255, and the result is saturated to that range.
     /// </summary>
     internal static class ParticleColorBlend
     {

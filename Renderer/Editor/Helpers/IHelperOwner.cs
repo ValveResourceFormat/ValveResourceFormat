@@ -6,8 +6,8 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// An entity as the editor holds it, for the helpers that draw it: where it was placed, what its keys say,
-/// and the other entities of its map.
+/// An entity as the editor holds it, for the helpers that draw it: the transform, the keyvalues,
+/// and the other entities of the map.
 /// </summary>
 public interface IHelperOwner
 {

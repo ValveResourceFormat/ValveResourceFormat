@@ -13,7 +13,7 @@ internal sealed class FootstepSoundTable
     // The viewer carries CT weapons, so it walks with CT feet
     private const string PlayerTable = "ct_player";
 
-    // Water steps have no land event of their own, landing in water splashes like a water volume
+    // Water steps have no land event. Landing in water plays the water volume splash
     private const string WaterLandSound = "Land_WaterVol.StepLeft";
 
     private static readonly SurfaceSounds Fallback = new("CT_Concrete.StepLeft", "CT_Concrete.StepLeft", "Land_Concrete.StepLeft");
@@ -65,7 +65,7 @@ internal sealed class FootstepSoundTable
 
         foreach (var surface in surfaces)
         {
-            // An entry that names no sound leaves the surface to its base
+            // An entry that names no sound is skipped, so Find resolves the surface through its base
             if (surface.GetStringProperty("surfacePropertyName") is not { } name
                 || surface.GetStringProperty("walkleft") is not { Length: > 0 } stepLeft)
             {

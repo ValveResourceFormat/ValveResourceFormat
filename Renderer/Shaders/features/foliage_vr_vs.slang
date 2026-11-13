@@ -3,8 +3,9 @@
 #ifndef VRF_FOLIAGE_VR_VS_INCLUDE
 #define VRF_FOLIAGE_VR_VS_INCLUDE
 
-// Foliage motion of vr_complex, by F_FOLIAGE_ANIMATION: 1 and 3 bend the trunk about its base, each branch about
-// its painted pivot and each frond about a point behind its tip, 2 holds still, and 4 sways and flutters by height.
+// Foliage motion of vr_complex, by F_FOLIAGE_ANIMATION.
+// 1 and 3 bend the trunk about its base, each branch about its painted pivot and each frond about a point behind the frond tip.
+// 2 holds still. 4 sways and flutters by height.
 // Included after surface_base_vs.slang.
 
 #include "foliage_wind_vs.slang"

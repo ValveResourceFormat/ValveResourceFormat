@@ -15,8 +15,9 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         internal AnimationController? BoneMergeParent { get; private set; }
 
-        // The bone of the parent each bone takes its pose from, or -1 for one that keeps its bind offset from its
-        // own parent bone. Null when the skeletons match bone for bone, so the pose is copied whole.
+        // Index of each bone's counterpart in the parent skeleton, or -1 when it has none. A bone without a
+        // counterpart is placed by its bind pose relative to the parent bone. Null when the skeletons match bone
+        // for bone, so the pose is copied whole.
         private int[]? boneMergeMap;
 
         /// <summary>

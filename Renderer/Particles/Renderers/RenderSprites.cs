@@ -46,8 +46,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             CreateVertexArray(InstanceLayout<CardInstance>(), instanceDivisor: 1);
 
-            // Older definitions play their sheets by age whatever their animation type asks, while the
-            // rate is still read by that type
+            // Older definitions measure the sheet age at a fixed rate whatever animation type they author.
+            // The animation rate still follows the authored animation type.
             if (parse.BehaviorVersion < 10)
             {
                 AgeAnimationType = ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE;

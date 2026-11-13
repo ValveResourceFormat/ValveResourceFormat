@@ -55,7 +55,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             Transform = probe.Transform;
             SampleSize = 4f;
 
-            // Added after the scene assigned environment maps to its nodes, so the grid picks its own
+            // The scene already assigned environment maps to its nodes, so pick the grid's environment maps here
             Scene.UpdateNodeEnvironmentMaps(this);
 
             sampleCount = localSamples.Length;

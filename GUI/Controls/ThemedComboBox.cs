@@ -88,7 +88,6 @@ public class ThemedComboBox : ComboBox
             var bounds = e.Bounds;
             var flags = TextFormatFlags.Left | TextFormatFlags.PathEllipsis;
 
-            //adds padding to the left of non header items
             if (themedComboBoxItem != null && !themedComboBoxItem.IsHeader)
             {
                 var padding = this.AdjustForDPI(8);

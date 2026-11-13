@@ -80,8 +80,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         /// <summary>
-        /// Composes a transform expressed in this one's space onto it, flipping the local rotation's sign
-        /// to our hemisphere.
+        /// Composes <paramref name="local"/>, a transform expressed in the space of this transform, onto this transform.
+        /// The sign of the local rotation is flipped to the hemisphere of <see cref="Angle"/>.
         /// </summary>
         public readonly FrameBone Concat(FrameBone local)
         {

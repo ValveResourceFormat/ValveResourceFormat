@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
-    /// A function's <c>m_modelInput</c>: where it takes the model it works on from. Only the model a
+    /// A function's <c>m_modelInput</c>: the source of the model the function works on. Only the model a
     /// control point carries is supported.
     /// </summary>
     internal static class ModelInput

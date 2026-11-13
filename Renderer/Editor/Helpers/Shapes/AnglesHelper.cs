@@ -6,9 +6,9 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// An arrow at an entity along a direction, over its forward, left and up axes: the angles one of its keys
-/// holds, or the way the entity itself faces. It is drawn whether or not the entity is selected, and while it
-/// is, over everything with a solid head.
+/// An arrow at an entity along a direction, with the forward, left and up axes of that direction. The direction
+/// is the angles held by a key of the entity, or the way the entity itself faces. The arrow is drawn whether or
+/// not the entity is selected. While selected, it is drawn over everything with a solid head.
 /// </summary>
 internal sealed class AnglesHelper : EntityHelper
 {
@@ -26,7 +26,7 @@ internal sealed class AnglesHelper : EntityHelper
     private const float HeadRadius = 4f;
     private const float AxisLength = 16f;
 
-    /// <summary>Gets the key of the entity that holds the angles, or <see langword="null"/> for its own.</summary>
+    /// <summary>Gets the key of the entity that holds the angles, or <see langword="null"/> for the angles of the entity itself.</summary>
     private string? AnglesKey { get; }
 
     /// <summary>Gets whether the angles are relative to the entity.</summary>
@@ -84,7 +84,7 @@ internal sealed class AnglesHelper : EntityHelper
         context.PopRenderMode();
     }
 
-    // The angles in the key, turned with the entity when they are local to it, or the entity's own
+    // Basis of the angles in the key, turned with the entity when they are local, or of the entity itself without a key
     private (Vector3 Forward, Vector3 Left, Vector3 Up) GetBasis()
     {
         var rotation = AnglesKey == null

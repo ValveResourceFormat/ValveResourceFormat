@@ -224,7 +224,7 @@ public sealed partial class VMixGraphExtract
         public List<MixCommand> Commands { get; } = [];
         public float[] Values { get; set; } = [];
 
-        /// <summary>The heap as stored, for the counts and offsets that are kept among its values.</summary>
+        /// <summary>The heap as raw uint values, for the counts and offsets stored among the floats of Values.</summary>
         public uint[] RawValues { get; set; } = [];
         public List<MixProcessor> Processors { get; } = [];
         public List<MixSubmix> Submixes { get; } = [];
@@ -473,8 +473,8 @@ public sealed partial class VMixGraphExtract
     }
 
     /// <summary>
-    /// Heap graphs keep every input in one table: control inputs point at their value on the heap,
-    /// name inputs at a string hash on it, and vsnd inputs nowhere, with their default kept beside them.
+    /// Heap graphs keep every input in one table. Control inputs point at a value on the heap,
+    /// name inputs at a string hash on the heap, and vsnd inputs at nothing. Vsnd inputs keep the default beside the table.
     /// </summary>
     private static void ReadGraphInputs(KVObject graph, MixGraph result)
     {

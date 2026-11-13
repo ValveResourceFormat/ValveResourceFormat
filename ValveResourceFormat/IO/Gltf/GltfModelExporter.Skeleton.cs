@@ -44,8 +44,8 @@ public partial class GltfModelExporter
     }
 
     /// <summary>
-    /// The inverse bind pose of every model bone as a mesh is skinned with it: the model skeleton's, with the
-    /// bones the mesh addresses replaced by the mesh's own.
+    /// The inverse bind pose of every model bone, for skinning the mesh. It is the model inverse bind pose,
+    /// with the bones in the mesh remap table replaced by the mesh inverse bind pose.
     /// </summary>
     private static Matrix4x4[] GetSkinInverseBindPose(VModel model, VMesh mesh, int meshIndex, Matrix4x4[] modelInverseBindPose)
     {
@@ -113,7 +113,6 @@ public partial class GltfModelExporter
         var boneIndicesShort = new List<ushort>();
         var boneWeights = new List<Vector4>();
 
-        // Create a single vertex at each bone position
         foreach (var bone in skeleton.Bones)
         {
             var joint = joints[bone.Index];
@@ -146,7 +145,6 @@ public partial class GltfModelExporter
 
         SetIndices(primitive, PrimitiveType.POINTS, indices);
 
-        // Reuse skeleton material if it already exists
         var material = exportedModel.LogicalMaterials.FirstOrDefault(m => m.Name == "skeleton_material");
         if (material == null)
         {

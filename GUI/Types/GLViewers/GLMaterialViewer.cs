@@ -210,14 +210,12 @@ namespace GUI.Types.GLViewers
                     continue;
                 }
 
-                // Handle float parameters
                 if (previewMaterial.FloatParams.TryGetValue(paramName, out var floatValue) || shaderParams.FloatParams.TryGetValue(paramName, out floatValue))
                 {
                     allParams.Add((paramName, (floatValue, parameterPresence), ParamType.Float, vfxDescription));
                     continue;
                 }
 
-                // Handle int/bool parameters
                 if (previewMaterial.IntParams.TryGetValue(paramName, out var intValue) || shaderParams.IntParams.TryGetValue(paramName, out intValue))
                 {
                     if (previewMaterial.Shader.IsBooleanParameter(paramName)
@@ -234,7 +232,6 @@ namespace GUI.Types.GLViewers
                     continue;
                 }
 
-                // Handle vector parameters
                 if (previewMaterial.VectorParams.TryGetValue(paramName, out var vectorValue) || shaderParams.VectorParams.TryGetValue(paramName, out vectorValue))
                 {
                     var componentCount = previewMaterial.Shader.GetRegisterSize(paramName);
@@ -362,7 +359,7 @@ namespace GUI.Types.GLViewers
 
             header.Height = header.AdjustForDPI(28);
 
-            // The label takes its font from the sidebar, which the header only knows once it is in it
+            // The label takes the sidebar font, which the header only knows once it is added to the sidebar
             header.ParentChanged += (_, _) => header.Controls.Add(label);
 
             // Ends where the names of the rows below end
@@ -429,7 +426,6 @@ namespace GUI.Types.GLViewers
             {
                 var c = paramName[i];
 
-                // Replace underscores with spaces
                 if (c == '_')
                 {
                     result.Append(' ');

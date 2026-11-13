@@ -390,7 +390,7 @@ namespace GUI.Controls
             }
         }
 
-        // A viewer on a tab that is no longer shown gives back what it holds for drawing
+        // A viewer on a tab that is no longer shown is detached from the render loop
         protected override void OnDeselected(TabControlEventArgs e)
         {
             base.OnDeselected(e);
@@ -565,7 +565,6 @@ namespace GUI.Controls
 
             if (ImageList != null && ImageList.Images.Count > 0)
             {
-                // Center image vertically within tab
                 var imageCenteringOffset = (tabRect.Height - imageSize) / 2;
 
                 // Use centering offset as horizontal padding for visual consistency

@@ -6,8 +6,8 @@ using static ValveResourceFormat.ResourceTypes.EntityLump;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The light an entity casts, as its keys describe it, such as the light of the sun. It draws nothing while
-/// its entity is selected.
+/// The light an entity casts, as the keys of the entity describe it, such as the light of the sun. It draws
+/// nothing while the entity is selected.
 /// </summary>
 internal sealed class LightHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
@@ -107,7 +107,7 @@ internal sealed class LightHelper(IHelperOwner owner, HelperDeclaration declarat
         var width = keyValues.GetInt32Property("shadowtexturewidth");
         var height = keyValues.GetInt32Property("shadowtextureheight");
 
-        // An orthographic light's shadow map is as high as its width keeps it in proportion
+        // The height of an orthographic light shadow map follows the width in the ratio SizeParams.Y to SizeParams.X
         if (light.Entity == SceneLight.EntityType.Ortho)
         {
             width = width > 0 ? width : 2048;
@@ -127,9 +127,9 @@ internal sealed class LightHelper(IHelperOwner owner, HelperDeclaration declarat
     }
 
     /// <summary>
-    /// Gets the brightness of a barn, rect or omni2 light from the key of the unit it is set in, as its intensity
-    /// 100 units in front of it: lumens are spread over the solid angle it lights, and nits over the area of its
-    /// luminaire too.
+    /// Gets the brightness of a barn, rect or omni2 light from the key of the brightness unit it is set in.
+    /// The brightness is the intensity 100 units in front of the light. Lumens are spread over the solid angle
+    /// the light covers. Nits are also scaled by the luminaire area.
     /// </summary>
     private static float GetLinearBrightness(SceneLight light, Entity keyValues)
     {

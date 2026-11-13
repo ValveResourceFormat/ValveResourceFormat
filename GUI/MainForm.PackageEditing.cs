@@ -68,8 +68,8 @@ namespace GUI
         }
 
         /// <summary>
-        /// Creates the context of a package editor, with the game search paths from settings loaded off the UI thread,
-        /// and the package file read there into it when <paramref name="readPackage"/> is set.
+        /// Creates the context of a package editor. The game search paths from settings are loaded off the UI thread,
+        /// and when <paramref name="readPackage"/> is set the package file is read into the context on that thread.
         /// </summary>
         private static async Task<VrfGuiContext> CreatePackageEditorContextAsync(string fileName, bool readPackage = false)
         {

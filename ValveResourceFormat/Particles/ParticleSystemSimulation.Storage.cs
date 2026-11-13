@@ -33,9 +33,9 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Adds what a renderer drawing this system writes and reads, both when particles are created
-        /// and as they are simulated, and what it blends between two steps besides the attributes every
-        /// renderer blends, and lays out the particle storage again.
+        /// Adds the attributes a renderer drawing this system writes and reads, both when particles are
+        /// created and as they are simulated, and the attributes it blends between two steps besides those
+        /// every renderer blends. Then lays out the particle storage again.
         /// </summary>
         internal void AddRendererFields(ulong writtenFields, ulong initialReads, ulong blendedFields)
         {
@@ -69,9 +69,9 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Stores what is written. The initial particles keep a copy of what is written both at creation
-        /// and later and read as initial, share the current particles' arrays for what is only written at
-        /// creation, and read the constant for the rest.
+        /// Lays out the storage for the written attributes. An attribute written both at creation and later
+        /// and read as initial has a separate copy for the initial particles. One only written at creation
+        /// and read as initial shares the current particles' array. An attribute that is not stored reads as the constant.
         /// </summary>
         private void UpdateStorage()
         {

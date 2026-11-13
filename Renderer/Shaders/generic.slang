@@ -1,6 +1,6 @@
 #version 460
 
-// Fragment shader body of generic. The entry file includes its features file first, then sets this knob and includes this:
+// Fragment shader body of generic. The entry file includes generic_features.slang first, defines GENERIC_REFLECTANCE_RANGE, then includes this file.
 // GENERIC_REFLECTANCE_RANGE is 1 when the specular reads g_vReflectanceRange, otherwise the reflectance is fixed.
 
 #define UNLIT (F_UNLIT == 1)

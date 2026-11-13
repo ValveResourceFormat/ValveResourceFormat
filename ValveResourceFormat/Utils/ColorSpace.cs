@@ -86,7 +86,7 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
-        /// Converts a color temperature to an sRGB gamma space color, the way light entities with a color temperature do.
+        /// Converts a color temperature to an sRGB gamma space color, with each channel clamped to [0, 1].
         /// </summary>
         /// <param name="kelvin">Color temperature in Kelvin.</param>
         public static Vector3 ColorTemperatureToSrgb(float kelvin)

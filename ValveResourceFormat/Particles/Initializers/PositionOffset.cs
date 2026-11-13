@@ -14,8 +14,8 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly IVectorProvider offsetMax = new LiteralVectorProvider(Vector3.Zero);
 
         private readonly ITransformProvider transformInput = new ControlPointTransformProvider();
-        private readonly bool localCoords; // offset in local space 0/1
-        private readonly bool proportional; // offset proportional to radius 0/1
+        private readonly bool localCoords;
+        private readonly bool proportional;
         private readonly RangeSampler rangeSampler;
 
         public PositionOffset(ParticleDefinitionParser parse) : base(parse)

@@ -354,8 +354,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private bool isSeeded;
 
         /// <summary>
-        /// Seeds each placed instance of an effect apart, the same way on every load, from its name and
-        /// where it first runs.
+        /// Random seed that differs per placed instance of an effect and is the same on every load,
+        /// from the simulation name and the rounded node position.
         /// </summary>
         private int PlacementSeed()
         {
@@ -414,8 +414,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public ControlPoint GetControlPoint(int index) => particleRenderer.GetControlPoint(index);
 
         /// <summary>
-        /// Places a control point at a transform, taking its position and full orientation frame the
-        /// same way control point 0 is seeded from this node's transform.
+        /// Places a control point at a transform, taking its position, forward direction and rotation.
+        /// Control point 0 is seeded from this node's transform with the same computation.
         /// </summary>
         /// <param name="index">The index of the control point to place.</param>
         /// <param name="transform">The world transform the control point takes.</param>
@@ -623,7 +623,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private Matrix4x4? seededTransform;
 
-        /// <summary>Where the preview configuration places control point 0 relative to the node.</summary>
+        /// <summary>Offset of control point 0 from the node, set by the preview configuration.</summary>
         private Vector3 previewOrigin;
 
         /// <inheritdoc/>
@@ -656,7 +656,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
-        /// <summary>Places the effect. The half that reads other nodes: bound control points, the preview attachment.</summary>
+        /// <summary>Place phase. Reads other nodes for the bound control points and the preview model attachment.</summary>
         private void Place()
         {
             if (controlPointBindings != null)
@@ -825,8 +825,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Finishes the step, on the particles it left and where reaching past the effect is safe, and
-        /// hides what renderers that do not draw this frame placed in the scene.
+        /// Act phase, where touching the scene outside the effect is safe. Renderers that draw this frame
+        /// act on the particles of the step, and the others are hidden.
         /// </summary>
         private void Act(Camera camera)
         {
@@ -975,8 +975,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public override float GetCameraDistance(Camera camera)
         {
             // Translucent particles are blended in sorted order. A moment based order independent blend would
-            // spread out and dim the cores where many glowing sprites overlap, which comes out brighter and
-            // narrower here.
+            // spread out and dim the cores where many glowing sprites overlap. Sorted blending gives brighter
+            // and narrower cores.
 
             var simulation = particleRenderer.Simulation;
             var sortControlPoint = simulation.SortOverridePositionControlPoint;
