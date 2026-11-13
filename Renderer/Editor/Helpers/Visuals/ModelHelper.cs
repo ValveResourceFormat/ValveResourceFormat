@@ -199,7 +199,7 @@ public class ModelHelper : EntityHelper
         // A class can name a key of the entity that holds the model, rather than the model itself
         if (GetBlockString(block, "preview_modelname") is { } previewKey)
         {
-            name = GetStringKey(owner, previewKey);
+            name = GetStringKey(owner, previewKey.ToLowerInvariant());
             isNamedByClass = true;
             firstOption = 0;
         }
@@ -220,7 +220,7 @@ public class ModelHelper : EntityHelper
         if (GetBlock(block, "model_from_key") is { } fromKey && GetBlockString(fromKey, "source_key") is { } sourceKey
             && GetBlock(fromKey, "value_to_vmdl") is { } models)
         {
-            var value = GetStringKey(owner, sourceKey);
+            var value = GetStringKey(owner, sourceKey.ToLowerInvariant());
 
             name = value.Length > 0 ? models.GetStringProperty(value) : null;
         }
@@ -267,7 +267,7 @@ public class ModelHelper : EntityHelper
             ? arguments[animation + 1]
             : null;
 
-        var previewClip = isEditorModelName && GetBlockString(block, "preview_clipname") is { } clipKey ? GetStringKey(owner, clipKey) : null;
+        var previewClip = isEditorModelName && GetBlockString(block, "preview_clipname") is { } clipKey ? GetStringKey(owner, clipKey.ToLowerInvariant()) : null;
 
         // Sequence played before anything tells the model to play: a searched one for an editor model, otherwise
         // the first animation where the game does that, otherwise none

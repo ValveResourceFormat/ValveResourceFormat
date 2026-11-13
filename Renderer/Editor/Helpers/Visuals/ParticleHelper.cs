@@ -39,7 +39,7 @@ internal class ParticleHelper : EntityHelper
     {
         ArgumentNullException.ThrowIfNull(declaration);
 
-        return declaration.Arguments.Count > 0 ? declaration.Arguments[0] : "effect_name";
+        return declaration.Arguments.Count > 0 ? declaration.Arguments[0].ToLowerInvariant() : "effect_name";
     }
 
     /// <inheritdoc/>
