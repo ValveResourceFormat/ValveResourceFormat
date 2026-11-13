@@ -738,7 +738,9 @@ namespace CLI
                 Console.WriteLine($"--- Wrote {WrittenFiles} files");
             }
 
-            if (!AnyFileMatched && !CollectStats && (HasPathFilter || ExtFilterList != null))
+            var noFileMatched = !AnyFileMatched && !CollectStats && (HasPathFilter || ExtFilterList != null);
+
+            if (noFileMatched)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.Error.WriteLine(LinkedFilePath != null
@@ -793,7 +795,7 @@ namespace CLI
                 return 2;
             }
 
-            return 0;
+            return noFileMatched ? 1 : 0;
         }
 
         private List<string>? FindPathsToProcessInFolder(string path)
