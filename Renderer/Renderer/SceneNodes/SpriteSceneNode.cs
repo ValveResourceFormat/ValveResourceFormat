@@ -30,8 +30,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             NewVertex(new(-1.0f, 1.0f, 0.0f), new(0.0f, 0.0f)),
         ];
 
-        // The color is white. If a material shader reads vCOLOR, it gets the default of the engine.
-        // GPUMeshBufferCache binds the same value for a mesh with no color stream.
+        // The color is white, so a material shader that reads vCOLOR draws the sprite untinted
         private static Vertex NewVertex(Vector3 position, Vector2 texCoord) => new()
         {
             Position = position,

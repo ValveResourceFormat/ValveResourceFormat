@@ -168,6 +168,7 @@ public static class GLEnvironment
         GraphicsContext.RenderState.SetPassBaseline(RenderState.Default);
         GraphicsContext.RenderState.ApplyDynamic(DynamicState.Default);
 
+        VertexAttributeLocations.SetMissingAttributesToZero();
         EnableParallelShaderCompile();
     }
 

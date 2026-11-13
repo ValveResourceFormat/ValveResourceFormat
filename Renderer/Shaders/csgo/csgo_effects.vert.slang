@@ -34,7 +34,7 @@ void main()
     vColorOut.rgb = SrgbGammaToLinear(vColorOut.rgb);
     vColorOut.rgb *= g_vColorTint.rgb;
 
-    if (vCOLOR != vec4(0.0)) // Is this necessary?
+    if (vCOLOR != vec4(0.0))
     {
         vColorOut *= vCOLOR;
     }

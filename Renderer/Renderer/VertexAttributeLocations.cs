@@ -1,6 +1,7 @@
 using System.Collections.Frozen;
 using System.Linq;
 using System.Reflection;
+using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 
@@ -266,5 +267,27 @@ namespace ValveResourceFormat.Renderer
         /// <summary>The buffer semantic a slot is filled from, for describing handbuilt geometry as a layout.</summary>
         public static (string Name, int Index) GetSemantic(int slot)
             => SemanticBySlot.GetValueOrDefault(slot, (string.Empty, 0));
+
+        /// <summary>
+        /// Sets the generic value of every vertex attribute in the current GL context to zero, which is what a
+        /// shader reads for an attribute the mesh has no stream for. The engine leaves such an input unbound,
+        /// while the GL default generic value is (0, 0, 0, 1).
+        /// </summary>
+        public static void SetMissingAttributesToZero()
+        {
+            var maxVertexAttributes = GL.GetInteger(GetPName.MaxVertexAttribs);
+
+            for (var location = 0; location < maxVertexAttributes; location++)
+            {
+                if (location is (int)VertexSlot.BlendIndices or (int)VertexSlot.BlendIndices2)
+                {
+                    GL.VertexAttribI4((uint)location, 0u, 0u, 0u, 0u);
+                }
+                else
+                {
+                    GL.VertexAttrib4(location, 0f, 0f, 0f, 0f);
+                }
+            }
+        }
     }
 }

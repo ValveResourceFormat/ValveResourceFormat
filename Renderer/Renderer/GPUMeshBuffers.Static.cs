@@ -33,21 +33,4 @@ public partial class GPUMeshBufferCache
             return emptyVAO;
         }
     }
-
-    private int vectorOneVertexBuffer = -1;
-
-    /// <summary>Gets a lazily created vertex buffer containing a single <c>(1, 1, 1, 1)</c> float4, used as a default color attribute.</summary>
-    [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-    public int VectorOneVertexBuffer
-    {
-        get
-        {
-            if (vectorOneVertexBuffer == -1)
-            {
-                vectorOneVertexBuffer = GraphicsDevice.CreateBuffer<float>(nameof(VectorOneVertexBuffer), [1f, 1f, 1f, 1f], BufferUsage.Static);
-            }
-
-            return vectorOneVertexBuffer;
-        }
-    }
 }

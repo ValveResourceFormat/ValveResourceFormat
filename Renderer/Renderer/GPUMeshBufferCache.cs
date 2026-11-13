@@ -1,12 +1,9 @@
 using System.Diagnostics;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
-
-#if DEBUG
-using Microsoft.Extensions.Logging;
-#endif
 
 namespace ValveResourceFormat.Renderer
 {
@@ -242,7 +239,6 @@ namespace ValveResourceFormat.Renderer
 
             var bindingIndex = 0;
             var boundLocations = 0;
-            vertexBuffers = AddMissingAttributes(vertexBuffers);
 
             foreach (var curVertexBuffer in vertexBuffers)
             {
@@ -255,12 +251,11 @@ namespace ValveResourceFormat.Renderer
                     // Unknown, or a location an earlier buffer already took, which the table's aliases allow
                     if (attributeLocation == -1 || (boundLocations & (1 << attributeLocation)) != 0)
                     {
-#if DEBUG
                         if (attributeLocation == -1 && !string.IsNullOrEmpty(insgElemName))
                         {
                             RendererContext.Logger.LogDebug("Attribute {SemanticName} ({SemanticIndex}) has no canonical location (insg: {InsgElemName})", attribute.SemanticName, attribute.SemanticIndex, insgElemName);
                         }
-#endif
+
                         continue;
                     }
 
@@ -290,31 +285,6 @@ namespace ValveResourceFormat.Renderer
                 GL.VertexArrayAttribBinding(newVaoHandle, location, binding);
                 VertexArray.SetAttribFormat(newVaoHandle, location, attribute.Format, (int)attribute.Offset);
             }
-        }
-
-        private VertexDrawBuffer[] AddMissingAttributes(VertexDrawBuffer[] vertexBuffers)
-        {
-            // Shaders read white where a mesh has no COLOR stream, matching the engine default
-            if (!vertexBuffers.Any(vb => vb.InputLayoutFields.Any(f => f.SemanticName == "COLOR" && f.SemanticIndex == 0)))
-            {
-                var defaultColor = new VertexDrawBuffer
-                {
-                    Handle = VectorOneVertexBuffer,
-                    ElementSizeInBytes = 0, // required for the singular attribute to apply to all vertices
-                    InputLayoutFields =
-                    [
-                        new VBIB.RenderInputLayoutField
-                        {
-                            SemanticName = "COLOR",
-                            Format = DXGI_FORMAT.R32G32B32A32_FLOAT,
-                        },
-                    ],
-                };
-
-                vertexBuffers = [.. vertexBuffers, defaultColor];
-            }
-
-            return vertexBuffers;
         }
     }
 }
