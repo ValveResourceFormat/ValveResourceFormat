@@ -1723,7 +1723,6 @@ public class Rubikon
         var rightCount = count - leftCount;
 
         // Build left child (immediately after parent)
-        var leftChildIndex = nodes.Count;
         BuildHullBVHRecursive(nodes, hullIndices, sortKeys, start, leftCount, depth + 1);
 
         var rightChildIndex = nodes.Count;

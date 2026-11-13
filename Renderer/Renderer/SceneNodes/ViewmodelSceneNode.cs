@@ -787,7 +787,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             Scene.SetLayersEnabled([FirstPersonModelLayer, ViewmodelLayer], true);
         }
 
-        UpdateBodyAnimator(input, uptime, dt);
+        UpdateBodyAnimator(input, dt);
 
         // Nothing is usable until it is all the way up, whichever item it is.
         if (deployTimeLeft > 0f)
@@ -881,7 +881,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     private bool bodyActionRestarted;
 
     // Tells the body's animation graph what is held and what it is being used for
-    private void UpdateBodyAnimator(UserInput input, float uptime, float dt)
+    private void UpdateBodyAnimator(UserInput input, float dt)
     {
         if (bodyAnimator == null)
         {
@@ -1065,8 +1065,6 @@ public class ViewmodelSceneNode : ModelSceneNode
         var activeAnimation = AnimationController.ActiveAnimation;
         if (activeAnimation != null)
         {
-            var frame = AnimationController.Frame;
-
             if (AnimationController.ActiveClipFinished && State != AnimationState.Idle)
             {
                 SetState(AnimationState.Idle);

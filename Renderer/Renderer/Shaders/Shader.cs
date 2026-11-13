@@ -416,7 +416,6 @@ namespace ValveResourceFormat.Renderer.Shaders
             {
                 var name = uniform.Name;
                 var type = uniform.Type;
-                var index = uniform.Index;
                 var size = uniform.Size;
 
                 if (!name.StartsWith("g_", StringComparison.Ordinal) && !name.StartsWith("F_", StringComparison.Ordinal))

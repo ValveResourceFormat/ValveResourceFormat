@@ -810,12 +810,6 @@ namespace ValveResourceFormat.Renderer.Materials
                 texture.SetParameter(TextureParameterName.TextureSwizzleA, (int)All.One);
             }
 
-            if (bitmap.ColorType == SKColorType.Rgb888x)
-            {
-                // The uploaded fourth byte is undefined, the format is opaque by definition
-                GL.TextureParameter(texture.Handle, TextureParameterName.TextureSwizzleA, (int)All.One);
-            }
-
             return texture;
         }
 

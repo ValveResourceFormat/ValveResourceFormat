@@ -89,7 +89,6 @@ public sealed class TiledCullFeeder
     private readonly Vector2[] hull = new Vector2[(20 * 4) + 1];
     private readonly int[] batchItemCount = new int[BatchCount];
     private readonly int[] batchBinnedCount = new int[BatchCount];
-    private readonly int[] batchFirstItem = new int[BatchCount];
 
     private CullParams cullParams;
     private int tileCols;
@@ -468,8 +467,6 @@ public sealed class TiledCullFeeder
             }
 
             items.AsSpan(itemCursor + count, (masks * ItemsPerMask) - count).Fill(RejectAll);
-
-            batchFirstItem[batch] = itemCursor;
 
             var batchEntry = new CullBatch
             {

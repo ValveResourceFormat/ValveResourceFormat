@@ -159,7 +159,6 @@ public sealed partial class NmGraphExtract
         public StateMachineTransitionGroup GroupKind { get; init; }
         public string GroupPath { get; init; } = string.Empty;
         public int SourceStateNodeIndex { get; init; }
-        public int TargetStateIndex { get; init; }
         public int TargetStateNodeIndex { get; init; }
         public int ConditionNodeIndex { get; init; }
         public int TransitionNodeIndex { get; init; }

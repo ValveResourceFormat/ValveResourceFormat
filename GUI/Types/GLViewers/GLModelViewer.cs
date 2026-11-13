@@ -912,17 +912,9 @@ namespace GUI.Types.GLViewers
             {
                 if (frame == -1)
                 {
-                    var maximum = animation == null ? 1 : animation.FrameCount - 1;
-                    if (maximum < 0)
-                    {
-                        maximum = 0;
-                    }
-
                     animationTrackBar.Enabled = animation != null;
                     animationPlayPause.Enabled = animation != null;
                     slowmodeTrackBar.Enabled = animation != null;
-
-                    frame = 0;
                 }
                 else if (animation is { CycleFrames: > 0 } && animationPlayPause.Checked
                     && (int)MathF.Round(animationTrackBar.Slider.Value * animation.CycleFrames) != frame)

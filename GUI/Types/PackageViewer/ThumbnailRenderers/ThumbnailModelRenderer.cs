@@ -20,7 +20,7 @@ internal class ThumbnailModelRenderer : ThumbnailRenderer
         SceneRenderer.Scene.Add(modelSceneNode, true);
 
         // if model has no meshes try to show physics
-        if (modelSceneNode == null || modelSceneNode.RenderableMeshes.Count == 0)
+        if (modelSceneNode.RenderableMeshes.Count == 0)
         {
             phys = model.GetEmbeddedPhys();
 

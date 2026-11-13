@@ -26,8 +26,10 @@ namespace ValveResourceFormat.Renderer.Shaders
             graphicsContext.Begin();
 
             var loader = renderContext.ShaderLoader;
-            var folder = ShaderParser.ShaderSourceDirectory
-                ?? throw new DirectoryNotFoundException("Shader validation requires the shader source files, but this build only has the embedded copies.");
+            if (ShaderParser.ShaderSourceDirectory == null)
+            {
+                throw new DirectoryNotFoundException("Shader validation requires the shader source files, but this build only has the embedded copies.");
+            }
 
             // Every entry point with a vertex or compute stage, including the shaders in the game folders
             var allShaders = Parser.AvailableShaders

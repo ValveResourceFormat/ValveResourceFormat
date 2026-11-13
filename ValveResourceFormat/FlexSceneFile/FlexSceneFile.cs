@@ -114,8 +114,6 @@ namespace ValveResourceFormat.FlexSceneFile
         {
             using var reader = new BinaryReader(input, Encoding.UTF8, true);
 
-            var startPosition = reader.BaseStream.Position;
-
             var magic = reader.ReadInt32();
             if (magic != MAGIC)
             {

@@ -143,7 +143,7 @@ public sealed partial class NmGraphExtract
         }
     }
 
-    private KVObject CreateVariationOverrides(int nodeIndex, KVObject defaultVariationData, Func<VariationGraph, KVObject?> variationDataFactory)
+    private KVObject CreateVariationOverrides(KVObject defaultVariationData, Func<VariationGraph, KVObject?> variationDataFactory)
     {
         var overrides = KVObject.Array();
 

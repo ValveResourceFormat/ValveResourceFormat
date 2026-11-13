@@ -29,7 +29,6 @@ namespace ValveResourceFormat.FlexSceneFile
         {
             //Setting name
             sb.Append(CultureInfo.InvariantCulture, $"\"{setting.Name}\" ");
-            var index = setting.Phoneme;
 
             //Phoneme code
             sb.Append('"');

@@ -94,7 +94,7 @@ internal sealed partial class ClothExtract
             : [settled.AddCurvature, 0f];
         foreach (var curvature in curvatures)
         {
-            if (ClothBendStiffnessCoveringHinges(cloth, readings, curvature) is { } covered)
+            if (ClothBendStiffnessCoveringHinges(readings, curvature) is { } covered)
             {
                 Consider(covered, curvature);
             }
@@ -359,7 +359,7 @@ internal sealed partial class ClothExtract
     private static BendPaintSolution ClothBendStiffnessRead(ClothReconstruction cloth,
         List<HingeReading> readings, float addCurvature, bool curvatureStated)
     {
-        var paint = ClothBendStiffnessFromHinges(cloth, readings,
+        var paint = ClothBendStiffnessFromHinges(readings,
             addCurvature > 0f ? addCurvature : cloth.ChainRingCurvature, generatorBound: false).Paint;
         if (paint is not null || curvatureStated)
         {
@@ -368,19 +368,19 @@ internal sealed partial class ClothExtract
 
         if (addCurvature <= 0f)
         {
-            return new(ClothBendStiffnessFromHinges(cloth, readings, 0f, generatorBound: true).Paint
-                ?? ClothBendStiffnessFromHinges(cloth, readings, 0f, generatorBound: true, relaxSetters: true).Paint
-                ?? ClothBendStiffnessCoveringHinges(cloth, readings, 0f), addCurvature);
+            return new(ClothBendStiffnessFromHinges(readings, 0f, generatorBound: true).Paint
+                ?? ClothBendStiffnessFromHinges(readings, 0f, generatorBound: true, relaxSetters: true).Paint
+                ?? ClothBendStiffnessCoveringHinges(readings, 0f), addCurvature);
         }
 
-        var (residual, residuals, sharedSlack, residualSlack) = ClothBendStiffnessFromHinges(cloth, readings, addCurvature,
+        var (residual, residuals, sharedSlack, residualSlack) = ClothBendStiffnessFromHinges(readings, addCurvature,
             generatorBound: true);
         var overFolds = residuals.Values.Any(static sum => sum < -ClothBendStiffnessAgreement);
 
         // The paint at zero curvature, where it spreads its hinges apart and leaves less slack than the shared one
         Dictionary<int, float>? RetryAtZero(bool relaxSetters)
         {
-            var (retried, folds, _, paintedSlack) = ClothBendStiffnessFromHinges(cloth, readings, 0f, generatorBound: true,
+            var (retried, folds, _, paintedSlack) = ClothBendStiffnessFromHinges(readings, 0f, generatorBound: true,
                 relaxSetters);
             var spread = folds.Count > 0 ? folds.Values.Max() - folds.Values.Min() : 0f;
             return retried is { Count: > 0 } && spread > ClothBendStiffnessAgreement
@@ -396,12 +396,12 @@ internal sealed partial class ClothExtract
 
         if (residual is null)
         {
-            (residual, _, _, residualSlack) = ClothBendStiffnessFromHinges(cloth, readings, addCurvature, generatorBound: true,
+            (residual, _, _, residualSlack) = ClothBendStiffnessFromHinges(readings, addCurvature, generatorBound: true,
                 relaxSetters: true);
         }
 
         if (residual is null && !overFolds && sharedSlack > ClothBendStiffnessAgreement
-            && ClothBendStiffnessCoveringHinges(cloth, readings, addCurvature) is { } coveredResidual)
+            && ClothBendStiffnessCoveringHinges(readings, addCurvature) is { } coveredResidual)
         {
             return new(coveredResidual, addCurvature);
         }
@@ -417,7 +417,7 @@ internal sealed partial class ClothExtract
         }
 
         if (overFolds && sharedSlack > ClothBendStiffnessAgreement
-            && ClothBendStiffnessCoveringHinges(cloth, readings, 0f) is { } covered)
+            && ClothBendStiffnessCoveringHinges(readings, 0f) is { } covered)
         {
             return new(covered, 0f);
         }
@@ -504,7 +504,7 @@ internal sealed partial class ClothExtract
     /// the largest miss without and with the paint; with <paramref name="relaxSetters"/> only a rod's sole setter is solved
     /// exactly.
     /// </summary>
-    private static HingeSolve ClothBendStiffnessFromHinges(ClothReconstruction cloth, List<HingeReading> readings,
+    private static HingeSolve ClothBendStiffnessFromHinges(List<HingeReading> readings,
         float addCurvature, bool generatorBound, bool relaxSetters = false)
     {
         var unpaintedSlack = 0f;
@@ -881,7 +881,7 @@ internal sealed partial class ClothExtract
     /// which hinge built them. Each rod's sole setter is held exact, the rest are covered greedily, and the system is
     /// solved as pairwise bounds from the tightest tolerance up.
     /// </summary>
-    private static Dictionary<int, float>? ClothBendStiffnessCoveringHinges(ClothReconstruction cloth, List<HingeReading> readings,
+    private static Dictionary<int, float>? ClothBendStiffnessCoveringHinges(List<HingeReading> readings,
         float addCurvature)
     {
         static ((int, int) Hinge, float Fraction)[] Usable(bool capped, ((int, int) Hinge, float Fraction)[] candidates)

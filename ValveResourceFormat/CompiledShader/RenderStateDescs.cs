@@ -276,14 +276,12 @@ public record struct RsBlendStateDesc
     private const int BlendOpWidth = 3;
     private const int WriteMaskWidth = 4;
 
-    private static uint GetLane(uint word, int rt, int width) => (word >> (rt * width)) & ((1u << width) - 1);
     private static uint SetLane(uint word, int rt, int width, uint value)
     {
         var mask = (1u << width) - 1;
         return (word & ~(mask << (rt * width))) | ((value & mask) << (rt * width));
     }
 
-    private readonly bool GetFlag(int offset) => (enableBits & (1u << offset)) != 0;
     private void SetFlag(int offset, bool value) => enableBits = value ? enableBits | (1u << offset) : enableBits & ~(1u << offset);
 
     /// <summary>Whether MSAA alpha-to-coverage is enabled.</summary>

@@ -170,7 +170,6 @@ namespace ValveResourceFormat.Renderer.Decals
         private bool tintsDirty;
         private float time;
         private bool materialsDirty;
-        private int parentedCount;
         private Shader? shader;
 
         /// <summary>Initializes a decal system for a scene.</summary>
@@ -374,7 +373,6 @@ namespace ValveResourceFormat.Renderer.Decals
                 if (Matrix4x4.Invert(parentFrame, out var worldToParent))
                 {
                     localTransform = boxTransform * worldToParent;
-                    parentedCount++;
                 }
                 else
                 {
@@ -559,11 +557,6 @@ namespace ValveResourceFormat.Renderer.Decals
 
         private void RemoveDecalAt(int index)
         {
-            if (decals[index].Parent != null)
-            {
-                parentedCount--;
-            }
-
             decals.RemoveAt(index);
             boxTransforms.RemoveAt(index);
             decalsDirty = true;
@@ -991,7 +984,6 @@ namespace ValveResourceFormat.Renderer.Decals
             decalsDirty = false;
             tintsDirty = false;
             materialsDirty = false;
-            parentedCount = 0;
             shader = null;
         }
 

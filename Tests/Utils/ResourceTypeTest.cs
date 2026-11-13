@@ -34,7 +34,6 @@ namespace Tests.Utils
                 await Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".anim")).IsEqualTo(ResourceType.Unknown);
                 await Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".anim_c")).IsEqualTo(ResourceType.Unknown);
                 await Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".")).IsEqualTo(ResourceType.Unknown);
-                await Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".")).IsEqualTo(ResourceType.Unknown);
                 await Assert.That(ResourceTypeExtensions.DetermineByFileExtension("")).IsEqualTo(ResourceType.Unknown);
                 await Assert.That(ResourceTypeExtensions.DetermineByFileExtension(null)).IsEqualTo(ResourceType.Unknown);
             }

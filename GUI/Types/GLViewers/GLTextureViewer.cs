@@ -390,8 +390,6 @@ namespace GUI.Types.GLViewers
                             return;
                         }
 
-                        var oldTextureSize = ActualTextureSizeScaled;
-
                         CubemapProjectionType = (CubemapProjection)index;
 
                         TextureScaleChangeTime = 0f;

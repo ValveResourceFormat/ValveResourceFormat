@@ -40,11 +40,9 @@ void main() {
     // offset the SDF edge to make the font appear wider or slimmer
     float weight = (0.5 + (WEIGHT * -0.1));
     float characterDistance = range * (distance - weight);
-    float outlineDistance = range * (distance - (weight - OUTLINE_OFFSET));
 
     // calculate how much color is required
     float characterColorAmount = clamp(characterDistance + 0.5, 0.0, 1.0);
-    float outlineColorAmount = clamp(outlineDistance + 0.5, 0.0, 1.0);
 
     // mix between font color and outline color
     color.rgb = mix(OUTLINE_COLOR, vFragColor.rgb, characterColorAmount);

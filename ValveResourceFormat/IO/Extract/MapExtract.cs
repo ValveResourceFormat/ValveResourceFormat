@@ -127,7 +127,6 @@ public sealed partial class MapExtract
     private CMapSelectionSet? EntitiesSelectionSet;
 
     private List<CMapWorldLayer> WorldLayers { get; set; } = [];
-    private Dictionary<int, MapNode> UniqueNodeIds { get; set; } = [];
     private CMapRootElement MapDocument { get; set; } = [];
     private List<CMapRootElement> AdditionalMapDocuments { get; set; } = [];
 
@@ -1472,7 +1471,6 @@ public sealed partial class MapExtract
 
         var aggregateMeshes = agg.GetArray("m_aggregateMeshes");
 
-        IReadOnlyList<KVObject> drawCalls = [];
         var drawCenters = Array.Empty<Vector3>();
 
         var fragmentTransforms = agg.GetArray("m_fragmentTransforms") ?? [];
@@ -1492,7 +1490,7 @@ public sealed partial class MapExtract
         // TODO: reference meshes
         var mesh = ((Model)modelRes.DataBlock).GetEmbeddedMeshes().First();
         var sceneObject = mesh.Mesh.Data.GetArray("m_sceneObjects")[0];
-        drawCalls = sceneObject.GetArray("m_drawCalls");
+        var drawCalls = sceneObject.GetArray("m_drawCalls");
 
         if (convertToHalfEdge)
         {

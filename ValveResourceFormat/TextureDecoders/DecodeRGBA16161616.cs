@@ -11,7 +11,6 @@ namespace ValveResourceFormat.TextureDecoders
         {
             using var pixels = bitmap.PeekPixels();
             var inputPixels = MemoryMarshal.Cast<byte, RGBA16161616>(input);
-            var data = pixels.GetPixelSpan<SKColorF>();
 
             if (bitmap.ColorType == ResourceTypes.Texture.HdrBitmapColorType)
             {

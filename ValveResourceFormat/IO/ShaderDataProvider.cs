@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using ValveResourceFormat.CompiledShader;
@@ -1013,11 +1014,6 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                if (newTextureType == null)
-                {
-                    continue;
-                }
-
                 yield return (channel, newTextureType);
             }
         }
@@ -1058,7 +1054,7 @@ namespace ValveResourceFormat.IO
         /// <param name="intParams">The material's integer parameters.</param>
         /// <param name="newTextureType">The resolved texture type name.</param>
         /// <returns>True if the texture type was resolved, false otherwise.</returns>
-        private static bool TryFigureOutNonStaticMap(string shader, string textureType, Dictionary<string, long> intParams, out string? newTextureType)
+        private static bool TryFigureOutNonStaticMap(string shader, string textureType, Dictionary<string, long> intParams, [NotNullWhen(true)] out string? newTextureType)
         {
             if (shader == "vr_simple" && textureType == "g_tColor")
             {

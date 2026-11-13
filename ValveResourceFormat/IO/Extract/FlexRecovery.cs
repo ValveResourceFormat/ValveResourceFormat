@@ -192,11 +192,6 @@ internal sealed class FlexRecovery
         var terms = new List<Node>();
         Flatten(sub.Right, terms);
 
-        if (terms.Count == 0)
-        {
-            return node;
-        }
-
         foreach (var term in terms)
         {
             if (term is not OpNode { Op: FlexOpCode.Mul } product

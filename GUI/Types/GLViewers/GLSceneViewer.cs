@@ -724,7 +724,6 @@ namespace GUI.Types.GLViewers
             // physics and teleports stay frozen until the mouse moves back over the viewport.
             if (MouseOverRenderArea || Input.ForceUpdate || Input.WalkMode)
             {
-                Input.MouseSensitivity = Settings.Config.MouseSensitivity;
                 Input.SmoothCameraEnabled = Settings.Config.SmoothCameraEnabled;
 
                 var pressedKeys = ConsumeCurrentlyPressedKeysForUpdate();

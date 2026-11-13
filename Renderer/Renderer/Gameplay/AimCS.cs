@@ -62,9 +62,6 @@ sealed partial class AimCSNode : PassthroughNode
     {
         base.InitializeInternal(ctx, initialTime);
 
-        weaponCategory = default;
-        weaponType = default;
-
         HorizontalAngleNode?.Initialize(ctx);
         VerticalAngleNode?.Initialize(ctx);
         WeaponCategoryNode?.Initialize(ctx);

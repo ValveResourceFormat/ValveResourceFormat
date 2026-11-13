@@ -257,7 +257,7 @@ public class BloomRenderer
     {
         Debug.Assert(upsample != null && upsampleTent != null && finalUpsample != null);
 
-        var upsampleShader = UsesTentUpsample && TentFilterRadius > 0f ? upsampleTent : upsample;
+        var upsampleShader = UsesTentUpsample ? upsampleTent : upsample;
 
         using (GraphicsContext.RenderState.Scope(blend: true, srcBlend: RsBlendMode.One, dstBlend: RsBlendMode.Src1Color))
         {

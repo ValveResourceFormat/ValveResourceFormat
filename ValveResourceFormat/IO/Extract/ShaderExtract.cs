@@ -817,7 +817,7 @@ public sealed class ShaderExtract
                 writer.WriteLine();
 
                 // Remove invariants from the disect
-                foreach (var (config, attributes) in attributesByConfig)
+                foreach (var attributes in attributesByConfig.Values)
                 {
                     attributes.ExceptWith(invariants);
                 }

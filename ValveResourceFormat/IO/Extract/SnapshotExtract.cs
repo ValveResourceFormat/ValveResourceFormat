@@ -98,8 +98,9 @@ public sealed class SnapshotExtract
                     {
                         values.Add(s);
                     }
-                    else if (datum is ParticleSnapshot.SkinningData skinning)
+                    else if (datum is ParticleSnapshot.SkinningData)
                     {
+                        // Skinning data is not written to the KV3 stream values
                     }
                     else
                     {

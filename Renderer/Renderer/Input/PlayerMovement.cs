@@ -1927,7 +1927,6 @@ public class PlayerMovement : IPlayerController
             }
 
             OnLadder = true;
-            LadderNormal = pm.HitNormal;
             Velocity = Vector3.Zero;
 
             // Snap back onto the ladder if there's room

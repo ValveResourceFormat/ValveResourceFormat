@@ -33,15 +33,15 @@ namespace ValveResourceFormat.Particles.Initializers
 
         protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            InitializeRun(run, particles, particleSystemState, blockRun: false);
+            InitializeRun(run, particleSystemState, blockRun: false);
         }
 
         protected override void InitializeBlocks(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            InitializeRun(run, particles, particleSystemState, blockRun: true);
+            InitializeRun(run, particleSystemState, blockRun: true);
         }
 
-        private void InitializeRun(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState, bool blockRun)
+        private void InitializeRun(ParticleSpan run, ParticleSystemState particleSystemState, bool blockRun)
         {
             var creationTimes = run.ReadFloats(ParticleField.CreationTime);
             var positions = run.Vectors(ParticleField.Position);

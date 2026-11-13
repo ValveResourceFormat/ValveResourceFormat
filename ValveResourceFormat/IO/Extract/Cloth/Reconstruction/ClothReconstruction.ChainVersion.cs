@@ -50,7 +50,7 @@ internal sealed partial class ClothReconstruction
             version = 1;
         }
 
-        if (version != 0 && !rootKeepsPreset && guardOpen && evidence.BasesBulkGraded != false
+        if (!rootKeepsPreset && guardOpen && evidence.BasesBulkGraded != false
             && (evidence.HintsTwistWritten || evidence.HasUnbasedLeaf))
         {
             version = 0;

@@ -27,7 +27,7 @@ namespace GUI.Forms
         private Color OldPickerColor;
 
         public Color PickedColor { get; private set; } = Color.White;
-        private readonly Color OldColor = Color.White;
+        private readonly Color OldColor;
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
@@ -466,7 +466,6 @@ namespace GUI.Forms
                         pixelPtr[position + 3] = color.A;
                     }
                 }
-                ;
             }
 
             RenderImage.UnlockBits(bmpData);
@@ -548,7 +547,6 @@ namespace GUI.Forms
 
             var bmpData = RenderImage.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
             var ptr = bmpData.Scan0;
-            var bytes = Math.Abs(bmpData.Stride) * height;
 
             unsafe
             {
@@ -567,7 +565,6 @@ namespace GUI.Forms
                         pixelPtr[position + 3] = color.A;
                     }
                 }
-                ;
             }
 
             RenderImage.UnlockBits(bmpData);
@@ -720,7 +717,6 @@ namespace GUI.Forms
 
                     }
                 }
-                ;
             }
 
             RenderImage.UnlockBits(bmpData);

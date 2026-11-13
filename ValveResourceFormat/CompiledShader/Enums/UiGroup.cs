@@ -86,22 +86,18 @@ public struct UiGroup
 
     private static (string, int) SplitNameOrder(string bySlash)
     {
-        var name = string.Empty;
-        var order = 0;
         var parts = bySlash.Split(",", StringSplitOptions.TrimEntries);
 
         for (var i = 0; i < parts.Length; i++)
         {
-            if (ValueParsing.TryParseInt(parts[i], out var parsedOrder))
+            if (ValueParsing.TryParseInt(parts[i], out var order))
             {
-                order = parsedOrder;
-                name = i > 0 ? string.Join(",", parts[..i]).Trim() : string.Empty;
+                var name = i > 0 ? string.Join(",", parts[..i]).Trim() : string.Empty;
                 return (name, order);
             }
         }
 
-        name = bySlash.Trim();
-        return (name, 0);
+        return (bySlash.Trim(), 0);
     }
 
     /// <inheritdoc/>

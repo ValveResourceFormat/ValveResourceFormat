@@ -91,12 +91,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var setUpColorBlend = colorBlend.DrawsPerBlock ? Vector3.Zero : colorBlend.NextVector(systemState);
 
             // Both brightness inputs are evaluated whichever unit is used, so the draws stay in this order
+            var ranges = range.Fill(current, systemState);
+            var skirts = skirt.Fill(current, systemState);
+
+            // No light uses the radius, but its random draws must stay in order
+            luminaireRadius.Fill(current, systemState);
+
             var inputs = new LightInputs
             {
-                Ranges = range.Fill(current, systemState),
-                Skirts = skirt.Fill(current, systemState),
-                // Evaluated for every light type so the random draws stay in order, though no light uses the radius
-                LuminaireRadii = luminaireRadius.Fill(current, systemState),
+                Ranges = ranges,
+                Skirts = skirts,
                 InnerAngles = innerConeAngle.Fill(current, systemState),
                 OuterAngles = outerConeAngle.Fill(current, systemState),
             };
@@ -187,8 +191,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             public ReadOnlySpan<float> Ranges { get; init; }
 
             public ReadOnlySpan<float> Skirts { get; init; }
-
-            public ReadOnlySpan<float> LuminaireRadii { get; init; }
 
             public ReadOnlySpan<float> InnerAngles { get; init; }
 

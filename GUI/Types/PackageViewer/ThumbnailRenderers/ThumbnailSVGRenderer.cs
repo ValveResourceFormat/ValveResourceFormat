@@ -36,7 +36,7 @@ internal class ThumbnailSVGRenderer : ThumbnailRenderer
         {
         }
 
-        if (svg == null || svg.Picture == null)
+        if (svg.Picture == null)
         {
             return null;
         }

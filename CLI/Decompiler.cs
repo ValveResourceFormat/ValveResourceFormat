@@ -1867,8 +1867,6 @@ namespace CLI
 
             foreach (var (file, filePath) in FilteredEntries(entries))
             {
-                var extension = type;
-
                 if (OutputFile != null && CachedManifest)
                 {
                     if (manifestData.TryGetValue(filePath, out var oldCrc32) && oldCrc32 == file.CRC32)
@@ -1989,7 +1987,7 @@ namespace CLI
                             contentFile = DecompileResource(resource, fileLoader);
 
                             outputFile = filePath;
-                            extension = FileExtract.GetExtension(resource) ?? type[..^2];
+                            var extension = FileExtract.GetExtension(resource) ?? type[..^2];
                             if (type != extension)
                             {
                                 outputFile = Path.ChangeExtension(outputFile, extension);

@@ -145,7 +145,6 @@ vec3 CheckerboardPattern(vec2 vScreenCoords)
 
     vec2 vTexCoord = vScreenCoords * g_vViewportSize / vSizeInPixels;
     vec2 vCell = floor(vTexCoord);
-    vec2 vFrac = fract(vTexCoord);
 
     vec3 vColor = mix(color1, color2, mod(vCell.x + vCell.y, 2.0));
 

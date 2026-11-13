@@ -69,7 +69,6 @@ public class UIFontFilePackage
             pos += bytesRead;
 
             var fieldNumber = tag >> 3;
-            var wireType = tag & 0x7;
 
             switch (fieldNumber)
             {
@@ -108,7 +107,6 @@ public class UIFontFilePackage
             pos += bytesRead;
 
             var fieldNumber = tag >> 3;
-            var wireType = tag & 0x7;
 
             switch (fieldNumber)
             {
@@ -154,7 +152,6 @@ public class UIFontFilePackage
             pos += bytesRead;
 
             var fieldNumber = tag >> 3;
-            var wireType = tag & 0x7;
 
             if (fieldNumber == 1) // encrypted_contents
             {

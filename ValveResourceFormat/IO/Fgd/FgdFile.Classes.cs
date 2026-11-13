@@ -13,7 +13,6 @@ public sealed partial class FgdFile
     private enum VariableResult
     {
         Failed,
-        Skipped,
         Read,
     }
 

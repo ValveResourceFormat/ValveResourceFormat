@@ -1543,10 +1543,7 @@ public partial class AnimationGraphExtract : IDisposable
             }
 
             var componentIndex = Array.IndexOf(expectedComponents, component);
-            if (componentIndex >= 0 && componentIndex < componentValues.Length)
-            {
-                componentValues[componentIndex] = floatValue;
-            }
+            componentValues[componentIndex] = floatValue;
         }
 
         if (foundComponents.Count != expectedComponents.Length)
@@ -1584,7 +1581,7 @@ public partial class AnimationGraphExtract : IDisposable
         if (multiComponentCondition != null)
         {
             conditions.Add(multiComponentCondition);
-            return conditions.Count > 0 ? conditions : null;
+            return conditions;
         }
 
         var andParts = SplitByOperator(conditionExpression, "&&");
@@ -2663,9 +2660,6 @@ public partial class AnimationGraphExtract : IDisposable
     private KVObject ConvertMotionNode(KVObject compiledMotionNode, List<long> motionParamIds, Dictionary<long, long> idMap)
     {
         var className = compiledMotionNode.GetStringProperty("_class");
-
-        var compiledNodeId = compiledMotionNode.GetSubCollection("m_id").GetIntegerProperty("m_id");
-        var newNodeId = idMap[compiledNodeId];
 
         if ((className == "CMotionNodeSequence") ||
             (className == "CMotionNode" && compiledMotionNode.ContainsKey("m_hSequence")))
@@ -3821,11 +3815,6 @@ public partial class AnimationGraphExtract : IDisposable
                         else if (metricClassName == "CFootCycleMetricEvaluator")
                         {
                             AddFeetProperty(metric, compiledMetric);
-                        }
-                        else if (metricClassName == "CCurrentRotationVelocityMetricEvaluator"
-                        || metricClassName == "CCurrentVelocityMetricEvaluator"
-                        || metricClassName == "CBlockSelectionMetricEvaluator")
-                        {
                         }
                         metrics.Add(metric);
                     }

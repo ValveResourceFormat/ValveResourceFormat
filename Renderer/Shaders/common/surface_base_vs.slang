@@ -64,8 +64,6 @@ uniform float g_flAnimationFrame;
 
     vec3 GetSphericalProjectedAnisoBitangent(vec3 normal, vec3 tangent)
     {
-        float angle = (g_vSphericalAnisotropyAngle / 90.0) - 1.0;
-
         vec3 vAnisoTangent = cross(g_vSphericalAnisotropyPole.xyz, normal);
         // Prevent length of 0
         vAnisoTangent = mix(vAnisoTangent, tangent, bvec3(any(equal(vAnisoTangent, vec3(0.0)))));

@@ -58,7 +58,7 @@ public class ThemedComboBox : ComboBox
            ? HighlightColor
            : DropDownBackColor;
 
-        var text = string.Empty;
+        string text;
 
         var themedComboBoxItem = Items[e.Index] as ThemedComboBoxItem;
 

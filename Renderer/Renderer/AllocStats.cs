@@ -40,9 +40,6 @@ public class AllocStats
         public Dictionary<string, TypeTotal> Types { get; } = [];
         public long SampledBytes { get; private set; }
 
-        /// <summary>Sampled bytes attributed to large-object heap allocations (each one ages straight into gen2).</summary>
-        public long LohSampledBytes { get; private set; }
-
         // ArrayPool activity, cumulative since Start. Written with Interlocked from event threads.
         public long PoolMisses;
         public long PoolMissElements;
@@ -77,7 +74,6 @@ public class AllocStats
             {
                 Types.Clear();
                 SampledBytes = 0;
-                LohSampledBytes = 0;
             }
 
             Interlocked.Exchange(ref PoolMisses, 0);
@@ -129,7 +125,6 @@ public class AllocStats
 
             var typeName = "<unknown>";
             var amount = 0L;
-            var isLargeObject = false;
 
             for (var i = 0; i < eventData.PayloadNames.Count; i++)
             {
@@ -140,9 +135,6 @@ public class AllocStats
                         break;
                     case "AllocationAmount64":
                         amount = (long)(ulong)eventData.Payload[i]!;
-                        break;
-                    case "AllocationKind":
-                        isLargeObject = eventData.Payload[i] is uint kind && kind == 1;
                         break;
                     default:
                         break;
@@ -165,11 +157,6 @@ public class AllocStats
                 total.Bytes += amount;
                 total.Samples++;
                 SampledBytes += amount;
-
-                if (isLargeObject)
-                {
-                    LohSampledBytes += amount;
-                }
             }
         }
 

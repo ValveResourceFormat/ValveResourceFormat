@@ -107,12 +107,12 @@ public sealed class PointTemplate : BaseEntity
     {
         if (!EntitySystem.Enabled)
         {
-            SpawnTemplateInstance(RigidTransform, onSpawned: null, isPreview: true);
+            SpawnTemplateInstance(RigidTransform, isPreview: true);
         }
     }
 
     /// <summary>Spawns an instance at the template, as the <c>ForceSpawn</c> input does.</summary>
-    public void ForceSpawn() => SpawnTemplateInstance(RigidTransform, onSpawned: null, isPreview: false);
+    public void ForceSpawn() => SpawnTemplateInstance(RigidTransform, isPreview: false);
 
     /// <summary>
     /// Unloads the spawn groups the instances created, with their entities. Unless the template is asynchronous,
@@ -135,7 +135,7 @@ public sealed class PointTemplate : BaseEntity
 
     // Every instance loads a spawn group, even a preview or an empty one, to spawn the lump found in the
     // template's world
-    private void SpawnTemplateInstance(Matrix4x4 placement, Action<IReadOnlyList<BaseEntity>>? onSpawned, bool isPreview)
+    private void SpawnTemplateInstance(Matrix4x4 placement, bool isPreview)
     {
         var spawnGroupManager = EntitySystem.SpawnGroupManager;
         var lump = spawnGroupManager.GetEntityLumpForTemplate(WorldName, EntityLumpName);
@@ -172,11 +172,6 @@ public sealed class PointTemplate : BaseEntity
         };
 
         spawnGroupManager.LoadSpawnGroup(group);
-
-        if (onSpawned != null)
-        {
-            spawnGroupManager.ListenForSpawnGroupToFinish(group, onSpawned);
-        }
 
         if (isPreview)
         {

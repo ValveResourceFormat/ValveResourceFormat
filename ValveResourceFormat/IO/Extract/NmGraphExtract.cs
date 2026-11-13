@@ -129,7 +129,7 @@ public sealed partial class NmGraphExtract : IDisposable
         }
 
         var rootNode = BuildFlowNode(_definition.RootNodeIdx, graphBuilder);
-        var resultNode = CreatePoseResultNode("root/result");
+        var resultNode = CreatePoseResultNode();
 
         graphBuilder.Nodes.Add(resultNode);
         graphBuilder.Connect(rootNode.GetStringProperty("m_ID"), GetOutputPinId(rootNode, 0), resultNode.GetStringProperty("m_ID"), GetInputPinId(resultNode, 0));
@@ -212,7 +212,7 @@ public sealed partial class NmGraphExtract : IDisposable
         {
             childNode = BuildFlowNode(childNodeIndex, graphBuilder);
         }
-        var resultNode = CreateResultNode(resultClassName, $"virtual:{nodeIndex}/result", "Out", resultType);
+        var resultNode = CreateResultNode(resultClassName, "Out", resultType);
 
         graphBuilder.Nodes.Add(resultNode);
         graphBuilder.Connect(childNode.GetStringProperty("m_ID"), GetOutputPinId(childNode, 0), resultNode.GetStringProperty("m_ID"), GetInputPinId(resultNode, 0));
@@ -317,7 +317,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var graphBuilder = new FlowGraphBuilder($"nested-sm:{childStateMachineNodeIndex}", "BlendTree");
         var childNode = BuildStateMachineNode(childStateMachineNodeIndex);
-        var resultNode = CreatePoseResultNode($"nested-sm:{childStateMachineNodeIndex}/result");
+        var resultNode = CreatePoseResultNode();
 
         graphBuilder.Nodes.Add(childNode);
         graphBuilder.Nodes.Add(resultNode);
@@ -328,7 +328,7 @@ public sealed partial class NmGraphExtract : IDisposable
     private KVObject BuildStateLayerGraph(int stateNodeIndex, StateNode state)
     {
         var graphBuilder = new FlowGraphBuilder($"state-layer:{stateNodeIndex}", "ValueTree");
-        var resultNode = CreateStateLayerResultNode($"state-layer:{stateNodeIndex}/result");
+        var resultNode = CreateStateLayerResultNode();
         graphBuilder.Nodes.Add(resultNode);
 
         short[] layerInputs = [state.LayerWeightNodeIdx, state.LayerRootMotionWeightNodeIdx, state.LayerBoneMaskNodeIdx];
@@ -355,7 +355,7 @@ public sealed partial class NmGraphExtract : IDisposable
     private KVObject BuildEntryOverrideGraph(int stateMachineNodeIndex, StateMachineNode.StateDefinition[] stateDefinitions, IReadOnlyDictionary<int, KVObject> stateNodes)
     {
         var graphBuilder = new FlowGraphBuilder($"entry-override:{stateMachineNodeIndex}", "EntryOverrideTree");
-        var resultNode = CreateEntryOverrideConditionsNode(stateMachineNodeIndex);
+        var resultNode = CreateEntryOverrideConditionsNode();
         graphBuilder.Nodes.Add(resultNode);
 
         var pinToStateMapping = KVObject.Array();
@@ -571,7 +571,6 @@ public sealed partial class NmGraphExtract : IDisposable
                     return new
                     {
                         SourceStateNodeIndex = sourceStateNodeIndex,
-                        TargetStateIndex = targetStateIndex,
                         TargetStateNodeIndex = (int)stateDefinitions[targetStateIndex].StateNodeIdx,
                         ConditionNodeIndex = conditionNodeIndex,
                         TransitionNodeIndex = transitionNodeIndex,
@@ -608,7 +607,6 @@ public sealed partial class NmGraphExtract : IDisposable
                 GroupKind = groupKind,
                 GroupPath = transition.GroupPath,
                 SourceStateNodeIndex = transition.SourceStateNodeIndex,
-                TargetStateIndex = transition.TargetStateIndex,
                 TargetStateNodeIndex = transition.TargetStateNodeIndex,
                 ConditionNodeIndex = transition.ConditionNodeIndex,
                 TransitionNodeIndex = transition.TransitionNodeIndex,
@@ -634,7 +632,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var graphBuilder = new FlowGraphBuilder(graphKey, "BlendTree");
         var rootNode = BuildFlowNode(rootNodeIndex, graphBuilder);
-        var resultNode = CreatePoseResultNode($"{graphKey}/result");
+        var resultNode = CreatePoseResultNode();
 
         graphBuilder.Nodes.Add(resultNode);
         graphBuilder.Connect(rootNode.GetStringProperty("m_ID"), GetOutputPinId(rootNode, 0), resultNode.GetStringProperty("m_ID"), GetInputPinId(resultNode, 0));
@@ -966,7 +964,7 @@ public sealed partial class NmGraphExtract : IDisposable
                 for (var i = 0; i < layerBlend.LayerDefinition.Length; i++)
                 {
                     var layer = layerBlend.LayerDefinition[i];
-                    var layerNode = CreateLayerBlendInputNode(nodeIndex, i, layer);
+                    var layerNode = CreateLayerBlendInputNode(i, layer);
                     graphBuilder.Nodes.Add(layerNode);
                     graphBuilder.Connect(layerNode.GetStringProperty("m_ID"), GetOutputPinId(layerNode, 0), node.GetStringProperty("m_ID"), GetInputPinId(node, i + 1));
 
@@ -1075,17 +1073,14 @@ public sealed partial class NmGraphExtract : IDisposable
             ?? throw new InvalidDataException($"Missing parameter node {nodeIndex}.");
         var compiledClass = GetCompiledClass(compiledNode);
 
-        if (compiledClass.TryGetTypedSuffix("ControlParameter", out var valueType))
+        if (!compiledClass.TryGetTypedSuffix("ControlParameter", out var valueType))
         {
-            // valueType is already set by the suffix
-        }
-        else if (IsVirtualParameterNode(nodeIndex))
-        {
+            if (!IsVirtualParameterNode(nodeIndex))
+            {
+                throw new InvalidDataException($"Unsupported parameter reference node: {compiledClass.Name}");
+            }
+
             valueType = GetVirtualParameterValueType(nodeIndex);
-        }
-        else
-        {
-            throw new InvalidDataException($"Unsupported parameter reference node: {compiledClass.Name}");
         }
 
         var parameterNodeId = GetOrCreateRootParameterNodeId(nodeIndex);
@@ -1108,7 +1103,7 @@ public sealed partial class NmGraphExtract : IDisposable
         node.Add("m_inputPins", MakePins([new PinDef("Fallback", "Pose")]));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_pDefaultVariationData", variationData);
-        node.Add("m_overrides", CreateVariationOverrides(nodeIndex, variationData, variationGraph
+        node.Add("m_overrides", CreateVariationOverrides(variationData, variationGraph
             => variationGraph.GetDefinition(nodeIndex) is ReferencedGraphNode variationNode ? CreateReferencedGraphVariationData(variationNode, variationGraph.GetReferencedGraphPath) : null));
         node.Add("m_defaultResourceName", string.Empty);
         return node;
@@ -1158,7 +1153,7 @@ public sealed partial class NmGraphExtract : IDisposable
         node.Add("m_inputPins", MakePins(inputPins));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_pDefaultVariationData", variationData);
-        node.Add("m_overrides", CreateVariationOverrides(nodeIndex, variationData, variationGraph => variationGraph.GetDefinition(nodeIndex) switch
+        node.Add("m_overrides", CreateVariationOverrides(variationData, variationGraph => variationGraph.GetDefinition(nodeIndex) switch
         {
             ParameterizedSelectorNode variationNode when className == "CNmGraphDocParameterizedSelectorNode" => CreateSelectorVariationData(dataClassName, variationNode.OptionWeights),
             ParameterizedClipSelectorNode variationNode when className == "CNmGraphDocParameterizedClipSelectorNode" => CreateSelectorVariationData(dataClassName, variationNode.OptionWeights),
@@ -1178,7 +1173,7 @@ public sealed partial class NmGraphExtract : IDisposable
         node.Add("m_inputPins", MakePins([new PinDef("Play In Reverse", "Bool"), new PinDef("Reset Time", "Bool")]));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_pDefaultVariationData", variationData);
-        node.Add("m_overrides", CreateVariationOverrides(nodeIndex, variationData, variationGraph
+        node.Add("m_overrides", CreateVariationOverrides(variationData, variationGraph
             => variationGraph.GetDefinition(nodeIndex) is ClipNode variationNode ? CreateClipVariationData(variationNode, variationGraph.GetResourcePath) : null));
         node.Add("m_defaultResourceName", string.Empty);
         node.Add("m_bSampleRootMotion", definition.SampleRootMotion);
@@ -1195,7 +1190,7 @@ public sealed partial class NmGraphExtract : IDisposable
         node.Add("m_inputPins", MakePins([new PinDef("Time", "Float"), new PinDef("Play In Reverse", "Bool")]));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_pDefaultVariationData", variationData);
-        node.Add("m_overrides", CreateVariationOverrides(nodeIndex, variationData, variationGraph
+        node.Add("m_overrides", CreateVariationOverrides(variationData, variationGraph
             => variationGraph.GetDefinition(nodeIndex) is TimeControlledClipNode variationNode ? CreateTimeControlledClipVariationData(variationNode, variationGraph.GetResourcePath) : null));
         node.Add("m_defaultResourceName", string.Empty);
         node.Add("m_bSampleRootMotion", definition.SampleRootMotion);
@@ -1211,7 +1206,7 @@ public sealed partial class NmGraphExtract : IDisposable
         node.Add("m_inputPins", MakePins([new PinDef("Time", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_pDefaultVariationData", variationData);
-        node.Add("m_overrides", CreateVariationOverrides(nodeIndex, variationData, variationGraph
+        node.Add("m_overrides", CreateVariationOverrides(variationData, variationGraph
             => variationGraph.GetDefinition(nodeIndex) is AnimationPoseNode variationNode ? CreateAnimationPoseVariationData(variationNode, variationGraph.GetResourcePath) : null));
         node.Add("m_defaultResourceName", string.Empty);
         node.Add("m_inputTimeRemapRange", CloneRange(definition.InputTimeRemapRange));
@@ -1223,7 +1218,7 @@ public sealed partial class NmGraphExtract : IDisposable
     private KVObject CreateIDComparisonNode(int nodeIndex, IDComparisonNode definition)
     {
         var variationData = CreateIDComparisonVariationData(definition);
-        var overrides = CreateVariationOverrides(nodeIndex, variationData, variationGraph
+        var overrides = CreateVariationOverrides(variationData, variationGraph
             => variationGraph.GetDefinition(nodeIndex) is IDComparisonNode variationNode ? CreateIDComparisonVariationData(variationNode) : null);
 
         var hasOverrides = overrides.Count > 0;
@@ -1590,7 +1585,7 @@ public sealed partial class NmGraphExtract : IDisposable
         node.Add("m_inputPins", MakePins(inputPins));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_pDefaultVariationData", variationData);
-        node.Add("m_overrides", CreateVariationOverrides(nodeIndex, variationData, variationGraph
+        node.Add("m_overrides", CreateVariationOverrides(variationData, variationGraph
             => variationGraph.GetDefinition(nodeIndex) is TargetSelectorNode variationNode ? CreateTargetSelectorVariationData(variationNode) : null));
         node.Add("m_defaultResourceName", string.Empty);
         node.Add("m_optionLabels", CloneStringArray(optionLabels));
@@ -1610,7 +1605,7 @@ public sealed partial class NmGraphExtract : IDisposable
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Bone Mask", "BoneMask", AllowMultipleOutConnections: true)]));
         node.Add("m_pDefaultVariationData", variationData);
-        node.Add("m_overrides", CreateVariationOverrides(nodeIndex, variationData, variationGraph =>
+        node.Add("m_overrides", CreateVariationOverrides(variationData, variationGraph =>
         {
             if (variationGraph.GetDefinition(nodeIndex) is not BoneMaskNode variationNode)
             {
@@ -1803,7 +1798,7 @@ public sealed partial class NmGraphExtract : IDisposable
         return node;
     }
 
-    private static KVObject CreateLayerBlendInputNode(int parentNodeIndex, int layerIndex, LayerBlendNode.LayerDefinitionType layerDefinition)
+    private static KVObject CreateLayerBlendInputNode(int layerIndex, LayerBlendNode.LayerDefinitionType layerDefinition)
     {
         var isStateMachineLayer = layerDefinition.IsStateMachineLayer;
         var node = CreateBaseNode(
@@ -1858,7 +1853,7 @@ public sealed partial class NmGraphExtract : IDisposable
         ]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Pose", AllowMultipleOutConnections: true)]));
         node.Add("m_pDefaultVariationData", variationData);
-        node.Add("m_overrides", CreateVariationOverrides(nodeIndex, variationData, variationGraph
+        node.Add("m_overrides", CreateVariationOverrides(variationData, variationGraph
             => variationGraph.GetDefinition(nodeIndex) is FollowBoneNode variationNode ? CreateFollowBoneVariationData(variationNode) : null));
         node.Add("m_defaultResourceName", string.Empty);
         node.Add("m_mode", definition.Mode.ToString());
@@ -1876,7 +1871,7 @@ public sealed partial class NmGraphExtract : IDisposable
         ]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Pose", AllowMultipleOutConnections: true)]));
         node.Add("m_pDefaultVariationData", variationData);
-        node.Add("m_overrides", CreateVariationOverrides(nodeIndex, variationData, variationGraph
+        node.Add("m_overrides", CreateVariationOverrides(variationData, variationGraph
             => variationGraph.GetDefinition(nodeIndex) is BodyGroupNode variationNode ? CreateBodyGroupVariationData(variationNode) : null));
         node.Add("m_defaultResourceName", string.Empty);
         return node;
@@ -1895,7 +1890,7 @@ public sealed partial class NmGraphExtract : IDisposable
         ]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Pose", AllowMultipleOutConnections: true)]));
         node.Add("m_pDefaultVariationData", variationData);
-        node.Add("m_overrides", CreateVariationOverrides(nodeIndex, variationData, variationGraph
+        node.Add("m_overrides", CreateVariationOverrides(variationData, variationGraph
             => variationGraph.GetDefinition(nodeIndex) is FootIKNode variationNode ? CreateFootIkVariationData(variationNode) : null));
         node.Add("m_defaultResourceName", string.Empty);
         node.Add("m_bIsTargetInWorldSpace", definition.IsTargetInWorldSpace);
@@ -1915,7 +1910,7 @@ public sealed partial class NmGraphExtract : IDisposable
         ]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Pose", AllowMultipleOutConnections: true)]));
         node.Add("m_pDefaultVariationData", variationData);
-        node.Add("m_overrides", CreateVariationOverrides(nodeIndex, variationData, variationGraph
+        node.Add("m_overrides", CreateVariationOverrides(variationData, variationGraph
             => variationGraph.GetDefinition(nodeIndex) is TwoBoneIKNode variationNode ? CreateTwoBoneIkVariationData(variationNode) : null));
         node.Add("m_defaultResourceName", string.Empty);
         node.Add("m_bIsTargetInWorldSpace", definition.IsTargetInWorldSpace);
@@ -1936,7 +1931,7 @@ public sealed partial class NmGraphExtract : IDisposable
         ]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Pose", AllowMultipleOutConnections: true)]));
         node.Add("m_pDefaultVariationData", variationData);
-        node.Add("m_overrides", CreateVariationOverrides(nodeIndex, variationData, variationGraph
+        node.Add("m_overrides", CreateVariationOverrides(variationData, variationGraph
             => variationGraph.GetDefinition(nodeIndex) is ChainLookatNode variationNode ? CreateChainLookatVariationData(variationNode) : null));
         node.Add("m_defaultResourceName", string.Empty);
         node.Add("m_bIsTargetInWorldSpace", definition.IsTargetInWorldSpace);
@@ -1972,7 +1967,7 @@ public sealed partial class NmGraphExtract : IDisposable
         ]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Pose")]));
         node.Add("m_pDefaultVariationData", variationData);
-        node.Add("m_overrides", CreateVariationOverrides(nodeIndex, variationData, variationGraph
+        node.Add("m_overrides", CreateVariationOverrides(variationData, variationGraph
             => variationGraph.GetDefinition(nodeIndex) is TargetWarpNode variationNode ? CreateTargetWarpVariationData(variationNode) : null));
         node.Add("m_defaultResourceName", string.Empty);
 
@@ -2219,7 +2214,7 @@ public sealed partial class NmGraphExtract : IDisposable
     private KVObject CreateConstFloatNode(int nodeIndex, ConstFloatNode definition)
     {
         var variationData = CreateConstFloatVariationData(definition);
-        var overrides = CreateVariationOverrides(nodeIndex, variationData, variationGraph
+        var overrides = CreateVariationOverrides(variationData, variationGraph
             => variationGraph.GetDefinition(nodeIndex) is ConstFloatNode variationNode ? CreateConstFloatVariationData(variationNode) : null);
 
         if (overrides.Count == 0)
@@ -2236,10 +2231,10 @@ public sealed partial class NmGraphExtract : IDisposable
         return node;
     }
 
-    private static KVObject CreatePoseResultNode(string key)
-        => CreateResultNode("CNmGraphDocPoseResultNode", key, "Out", "Pose");
+    private static KVObject CreatePoseResultNode()
+        => CreateResultNode("CNmGraphDocPoseResultNode", "Out", "Pose");
 
-    private static KVObject CreateStateLayerResultNode(string key)
+    private static KVObject CreateStateLayerResultNode()
     {
         var node = CreateBaseNode("CNmGraphDocStateLayerDataNode", MakeGuid(), string.Empty);
         node.Add("m_inputPins", MakePins([
@@ -2252,7 +2247,7 @@ public sealed partial class NmGraphExtract : IDisposable
         return node;
     }
 
-    private static KVObject CreateEntryOverrideConditionsNode(int stateMachineNodeIndex)
+    private static KVObject CreateEntryOverrideConditionsNode()
     {
         var node = CreateBaseNode("CNmGraphDocEntryStateOverrideConditionsNode", MakeGuid(), string.Empty);
         node.Add("m_inputPins", KVObject.Array());
@@ -2262,7 +2257,7 @@ public sealed partial class NmGraphExtract : IDisposable
         return node;
     }
 
-    private static KVObject CreateResultNode(string className, string key, string inputName, string inputType)
+    private static KVObject CreateResultNode(string className, string inputName, string inputType)
     {
         var node = CreateBaseNode(className, MakeGuid(), string.Empty);
         node.Add("m_inputPins", MakePins([new PinDef(inputName, inputType)]));
@@ -2274,7 +2269,7 @@ public sealed partial class NmGraphExtract : IDisposable
     private KVObject BuildSelectorConditionGraph(int nodeIndex, short[] conditionNodeIndices, string[] optionLabels)
     {
         var graphBuilder = new FlowGraphBuilder($"selector:{nodeIndex}:conditions", "ValueTree");
-        var conditionNode = CreateSelectorConditionNode(nodeIndex, optionLabels);
+        var conditionNode = CreateSelectorConditionNode(optionLabels);
         graphBuilder.Nodes.Add(conditionNode);
 
         for (var i = 0; i < Math.Min(conditionNodeIndices.Length, optionLabels.Length); i++)
@@ -2291,7 +2286,7 @@ public sealed partial class NmGraphExtract : IDisposable
         return graphBuilder.ToGraph();
     }
 
-    private static KVObject CreateSelectorConditionNode(int nodeIndex, string[] optionLabels)
+    private static KVObject CreateSelectorConditionNode(string[] optionLabels)
     {
         var node = CreateBaseNode("CNmGraphDocSelectorConditionNode", MakeGuid(), string.Empty);
         node.Add("m_inputPins", MakePins(optionLabels.Select(label => new PinDef(label, "Bool", IsDynamicPin: true))));
