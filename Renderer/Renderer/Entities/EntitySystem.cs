@@ -962,7 +962,7 @@ public sealed class EntitySystem
     /// </summary>
     private List<BaseEntity> NameCandidates(string pattern)
     {
-        if (pattern.AsSpan().IndexOfAny('*', '?') >= 0)
+        if (pattern.Contains('*', StringComparison.Ordinal))
         {
             return entities;
         }

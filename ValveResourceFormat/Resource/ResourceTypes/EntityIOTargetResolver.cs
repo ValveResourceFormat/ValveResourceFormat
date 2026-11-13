@@ -152,7 +152,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return;
             }
 
-            if (!targetName.Contains('*', StringComparison.Ordinal) && !targetName.Contains('?', StringComparison.Ordinal))
+            if (!targetName.Contains('*', StringComparison.Ordinal))
             {
                 return;
             }

@@ -668,11 +668,12 @@ namespace ValveResourceFormat.ResourceTypes
         /// Compares an entity targetname against a target string that may contain wildcards.
         /// Letters compare ignoring ASCII case only, and there is no escape character.
         /// </summary>
-        /// <param name="pattern">Targetname to match against, may contain wildcards: `*` and `?` (e.g. <c>door_*</c>).</param>
+        /// <param name="pattern">Targetname to match against, may contain wildcards: `*`, and `?` only in a pattern that also has a `*` (e.g. <c>door_*</c>).</param>
         /// <param name="targetName">Entity targetname.</param>
         /// <returns>Whether the targetname matches.</returns>
         public static bool EntityNameMatches(string pattern, string targetName)
         {
+            var hasWildcards = pattern.Contains('*', StringComparison.Ordinal);
             var patternIndex = 0;
             var nameIndex = 0;
             var starIndex = -1;
@@ -696,7 +697,7 @@ namespace ValveResourceFormat.ResourceTypes
                     starNameIndex = nameIndex;
                 }
                 else if (patternIndex < pattern.Length
-                    && (pattern[patternIndex] == '?' || ToUpperAscii(pattern[patternIndex]) == ToUpperAscii(targetName[nameIndex])))
+                    && ((hasWildcards && pattern[patternIndex] == '?') || ToUpperAscii(pattern[patternIndex]) == ToUpperAscii(targetName[nameIndex])))
                 {
                     patternIndex++;
                     nameIndex++;
