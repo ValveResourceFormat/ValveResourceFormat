@@ -1,7 +1,5 @@
 using System.Diagnostics;
-using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
-using ValveResourceFormat.Serialization.KeyValues;
 using Transform = ValveResourceFormat.ResourceTypes.ModelAnimation.FrameBone;
 
 namespace ValveResourceFormat.Animation
@@ -61,7 +59,7 @@ namespace ValveResourceFormat.Animation
                 // The exposed duration folds in the speed multiplier so parents see scaled time
                 Duration = SpeedMultiplier != 0f ? Clip.Duration / SpeedMultiplier : 0f;
                 CurrentTime = PreviousTime = SyncTrack.GetPercentageThrough(initialTime);
-                Debug.Assert(CurrentTime >= 0f && CurrentTime <= 1f);
+                Debug.Assert(CurrentTime is >= 0f and <= 1f);
             }
             // C++ warns about a missing animation here; unbound variant slots are routine in compiled
             // graphs, so we stay quiet.
@@ -93,7 +91,7 @@ namespace ValveResourceFormat.Animation
                 return result;
             }
 
-            Debug.Assert(CurrentTime >= 0f && CurrentTime <= 1f);
+            Debug.Assert(CurrentTime is >= 0f and <= 1f);
 
             if (clip.FrameCount == 1)
             {
@@ -157,7 +155,7 @@ namespace ValveResourceFormat.Animation
                     LoopCount += loops;
                     CurrentTime -= loops;
 
-                    Debug.Assert(CurrentTime >= 0f && CurrentTime <= 1f);
+                    Debug.Assert(CurrentTime is >= 0f and <= 1f);
                 }
             }
             else
@@ -406,7 +404,7 @@ namespace ValveResourceFormat.Animation
                 CurrentTime = 1f - MathF.Abs(CurrentTime);
             }
 
-            Debug.Assert(CurrentTime >= 0f && CurrentTime <= 1f);
+            Debug.Assert(CurrentTime is >= 0f and <= 1f);
 
             if (shouldPlayInReverse)
             {
@@ -662,11 +660,8 @@ namespace ValveResourceFormat.Animation
 
         protected void ShutdownSelection(GraphContext ctx)
         {
-            if (SelectedOption != null)
-            {
-                SelectedOption.Shutdown(ctx);
-                SelectedOption = null;
-            }
+            SelectedOption?.Shutdown(ctx);
+            SelectedOption = null;
         }
 
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)

@@ -2,16 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
-using ValveKeyValue;
-using ValveResourceFormat.IO;
-using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.Entities;
-using ValveResourceFormat.Renderer.Materials;
-using ValveResourceFormat.Renderer.Shaders;
-using ValveResourceFormat.Renderer.World;
-using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
 namespace ValveResourceFormat.Renderer.Decals

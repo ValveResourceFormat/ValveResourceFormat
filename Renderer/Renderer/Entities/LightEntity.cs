@@ -1,9 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
@@ -338,19 +336,13 @@ public sealed class LightEntity : BaseEntity
     [EntityInput("SetFogStrength")]
     private void InputSetFogStrength(EntityInputData data)
     {
-        if (light != null)
-        {
-            light.BarnFogStrength = data.Float(light.BarnFogStrength);
-        }
+        light?.BarnFogStrength = data.Float(light.BarnFogStrength);
     }
 
     [EntityInput("SetFogScale")]
     private void InputSetFogScale(EntityInputData data)
     {
-        if (light != null)
-        {
-            light.BarnFogScale = data.Float(light.BarnFogScale);
-        }
+        light?.BarnFogScale = data.Float(light.BarnFogScale);
     }
 
     [EntityInput("SetBrightnessScale")]

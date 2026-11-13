@@ -1,6 +1,5 @@
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using SharpGLTF.Schema2;
 using SkiaSharp;
 using ValveKeyValue;
@@ -182,7 +181,7 @@ public partial class GltfModelExporter
         {
             meshName = $"physics_{group}";
         }
-        if (tags!.Length > 0)
+        if (tags.Length > 0)
         {
             meshName = $"physics_{string.Join("_", tags)}";
         }

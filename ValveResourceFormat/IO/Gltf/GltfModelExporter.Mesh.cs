@@ -120,7 +120,7 @@ public partial class GltfModelExporter
 
     private static Dictionary<string, VertexAttribute>[] CreateVertexBufferAttributes(VBIB vbib, int boneWeightCount, int[]? boneRemapTable = null)
     {
-        return vbib.VertexBuffers.Select((vertexBuffer, vertexBufferIndex) =>
+        return [.. vbib.VertexBuffers.Select((vertexBuffer, vertexBufferIndex) =>
         {
             var attributes = new Dictionary<string, VertexAttribute>();
 
@@ -350,7 +350,7 @@ public partial class GltfModelExporter
             }
 
             return attributes;
-        }).ToArray();
+        })];
     }
 
     private MeshPrimitive CreateMeshFromDrawCall(KVObject drawCall, Mesh mesh, VBIB vbib, Dictionary<string,

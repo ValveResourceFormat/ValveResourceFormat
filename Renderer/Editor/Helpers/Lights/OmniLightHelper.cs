@@ -1,6 +1,5 @@
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
@@ -91,7 +90,7 @@ internal sealed class OmniLightHelper : LightHelperBase
 
         context.PopTransform();
 
-        if (inner > 0f && inner < MathF.PI)
+        if (inner is > 0f and < MathF.PI)
         {
             DrawConeLines(context, inner, InnerConeColor, InnerConeNearColor);
         }

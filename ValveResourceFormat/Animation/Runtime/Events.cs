@@ -33,7 +33,7 @@ partial class Event : IAnimationEvent
     /// <summary>Creates the event for one <c>m_events</c> entry of a clip that lasts <paramref name="clipDuration"/> seconds.</summary>
     public static Event Create(KVObject data, float clipDuration)
     {
-        Event created = data.GetStringProperty("_class", string.Empty) switch
+        var created = data.GetStringProperty("_class", string.Empty) switch
         {
             "CNmBodyGroupEvent" => new BodyGroupEvent(data),
             "CNmCameraDOFEvent" => new CameraDOFEvent(data),

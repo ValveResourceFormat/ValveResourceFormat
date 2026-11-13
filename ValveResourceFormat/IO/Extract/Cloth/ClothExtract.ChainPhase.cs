@@ -1,6 +1,5 @@
 using System.Linq;
 using ValveKeyValue;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 
 namespace ValveResourceFormat.IO;
 

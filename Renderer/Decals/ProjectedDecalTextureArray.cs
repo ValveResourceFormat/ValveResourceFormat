@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Threading;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Decals
@@ -63,8 +62,8 @@ namespace ValveResourceFormat.Renderer.Decals
             layerPaths.Add(path);
             layersByPath[path] = layer;
 
-            var width = Math.Max(Width, (int)data.Width);
-            var height = Math.Max(Height, (int)data.Height);
+            var width = Math.Max(Width, data.Width);
+            var height = Math.Max(Height, data.Height);
 
             if (ArrayTexture == null || width != Width || height != Height || layer.Index >= capacity)
             {

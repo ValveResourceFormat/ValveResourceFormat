@@ -171,17 +171,10 @@ namespace ValveResourceFormat
         {
             if (disposing)
             {
-                if (FileStream != null)
-                {
-                    FileStream.Dispose();
-                    FileStream = null;
-                }
-
-                if (Reader != null)
-                {
-                    Reader.Dispose();
-                    Reader = null;
-                }
+                FileStream?.Dispose();
+                FileStream = null;
+                Reader?.Dispose();
+                Reader = null;
             }
         }
 

@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Renderer
             set
             {
                 field = value;
-                animatedPose = value == null ? [] : Pose.AsSpan().ToArray();
+                animatedPose = value == null ? [] : [.. Pose];
             }
         }
 
@@ -181,7 +181,7 @@ namespace ValveResourceFormat.Renderer
             this.clothRootPins = clothRootPins;
             BindPose = ComputeBindPose(skeleton);
             InverseBindPose = new Matrix4x4[skeleton.Bones.Length];
-            Pose = BindPose.AsSpan().ToArray();
+            Pose = [.. BindPose];
 
             foreach (var root in skeleton.Roots)
             {
@@ -453,7 +453,7 @@ namespace ValveResourceFormat.Renderer
             var retargeter = new SkeletonRetargeter(Skeleton, skeleton);
 
             var bindPose = ComputeBindPose(skeleton);
-            var externalPlayer = new AnimationPlayer(skeleton, [], bindPose, bindPose.AsSpan().ToArray())
+            var externalPlayer = new AnimationPlayer(skeleton, [], bindPose, [.. bindPose])
             {
                 ResolvePosition = ResolvePosition,
                 AnimationLookup = AnimationLookup,

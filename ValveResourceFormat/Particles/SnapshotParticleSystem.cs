@@ -139,14 +139,13 @@ namespace ValveResourceFormat.Particles
                 return new AABB(Vector3.Zero, Vector3.Zero);
             }
 
-            var radii = GetReadableAttribute(snapshot, ParticleField.Radius) as float[];
-
+            var radii = GetReadableAttribute(snapshot, ParticleField.Radius) as float[] ?? [];
             var min = new Vector3(float.PositiveInfinity);
             var max = new Vector3(float.NegativeInfinity);
 
             for (var i = 0; i < positions.Length; i++)
             {
-                var radius = new Vector3(radii != null && i < radii.Length ? radii[i] : 0f);
+                var radius = new Vector3(i < radii.Length ? radii[i] : 0f);
 
                 min = Vector3.Min(min, positions[i] - radius);
                 max = Vector3.Max(max, positions[i] + radius);

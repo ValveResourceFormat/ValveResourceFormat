@@ -1,6 +1,4 @@
 using System.Linq;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
-using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {

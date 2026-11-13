@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Animation
 {

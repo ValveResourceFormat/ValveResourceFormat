@@ -106,7 +106,7 @@ public class CDmeVtex : DMElement
 
         foreach (var element in vtex.InputTextureArray)
         {
-            var input = (CDmeInputTexture)element!;
+            var input = (CDmeInputTexture)element;
             input.TypeString = "CUBE";
         }
 

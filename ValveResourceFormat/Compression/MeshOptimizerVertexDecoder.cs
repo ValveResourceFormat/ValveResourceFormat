@@ -259,7 +259,7 @@ namespace ValveResourceFormat.Compression
 
         private static ReadOnlySpan<byte> DecodeVertexBlock(ReadOnlySpan<byte> data, Span<byte> vertexData, int vertexCount, int vertexSize, Span<byte> lastVertex, ReadOnlySpan<byte> channels, int version)
         {
-            if (vertexCount <= 0 || vertexCount > VertexBlockMaxSize)
+            if (vertexCount is <= 0 or > VertexBlockMaxSize)
             {
                 throw new ArgumentException("Expected vertexCount to be between 0 and VertexMaxBlockSize");
             }
@@ -344,7 +344,7 @@ namespace ValveResourceFormat.Compression
         /// </summary>
         public static byte[] DecodeVertexBuffer(int vertexCount, int vertexSize, ReadOnlySpan<byte> buffer, bool useSimd = true)
         {
-            if (vertexSize <= 0 || vertexSize > 256)
+            if (vertexSize is <= 0 or > 256)
             {
                 throw new ArgumentException("Vertex size is expected to be between 1 and 256");
             }

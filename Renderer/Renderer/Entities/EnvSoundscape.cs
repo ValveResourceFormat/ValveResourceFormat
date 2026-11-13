@@ -47,9 +47,6 @@ public sealed class EnvSoundscape : BaseEntity
     [EntityInput("ToggleEnabled")]
     private void InputToggleEnabled(EntityInputData data)
     {
-        if (region != null)
-        {
-            region.Enabled = !region.Enabled;
-        }
+        region?.Enabled = !region.Enabled;
     }
 }

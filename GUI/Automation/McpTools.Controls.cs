@@ -352,7 +352,7 @@ internal sealed partial class McpTools
     }
 
     /// <summary>A bound of a number input, or null for the end of the float range, which bounds nothing.</summary>
-    private static float? Bound(float value) => value > float.MinValue && value < float.MaxValue ? value : null;
+    private static float? Bound(float value) => value is > float.MinValue and < float.MaxValue ? value : null;
 
     private static string ItemText(ListControl list, object? item) => list.GetItemText(item) ?? string.Empty;
 
@@ -389,7 +389,7 @@ internal sealed partial class McpTools
             // Every control is docked to the top and brought to the front as it is added, so each
             // collection holds them bottom to top
             var children = parent is TableLayoutPanel table
-                ? parent.Controls.Cast<Control>().OrderBy(child => table.GetRow(child)).ThenBy(child => table.GetColumn(child))
+                ? parent.Controls.Cast<Control>().OrderBy(table.GetRow).ThenBy(table.GetColumn)
                 : parent.Controls.Cast<Control>().Reverse();
 
             // A row without a name takes the name of the row above it, as the fields of a vector do
@@ -571,23 +571,16 @@ internal sealed partial class McpTools
             return input.AccessibleName;
         }
 
-        switch (input)
+        return input switch
         {
             // A slider moves with the number input beside it, which carries the value
-            case Slider:
-                return input.AccessibleName;
-
+            Slider => input.AccessibleName,
             // An icon or a color swatch, rather than an action of the row
-            case Button { Text.Length: 0 }:
-                return input.AccessibleName;
-
+            Button { Text.Length: 0 } => input.AccessibleName,
             // The caption tells it apart from the row's other inputs
-            case CheckBox or Button when input.Text.Length > 0 && input.Text != rowName:
-                return $"{rowName} {input.Text}";
-
-            default:
-                return rowName;
-        }
+            CheckBox or Button when input.Text.Length > 0 && input.Text != rowName => $"{rowName} {input.Text}",
+            _ => rowName,
+        };
     }
 }
 #endif

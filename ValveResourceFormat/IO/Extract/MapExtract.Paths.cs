@@ -2,10 +2,8 @@ using System.Globalization;
 using System.Linq;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
-using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace ValveResourceFormat.IO;

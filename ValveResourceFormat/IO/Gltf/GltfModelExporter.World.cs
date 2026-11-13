@@ -5,7 +5,6 @@ using SharpGLTF.Schema2;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using Mesh = SharpGLTF.Schema2.Mesh;
 using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
 using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
 using VModel = ValveResourceFormat.ResourceTypes.Model;

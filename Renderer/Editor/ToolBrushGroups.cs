@@ -1,5 +1,4 @@
 using System.Collections.Frozen;
-using System.Linq;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Editor;

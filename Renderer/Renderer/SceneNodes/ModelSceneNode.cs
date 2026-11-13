@@ -1,15 +1,10 @@
 using System.Buffers;
-using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Particles;
-using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
-using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
@@ -61,11 +56,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             : base(scene)
         {
             Model = model;
-            materialGroups = model.GetMaterialGroups().ToArray();
+            materialGroups = [.. model.GetMaterialGroups()];
             AnimationGraphReferences = model.AnimGraph2References;
             meshGroups = model.MeshGroups;
             lod = new ModelLodSelector(model.LodInfo);
-            referenceMeshes = model.GetReferenceMeshNamesAndLoD().ToList();
+            referenceMeshes = [.. model.GetReferenceMeshNamesAndLoD()];
 
             boneCount = model.Skeleton.Bones.Length;
             remappingTable = model.BoneRemapTable.Table;

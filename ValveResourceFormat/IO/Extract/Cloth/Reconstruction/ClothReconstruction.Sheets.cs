@@ -1,8 +1,4 @@
 using System.Linq;
-using ValveKeyValue;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
-using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
@@ -351,7 +347,7 @@ namespace ValveResourceFormat.IO
             => [.. BuildBoneChains().Where(IsIndependentChain)];
 
         private HashSet<int> IndependentChainJointNodes()
-            => IndependentBoneChains().SelectMany(static c => c.Joints).Select(static j => j.Node).ToHashSet();
+            => [.. IndependentBoneChains().SelectMany(static c => c.Joints).Select(static j => j.Node)];
 
         /// <summary>
         /// Gets whether a chain is exported as a standalone <c>ClothChain</c>: no joint is back-solved by a proxy sheet and
@@ -643,7 +639,7 @@ namespace ValveResourceFormat.IO
         private List<int[]> SurfaceFacesInLaneOrder(Dictionary<int, int> remap)
         {
             var faces = new List<int[]>(Index.Quads.Length + Index.Tris.Length);
-            bool Kept(int[] face) => Array.TrueForAll(face, corner => remap.ContainsKey(corner));
+            bool Kept(int[] face) => Array.TrueForAll(face, remap.ContainsKey);
 
             foreach (var q in OrderFacesBySimdLanes(Index.Quads, [.. Fe.SimdQuads.Select(static simd => simd.Nodes)]))
             {

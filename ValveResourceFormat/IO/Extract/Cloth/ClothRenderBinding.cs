@@ -2,7 +2,6 @@ using System.Buffers;
 using System.Linq;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO;
 

@@ -736,7 +736,7 @@ partial class HalfEdgeMesh
 
                 if (facesB.Count < facesA.Count)
                 {
-                    pOutSortedHalfEdgeList = sortedListOpposite.ToList();
+                    pOutSortedHalfEdgeList = [.. sortedListOpposite];
                 }
             }
         }
@@ -757,7 +757,7 @@ partial class HalfEdgeMesh
         rightRibs = [];
 
         var connectivityType = ClassifyEdgeListConnectivity(edges, numEdges, out spineEdges);
-        if ((connectivityType != ComponentConnectivityType.Loop) && (connectivityType != ComponentConnectivityType.List))
+        if (connectivityType is not ComponentConnectivityType.Loop and not ComponentConnectivityType.List)
         {
             return 0;
         }

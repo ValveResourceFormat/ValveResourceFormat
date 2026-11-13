@@ -170,7 +170,7 @@ namespace ValveResourceFormat.Animation
 
         void MarkAsValidPose()
         {
-            if (Type != PoseType.Pose && Type != PoseType.AdditivePose)
+            if (Type is not PoseType.Pose and not PoseType.AdditivePose)
             {
                 Type = PoseType.Pose;
             }

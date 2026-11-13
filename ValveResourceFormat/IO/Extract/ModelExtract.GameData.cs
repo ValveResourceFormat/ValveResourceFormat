@@ -1,5 +1,4 @@
 using System.IO;
-using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -40,7 +39,7 @@ partial class ModelExtract
     {
         if (model.Data.ContainsKey("m_refAnimIncludeModels"))
         {
-            foreach (var animIncludeModel in model.Data.GetArray<string>("m_refAnimIncludeModels")!)
+            foreach (var animIncludeModel in model.Data.GetArray<string>("m_refAnimIncludeModels"))
             {
                 lists.Animations.Add(MakeNode("AnimIncludeModel", ("model", animIncludeModel)));
             }
@@ -224,7 +223,7 @@ partial class ModelExtract
         if (keyvalues.ContainsKey("FeetSettings"))
         {
             var feetSettings = keyvalues.GetSubCollection("FeetSettings");
-            var feetNode = ConvertFeetSettings(feetSettings!);
+            var feetNode = ConvertFeetSettings(feetSettings);
             if (feetNode != null)
             {
                 lists.GameData.Add(feetNode);
@@ -233,7 +232,7 @@ partial class ModelExtract
 
         if (keyvalues.ContainsKey("break_list"))
         {
-            foreach (var breakPiece in keyvalues.GetArray("break_list")!)
+            foreach (var breakPiece in keyvalues.GetArray("break_list"))
             {
                 var breakPieceFile = MakeNode("BreakPieceExternal", breakPiece);
                 lists.BreakPieces.Add(breakPieceFile);

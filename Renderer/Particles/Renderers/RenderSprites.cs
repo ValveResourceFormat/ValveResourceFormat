@@ -210,90 +210,88 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             var sorted = SortsByDistance && particles.Count > 1;
 
-            using (var vertexBuffer = new RentedBuffer<CardInstance>(particles.Count))
-            using (var drawOrder = new RentedBuffer<ulong>(sorted ? particles.Count : 0))
+            using var vertexBuffer = new RentedBuffer<CardInstance>(particles.Count);
+            using var drawOrder = new RentedBuffer<ulong>(sorted ? particles.Count : 0);
+            var instances = vertexBuffer.Span;
+            var current = GetBlendedParticles(particles, systemState);
+            var i = 0;
+
+            var order = drawOrder.Span;
+
+            if (sorted)
             {
-                var instances = vertexBuffer.Span;
-                var current = GetBlendedParticles(particles, systemState);
-                var i = 0;
-
-                var order = drawOrder.Span;
-
-                if (sorted)
-                {
-                    SortBackToFront(current, camera.Location, order);
-                }
-
-                var positions = current.ReadVectors(ParticleField.Position);
-                var normals = current.ReadVectors(ParticleField.Normal);
-                var colors = current.ReadVectors(ParticleField.Color);
-                var radii = current.ReadFloats(ParticleField.Radius);
-                var alphas = current.ReadFloats(ParticleField.Alpha);
-                var alpha2s = ReadAlpha2(current);
-                var rolls = current.ReadFloats(ParticleField.Roll);
-                var yaws = current.ReadFloats(ParticleField.Yaw);
-                var pitches = current.ReadFloats(ParticleField.Pitch);
-                var extraData1 = current.ReadFloats(ParticleField.ShaderExtraData1);
-                var extraData2 = current.ReadFloats(ParticleField.ShaderExtraData2);
-                var sequenceNumbers = current.ReadFloats(ParticleField.SequenceNumber);
-                var secondSequenceNumbers = current.ReadFloats(ParticleField.SecondSequenceNumber);
-                var sheetAges = ReadSheetAges(current);
-                var randoms = ReadParticleRandoms(current, systemState);
-
-                for (var n = 0; n < current.Length; n++)
-                {
-                    var index = sorted ? (int)(uint)order[n] : current.Length - 1 - n;
-
-                    // Each tint channel is packed from the low byte of round(tint * 255) without a clamp, so a tint
-                    // past 1 or below 0 wraps; it is saturated here
-                    var color = BlendColor(colors[index], alphas[index], alpha2s[index], scales);
-
-                    // The fades only take alpha away, and the shader collapses a card left below 1/255
-                    if (color.W < 1f / 255f)
-                    {
-                        continue;
-                    }
-
-                    // Per-mode quad orientation, as in the spritecard vertex shader. Every mode folds in
-                    // roll and yaw and none of them read pitch; only FULL_3AXIS_ROTATION uses the full basis.
-                    var roll = rolls[index] * scales.Roll;
-                    var yaw = zeroYaw ? 0f : yaws[index];
-                    var (right, up) = orientationType switch
-                    {
-                        ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED => ScreenAlignedBasis(billboardMatrix, roll, yaw),
-                        ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_Z_ALIGNED => ScreenZAlignedBasis(billboardMatrix, roll, yaw),
-                        ParticleOrientation.PARTICLE_ORIENTATION_WORLD_Z_ALIGNED => WorldZAlignedBasis(roll, yaw),
-                        ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL => ParticleNormalBasis(normals[index], roll, yaw),
-                        ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL => ScreenAlignToNormalBasis(billboardMatrix, normals[index], roll, yaw),
-                        _ => RotationBasis(EntityTransformHelper.EulerAnglesToRotationMatrixRadians(new Vector3(pitches[index], yaw, roll))),
-                    };
-
-                    var radius = radii[index] * scales.Radius;
-
-                    var sequences = overrideSequence >= 0
-                        ? new Vector2(overrideSequence)
-                        : new Vector2(
-                            SequenceLane(sequenceNumbers[index], sequenceNumbersAreRawIndices),
-                            SequenceLane(secondSequenceNumbers[index], sequenceNumbersAreRawIndices));
-
-                    // The per particle modes read the yaw as the card turns by it
-                    instances[i++] = new CardInstance
-                    {
-                        Position = BiasTowardCamera(positions[index], viewCamera.Location),
-                        AxisU = right * extentScale.X,
-                        AxisV = up * extentScale.Y,
-                        Color = color,
-                        SheetInputs = new Vector4(randoms[index], extraData1[index], sheetAges[index], extraData2[index]),
-                        Sequences = sequences,
-                        RotationRadius = new Vector4(roll, yaw, pitches[index], radius),
-                        FacingAxis = normals[index],
-                    };
-                }
-
-                UploadVertices(vertexBuffer.ByteArray, i);
-
-                return i;
+                SortBackToFront(current, camera.Location, order);
             }
+
+            var positions = current.ReadVectors(ParticleField.Position);
+            var normals = current.ReadVectors(ParticleField.Normal);
+            var colors = current.ReadVectors(ParticleField.Color);
+            var radii = current.ReadFloats(ParticleField.Radius);
+            var alphas = current.ReadFloats(ParticleField.Alpha);
+            var alpha2s = ReadAlpha2(current);
+            var rolls = current.ReadFloats(ParticleField.Roll);
+            var yaws = current.ReadFloats(ParticleField.Yaw);
+            var pitches = current.ReadFloats(ParticleField.Pitch);
+            var extraData1 = current.ReadFloats(ParticleField.ShaderExtraData1);
+            var extraData2 = current.ReadFloats(ParticleField.ShaderExtraData2);
+            var sequenceNumbers = current.ReadFloats(ParticleField.SequenceNumber);
+            var secondSequenceNumbers = current.ReadFloats(ParticleField.SecondSequenceNumber);
+            var sheetAges = ReadSheetAges(current);
+            var randoms = ReadParticleRandoms(current, systemState);
+
+            for (var n = 0; n < current.Length; n++)
+            {
+                var index = sorted ? (int)(uint)order[n] : current.Length - 1 - n;
+
+                // Each tint channel is packed from the low byte of round(tint * 255) without a clamp, so a tint
+                // past 1 or below 0 wraps; it is saturated here
+                var color = BlendColor(colors[index], alphas[index], alpha2s[index], scales);
+
+                // The fades only take alpha away, and the shader collapses a card left below 1/255
+                if (color.W < 1f / 255f)
+                {
+                    continue;
+                }
+
+                // Per-mode quad orientation, as in the spritecard vertex shader. Every mode folds in
+                // roll and yaw and none of them read pitch; only FULL_3AXIS_ROTATION uses the full basis.
+                var roll = rolls[index] * scales.Roll;
+                var yaw = zeroYaw ? 0f : yaws[index];
+                var (right, up) = orientationType switch
+                {
+                    ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED => ScreenAlignedBasis(billboardMatrix, roll, yaw),
+                    ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_Z_ALIGNED => ScreenZAlignedBasis(billboardMatrix, roll, yaw),
+                    ParticleOrientation.PARTICLE_ORIENTATION_WORLD_Z_ALIGNED => WorldZAlignedBasis(roll, yaw),
+                    ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL => ParticleNormalBasis(normals[index], roll, yaw),
+                    ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL => ScreenAlignToNormalBasis(billboardMatrix, normals[index], roll, yaw),
+                    _ => RotationBasis(EntityTransformHelper.EulerAnglesToRotationMatrixRadians(new Vector3(pitches[index], yaw, roll))),
+                };
+
+                var radius = radii[index] * scales.Radius;
+
+                var sequences = overrideSequence >= 0
+                    ? new Vector2(overrideSequence)
+                    : new Vector2(
+                        SequenceLane(sequenceNumbers[index], sequenceNumbersAreRawIndices),
+                        SequenceLane(secondSequenceNumbers[index], sequenceNumbersAreRawIndices));
+
+                // The per particle modes read the yaw as the card turns by it
+                instances[i++] = new CardInstance
+                {
+                    Position = BiasTowardCamera(positions[index], viewCamera.Location),
+                    AxisU = right * extentScale.X,
+                    AxisV = up * extentScale.Y,
+                    Color = color,
+                    SheetInputs = new Vector4(randoms[index], extraData1[index], sheetAges[index], extraData2[index]),
+                    Sequences = sequences,
+                    RotationRadius = new Vector4(roll, yaw, pitches[index], radius),
+                    FacingAxis = normals[index],
+                };
+            }
+
+            UploadVertices(vertexBuffer.ByteArray, i);
+
+            return i;
         }
 
         /// <inheritdoc/>

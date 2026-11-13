@@ -1,5 +1,3 @@
-using ValveResourceFormat.Utils;
-
 namespace ValveResourceFormat.Serialization.VfxEval
 {
     /// <summary>

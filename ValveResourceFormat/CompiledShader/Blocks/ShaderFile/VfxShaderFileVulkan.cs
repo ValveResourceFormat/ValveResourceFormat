@@ -1,7 +1,6 @@
 using System.Buffers.Binary;
 using System.Globalization;
 using System.IO;
-using ValveResourceFormat.Utils;
 using Vortice.SpirvCross;
 
 namespace ValveResourceFormat.CompiledShader;
@@ -296,7 +295,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
     {
         Version = datareader.ReadInt32();
 
-        UnexpectedMagicException.Assert(Version >= 2 && Version <= 6, Version);
+        UnexpectedMagicException.Assert(Version is >= 2 and <= 6, Version);
 
         BytecodeSize = datareader.ReadInt32();
         if (BytecodeSize > 0)

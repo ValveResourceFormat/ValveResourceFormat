@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO;
 
@@ -91,7 +90,7 @@ public sealed partial class VMixGraphExtract
             foreach (var type in NodeTypes)
             {
                 if (name.Length > type.Name.Length && name.StartsWith(type.Name, StringComparison.Ordinal)
-                    && name.AsSpan(type.Name.Length).ContainsAnyExceptInRange('0', '9') == false
+                    && !name.AsSpan(type.Name.Length).ContainsAnyExceptInRange('0', '9')
                     && (best == null || type.Name.Length > best.Length))
                 {
                     best = type.Name;
@@ -112,7 +111,7 @@ public sealed partial class VMixGraphExtract
             "audio.Output1", "audio.Track1", "Selection Name", "Selection Index", "dBLevelOut", "LevelOut", "ReductionOut",
         ];
 
-        private static readonly string[] AllPlugs = NodeTypes.SelectMany(static type => type.Plugs).Concat(GenericPlugs).Distinct(StringComparer.Ordinal).ToArray();
+        private static readonly string[] AllPlugs = [.. NodeTypes.SelectMany(static type => type.Plugs).Concat(GenericPlugs).Distinct(StringComparer.Ordinal)];
 
         private static readonly int LongestPlug = AllPlugs.Max(static plug => plug.Length);
 
@@ -1050,7 +1049,7 @@ public sealed partial class VMixGraphExtract
             {
                 var plug = ParameterPlug(node.Type, parameter);
 
-                if (plug == "effect" || plug == "Selection Name")
+                if (plug is "effect" or "Selection Name")
                 {
                     if (graph.NameInputs.FindIndex(input => input.Processor == value) is var nameInput and >= 0)
                     {

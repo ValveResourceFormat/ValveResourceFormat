@@ -107,10 +107,7 @@ namespace GUI.Types.GLViewers
                     SyncAnimationToggles();
                 }
 
-                if (animationPlayPause != null)
-                {
-                    animationPlayPause.Enabled = true;
-                }
+                animationPlayPause?.Enabled = true;
 
                 if (clip.SecondaryAnimations.Length > 0)
                 {
@@ -126,10 +123,7 @@ namespace GUI.Types.GLViewers
                         }
                         BindAnimationUi();
 
-                        if (animationPlayPause != null)
-                        {
-                            animationPlayPause.Enabled = true;
-                        }
+                        animationPlayPause?.Enabled = true;
                     });
 
                     var defaultSkeleton = Path.GetFileNameWithoutExtension(clip.SkeletonName);

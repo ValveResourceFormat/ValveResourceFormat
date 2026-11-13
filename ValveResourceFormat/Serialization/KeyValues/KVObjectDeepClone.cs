@@ -40,7 +40,7 @@ public static class KVObjectDeepClone
             clone = value.ValueType switch
             {
                 KVValueType.Null => KVObject.Null(),
-                KVValueType.BinaryBlob => KVObject.Blob(value.AsBlob().AsSpan().ToArray()),
+                KVValueType.BinaryBlob => KVObject.Blob([.. value.AsBlob()]),
                 KVValueType.Boolean => new KVObject((bool)value),
                 KVValueType.String => new KVObject((string)value),
                 KVValueType.Int16 => new KVObject((short)value),

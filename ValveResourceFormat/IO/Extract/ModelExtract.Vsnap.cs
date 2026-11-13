@@ -1,8 +1,6 @@
 using System.IO;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.KVHelpers;
 
 namespace ValveResourceFormat.IO;

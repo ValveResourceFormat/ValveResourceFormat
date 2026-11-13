@@ -1,11 +1,9 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -201,7 +199,7 @@ public sealed class SoundEventPlayer : IDisposable
         var buffer = new float[MixChunkFrames * channelCount];
 
         // How far the suspend fade can move within a single chunk
-        var fadeStep = (float)MixChunkFrames / (device.SampleRate * SuspendFadeSeconds);
+        var fadeStep = MixChunkFrames / (device.SampleRate * SuspendFadeSeconds);
 
         // Ramped 0..1 gain that follows the suspended flag; mixing-thread-only state.
         // Starts at zero so output always fades in from silence rather than snapping.

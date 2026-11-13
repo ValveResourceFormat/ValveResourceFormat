@@ -1,4 +1,3 @@
-using ValveResourceFormat.Animation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ModelSkeleton = ValveResourceFormat.ResourceTypes.ModelAnimation.Skeleton;
 

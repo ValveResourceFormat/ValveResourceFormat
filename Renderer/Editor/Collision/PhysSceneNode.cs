@@ -315,57 +315,55 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
 
                         var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
-                        using (var positionsBuffer = new RentedBuffer<Vector3>(vertexPositions.Length))
-                        using (var drawnVerticesBuffer = new RentedBuffer<int>(vertexPositions.Length))
+                        using var positionsBuffer = new RentedBuffer<Vector3>(vertexPositions.Length);
+                        using var drawnVerticesBuffer = new RentedBuffer<int>(vertexPositions.Length);
+                        var positions = positionsBuffer.Span;
+                        var drawnVertices = drawnVerticesBuffer.Span;
+
+                        for (var i = 0; i < vertexPositions.Length; i++)
                         {
-                            var positions = positionsBuffer.Span;
-                            var drawnVertices = drawnVerticesBuffer.Span;
+                            positions[i] = Vector3.Transform(vertexPositions[i], pose);
+                        }
 
-                            for (var i = 0; i < vertexPositions.Length; i++)
+                        var faces = hull.Shape.GetFaces();
+                        var edges = hull.Shape.GetEdges();
+
+                        var numTriangles = edges.Length - faces.Length * 2;
+                        verts.EnsureCapacity(verts.Count + numTriangles * 3);
+                        inds.EnsureCapacity(inds.Count + numTriangles * 3);
+
+                        foreach (var face in faces)
+                        {
+                            foreach (var (ai, bi, ci) in RnHull.GetFaceTriangles(edges, face))
                             {
-                                positions[i] = Vector3.Transform(vertexPositions[i], pose);
+                                var a = positions[ai];
+                                var b = positions[bi];
+                                var c = positions[ci];
+
+                                var normal = ComputeNormal(a, b, c);
+
+                                var offset = verts.Count;
+                                verts.Add(new(a, ColorHull, normal));
+                                verts.Add(new(b, ColorHull, normal));
+                                verts.Add(new(c, ColorHull, normal));
+
+                                AddTriangle(inds, offset, 0, 1, 2);
+
+                                drawnVertices[ai] = offset;
+                                drawnVertices[bi] = offset + 1;
+                                drawnVertices[ci] = offset + 2;
                             }
+                        }
 
-                            var faces = hull.Shape.GetFaces();
-                            var edges = hull.Shape.GetEdges();
+                        // Each edge once, from its half edge with the lower index
+                        for (var i = 0; i < edges.Length; i++)
+                        {
+                            var twin = edges[i].Twin;
 
-                            var numTriangles = edges.Length - faces.Length * 2;
-                            verts.EnsureCapacity(verts.Count + numTriangles * 3);
-                            inds.EnsureCapacity(inds.Count + numTriangles * 3);
-
-                            foreach (var face in faces)
+                            if (i < twin)
                             {
-                                foreach (var (ai, bi, ci) in RnHull.GetFaceTriangles(edges, face))
-                                {
-                                    var a = positions[ai];
-                                    var b = positions[bi];
-                                    var c = positions[ci];
-
-                                    var normal = ComputeNormal(a, b, c);
-
-                                    var offset = verts.Count;
-                                    verts.Add(new(a, ColorHull, normal));
-                                    verts.Add(new(b, ColorHull, normal));
-                                    verts.Add(new(c, ColorHull, normal));
-
-                                    AddTriangle(inds, offset, 0, 1, 2);
-
-                                    drawnVertices[ai] = offset;
-                                    drawnVertices[bi] = offset + 1;
-                                    drawnVertices[ci] = offset + 2;
-                                }
-                            }
-
-                            // Each edge once, from its half edge with the lower index
-                            for (var i = 0; i < edges.Length; i++)
-                            {
-                                var twin = edges[i].Twin;
-
-                                if (i < twin)
-                                {
-                                    lines.Add(drawnVertices[edges[i].Origin]);
-                                    lines.Add(drawnVertices[edges[twin].Origin]);
-                                }
+                                lines.Add(drawnVertices[edges[i].Origin]);
+                                lines.Add(drawnVertices[edges[twin].Origin]);
                             }
                         }
                     }

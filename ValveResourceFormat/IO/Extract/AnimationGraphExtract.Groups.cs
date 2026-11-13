@@ -39,11 +39,10 @@ public partial class AnimationGraphExtract
 
         var count = Math.Min((int)nodePath.GetIntegerProperty("m_nCount"), path.Count);
 
-        return path
+        return [.. path
             .Take(count - 1)
             .Select(id => id.GetIntegerProperty("m_id"))
-            .Where(id => id != uint.MaxValue)
-            .ToArray();
+            .Where(id => id != uint.MaxValue)];
     }
 
     /// <summary>

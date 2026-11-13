@@ -22,7 +22,6 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
-using ValveResourceFormat.Utils;
 
 namespace GUI.Types.GLViewers
 {
@@ -204,10 +203,7 @@ namespace GUI.Types.GLViewers
 
             animationPlayPause = UiControl.AddCheckBox("Autoplay", true, isChecked =>
             {
-                if (animationController != null)
-                {
-                    animationController.IsPaused = !isChecked;
-                }
+                animationController?.IsPaused = !isChecked;
             });
             animationTrackBar = UiControl.AddTrackBar("Animation Frame", frame =>
             {

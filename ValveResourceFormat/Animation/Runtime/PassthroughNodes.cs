@@ -94,11 +94,8 @@ namespace ValveResourceFormat.Animation
 
         private protected static void ShutdownSelection(GraphContext ctx, ref PoseNode? selected)
         {
-            if (selected != null)
-            {
-                selected.Shutdown(ctx);
-                selected = null;
-            }
+            selected?.Shutdown(ctx);
+            selected = null;
         }
     }
 
@@ -285,7 +282,7 @@ namespace ValveResourceFormat.Animation
                 desiredDuration = 0f;
             }
 
-            var childDuration = (ChildNode?.IsValid ?? false) ? ChildNode!.Duration : -1f;
+            var childDuration = (ChildNode?.IsValid ?? false) ? ChildNode.Duration : -1f;
             if (childDuration > 0f)
             {
                 // A zero desired duration would be an infinite speed; freeze instead of NaN/Inf.

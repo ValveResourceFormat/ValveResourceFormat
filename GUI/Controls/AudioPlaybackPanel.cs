@@ -20,7 +20,7 @@ namespace GUI.Controls
 
         private const int PlayerLatencyMs = 50;
 
-        private WasapiPlayer? Player;
+        private readonly WasapiPlayer? Player;
         private readonly WaveStream WaveStream;
         private readonly MemoryStream audioData;
         private readonly SampleChannel? SampleChannel;
@@ -99,8 +99,10 @@ namespace GUI.Controls
 
             try
             {
-                SampleChannel = new SampleChannel(WaveStream, true);
-                SampleChannel.Volume = volumeSlider.Value;
+                SampleChannel = new SampleChannel(WaveStream, true)
+                {
+                    Volume = volumeSlider.Value
+                };
 
                 LoopingProvider = new LoopingSampleProvider(SampleChannel, WaveStream, LoopMarkers.Start, LoopMarkers.End)
                 {
@@ -565,8 +567,7 @@ namespace GUI.Controls
                 return;
             }
 
-            var currentTime = playbackStartPosition;
-
+            TimeSpan currentTime;
             if (Player?.PlaybackState == PlaybackState.Playing)
             {
                 var elapsed = playbackStopwatch.Elapsed;

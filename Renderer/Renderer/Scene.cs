@@ -4,7 +4,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
-using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Decals;
 using ValveResourceFormat.Renderer.Entities;
@@ -1715,7 +1714,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         internal IReadOnlyList<SceneLightProbe> ProbeAtlasVolumes
-            => boundLightProbes != null ? boundLightProbes : [];
+            => boundLightProbes ?? [];
 
         /// <summary>
         /// Returns the environment map that best covers a position: one whose volume contains it, the

@@ -25,13 +25,13 @@ namespace GUI.Types.Viewers
             if (stream == null)
             {
                 // The readers do not take ownership of a stream, so the file is read into memory instead of being held open while it plays
-                using var fileStream = File.Open(vrfGuiContext.FileName!, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var fileStream = File.Open(vrfGuiContext.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 var data = new byte[fileStream.Length];
                 await fileStream.ReadExactlyAsync(data).ConfigureAwait(false);
                 stream = new ReadOnlyMemoryStream(data);
             }
 
-            if (vrfGuiContext.FileName!.EndsWith(".mp3", StringComparison.InvariantCultureIgnoreCase))
+            if (vrfGuiContext.FileName.EndsWith(".mp3", StringComparison.InvariantCultureIgnoreCase))
             {
                 waveStream = new Mp3FileReaderBase(stream, wf => new Mp3FrameDecompressor(wf));
             }

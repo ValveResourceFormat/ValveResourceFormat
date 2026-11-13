@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using ValveKeyValue;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Animation;
 
@@ -55,7 +54,7 @@ partial class SyncTrack
 
         var numEvents0 = track0.NumEvents;
         var numEvents1 = track1.NumEvents;
-        Debug.Assert(blendWeight >= 0f && blendWeight <= 1f);
+        Debug.Assert(blendWeight is >= 0f and <= 1f);
 
         var lcm = LowestCommonMultiple(numEvents0, numEvents1);
         var durationScale0 = (float)numEvents0 / lcm;
@@ -300,7 +299,7 @@ partial class SyncTrack
             }
         }
 
-        Debug.Assert(eventPercentageThrough >= 0f && eventPercentageThrough <= 1f);
+        Debug.Assert(eventPercentageThrough is >= 0f and <= 1f);
 
         // Take into account loop count, then the start offset
         eventIdx += loopCount * numSyncEvents;
@@ -339,7 +338,7 @@ partial class SyncTrack
             ? 1f - startTime + endTime
             : endTime - startTime;
 
-        Debug.Assert(duration >= 0f && duration <= 1f);
+        Debug.Assert(duration is >= 0f and <= 1f);
         return duration;
     }
 

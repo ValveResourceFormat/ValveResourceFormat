@@ -443,7 +443,7 @@ partial class ModelExtract
         {
             foreach (var (name, markup) in markups)
             {
-                var targetBody = markup.GetStringProperty("m_TargetBody", name!);
+                var targetBody = markup.GetStringProperty("m_TargetBody", name);
                 gameMarkups[targetBody] = (targetBody, markup);
             }
         }
@@ -468,7 +468,7 @@ partial class ModelExtract
         {
             if (key != "m_PhysicsBodyMarkupByBoneName")
             {
-                remaining.Add(key!, value);
+                remaining.Add(key, value);
                 continue;
             }
 
@@ -476,9 +476,9 @@ partial class ModelExtract
 
             foreach (var (name, markup) in value)
             {
-                if (!markedUpBodies.Contains(markup.GetStringProperty("m_TargetBody", name!)))
+                if (!markedUpBodies.Contains(markup.GetStringProperty("m_TargetBody", name)))
                 {
-                    unexported.Add(name!, markup);
+                    unexported.Add(name, markup);
                 }
             }
 

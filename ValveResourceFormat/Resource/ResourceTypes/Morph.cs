@@ -334,13 +334,9 @@ namespace ValveResourceFormat.ResourceTypes
             loaded = true;
 
             // The rig is in this block, so it is readable whether or not the atlas exists.
-            FlexRules = GetMorphKeyValueCollection(Data, "m_FlexRules")
-                .Select(kv => ParseFlexRule(kv))
-                .ToArray();
+            FlexRules = [.. GetMorphKeyValueCollection(Data, "m_FlexRules").Select(ParseFlexRule)];
 
-            FlexControllers = GetMorphKeyValueCollection(Data, "m_FlexControllers")
-                .Select(kv => ParseFlexController(kv))
-                .ToArray();
+            FlexControllers = [.. GetMorphKeyValueCollection(Data, "m_FlexControllers").Select(ParseFlexController)];
 
             var atlasPath = AtlasPath;
             if (atlasPath.Length == 0)
@@ -367,7 +363,7 @@ namespace ValveResourceFormat.ResourceTypes
             var flexId = kv.GetInt32Property("m_nFlex");
 
             var parsedOps = (kv.GetArray("m_FlexOps") ?? [])
-                .Select(flexOp => ParseFlexOp(flexOp))
+                .Select(ParseFlexOp)
                 .ToArray();
 
             // If there is an unimplemented flexop type in this rule, set the morph to zero instead to avoid exceptions.

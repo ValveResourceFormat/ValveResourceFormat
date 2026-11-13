@@ -1,10 +1,7 @@
 using System.IO;
 using System.Linq;
 using ValveKeyValue;
-using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
-using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.KVHelpers;
 
 namespace ValveResourceFormat.IO;
@@ -163,7 +160,7 @@ partial class ModelExtract
 
                 if (parentBone.Length > 0 && shape.Spheres.Length == 0 && shape.Capsules.Length == 0 && shape.Hulls.Length == 0 && shape.Meshes.Length == 0 && shape.Compounds.Length == 0)
                 {
-                    HashSet<string> collisionTags = physicsPart.CollisionAttributeIndex < PhysicsCollisionTags.Length
+                    var collisionTags = physicsPart.CollisionAttributeIndex < PhysicsCollisionTags.Length
                         ? PhysicsCollisionTags[physicsPart.CollisionAttributeIndex]
                         : [];
 

@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;

@@ -27,7 +27,7 @@ namespace Tests.Utils
 
             for (var i = 0; i < source.Length; i++)
             {
-                await Assert.That(destination[i]).IsEqualTo((float)source[i]);
+                await Assert.That(destination[i]).IsEqualTo(source[i]);
             }
         }
 
@@ -48,7 +48,7 @@ namespace Tests.Utils
 
             for (var i = 0; i < source.Length; i++)
             {
-                await Assert.That(destination[i]).IsEqualTo((float)source[i]);
+                await Assert.That(destination[i]).IsEqualTo(source[i]);
             }
         }
 

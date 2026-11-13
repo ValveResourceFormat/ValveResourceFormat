@@ -1,5 +1,4 @@
 using System.Linq;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 
 namespace ValveResourceFormat.IO;
 
@@ -864,7 +863,7 @@ internal sealed partial class ClothExtract
             foreach (var node in members)
             {
                 var value = (sign[node] * parameter) + offset[node];
-                if (value < -ClothBendStiffnessAgreement || value > 1f + ClothBendStiffnessAgreement)
+                if (value is < -ClothBendStiffnessAgreement or > (1f + ClothBendStiffnessAgreement))
                 {
                     return null;
                 }

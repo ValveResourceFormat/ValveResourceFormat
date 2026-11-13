@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using ValveKeyValue;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Animation;
 

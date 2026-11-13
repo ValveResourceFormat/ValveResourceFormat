@@ -27,7 +27,7 @@ namespace GUI.Types.Viewers
             }
             else
             {
-                svg.Load(vrfGuiContext.FileName!);
+                svg.Load(vrfGuiContext.FileName);
             }
 
             var renderContext = vrfGuiContext.CreateRendererContext();

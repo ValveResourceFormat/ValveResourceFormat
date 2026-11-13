@@ -1,6 +1,4 @@
 using System.Linq;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
-using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -73,7 +71,7 @@ namespace ValveResourceFormat.IO
             {
                 var node = proxy.NodeIndices[v];
                 var invMass = InverseMassOf(node);
-                if (invMass <= 0f || invMass >= 1f)
+                if (invMass is <= 0f or >= 1f)
                 {
                     continue;
                 }
@@ -86,7 +84,7 @@ namespace ValveResourceFormat.IO
 
                 var residual = 1f / invMass - geometric[node];
 
-                if (residual <= MinRecoverableMassPaintTerm || residual > MaxRecoverableMassPaintTerm)
+                if (residual is <= MinRecoverableMassPaintTerm or > MaxRecoverableMassPaintTerm)
                 {
                     clamped++;
                     continue;
@@ -497,7 +495,7 @@ namespace ValveResourceFormat.IO
             }
 
             var invMass = Fe.NodeInvMasses[node];
-            if (invMass <= 0f || invMass == 1f)
+            if (invMass is <= 0f or 1f)
             {
                 return null;
             }

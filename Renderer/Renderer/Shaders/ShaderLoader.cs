@@ -292,7 +292,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                 foreach (var (stage, source) in sources)
                 {
                     shaderObjects[s] = GraphicsDevice.CreateShader(stage, shaderFileName);
-                    shaderSources[s] = source!;
+                    shaderSources[s] = source;
                     s++;
                 }
 
@@ -695,8 +695,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             hash.Append(MemoryMarshal.AsBytes(shaderName.AsSpan()));
             hash.Append(MemoryMarshal.AsBytes(shaderFileName.AsSpan()));
 
-            Span<byte> valueSpan = stackalloc byte[1];
-            valueSpan[0] = (byte)game;
+            Span<byte> valueSpan = [(byte)game];
             hash.Append(valueSpan);
 
             var argsOrdered = SortAndFilterArguments(defines, arguments);

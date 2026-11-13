@@ -482,15 +482,15 @@ abstract partial class SchemaTarget
 abstract record SchemaType(string Name);
 
 /// <param name="Defaults">The schema default of each field by name, from MGetKV3ClassDefaults.</param>
-record SchemaClass(string Name, string? Parent, List<SchemaField> Fields, Dictionary<string, JsonElement> Defaults) : SchemaType(Name);
+sealed record SchemaClass(string Name, string? Parent, List<SchemaField> Fields, Dictionary<string, JsonElement> Defaults) : SchemaType(Name);
 
-record SchemaEnum(string Name, string BaseType, List<(string Name, long Value)> Members) : SchemaType(Name);
+sealed record SchemaEnum(string Name, string BaseType, List<(string Name, long Value)> Members) : SchemaType(Name);
 
 /// <param name="Type">The outer type name, e.g. CUtlVector.</param>
 /// <param name="Args">The template arguments as declared in C++, e.g. "int16, 5".</param>
-record SchemaField(string Type, string? Args, string Name);
+sealed record SchemaField(string Type, string? Args, string Name);
 
-class Schema
+sealed class Schema
 {
     public required List<SchemaType> Types { get; init; }
 
@@ -609,7 +609,7 @@ class Schema
     }
 }
 
-class Converter
+sealed class Converter
 {
     private readonly SchemaTarget target;
     private readonly HashSet<string> enumTypes = [];

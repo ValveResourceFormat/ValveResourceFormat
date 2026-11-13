@@ -83,7 +83,7 @@ namespace GUI.Controls
             {
                 SyntaxHighlighter = new KvSourceMapHighlighter(this, text, sourceMap);
             }
-            else if (highlightSyntax == HighlightLanguage.KeyValues || highlightSyntax == HighlightLanguage.Default)
+            else if (highlightSyntax is HighlightLanguage.KeyValues or HighlightLanguage.Default)
             {
                 SyntaxHighlighter = new KvSyntaxHighlighter(this);
             }

@@ -649,7 +649,7 @@ internal sealed partial class McpTools : IDisposable
             throw new ToolException($"Tab {TabIds.IdOf(page)} '{page.Text}' {needs}.{failure}{implicitTab}");
         }
 
-        return viewer!;
+        return viewer;
     }
 
     /// <summary>

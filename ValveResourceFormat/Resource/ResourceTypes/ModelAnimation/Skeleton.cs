@@ -204,7 +204,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             // Older models store no bone scale.
             var boneScales = skeletonData.ContainsKey("m_boneScaleParent")
                 ? skeletonData.GetFloatArray("m_boneScaleParent")
-                : Enumerable.Repeat(1f, boneCount).ToArray();
+                : [.. Enumerable.Repeat(1f, boneCount)];
 
             if (skeletonData.ContainsKey("m_boneSphere"))
             {

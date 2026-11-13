@@ -192,10 +192,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         public override void Hide(ParticleCollection particles)
         {
-            if (node != null)
-            {
-                node.Visible = false;
-            }
+            node?.Visible = false;
         }
 
         /// <inheritdoc/>

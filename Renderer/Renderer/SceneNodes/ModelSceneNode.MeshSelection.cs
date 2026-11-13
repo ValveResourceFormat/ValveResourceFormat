@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public void SetActiveMeshGroups(IEnumerable<string> setMeshGroups)
         {
-            activeMeshGroups = new HashSet<string>(meshGroups.Names.Intersect(setMeshGroups));
+            activeMeshGroups = [.. meshGroups.Names.Intersect(setMeshGroups)];
             RebuildRenderableMeshes();
         }
 

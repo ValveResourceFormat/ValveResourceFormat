@@ -1,6 +1,4 @@
-using System.Numerics.Tensors;
 using System.Runtime.InteropServices;
-using ValveResourceFormat.Particles.Utils;
 
 namespace ValveResourceFormat.Particles
 {
@@ -1030,7 +1028,7 @@ namespace ValveResourceFormat.Particles
                 return;
             }
 
-            Span<bool> settled = constraints.Count <= 64 ? stackalloc bool[constraints.Count] : new bool[constraints.Count];
+            var settled = constraints.Count <= 64 ? stackalloc bool[constraints.Count] : new bool[constraints.Count];
 
             for (var pass = 0; pass < maxPasses; pass++)
             {

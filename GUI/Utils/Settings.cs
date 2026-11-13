@@ -231,7 +231,7 @@ namespace GUI.Utils
         /// <param name="fileVersion">The settings file version read from disk, 0 when no file was loaded.</param>
         private static void Migrate(int fileVersion)
         {
-            if (fileVersion <= 0 || fileVersion == SettingsFileCurrentVersion)
+            if (fileVersion is <= 0 or SettingsFileCurrentVersion)
             {
                 return;
             }

@@ -362,8 +362,7 @@ namespace ValveResourceFormat.TextureDecoders
             }
         }
 
-        private static byte[] CreateSimdSwizzleMask(int[] swizzle) =>
-        [
+        private static byte[] CreateSimdSwizzleMask(int[] swizzle) => [
             ..Enumerable.Range(0, 64).Select(component =>
              {
                  var pixel = component / 4;

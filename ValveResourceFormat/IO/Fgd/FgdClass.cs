@@ -1,6 +1,5 @@
 using System.Linq;
 using ValveKeyValue;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO.Fgd;
 

@@ -454,7 +454,7 @@ namespace GUI.Types.PackageViewer
         {
             if (m.Msg == PInvoke.WM_APPCOMMAND)
             {
-                var cmd = (int)((ushort)((long)m.LParam >> 16) & ~FAPPCOMMAND_MASK);
+                var cmd = (ushort)((long)m.LParam >> 16) & ~FAPPCOMMAND_MASK;
 
                 if (cmd is APPCOMMAND_BROWSER_BACKWARD or APPCOMMAND_BROWSER_FORWARD)
                 {

@@ -1,5 +1,4 @@
 using System.Linq;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 
 namespace ValveResourceFormat.IO;
 
@@ -148,7 +147,7 @@ internal sealed partial class ClothExtract
             }
         }
 
-        if (bendStiffness > 0f && bendStiffness <= ClothBendStiffnessAgreement / 2f)
+        if (bendStiffness is > 0f and <= (ClothBendStiffnessAgreement / 2f))
         {
             bendStiffness = 0f;
         }

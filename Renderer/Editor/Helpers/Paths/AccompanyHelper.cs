@@ -2,7 +2,6 @@ using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 

@@ -1,4 +1,3 @@
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using ValvePak;
@@ -34,7 +33,7 @@ namespace Tests.Resources
             {
                 await Assert.That(animGroupPaths.Count()).IsZero();
                 await Assert.That(animations).Count().IsEqualTo(3);
-                await Assert.That(animations).All(animation => animation is SequenceAnimation);
+                await Assert.That(animations).All(animation => animation is not null);
 
                 await Assert.That(animations[0].Name).IsEqualTo("ref_pose");
                 await Assert.That(animations[0].Fps).IsEqualTo(30);

@@ -1,11 +1,9 @@
 using System.IO;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
@@ -128,10 +126,7 @@ public class IconHelper : EntityHelper
 
     private protected override void OnSelectionChanged(bool isSelected)
     {
-        if (selectionBorder != null)
-        {
-            selectionBorder.Visible = isSelected;
-        }
+        selectionBorder?.Visible = isSelected;
     }
 
     private SpriteSceneNode CreateSprite(Resource resource, string name, Vector3 tint, SpriteBorder? border = null)

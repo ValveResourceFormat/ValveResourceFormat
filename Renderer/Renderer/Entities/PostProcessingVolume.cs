@@ -99,9 +99,6 @@ public sealed class PostProcessingVolume : BaseModelEntity
     [EntityInput("Toggle")]
     private void InputToggle(EntityInputData data)
     {
-        if (Volume != null)
-        {
-            Volume.IsEnabled = !Volume.IsEnabled;
-        }
+        Volume?.IsEnabled = !Volume.IsEnabled;
     }
 }

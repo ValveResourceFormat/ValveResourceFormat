@@ -1,11 +1,7 @@
 using System.Collections.Frozen;
 using System.Linq;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Collision;
-using ValveResourceFormat.Renderer.Editor.Entities;
-using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneNodes;
-using ValveResourceFormat.Renderer.World;
 
 namespace ValveResourceFormat.Renderer.Editor;
 

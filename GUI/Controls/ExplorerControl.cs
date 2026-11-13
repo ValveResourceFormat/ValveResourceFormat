@@ -131,10 +131,7 @@ namespace GUI.Controls
             }
 
             await handleCreated.Task.ConfigureAwait(false);
-            await treeView.InvokeAsync(() =>
-            {
-                scanningTreeNode.Remove();
-            }).ConfigureAwait(false);
+            await treeView.InvokeAsync(scanningTreeNode.Remove).ConfigureAwait(false);
         }
 
         private async Task ScanForSteamGames(string[] listedFiles)
@@ -563,9 +560,9 @@ namespace GUI.Controls
                 var path = paths[i];
                 var pathDisplay = path.Replace(Path.DirectorySeparatorChar, '/');
                 var isVpk = false;
-                var imageIndexFile = -1;
                 var imageIndexGame = -1;
 
+                int imageIndexFile;
                 if (WorkshopAddons.TryGetValue(path, out var displayTitle))
                 {
                     imageIndexFile = AppIcons.Icons["FolderPlugin"];

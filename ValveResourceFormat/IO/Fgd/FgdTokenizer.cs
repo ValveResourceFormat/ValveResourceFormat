@@ -168,7 +168,7 @@ internal sealed class FgdTokenizer
 
     private readonly string text;
     private readonly List<Token> queue = [];
-    private string breakCharacters;
+    private readonly string breakCharacters;
     private int position;
     private int line = 1;
     private int lineCountedTo;

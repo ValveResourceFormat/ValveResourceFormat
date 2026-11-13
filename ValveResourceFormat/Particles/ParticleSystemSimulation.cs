@@ -12,7 +12,6 @@ using ValveResourceFormat.Particles.Operators;
 using ValveResourceFormat.Particles.PreEmissionOperators;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Particles
 {
@@ -281,7 +280,7 @@ namespace ValveResourceFormat.Particles
         private int skipDepth;
 
         /// <summary>The parent particle events any child of this system emits from.</summary>
-        private ParticleEventType eventListenMask;
+        private readonly ParticleEventType eventListenMask;
 
         /// <inheritdoc cref="eventListenMask"/>
         internal ParticleEventType ListenedEvents => eventListenMask;
@@ -303,7 +302,7 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>Where the next particle id is drawn from, before the seed displaces it.</summary>
         private int particleIdCounter;
-        private ParticleSystemState systemState;
+        private readonly ParticleSystemState systemState;
 
         /// <summary>Builds a runnable system from its definition.</summary>
         /// <param name="particleSystem">The system definition, read through its upgraded tree.</param>

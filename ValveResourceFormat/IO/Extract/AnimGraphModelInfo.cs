@@ -450,8 +450,8 @@ public sealed class AnimGraphModelInfo
                 if (chainEntryValue.ContainsKey("bones"))
                 {
                     var bones = chainEntryValue.GetArray("bones");
-                    chain.BoneNames = bones.Select(b => b.GetStringProperty("name")).ToArray();
-                    chain.BoneWeights = bones.Select(b => b.GetFloatProperty("weight")).ToArray();
+                    chain.BoneNames = [.. bones.Select(b => b.GetStringProperty("name"))];
+                    chain.BoneWeights = [.. bones.Select(b => b.GetFloatProperty("weight"))];
                 }
                 lookAtChains.Add(chain);
             }

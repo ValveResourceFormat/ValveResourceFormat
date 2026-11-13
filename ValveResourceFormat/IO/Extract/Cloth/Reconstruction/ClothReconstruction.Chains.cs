@@ -1,7 +1,4 @@
 using System.Linq;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
-using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
@@ -1257,7 +1254,7 @@ namespace ValveResourceFormat.IO
                             continue;
                         }
 
-                        groups[g] = (kids.FindAll(k => owners.Contains(k)), ringless);
+                        groups[g] = (kids.FindAll(owners.Contains), ringless);
                         groups.Add((outsiders, ringless));
                         g--;
                         break;

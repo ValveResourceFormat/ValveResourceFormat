@@ -136,7 +136,7 @@ namespace ValveResourceFormat.Animation
         /// <summary>Creates a blend from the current registered tasks to a generated mask.</summary>
         public sbyte BlendToGeneratedMask(float generatedMaskWeight, float blendWeight)
         {
-            Debug.Assert(blendWeight >= 0f && blendWeight <= 1f);
+            Debug.Assert(blendWeight is >= 0f and <= 1f);
 
             if (blendWeight == 0f)
             {
@@ -327,7 +327,7 @@ namespace ValveResourceFormat.Animation
             var maskIndex = ctx.Skeleton?.GetBoneMaskIndex(BoneMaskID) ?? -1;
             if (maskIndex != -1)
             {
-                Debug.Assert(maskIndex >= 0 && maskIndex < 255);
+                Debug.Assert(maskIndex is >= 0 and < 255);
                 TaskList.EmplaceTask((byte)maskIndex);
             }
             else

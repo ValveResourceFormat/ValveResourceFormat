@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using OpenTK.Graphics.OpenGL;
-using ValveKeyValue;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -304,8 +303,8 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         }
 
         /// <summary>Gets the effective bloom strength for the current <see cref="BlendMode"/>.</summary>
-        public float BloomStrength =>
-            BlendMode switch
+        public float BloomStrength
+            => BlendMode switch
             {
                 BloomBlendType.BLOOM_BLEND_ADD => AddBloomStrength,
                 BloomBlendType.BLOOM_BLEND_SCREEN => ScreenBloomStrength,

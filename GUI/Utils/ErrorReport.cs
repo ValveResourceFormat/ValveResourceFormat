@@ -5,7 +5,6 @@ using System.Windows.Forms;
 using GUI.Forms;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
-using ValveResourceFormat.Utils;
 
 namespace GUI.Utils;
 
@@ -50,7 +49,7 @@ static class ErrorReport
     /// <summary>
     /// Refreshes the bottom panel badge from the recorded update state. Safe to call from any thread.
     /// </summary>
-    public static void RefreshUpdateBadge() => InvokeOnMainForm(() => Program.MainForm.ShowUpdateAfterError());
+    public static void RefreshUpdateBadge() => InvokeOnMainForm(Program.MainForm.ShowUpdateAfterError);
 
     /// <summary>
     /// Writes the exception in a code block, followed by the version line the issue bot reads.
@@ -189,7 +188,7 @@ static class ErrorReport
 
         if (result == checkForUpdatesButton)
         {
-            InvokeOnMainForm(() => Program.MainForm.ShowAbout());
+            InvokeOnMainForm(Program.MainForm.ShowAbout);
         }
         else if (result == reportButton)
         {

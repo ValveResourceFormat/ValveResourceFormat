@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Shaders;
 
-internal class ShaderValidator
+internal sealed class ShaderValidator
 {
 #if DEBUG
     private sealed class ConsoleProgress : IProgress<string>

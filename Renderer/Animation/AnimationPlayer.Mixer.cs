@@ -285,7 +285,7 @@ namespace ValveResourceFormat.Renderer
 
                     if (!clip.Looping)
                     {
-                        var lastFrame = clip.Animation!.FrameCount - 1;
+                        var lastFrame = clip.Animation.FrameCount - 1;
                         var maxTime = lastFrame / clip.Animation.Fps;
 
                         if (clip.Time > maxTime)
@@ -486,7 +486,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         private static bool IsInLayerChain(PlaybackClip owner, SequenceAnimation sequence)
         {
-            for (PlaybackClip? clip = owner; clip != null; clip = clip.Driver?.Owner)
+            for (var clip = owner; clip != null; clip = clip.Driver?.Owner)
             {
                 if (clip.Animation.Name == sequence.Name)
                 {

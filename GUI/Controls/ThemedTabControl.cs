@@ -271,7 +271,7 @@ namespace GUI.Controls
                     }
 
                     var nativeY = point.Y - GetDisplayTabRect(index).Y + GetTabRect(index).Y;
-                    m.LParam = (nint)((nativeY << 16) | (point.X & 0xffff));
+                    m.LParam = (nativeY << 16) | (point.X & 0xffff);
                     break;
             }
 

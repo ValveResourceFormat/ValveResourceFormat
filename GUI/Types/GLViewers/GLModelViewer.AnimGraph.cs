@@ -8,13 +8,8 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.Animation;
-using ValveResourceFormat.Renderer;
-using ValveResourceFormat.Renderer.SceneEnvironment;
-using ValveResourceFormat.Renderer.SceneNodes;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.GLViewers
 {
@@ -57,8 +52,10 @@ namespace GUI.Types.GLViewers
             graphPauseButton.Size = buttonSize;
             tickButton.Size = buttonSize;
 
-            var playbackRow = new PropertyRow(null, [graphTimeScaleSlider], [graphPauseButton, tickButton]);
-            playbackRow.Height = buttonSize.Height + UiControl.AdjustForDPI(6);
+            var playbackRow = new PropertyRow(null, [graphTimeScaleSlider], [graphPauseButton, tickButton])
+            {
+                Height = buttonSize.Height + UiControl.AdjustForDPI(6)
+            };
 
             var panel = new Panel
             {
@@ -401,9 +398,8 @@ namespace GUI.Types.GLViewers
 
             var text = graphDebugText.AsSpan(0, GraphDebugTextCapacity);
             var length = 0;
-            int written;
 
-            text.TryWrite($"AnimGraph2\n", out written);
+            text.TryWrite($"AnimGraph2\n", out var written);
             length += written;
 
             // Inclusive times of the graph and the graphs it references, indented by depth

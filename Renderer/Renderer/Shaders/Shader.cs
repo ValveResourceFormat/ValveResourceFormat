@@ -530,7 +530,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         public void SetUniform(string name, int value) => Default.SetUniform(name, value);
 
         /// <inheritdoc cref="SetUniform(string, float)"/>
-        public void SetUniform(string name, uint value) => Default.SetUniform(name, (long)value);
+        public void SetUniform(string name, uint value) => Default.SetUniform(name, value);
 
         /// <inheritdoc cref="SetUniform(string, float)"/>
         public void SetUniform(string name, bool value) => Default.SetUniform(name, value ? 1L : 0L);

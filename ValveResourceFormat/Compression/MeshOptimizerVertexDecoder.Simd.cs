@@ -30,8 +30,7 @@ namespace ValveResourceFormat.Compression
         }
 
         // sent mask, replicating shuffle, and two multipliers (even/odd) for multishift emulation
-        private static ReadOnlySpan<byte> DecodeBytesGroupConfig =>
-        [
+        private static ReadOnlySpan<byte> DecodeBytesGroupConfig => [
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 0, 64, 0, 4, 0, 64, 0, 4, 0, 64, 0, 4, 0, 64, 0, 16, 0, 0, 1, 16, 0, 0, 1, 16, 0, 0, 1, 16, 0, 0, 1,
             15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 16, 0, 16, 0, 16, 0, 16, 0, 16, 0, 16, 0, 16, 0, 16, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
@@ -293,7 +292,7 @@ namespace ValveResourceFormat.Compression
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private static ReadOnlySpan<byte> DecodeVertexBlockSimd(ReadOnlySpan<byte> data, Span<byte> vertexData, int vertexCount, int vertexSize, Span<byte> lastVertex, ReadOnlySpan<byte> channels, int version)
         {
-            if (vertexCount <= 0 || vertexCount > VertexBlockMaxSize)
+            if (vertexCount is <= 0 or > VertexBlockMaxSize)
             {
                 throw new ArgumentException("Expected vertexCount to be between 0 and VertexMaxBlockSize");
             }

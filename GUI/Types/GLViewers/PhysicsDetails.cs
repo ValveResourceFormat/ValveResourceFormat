@@ -3,10 +3,8 @@ using System.Linq;
 using GUI.Forms;
 using ValveResourceFormat.Renderer.Editor.Collision;
 using ValveResourceFormat.Renderer.Entities;
-using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace GUI.Types.GLViewers
 {

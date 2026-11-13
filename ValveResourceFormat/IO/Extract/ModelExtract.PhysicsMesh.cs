@@ -1,11 +1,9 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using ValveKeyValue;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
-using ValveResourceFormat.Serialization.KeyValues;
 using RnShapes = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 
 namespace ValveResourceFormat.IO;
@@ -69,11 +67,11 @@ partial class ModelExtract
             return;
         }
 
-        PhysicsSurfaceNames = physAggregateData.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
+        PhysicsSurfaceNames = [.. physAggregateData.SurfacePropertyHashes.Select(StringToken.GetKnownString)];
 
-        PhysicsCollisionTags = physAggregateData.CollisionAttributes.Select(attributes =>
+        PhysicsCollisionTags = [.. physAggregateData.CollisionAttributes.Select(attributes =>
             PhysAggregateData.GetInteractAsTags(attributes).ToHashSet()
-        ).ToArray();
+        )];
 
         // Fix index error on some old vphys files
         if (PhysicsSurfaceNames.Length == 0)

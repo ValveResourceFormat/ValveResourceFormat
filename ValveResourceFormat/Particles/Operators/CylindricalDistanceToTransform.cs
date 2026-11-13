@@ -117,7 +117,7 @@ namespace ValveResourceFormat.Particles.Operators
                         }
                     }
 
-                    if (t > 1f || t < 0f)
+                    if (t is > 1f or < 0f)
                     {
                         distance = outer + 1f;
                     }

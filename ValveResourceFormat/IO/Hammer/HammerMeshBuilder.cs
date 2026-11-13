@@ -1047,9 +1047,9 @@ namespace ValveResourceFormat.IO
             for (var i = trianglesRangeStart; i < trianglesRangeEnd; i++)
             {
                 var originalTriangle = triangles[i];
-                currentTriangleIndices[0] = (int)originalTriangle.X;
-                currentTriangleIndices[1] = (int)originalTriangle.Y;
-                currentTriangleIndices[2] = (int)originalTriangle.Z;
+                currentTriangleIndices[0] = originalTriangle.X;
+                currentTriangleIndices[1] = originalTriangle.Y;
+                currentTriangleIndices[2] = originalTriangle.Z;
 
                 for (var j = 0; j < currentTriangleIndices.Length; j++)
                 {

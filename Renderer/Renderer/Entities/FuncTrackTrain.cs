@@ -883,7 +883,7 @@ public class FuncTrackTrain : BaseModelEntity
 
     private static float AnglePositive(float angle)
     {
-        if (angle < -180f || angle > 180f)
+        if (angle is < -180f or > 180f)
         {
             angle = Math.Clamp(angle - MathF.Floor(angle * (1f / 360f) + 0.5f) * 360f, -180f, 180f);
         }

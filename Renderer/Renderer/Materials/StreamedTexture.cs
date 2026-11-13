@@ -1,6 +1,5 @@
 using System.Threading;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Materials

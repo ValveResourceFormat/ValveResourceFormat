@@ -58,7 +58,7 @@ public class NmSkeletonExtract
         kv.Add("m_secondarySkeletons", kvSkeleton["m_secondarySkeletons"]);
 
         var numLowLODBones = kvSkeleton.GetInt32Property("m_numBonesToSampleAtLowLOD");
-        var boneIDs = kvSkeleton.GetArray<string>("m_boneIDs")![numLowLODBones..];
+        var boneIDs = kvSkeleton.GetArray<string>("m_boneIDs")[numLowLODBones..];
         var highLODBones = KVObject.Array();
         foreach (var boneID in boneIDs)
         {

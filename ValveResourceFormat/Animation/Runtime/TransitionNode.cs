@@ -141,13 +141,13 @@ namespace ValveResourceFormat.Animation
         public StateNode GetSourceStateNode()
         {
             Debug.Assert(IsSourceAState && SourceNode is StateNode);
-            return (StateNode)SourceNode!;
+            return (StateNode)SourceNode;
         }
 
         public TransitionNode GetSourceTransitionNode()
         {
             Debug.Assert(IsSourceTransition && SourceNode is TransitionNode);
-            return (TransitionNode)SourceNode!;
+            return (TransitionNode)SourceNode;
         }
 
         public override void Instantiate(GraphContext ctx)
@@ -422,7 +422,7 @@ namespace ValveResourceFormat.Animation
                         EndSourceTransition(ctx);
                     }
 
-                    SourceNode!.Shutdown(ctx);
+                    SourceNode.Shutdown(ctx);
                     SourceNode = null;
                 }
             }
@@ -436,7 +436,7 @@ namespace ValveResourceFormat.Animation
 
             if (IsSynchronized || options.UpdateRange != null)
             {
-                var sourceSyncTrack = SourceNode!.SyncTrack;
+                var sourceSyncTrack = SourceNode.SyncTrack;
                 sourceSyncTrackForBlend = sourceSyncTrack;
 
                 var sourceUpdateRange = new SyncTrackTimeRange(
@@ -492,7 +492,7 @@ namespace ValveResourceFormat.Animation
                 SyncEventOffset = ReadSyncEventOffset(ctx);
 
                 // Should we clamp how long the transition is active for?
-                var sourceDuration = SourceNode!.Duration;
+                var sourceDuration = SourceNode.Duration;
                 if (GetOption(TransitionOptions_t.ClampDuration) && sourceDuration > 0f)
                 {
                     var remainingNodeTime = (1f - SourceNode.CurrentTime) * sourceDuration;

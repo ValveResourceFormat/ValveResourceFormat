@@ -193,8 +193,8 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         var updateContext = new Scene.UpdateContext
         {
-            Camera = SceneRenderer!.Camera,
-            TextRenderer = textRenderer!,
+            Camera = SceneRenderer.Camera,
+            TextRenderer = textRenderer,
             Timestep = 0,
         };
 

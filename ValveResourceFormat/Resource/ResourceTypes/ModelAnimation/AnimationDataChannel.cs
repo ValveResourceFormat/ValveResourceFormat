@@ -81,7 +81,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             for (var i = 0; i < elementIndexArray.Length; i++)
             {
-                var elementName = elementNameArray![i];
+                var elementName = elementNameArray[i];
                 var elementIndex = elementIndexArray[i];
 
                 if (elementName is null || !domainIndices.TryGetValue(elementName, out var id))

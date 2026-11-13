@@ -6,7 +6,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
-using GUI.Forms;
 using GUI.Types.Exporter;
 using GUI.Types.GLViewers;
 using GUI.Types.PackageViewer;

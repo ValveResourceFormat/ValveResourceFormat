@@ -36,8 +36,7 @@ namespace Tests.IO
         }
 
         /// <summary>The six planes touching a sphere of radius 4 at (1, 2, 3), each through its node on an axis.</summary>
-        private static (Vector3 Node, Vector3 Normal, float Offset)[] SpherePlanes =>
-        [
+        private static (Vector3 Node, Vector3 Normal, float Offset)[] SpherePlanes => [
             (new Vector3(7f, 2f, 3f), Vector3.UnitX, 5f), (new Vector3(-5f, 2f, 3f), -Vector3.UnitX, 3f),
             (new Vector3(1f, 8f, 3f), Vector3.UnitY, 6f), (new Vector3(1f, -4f, 3f), -Vector3.UnitY, 2f),
             (new Vector3(1f, 2f, 9f), Vector3.UnitZ, 7f), (new Vector3(1f, 2f, -3f), -Vector3.UnitZ, 1f),

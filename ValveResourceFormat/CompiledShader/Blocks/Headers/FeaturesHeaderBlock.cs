@@ -36,7 +36,7 @@ public class FeaturesHeaderBlock : ShaderDataBlock
         Version = data.GetInt32Property("m_nVersion");
         FileDescription = data.GetStringProperty("m_description");
         DevShader = data.GetBooleanProperty("m_bDevShader");
-        AvailablePrograms = data.GetArray<bool>("m_bHasShaderProgram")!;
+        AvailablePrograms = data.GetArray<bool>("m_bHasShaderProgram");
 
         var modeArray = data.GetArray("m_modeArray");
         Modes.EnsureCapacity(modeArray.Count);
@@ -48,7 +48,7 @@ public class FeaturesHeaderBlock : ShaderDataBlock
 
             var mode = (name, shaderFallback, StaticComboName: string.Empty, StaticComboValue: -1);
 
-            var settings = modeObj.GetArray("m_staticComboSettings")!;
+            var settings = modeObj.GetArray("m_staticComboSettings");
             if (settings.Count > 0)
             {
                 Debug.Assert(settings.Count <= 1, "CVfxModeSettings with more than one combo.");

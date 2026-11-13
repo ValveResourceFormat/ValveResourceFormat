@@ -239,8 +239,7 @@ namespace Tests.IO
             var ungrouped = TwoVersionTree(rootRingFirst: true, thinTipGrouped: true, wideLeafGrouped: false).Reconstruct();
             var grouped = TwoVersionTree(rootRingFirst: true, thinTipGrouped: true, wideLeafGrouped: true).Reconstruct();
 
-            static BoneChainJoint[] WideJoints(ClothReconstruction cloth) =>
-            [
+            static BoneChainJoint[] WideJoints(ClothReconstruction cloth) => [
                 .. cloth.BuildBoneChains().SelectMany(static chain => chain.Joints)
                     .Where(static joint => joint.Name is "b0" or "b1"),
             ];

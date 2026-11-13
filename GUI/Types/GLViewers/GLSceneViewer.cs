@@ -57,10 +57,7 @@ namespace GUI.Types.GLViewers
             get => soundPlayer?.Mute ?? false;
             set
             {
-                if (soundPlayer != null)
-                {
-                    soundPlayer.Mute = value;
-                }
+                soundPlayer?.Mute = value;
             }
         }
 
@@ -562,7 +559,7 @@ namespace GUI.Types.GLViewers
 
             Renderer.MainFramebuffer = MainFramebuffer;
 
-            MainFramebuffer!.Bind(FramebufferTarget.Framebuffer);
+            MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
 
             var timer = Stopwatch.StartNew();
             PreSceneLoad();

@@ -1,11 +1,7 @@
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.Renderer.Buffers;
-using ValveResourceFormat.Renderer.Materials;
-using ValveResourceFormat.Renderer.Shaders;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.SceneEnvironment
 {
@@ -535,10 +531,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
                 };
             }
 
-            if (volumeBuffer == null)
-            {
-                volumeBuffer = StorageBuffer.Allocate<FogVolumeGpu>(ReservedBufferSlots.FogVolumes, "FogVolumes", MaxVolumes, BufferUsage.Dynamic);
-            }
+            volumeBuffer ??= StorageBuffer.Allocate<FogVolumeGpu>(ReservedBufferSlots.FogVolumes, "FogVolumes", MaxVolumes, BufferUsage.Dynamic);
 
             volumeBuffer.Update<FogVolumeGpu>(volumeGpu.AsSpan(0, count), 0);
 
@@ -650,10 +643,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
                 count++;
             }
 
-            if (lightBuffer == null)
-            {
-                lightBuffer = StorageBuffer.Allocate<FogLightGpu>(ReservedBufferSlots.FogLights, "FogLights", MaxLights, BufferUsage.Dynamic);
-            }
+            lightBuffer ??= StorageBuffer.Allocate<FogLightGpu>(ReservedBufferSlots.FogLights, "FogLights", MaxLights, BufferUsage.Dynamic);
 
             lightBuffer.Update<FogLightGpu>(lightGpu.AsSpan(0, count), 0);
 

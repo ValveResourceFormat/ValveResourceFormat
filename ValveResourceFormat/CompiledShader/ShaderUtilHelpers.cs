@@ -72,8 +72,8 @@ namespace ValveResourceFormat.CompiledShader
                 };
             }
 
-            if (vcsPlatformType == VcsPlatformType.MOBILE_GLES || vcsPlatformType == VcsPlatformType.ANDROID_VULKAN ||
-                vcsPlatformType == VcsPlatformType.IOS_VULKAN)
+            if (vcsPlatformType is VcsPlatformType.MOBILE_GLES or VcsPlatformType.ANDROID_VULKAN or
+                VcsPlatformType.IOS_VULKAN)
             {
                 shaderNameCutoff--;
             }

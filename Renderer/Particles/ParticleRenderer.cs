@@ -1,6 +1,5 @@
 using System.Linq;
 using System.Runtime.CompilerServices;
-using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Renderer.Particles.Renderers;

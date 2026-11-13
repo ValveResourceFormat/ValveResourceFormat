@@ -52,23 +52,12 @@ namespace GUI.Utils
 
         public void Dispose()
         {
-            if (control != null)
-            {
-                control.Dispose();
-                control = null;
-            }
-
-            if (loggerOut != null)
-            {
-                loggerOut.Dispose();
-                loggerOut = null;
-            }
-
-            if (loggerError != null)
-            {
-                loggerError.Dispose();
-                loggerError = null;
-            }
+            control?.Dispose();
+            control = null;
+            loggerOut?.Dispose();
+            loggerOut = null;
+            loggerError?.Dispose();
+            loggerError = null;
         }
 
         public void WriteLine(Log.Category category, string component, string message)

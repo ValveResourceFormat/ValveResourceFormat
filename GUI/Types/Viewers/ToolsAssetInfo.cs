@@ -11,8 +11,8 @@ namespace GUI.Types.Viewers
 
         public static bool IsAccepted(uint magic)
         {
-            return magic == ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo.MAGIC ||
-                   magic == ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo.MAGIC2;
+            return magic is ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo.MAGIC or
+                   ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo.MAGIC2;
         }
 
         public async Task LoadAsync(Stream? stream)
@@ -25,7 +25,7 @@ namespace GUI.Types.Viewers
             }
             else
             {
-                toolsAssetInfo.Read(vrfGuiContext.FileName!);
+                toolsAssetInfo.Read(vrfGuiContext.FileName);
             }
 
             text = toolsAssetInfo.ToString();

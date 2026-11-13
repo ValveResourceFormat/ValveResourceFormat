@@ -45,9 +45,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             foreach (var childLumpName in lump.GetChildEntityNames())
             {
-                var childLump = fileLoader.LoadFileCompiled(childLumpName)?.DataBlock as VEntityLump;
-
-                if (childLump != null)
+                if (fileLoader.LoadFileCompiled(childLumpName)?.DataBlock is VEntityLump childLump)
                 {
                     // shared so nested templates can reach lumps registered higher up
                     childLumps.TryAdd(childLump.Name, childLump);

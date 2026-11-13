@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.Renderer.Buffers;
 
 namespace ValveResourceFormat.Renderer.Editor.ToolRender;
 

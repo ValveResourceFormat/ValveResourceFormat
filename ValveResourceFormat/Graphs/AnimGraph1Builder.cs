@@ -860,7 +860,7 @@ internal sealed class AnimGraph1Builder : IDisposable
 
     private string GetParameterDescriptionFromIndex(int index)
     {
-        if (index < 0 || index == 255)
+        if (index is < 0 or 255)
         {
             return "None";
         }
@@ -905,7 +905,7 @@ internal sealed class AnimGraph1Builder : IDisposable
         }
         else if (paramObj.TryGetValue("m_defaultValue", out var def))
         {
-            if (def.ValueType == KVValueType.Int32 || def.ValueType == KVValueType.UInt32)
+            if (def.ValueType is KVValueType.Int32 or KVValueType.UInt32)
             {
                 result += $" (default: {def.ToInt32()})";
             }
@@ -961,7 +961,7 @@ internal sealed class AnimGraph1Builder : IDisposable
 
             var value = compiledNode[field];
 
-            if (value.ValueType == KVValueType.Int32 || value.ValueType == KVValueType.UInt32)
+            if (value.ValueType is KVValueType.Int32 or KVValueType.UInt32)
             {
                 var index = value.ToInt32();
                 var display = GetParameterDescriptionFromIndex(index);
@@ -1699,7 +1699,7 @@ internal sealed class AnimGraph1Builder : IDisposable
                 var paramsArray = compiledNode.GetArray("m_params");
                 if (paramsArray != null && paramsArray.Count > 0)
                 {
-                    var paramDescs = paramsArray.Select(h => GetParameterDescriptionFromHandle(h));
+                    var paramDescs = paramsArray.Select(GetParameterDescriptionFromHandle);
                     node.AddText($"Params: {string.Join(", ", paramDescs)}");
                 }
             }

@@ -250,10 +250,7 @@ public class GLControl : Control
             return;
         }
 
-        if (_nativeWindow != null)
-        {
-            _nativeWindow.ClientRectangle = new Box2i(0, 0, Width, Height);
-        }
+        _nativeWindow?.ClientRectangle = new Box2i(0, 0, Width, Height);
     }
 
     /// <summary>

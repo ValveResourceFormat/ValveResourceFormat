@@ -1,5 +1,3 @@
-using ValveResourceFormat.Utils;
-
 namespace ValveResourceFormat.Renderer.Editor.ToolRender;
 
 /// <summary>
@@ -244,8 +242,7 @@ public sealed class ToolRenderContext
         => new((index & 4) != 0 ? maxs.X : mins.X, (index & 2) != 0 ? maxs.Y : mins.Y, (index & 1) != 0 ? maxs.Z : mins.Z);
 
     // Corner indices of the faces of a box, four per face
-    private static ReadOnlySpan<int> BoxFaceCorners =>
-    [
+    private static ReadOnlySpan<int> BoxFaceCorners => [
         0, 2, 3, 1,
         0, 1, 5, 4,
         4, 5, 7, 6,
@@ -470,7 +467,7 @@ public sealed class ToolRenderContext
         var (right, up) = GetVectorVectors(axis);
 
         // The rim around the start, then the one around the end
-        Span<Vector3> rims = segments <= 32 ? stackalloc Vector3[segments * 2] : new Vector3[segments * 2];
+        var rims = segments <= 32 ? stackalloc Vector3[segments * 2] : new Vector3[segments * 2];
         var startRim = rims[..segments];
         var endRim = rims[segments..];
 
@@ -752,7 +749,7 @@ public sealed class ToolRenderContext
         }
 
         var (right, up) = GetVectorVectors(MathUtils.SafeNormalize(tip - baseCenter));
-        Span<Vector3> rim = segments <= 64 ? stackalloc Vector3[segments] : new Vector3[segments];
+        var rim = segments <= 64 ? stackalloc Vector3[segments] : new Vector3[segments];
 
         var angle = 0f;
         var step = MathF.Tau / segments;

@@ -92,7 +92,7 @@ namespace ValveResourceFormat.Compression
                 throw new ArgumentException("Expected indexCount to be a multiple of 3.");
             }
 
-            if (indexSize != 2 && indexSize != 4)
+            if (indexSize is not 2 and not 4)
             {
                 throw new ArgumentException("Expected indexSize to be either 2 or 4");
             }

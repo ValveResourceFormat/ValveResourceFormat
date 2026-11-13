@@ -1,8 +1,5 @@
 using System.Linq;
-using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
-using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO

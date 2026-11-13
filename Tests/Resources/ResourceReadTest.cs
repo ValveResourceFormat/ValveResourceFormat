@@ -55,7 +55,7 @@ namespace Tests.Resources
         public void InvalidResourceThrows()
         {
             using var resource = new Resource();
-            using var ms = new MemoryStream(Enumerable.Repeat<byte>(1, 12).ToArray());
+            using var ms = new MemoryStream([.. Enumerable.Repeat<byte>(1, 12)]);
 
             Assert.ThrowsExactly<UnexpectedMagicException>(() => resource.Read(ms));
         }
@@ -70,7 +70,7 @@ namespace Tests.Resources
 
             var ex = Assert.ThrowsExactly<InvalidDataException>(() => resource.Read(ms));
 
-            await Assert.That(ex!.Message).Contains("Use ValvePak");
+            await Assert.That(ex.Message).Contains("Use ValvePak");
         }
     }
 }

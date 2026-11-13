@@ -1,4 +1,3 @@
-using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using Entity = ValveResourceFormat.ResourceTypes.EntityLump.Entity;
 

@@ -1,5 +1,4 @@
 using System.Linq;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 
 namespace ValveResourceFormat.IO
 {
@@ -1105,7 +1104,7 @@ namespace ValveResourceFormat.IO
                     cursor[rank[node]] = from + 1;
                 }
 
-                var freshPinned = PinnedRunCorners(face).Where(corner => seenPinned.Add(corner)).ToList();
+                var freshPinned = PinnedRunCorners(face).Where(seenPinned.Add).ToList();
                 if (!LeadsPinnedRun(pinned, freshPinned))
                 {
                     return false;

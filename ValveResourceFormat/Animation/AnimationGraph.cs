@@ -1,11 +1,9 @@
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using ValveKeyValue;
 using ValveResourceFormat.Animation;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization.KeyValues;
 using ModelSkeleton = ValveResourceFormat.ResourceTypes.ModelAnimation.Skeleton;
@@ -469,7 +467,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// <summary>Samples the clip at a normalized time in [0, 1] into a parent-space pose.</summary>
         public void SamplePoseAtPercentage(float cycle, FrameBone[] pose)
         {
-            Debug.Assert(cycle >= 0f && cycle <= 1f);
+            Debug.Assert(cycle is >= 0f and <= 1f);
 
             var time = cycle * Animation.Duration;
 

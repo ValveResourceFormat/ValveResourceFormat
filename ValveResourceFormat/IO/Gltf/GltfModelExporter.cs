@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 using System.Threading;
 using SharpGLTF.Memory;
@@ -539,7 +538,7 @@ namespace ValveResourceFormat.IO
                     CancellationToken.ThrowIfCancellationRequested();
                 }
 
-                WriteAnimationGraphClips(exportedModel, scene, model, joints!, animationFilter);
+                WriteAnimationGraphClips(exportedModel, scene, model, joints, animationFilter);
             }
 
             var nodeTransform = GetPlacementTransform(transform);

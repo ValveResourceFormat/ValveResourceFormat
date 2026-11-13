@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
@@ -321,7 +320,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 case SchemaFieldType.UInt:
                 case SchemaFieldType.UInt32:
-                    return (uint)Reader.ReadUInt32();
+                    return Reader.ReadUInt32();
 
                 case SchemaFieldType.Float_8:
                 case SchemaFieldType.Float:
@@ -350,7 +349,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return resourceValue;
 
                 case SchemaFieldType.UInt64:
-                    return (ulong)Reader.ReadUInt64();
+                    return Reader.ReadUInt64();
 
                 case SchemaFieldType.Vector3D:
                 case SchemaFieldType.QAngle:

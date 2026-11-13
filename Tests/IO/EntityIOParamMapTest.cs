@@ -29,9 +29,7 @@ namespace Tests.IO
             using var resource = new Resource();
             resource.Read(new MemoryStream(bytes));
 
-            return ((EntityLump)resource.DataBlock!).GetEntities()
-                .SelectMany(static entity => entity.Connections ?? [])
-                .ToList();
+            return [.. ((EntityLump)resource.DataBlock!).GetEntities().SelectMany(static entity => entity.Connections ?? [])];
         }
 
         [Test]

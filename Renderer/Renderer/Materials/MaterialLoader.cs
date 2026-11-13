@@ -355,7 +355,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             var texDepth = data.Depth;
 
-            if (target == TextureTarget.TextureCubeMap || target == TextureTarget.TextureCubeMapArray)
+            if (target is TextureTarget.TextureCubeMap or TextureTarget.TextureCubeMapArray)
             {
                 texDepth *= 6;
             }

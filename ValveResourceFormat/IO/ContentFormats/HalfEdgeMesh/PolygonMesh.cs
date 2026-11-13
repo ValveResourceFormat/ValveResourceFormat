@@ -374,7 +374,7 @@ public sealed class PolygonMesh
 
             if (count == 0)
             {
-                first = prev = pos;
+                first = pos;
             }
             else
             {
@@ -923,9 +923,7 @@ public sealed class PolygonMesh
     {
         FindEdgesConnectedToFaces(faces, out var connectedEdges, out var edgeFaceCounts);
 
-        connectedEdges = connectedEdges
-            .Where((edge, i) => edgeFaceCounts[i] >= 2)
-            .ToArray();
+        connectedEdges = [.. connectedEdges.Where((edge, i) => edgeFaceCounts[i] >= 2)];
 
         DissolveEdges(connectedEdges, true, DissolveRemoveVertexCondition.Colinear);
     }
@@ -1119,7 +1117,7 @@ public sealed class PolygonMesh
         }
 
         edges = [.. order];
-        edgeFaceCounts = order.Select(e => counts[e]).ToArray();
+        edgeFaceCounts = [.. order.Select(e => counts[e])];
     }
 
     /// <summary>
@@ -1779,7 +1777,7 @@ public sealed class PolygonMesh
             {
                 // If not using the distance just add all the vertices to a single group for merging
                 numGroups = 1;
-                verticesSortedByGroup = new(verticesToMerge);
+                verticesSortedByGroup = [.. verticesToMerge];
 
                 Array.Fill(vertexGroupAssignments, 0, 0, numVerticesToMerge);
 

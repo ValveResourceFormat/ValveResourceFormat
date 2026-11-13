@@ -79,7 +79,7 @@ internal static class EntityClassHues
             }
 
             tokens.Add(prefix + "*");
-            remaining.RemoveAll(c => mine.Contains(c));
+            remaining.RemoveAll(mine.Contains);
         }
 
         tokens.AddRange(remaining);

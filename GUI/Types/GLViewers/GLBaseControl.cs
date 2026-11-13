@@ -296,15 +296,15 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         switch (m.Msg)
         {
             case WM_MOUSEMOVE:
-                OnMouseMove((short)m.LParam, (short)((nint)m.LParam >> 16));
+                OnMouseMove((short)m.LParam, (short)(m.LParam >> 16));
 
                 // Let the first move of each hover reach the control, so WinForms fires MouseEnter
                 // and re-arms its WM_MOUSELEAVE tracking; swallow the rest of the flood.
                 return MouseOverRenderArea;
 
             case WM_MOUSEWHEEL:
-                var screenPosition = new Point((short)m.LParam, (short)((nint)m.LParam >> 16));
-                OnMouseWheel((short)((nint)m.WParam >> 16), GLControl.PointToClient(screenPosition));
+                var screenPosition = new Point((short)m.LParam, (short)(m.LParam >> 16));
+                OnMouseWheel((short)(m.WParam >> 16), GLControl.PointToClient(screenPosition));
                 return true;
 
             case WM_KEYDOWN or WM_SYSKEYDOWN:
@@ -499,10 +499,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         prewarmed.Dispose();
         FullScreenForm?.Dispose();
 
-        if (GLNativeWindow is not null)
-        {
-            GLNativeWindow.MouseMove -= OnNativeMouseMove;
-        }
+        GLNativeWindow?.MouseMove -= OnNativeMouseMove;
 
         NativeWindowFactory.Destroy(GLNativeWindow);
         GraphicsContext = null;
@@ -521,7 +518,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
     protected virtual void OnMouseDown(object? sender, MouseEventArgs e)
     {
-        if (e.Button != MouseButtons.Left && e.Button != MouseButtons.Right)
+        if (e.Button is not MouseButtons.Left and not MouseButtons.Right)
         {
             return;
         }

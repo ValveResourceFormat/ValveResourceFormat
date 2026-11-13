@@ -179,7 +179,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         private static bool IsAttribute(KVObject node) => node.GetStringProperty("eType") == "PANEL_ATTRIBUTE";
-        private static IEnumerable<KVObject> NodeAttributes(KVObject node) => SubNodes(node).Where(n => IsAttribute(n));
+        private static IEnumerable<KVObject> NodeAttributes(KVObject node) => SubNodes(node).Where(IsAttribute);
         private static IEnumerable<KVObject> NodeChildren(KVObject node) => SubNodes(node).Where(n => !IsAttribute(n));
 
         private static IReadOnlyList<KVObject> SubNodes(KVObject node)

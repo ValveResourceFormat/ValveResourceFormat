@@ -1,8 +1,6 @@
 using System.IO;
-using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.Animation;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO;
 

@@ -1,12 +1,10 @@
 using System.Collections.Immutable;
 using System.Linq;
-using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 

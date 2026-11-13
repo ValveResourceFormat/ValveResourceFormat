@@ -1,7 +1,3 @@
-using System.Collections.Generic;
-using ValveResourceFormat.ResourceTypes.ModelAnimation2;
-using ValveResourceFormat.Serialization.KeyValues;
-
 namespace ValveResourceFormat.Animation;
 
 /// <summary>Reads event condition rules out of their flags.</summary>

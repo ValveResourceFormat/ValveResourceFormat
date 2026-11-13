@@ -2,7 +2,6 @@ using System.Collections.Frozen;
 using System.Linq;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Decals
 {

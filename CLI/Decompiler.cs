@@ -1573,19 +1573,18 @@ namespace CLI
 
             if (ExtFilterList != null)
             {
-                orderedEntries = orderedEntries.Where(x => MatchesExtensionFilter(x.Key)).ToList();
+                orderedEntries = [.. orderedEntries.Where(x => MatchesExtensionFilter(x.Key))];
             }
             else if (CollectStats)
             {
                 // Most supported files are matched by their extension, the others by their full name
-                orderedEntries = orderedEntries
+                orderedEntries = [.. orderedEntries
                     .Select(x => Package.PathComparer.Equals(x.Key, "vpk")
                         ? KeyValuePair.Create(x.Key, RecursiveSearchArchives ? x.Value : [])
                         : SupportedFileNamesRegex().IsMatch($".{x.Key}")
                             ? x
                             : KeyValuePair.Create(x.Key, x.Value.Where(entry => SupportedFileNamesRegex().IsMatch(entry.GetFileName())).ToList()))
-                    .Where(x => x.Value.Count > 0)
-                    .ToList();
+                    .Where(x => x.Value.Count > 0)];
             }
 
             return orderedEntries;
@@ -2076,7 +2075,7 @@ namespace CLI
                 }
             }
 
-            return highestByShader.Values.Select(x => x.FilePath).ToHashSet();
+            return [.. highestByShader.Values.Select(x => x.FilePath)];
         }
 
         private void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true, bool singleFileOutput = false)

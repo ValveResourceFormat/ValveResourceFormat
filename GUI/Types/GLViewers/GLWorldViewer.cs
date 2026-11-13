@@ -10,7 +10,6 @@ using GUI.Forms;
 using GUI.Utils;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Editor;
 using ValveResourceFormat.Renderer.Editor.Collision;
@@ -18,10 +17,8 @@ using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Picking;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.Input;
-using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
-using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -415,10 +412,7 @@ namespace GUI.Types.GLViewers
                     {
                         Renderer.Settings.EnableIndirectDraws = v;
 
-                        if (occlusionCullingCheckBox != null)
-                        {
-                            occlusionCullingCheckBox.Enabled = v;
-                        }
+                        occlusionCullingCheckBox?.Enabled = v;
                     });
 
                     occlusionCullingCheckBox = UiControl.AddCheckBox("GPU Occlusion Culling", Renderer.Settings.EnableOcclusionCulling, (v) => Renderer.Settings.EnableOcclusionCulling = v);
@@ -828,10 +822,7 @@ namespace GUI.Types.GLViewers
 
             entityInfoEntity = entity;
 
-            if (entityInfoForm.ShowInGraphButton != null)
-            {
-                entityInfoForm.ShowInGraphButton.Visible = entity != null && (EntityHasGraphNode?.Invoke(entity) ?? false);
-            }
+            entityInfoForm.ShowInGraphButton?.Visible = entity != null && (EntityHasGraphNode?.Invoke(entity) ?? false);
 
             entityInfoForm.EntityInfoControl.Clear();
 

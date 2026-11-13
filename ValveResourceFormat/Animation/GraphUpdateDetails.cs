@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using ValveResourceFormat.Animation;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 {

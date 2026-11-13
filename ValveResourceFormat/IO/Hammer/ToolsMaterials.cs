@@ -2,7 +2,6 @@ using System.IO;
 using ValveKeyValue;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO;
 

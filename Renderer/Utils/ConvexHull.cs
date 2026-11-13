@@ -81,7 +81,6 @@ namespace ValveResourceFormat.Renderer.Utils
                 apex = count;
                 local[apex] = local[i0] + planeNormal * extent;
                 i3 = apex;
-                count++;
             }
 
             if (Vector3.Dot(planeNormal, local[i3] - local[i0]) > 0)

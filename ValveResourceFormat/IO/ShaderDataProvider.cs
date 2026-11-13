@@ -503,7 +503,7 @@ namespace ValveResourceFormat.IO
                     var cutoff = Array.IndexOf(channel.InputTextureIndices, -1);
                     var textureProcessorInputs = channel.InputTextureIndices[..cutoff].Select(idx => program.VariableDescriptions[idx].Name).ToArray();
 
-                    if (channel.MipProcessingCommand == "HemiOctIsoRoughness_RG_B" || channel.MipProcessingCommand == "AnisoNormal")
+                    if (channel.MipProcessingCommand is "HemiOctIsoRoughness_RG_B" or "AnisoNormal")
                     {
                         yield return (Channel.RGB, textureProcessorInputs[0]);
                         if (textureProcessorInputs.Length == 2)

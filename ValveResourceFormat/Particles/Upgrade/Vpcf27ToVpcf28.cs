@@ -131,12 +131,12 @@ internal sealed class Vpcf27ToVpcf28 : ParticleUpgradeStep
                 SetLiteral(GetControls(entry0).SetObject("m_flZoomMax"), zoom0);
             }
 
-            if (scaleU != 1f && scaleU != 0f)
+            if (scaleU is not 1f and not 0f)
             {
                 SetLiteral(GetControls(entry0).SetObject("m_flFinalTextureScaleU"), 1f / scaleU);
             }
 
-            if (scaleV != 1f && scaleV != 0f)
+            if (scaleV is not 1f and not 0f)
             {
                 SetLiteral(GetControls(entry0).SetObject("m_flFinalTextureScaleV"), 1f / scaleV);
             }

@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using ValveResourceFormat.IO.Fgd;
-using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;

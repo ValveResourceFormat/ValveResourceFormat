@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Particles.Utils;

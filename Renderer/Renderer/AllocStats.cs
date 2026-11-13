@@ -597,8 +597,8 @@ public class AllocStats
     }
 
     /// <summary>Types allocated by this overlay itself: the sampler's event dispatch, the aggregation, and the per-frame GC info queries.</summary>
-    private static bool IsSelfType(string name) =>
-        name == "System.GCMemoryInfoData"
+    private static bool IsSelfType(string name)
+        => name == "System.GCMemoryInfoData"
         || name == "MoreEventInfo"
         || name == "System.Collections.ObjectModel.ReadOnlyCollection`1[System.Object]"
         || name.Contains(nameof(AllocStats), StringComparison.Ordinal)

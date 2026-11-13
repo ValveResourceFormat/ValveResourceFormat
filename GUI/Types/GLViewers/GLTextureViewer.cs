@@ -180,10 +180,7 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            if (GLControl != null)
-            {
-                GLControl.VisibleChanged += OnVisibleChanged;
-            }
+            GLControl?.VisibleChanged += OnVisibleChanged;
 
             ShowLightBackground = !Application.IsDarkModeEnabled;
 
@@ -507,10 +504,7 @@ namespace GUI.Types.GLViewers
                     SpriteCyclePosition = 0f;
                     SetSpriteFrame(spriteSheetData.Sequences[index], 0);
 
-                    if (spriteFrameTrackBar != null)
-                    {
-                        spriteFrameTrackBar.Slider.Value = 0f;
-                    }
+                    spriteFrameTrackBar?.Slider.Value = 0f;
 
                     RecenterTexture();
                 });
@@ -566,10 +560,7 @@ namespace GUI.Types.GLViewers
 
             displayComboBox.SelectedIndex = (int)SpriteSheetDisplayMode;
 
-            if (sequenceComboBox != null)
-            {
-                sequenceComboBox.SelectedIndex = 0;
-            }
+            sequenceComboBox?.SelectedIndex = 0;
 
             SetSpriteFrame(spriteSheetData.Sequences[0], 0);
         }
@@ -767,10 +758,7 @@ namespace GUI.Types.GLViewers
 
         public override void Dispose()
         {
-            if (GLControl != null)
-            {
-                GLControl.VisibleChanged -= OnVisibleChanged;
-            }
+            GLControl?.VisibleChanged -= OnVisibleChanged;
 
 #if DEBUG
             ShaderHotReload.ShadersReloaded -= OnHotReload;
@@ -1056,7 +1044,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            if (keyData == (Keys.Control | Keys.NumPad0) || keyData == (Keys.Control | Keys.D0))
+            if (keyData is (Keys.Control | Keys.NumPad0) or (Keys.Control | Keys.D0))
             {
                 ResetZoom();
                 return;
@@ -1064,13 +1052,13 @@ namespace GUI.Types.GLViewers
 
             Debug.Assert(GLControl != null);
 
-            if (keyData == (Keys.Control | Keys.Add) || keyData == (Keys.Control | Keys.Oemplus))
+            if (keyData is (Keys.Control | Keys.Add) or (Keys.Control | Keys.Oemplus))
             {
                 HandleMouseWheel(1, new System.Drawing.Point(GLControl.Width / 2, GLControl.Height / 2), isShiftPressed: false, isCtrlPressed: false);
                 return;
             }
 
-            if (keyData == (Keys.Control | Keys.Subtract) || keyData == (Keys.Control | Keys.OemMinus))
+            if (keyData is (Keys.Control | Keys.Subtract) or (Keys.Control | Keys.OemMinus))
             {
                 HandleMouseWheel(-1, new System.Drawing.Point(GLControl.Width / 2, GLControl.Height / 2), isShiftPressed: false, isCtrlPressed: false);
                 return;
@@ -1636,10 +1624,7 @@ namespace GUI.Types.GLViewers
 
         private void SyncSpriteFrameToPlayback(SpritesheetData.Sequence sequence, int frame)
         {
-            if (spriteFrameTrackBar != null)
-            {
-                spriteFrameTrackBar.Slider.Value = (float)frame / sequence.Frames.Length;
-            }
+            spriteFrameTrackBar?.Slider.Value = (float)frame / sequence.Frames.Length;
 
             SetSpriteFrameLabel(sequence, frame);
         }

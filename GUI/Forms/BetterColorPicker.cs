@@ -654,7 +654,7 @@ namespace GUI.Forms
                     break;
             }
 
-            if (BetterColorPicker!.NonPaintRefresh)
+            if (BetterColorPicker.NonPaintRefresh)
             {
                 return;
             }

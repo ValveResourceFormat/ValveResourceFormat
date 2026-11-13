@@ -78,9 +78,9 @@ namespace ValveResourceFormat.Particles.Operators
 
             var field = snapshot.AttributeToWrite;
             var storage = ParticleBuffer.StorageOf(field);
-            var vectors = column as Vector3[];
-            var floats = column as float[];
-            var integers = column as int[];
+            var vectors = column as Vector3[] ?? [];
+            var floats = column as float[] ?? [];
+            var integers = column as int[] ?? [];
 
             var writesFloats = storage is ParticleFieldStorage.Scalar or ParticleFieldStorage.Integer;
             var writesVectors = storage == ParticleFieldStorage.Vector;
@@ -145,11 +145,11 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (writesFloats)
                 {
-                    if (floats != null && (uint)row < (uint)floats.Length)
+                    if ((uint)row < (uint)floats.Length)
                     {
                         floatOutput[i] = floats[row];
                     }
-                    else if (integers != null && (uint)row < (uint)integers.Length)
+                    else if ((uint)row < (uint)integers.Length)
                     {
                         floatOutput[i] = BitConverter.Int32BitsToSingle(integers[row]);
                     }
@@ -157,7 +157,7 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                if (vectors == null || (uint)row >= (uint)vectors.Length)
+                if ((uint)row >= (uint)vectors.Length)
                 {
                     continue;
                 }

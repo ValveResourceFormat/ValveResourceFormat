@@ -12,7 +12,6 @@ using K4os.Compression.LZ4.Encoders;
 using ValveKeyValue;
 using ValveKeyValue.KeyValues3;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -233,7 +232,7 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new UnexpectedMagicException("Unsupported KV3 signature", signature, nameof(signature));
             }
 
-            if (version < 1 || version > 5)
+            if (version is < 1 or > 5)
             {
                 throw new UnexpectedMagicException("Unsupported KV3 version", version, nameof(version));
             }
@@ -283,9 +282,8 @@ namespace ValveResourceFormat.ResourceTypes
                 return;
             }
 
-            var written = 0;
             var success = dictionary == null
-                ? ZstandardDecoder.TryDecompress(input, output, out written)
+                ? ZstandardDecoder.TryDecompress(input, output, out var written)
                 : ZstandardDecoder.TryDecompress(input, output, out written, dictionary);
 
             if (!success || output.Length != written)

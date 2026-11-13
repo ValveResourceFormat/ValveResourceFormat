@@ -23,7 +23,7 @@ public struct BombDamageDamageValue
     /// <summary>
     /// Rotation of the bomb blast direction. Rotating <see cref="Vector3.UnitX"/> by this yields the game's forward vector.
     /// </summary>
-    public readonly Quaternion Rotation =>
-        Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.Tau / 256.0f * Yaw) *
+    public readonly Quaternion Rotation
+        => Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.Tau / 256.0f * Yaw) *
         Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.Tau / 256.0f * Pitch);
 }

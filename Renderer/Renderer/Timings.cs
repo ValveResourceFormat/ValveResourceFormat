@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Globalization;
 using OpenTK.Graphics.OpenGL;
 using QueryId = System.Int32;
 

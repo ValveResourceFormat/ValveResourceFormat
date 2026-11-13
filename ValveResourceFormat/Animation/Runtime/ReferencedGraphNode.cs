@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
-using Transform = ValveResourceFormat.ResourceTypes.ModelAnimation.FrameBone;
 
 namespace ValveResourceFormat.Animation
 {

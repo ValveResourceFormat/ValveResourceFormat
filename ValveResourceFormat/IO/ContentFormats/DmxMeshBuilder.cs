@@ -582,16 +582,16 @@ internal static class DmxMeshBuilder
                 }
 
                 var deltaState = new DmeVertexDeltaData { Name = FlexRecovery.Identifier(flexName) };
-                deltaState.AddIndexedStream("position$0", positions.ToArray(), positionIndices.ToArray());
+                deltaState.AddIndexedStream("position$0", positions.ToArray(), [.. positionIndices]);
 
                 if (normals.Count > 0)
                 {
-                    deltaState.AddIndexedStream("normal$0", normals.ToArray(), normalIndices.ToArray());
+                    deltaState.AddIndexedStream("normal$0", normals.ToArray(), [.. normalIndices]);
                 }
 
                 if (wrinkles.Count > 0)
                 {
-                    deltaState.AddIndexedStream("wrinkle$0", wrinkles.ToArray(), wrinkleIndices.ToArray());
+                    deltaState.AddIndexedStream("wrinkle$0", wrinkles.ToArray(), [.. wrinkleIndices]);
                 }
 
                 dmeMesh.DeltaStates.Add(deltaState);

@@ -85,7 +85,7 @@ public class PickingTexture : Framebuffer
         GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, FboHandle);
 
         GL.NamedFramebufferReadBuffer(FboHandle, ReadBufferMode.ColorAttachment0);
-        GL.ReadPixels(x, y, 1, 1, ColorFormat!.Value.ToGLPixelFormat(), ColorFormat.Value.ToGLPixelType(), ref pixelInfo);
+        GL.ReadPixels(x, y, 1, 1, ColorFormat.Value.ToGLPixelFormat(), ColorFormat.Value.ToGLPixelType(), ref pixelInfo);
         GL.NamedFramebufferReadBuffer(FboHandle, ReadBufferMode.None);
 
         GL.ReadPixels(x, y, 1, 1, PixelFormat.DepthComponent, PixelType.Float, ref depth);

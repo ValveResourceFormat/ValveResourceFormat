@@ -5,7 +5,6 @@ using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader
@@ -377,7 +376,7 @@ namespace ValveResourceFormat.CompiledShader
                 ExtConstantBufferDescriptions[i] = new ConstantBufferDescription(DataReader, i);
             }
 
-            if (VcsProgramType == VcsProgramType.Features || VcsProgramType == VcsProgramType.VertexShader)
+            if (VcsProgramType is VcsProgramType.Features or VcsProgramType.VertexShader)
             {
                 var vsInputSignaturesCount = DataReader.ReadInt32();
                 VsInputSignatures = new VsInputSignature[vsInputSignaturesCount];
@@ -450,12 +449,12 @@ namespace ValveResourceFormat.CompiledShader
             var programHashes = data.GetArray("m_programHashes");
             foreach (var hashObject in programHashes)
             {
-                var hashBytes = hashObject.GetArray<byte>("m_nHashChar")!;
+                var hashBytes = hashObject.GetArray<byte>("m_nHashChar");
                 Debug.Assert(hashBytes.Length == 16);
                 ProgramHashes.Add(new Guid(hashBytes));
             }
 
-            VariableDescriptionVersionHash = new Guid(data.GetSubCollection("m_variableDescriptionVersionHash")!.GetArray<byte>("m_nHashChar")!);
+            VariableDescriptionVersionHash = new Guid(data.GetSubCollection("m_variableDescriptionVersionHash").GetArray<byte>("m_nHashChar"));
             VariableSourceMax = data.GetInt32Property("m_nVariableSourceMax");
 
             var staticCombos = data.GetArray("m_staticComboArray");
@@ -542,7 +541,7 @@ namespace ValveResourceFormat.CompiledShader
             const int earliest = 58;
             const int latest = 72;
 
-            if (vcsFileVersion < earliest || vcsFileVersion > latest)
+            if (vcsFileVersion is < earliest or > latest)
             {
                 throw new UnexpectedMagicException($"Only VCS file versions {earliest} through {latest} are supported",
                     vcsFileVersion, nameof(vcsFileVersion));

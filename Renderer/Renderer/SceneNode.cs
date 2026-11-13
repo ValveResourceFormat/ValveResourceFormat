@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer

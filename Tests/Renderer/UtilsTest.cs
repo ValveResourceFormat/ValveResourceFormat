@@ -9,7 +9,7 @@ namespace Tests.Renderer
         public async Task Color32Test()
         {
             var fromFloats = new Color32(1f, 0.5f, 0f, 1f);
-            var fromBytes = new Color32((byte)255, (byte)128, (byte)0, (byte)255);
+            var fromBytes = new Color32(255, 128, 0, 255);
 
             await Assert.That(fromFloats).IsEqualTo(fromBytes);
 

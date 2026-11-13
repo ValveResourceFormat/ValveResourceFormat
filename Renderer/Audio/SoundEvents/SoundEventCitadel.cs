@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using ValveKeyValue;
 using ValveResourceFormat.Renderer.Audio.SampleProviders;
 using ValveResourceFormat.Serialization.KeyValues;
 

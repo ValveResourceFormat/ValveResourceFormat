@@ -7,7 +7,6 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -955,7 +954,7 @@ namespace ValveResourceFormat.Renderer
                 var outputs = BinaryPrimitives.ReadInt32LittleEndian(span[0x1C..]);
 
                 if (poses <= 0 || inputs <= 0 || outputs <= 0
-                    || 0x20L + 4L * ((long)inputs * (7L * poses + 3) + (long)outputs * (3 + 7L * poses)) > blob.Length)
+                    || 0x20L + 4L * (inputs * (7L * poses + 3) + outputs * (3 + 7L * poses)) > blob.Length)
                 {
                     return null;
                 }
@@ -974,15 +973,14 @@ namespace ValveResourceFormat.Renderer
                     rotationThreshold = BinaryPrimitives.ReadSingleLittleEndian(span[0x08..]),
                     PoseCount = poses,
                     inputCount = inputs,
+                    translations = [.. Enumerable.Range(0, inputs).Select(_ => ReadFloats(3 * poses))],
+                    rotations = [.. Enumerable.Range(0, inputs).Select(_ => ReadFloats(4 * poses))],
+                    translationScales = ReadFloats(inputs),
+                    rotationScales = ReadFloats(inputs),
+                    inputScales = ReadFloats(inputs),
+                    basePositions = [.. Enumerable.Range(0, outputs).Select(_ => ReadFloats(3)).Select(v => new Vector3(v))],
+                    outputWeights = [.. Enumerable.Range(0, outputs).Select(_ => ReadFloats(7 * poses))]
                 };
-
-                parameters.translations = [.. Enumerable.Range(0, inputs).Select(_ => ReadFloats(3 * poses))];
-                parameters.rotations = [.. Enumerable.Range(0, inputs).Select(_ => ReadFloats(4 * poses))];
-                parameters.translationScales = ReadFloats(inputs);
-                parameters.rotationScales = ReadFloats(inputs);
-                parameters.inputScales = ReadFloats(inputs);
-                parameters.basePositions = [.. Enumerable.Range(0, outputs).Select(_ => ReadFloats(3)).Select(v => new Vector3(v))];
-                parameters.outputWeights = [.. Enumerable.Range(0, outputs).Select(_ => ReadFloats(7 * poses))];
                 return parameters;
             }
 

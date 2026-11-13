@@ -88,10 +88,10 @@ Console.WriteLine("];");
 
 return 0;
 
-record FontMetric(Vector4 PlaneBounds, Vector4 AtlasBounds, float Advance);
+sealed record FontMetric(Vector4 PlaneBounds, Vector4 AtlasBounds, float Advance);
 
 #pragma warning disable CA1812, IDE1006
-class Bounds
+sealed class Bounds
 {
     public float left { get; set; }
     public float top { get; set; }
@@ -99,7 +99,7 @@ class Bounds
     public float bottom { get; set; }
 }
 
-class Glyph
+sealed class Glyph
 {
     public int unicode { get; set; }
     public float advance { get; set; }
@@ -107,14 +107,14 @@ class Glyph
     public Bounds? atlasBounds { get; set; }
 }
 
-class Atlas
+sealed class Atlas
 {
     public int distanceRange { get; set; }
     public int width { get; set; }
     public int height { get; set; }
 }
 
-class Metrics
+sealed class Metrics
 {
     public float emSize { get; set; }
     public float lineHeight { get; set; }
@@ -124,7 +124,7 @@ class Metrics
     public float underlineThickness { get; set; }
 }
 
-class MetricsFile
+sealed class MetricsFile
 {
     public required Atlas atlas { get; set; }
     public required Metrics metrics { get; set; }

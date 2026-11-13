@@ -49,9 +49,6 @@ public sealed class BakeResourceHelper(IHelperOwner owner, HelperDeclaration dec
         }
 
         // The nodes are part of the entity
-        if (node != null)
-        {
-            node.EntityData = Owner.KeyValues;
-        }
+        node?.EntityData = Owner.KeyValues;
     }
 }

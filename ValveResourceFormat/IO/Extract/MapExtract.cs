@@ -633,7 +633,7 @@ public sealed partial class MapExtract
             var collisionAttributes = phys.CollisionAttributes;
             var worldPhysMeshes = phys.Parts[0].Shape.GetAllMeshes().Where(m => collisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
 
-            PhysTriangleMatcher = new PhysicsTriangleMatcher(worldPhysMeshes.ToArray());
+            PhysTriangleMatcher = new PhysicsTriangleMatcher([.. worldPhysMeshes]);
 
             // TODO: physics spheres and capsules are ignored
         }
@@ -1046,7 +1046,7 @@ public sealed partial class MapExtract
             return new Vector4(255f);
         }
 
-        KVObject tint = fragment.GetSubCollection("m_vTintColor");
+        var tint = fragment.GetSubCollection("m_vTintColor");
 
         return tint.Count > 3 ? tint.ToVector4() : new Vector4(tint.ToVector3(), 255f);
     }
@@ -1169,7 +1169,7 @@ public sealed partial class MapExtract
     static Datamodel.Color ConvertToColor32(Vector4 tint)
     {
         var rounded = Vector4.Clamp(Vector4.Round(tint), Vector4.Zero, new Vector4(255f));
-        Span<byte> color32 = stackalloc byte[] { (byte)rounded.X, (byte)rounded.Y, (byte)rounded.Z, (byte)rounded.W };
+        Span<byte> color32 = [(byte)rounded.X, (byte)rounded.Y, (byte)rounded.Z, (byte)rounded.W];
         return Datamodel.Color.FromBytes(color32);
     }
 
@@ -1505,9 +1505,7 @@ public sealed partial class MapExtract
 
         if (!aggregateHasTransforms)
         {
-            drawCenters = (sceneObject.GetArray("m_drawBounds") ?? [])
-                .Select(aabb => (aabb.GetSubCollection("m_vMinBounds").ToVector3() + aabb.GetSubCollection("m_vMaxBounds").ToVector3()) / 2f)
-                .ToArray();
+            drawCenters = [.. (sceneObject.GetArray("m_drawBounds") ?? []).Select(aabb => (aabb.GetSubCollection("m_vMinBounds").ToVector3() + aabb.GetSubCollection("m_vMaxBounds").ToVector3()) / 2f)];
         }
 
         var modelFiles = ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCenters, drawCalls.Count);
@@ -1537,7 +1535,7 @@ public sealed partial class MapExtract
 
         Vector4 HammerMeshTint(int drawCallIndex)
         {
-            Vector4 tint = GetDrawCallTint(drawCalls[drawCallIndex]);
+            var tint = GetDrawCallTint(drawCalls[drawCallIndex]);
 
             if (fragmentTints.TryGetValue(drawCallIndex, out var fragmentTint))
             {
@@ -1570,10 +1568,10 @@ public sealed partial class MapExtract
             var i = fragment.GetInt32Property("m_nDrawCallIndex");
             var fragmentFlags = fragment.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
 
-            Vector4 fragmentTint = GetFragmentTint(fragment);
-            Vector4 drawCallTint = GetDrawCallTint(drawCalls[i]) / 255f;
+            var fragmentTint = GetFragmentTint(fragment);
+            var drawCallTint = GetDrawCallTint(drawCalls[i]) / 255f;
 
-            Vector3 tint = fragmentTint.AsVector3() * drawCallTint.AsVector3();
+            var tint = fragmentTint.AsVector3() * drawCallTint.AsVector3();
             float alpha = fragmentTint.W * drawCallTint.W;
 
             var fragmentModelName = ModelExtract.GetFragmentModelName(modelName, i);
@@ -1627,7 +1625,7 @@ public sealed partial class MapExtract
         .WithProperty("visoccluder", StringBool(true));
 
     internal static string GetAutoPhysicsMaterialName(string rootFolder, string surfaceProperty)
-        => NormalizePath(Path.Combine(rootFolder, "_vrf", "physics_surfaces", surfaceProperty.ToLowerInvariant() + ".vmat"))!;
+        => NormalizePath(Path.Combine(rootFolder, "_vrf", "physics_surfaces", surfaceProperty.ToLowerInvariant() + ".vmat"));
 
     private string GetAndExportAutoPhysicsMaterialName(string surfaceProperty)
     {

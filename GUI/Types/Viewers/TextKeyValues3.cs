@@ -44,7 +44,7 @@ class TextKeyValues3(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
         }
         else
         {
-            using var fileStream = File.Open(vrfGuiContext.FileName!, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var fileStream = File.Open(vrfGuiContext.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             bytes = new byte[fileStream.Length];
             await fileStream.ReadExactlyAsync(bytes).ConfigureAwait(false);
         }

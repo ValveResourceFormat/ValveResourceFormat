@@ -1,7 +1,6 @@
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.KVHelpers;
 

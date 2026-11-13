@@ -77,7 +77,7 @@ namespace Tests.Resources
             {
                 await Assert.That(frame.Bones).Count().IsEqualTo(skeleton.Bones.Length);
                 await Assert.That(frame.Bones.Select(b => b.Angle.Length())).All(length => MathF.Abs(length - 1f) <= 0.001f).Because("decoded rotations are unit quaternions");
-                await Assert.That(frame.Movement).IsEqualTo(default(AnimationMovement.MovementData));
+                await Assert.That(frame.Movement).IsEqualTo(default);
             }
         }
 
@@ -145,8 +145,8 @@ namespace Tests.Resources
             using (Assert.Multiple())
             {
                 await Assert.That(animation.HasMovementData()).IsFalse();
-                await Assert.That(animation.GetMovementOffsetData(0)).IsEqualTo(default(AnimationMovement.MovementData));
-                await Assert.That(animation.GetMovementOffsetData(0f)).IsEqualTo(default(AnimationMovement.MovementData));
+                await Assert.That(animation.GetMovementOffsetData(0)).IsEqualTo(default);
+                await Assert.That(animation.GetMovementOffsetData(0f)).IsEqualTo(default);
             }
         }
     }

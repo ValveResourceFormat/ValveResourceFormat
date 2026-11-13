@@ -60,7 +60,7 @@ namespace Tests.Resources
         [Test]
         public async Task RejectsInvalidPrograms()
         {
-            await Assert.That(FlexOp.Build((FlexOpCode)0, 0)).IsNull();
+            await Assert.That(FlexOp.Build(0, 0)).IsNull();
 
             Assert.Throws<ArgumentException>(() => _ = new FlexRule(0, []));
 

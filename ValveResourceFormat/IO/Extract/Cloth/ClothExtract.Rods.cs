@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;
 using ValveKeyValue;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using static ValveResourceFormat.IO.KVHelpers;
 
 namespace ValveResourceFormat.IO;

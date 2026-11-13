@@ -562,8 +562,7 @@ namespace Tests.IO
 
         private static readonly int[] RopedAlignments = [1, 0, 2];
 
-        private static int[] RopeAlignments(ClothReconstruction cloth) =>
-        [
+        private static int[] RopeAlignments(ClothReconstruction cloth) => [
             ClothExtract.MakeClothNode(cloth, "joint1", 0, isStaticNode: true).GetInt32Property("transform_alignment"),
             ClothExtract.MakeClothNode(cloth, "joint1", 1, elementName: "clothNode_joint2").GetInt32Property("transform_alignment"),
             ClothExtract.MakeClothNode(cloth, "joint1", 2, elementName: "clothNode_joint3").GetInt32Property("transform_alignment"),

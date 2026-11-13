@@ -72,7 +72,7 @@ namespace ValveResourceFormat.Animation
         /// <summary>The inverse of <see cref="WorldTransform"/>.</summary>
         public Transform WorldTransformInverse { get; internal set; } = Transform.Identity;
 
-        private GraphDefinition graphDefinition;
+        private readonly GraphDefinition graphDefinition;
 
         // Control and virtual parameter node indices by parameter name
         private readonly Dictionary<string, short> parameterLookup = [];

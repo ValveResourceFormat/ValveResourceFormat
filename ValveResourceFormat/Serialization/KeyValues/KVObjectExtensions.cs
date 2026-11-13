@@ -16,8 +16,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// <summary>
         /// Converts a resource data block to a key-value collection.
         /// </summary>
-        public static KVObject AsKeyValueCollection(this Block data) =>
-            data switch
+        public static KVObject AsKeyValueCollection(this Block data)
+            => data switch
             {
                 BinaryKV3 kv => kv.Data,
                 NTRO ntro => ntro.Output,
@@ -56,22 +56,14 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return defaultValue!;
             }
 
-            switch (value.ValueType)
+            return value.ValueType switch
             {
-                case KVValueType.String:
-                    return (string)value;
-                case KVValueType.Int16:
-                case KVValueType.Int32:
-                case KVValueType.Int64:
-                case KVValueType.UInt16:
-                case KVValueType.UInt32:
-                case KVValueType.UInt64:
-                case KVValueType.FloatingPoint:
-                case KVValueType.FloatingPoint64:
-                    return value.ToString(CultureInfo.InvariantCulture);
-                default:
-                    return defaultValue!;
-            }
+                KVValueType.String => (string)value,
+                KVValueType.Int16 or KVValueType.Int32 or KVValueType.Int64
+                    or KVValueType.UInt16 or KVValueType.UInt32 or KVValueType.UInt64
+                    or KVValueType.FloatingPoint or KVValueType.FloatingPoint64 => value.ToString(CultureInfo.InvariantCulture),
+                _ => defaultValue!,
+            };
         }
 
         /// <summary>
@@ -90,26 +82,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
         {
             var culture = CultureInfo.InvariantCulture;
 
-            switch (obj.ValueType)
+            return obj.ValueType switch
             {
-                case KVValueType.String:
-                    return IsBlankText(obj) ? defaultValue : ValueParsing.ParseLeadingInt((string)obj);
-                case KVValueType.Boolean:
-                    return (bool)obj ? 1 : 0;
-                case KVValueType.Int16:
-                case KVValueType.Int32:
-                case KVValueType.Int64:
-                    return unchecked((int)obj.ToInt64(culture));
-                case KVValueType.UInt16:
-                case KVValueType.UInt32:
-                case KVValueType.UInt64:
-                    return unchecked((int)obj.ToUInt64(culture));
-                case KVValueType.FloatingPoint:
-                case KVValueType.FloatingPoint64:
-                    return (int)obj.ToDouble(culture);
-                default:
-                    return defaultValue;
-            }
+                KVValueType.String => IsBlankText(obj) ? defaultValue : ValueParsing.ParseLeadingInt((string)obj),
+                KVValueType.Boolean => (bool)obj ? 1 : 0,
+                KVValueType.Int16 or KVValueType.Int32 or KVValueType.Int64 => unchecked((int)obj.ToInt64(culture)),
+                KVValueType.UInt16 or KVValueType.UInt32 or KVValueType.UInt64 => unchecked((int)obj.ToUInt64(culture)),
+                KVValueType.FloatingPoint or KVValueType.FloatingPoint64 => (int)obj.ToDouble(culture),
+                _ => defaultValue,
+            };
         }
 
         /// <summary>
@@ -122,26 +103,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
         {
             var culture = CultureInfo.InvariantCulture;
 
-            switch (obj.ValueType)
+            return obj.ValueType switch
             {
-                case KVValueType.String:
-                    return IsBlankText(obj) ? defaultValue : ValueParsing.ParseFloat((string)obj);
-                case KVValueType.Boolean:
-                    return (bool)obj ? 1f : 0f;
-                case KVValueType.Int16:
-                case KVValueType.Int32:
-                case KVValueType.Int64:
-                    return obj.ToInt64(culture);
-                case KVValueType.UInt16:
-                case KVValueType.UInt32:
-                case KVValueType.UInt64:
-                    return obj.ToUInt64(culture);
-                case KVValueType.FloatingPoint:
-                case KVValueType.FloatingPoint64:
-                    return (float)obj.ToDouble(culture);
-                default:
-                    return defaultValue;
-            }
+                KVValueType.String => IsBlankText(obj) ? defaultValue : ValueParsing.ParseFloat((string)obj),
+                KVValueType.Boolean => (bool)obj ? 1f : 0f,
+                KVValueType.Int16 or KVValueType.Int32 or KVValueType.Int64 => obj.ToInt64(culture),
+                KVValueType.UInt16 or KVValueType.UInt32 or KVValueType.UInt64 => obj.ToUInt64(culture),
+                KVValueType.FloatingPoint or KVValueType.FloatingPoint64 => (float)obj.ToDouble(culture),
+                _ => defaultValue,
+            };
         }
 
         /// <summary>
@@ -152,24 +122,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// <param name="defaultValue">The result for empty or white space text, for text that is not a boolean and for any other kind of value.</param>
         public static bool ToBooleanOrDefault(this KVObject obj, bool defaultValue = false)
         {
-            switch (obj.ValueType)
+            return obj.ValueType switch
             {
-                case KVValueType.String:
-                    return IsBlankText(obj) ? defaultValue : ValueParsing.ParseBool((string)obj, defaultValue);
-                case KVValueType.Boolean:
-                    return (bool)obj;
-                case KVValueType.Int16:
-                case KVValueType.Int32:
-                case KVValueType.Int64:
-                case KVValueType.UInt16:
-                case KVValueType.UInt32:
-                case KVValueType.UInt64:
-                case KVValueType.FloatingPoint:
-                case KVValueType.FloatingPoint64:
-                    return obj.ToInt64OrDefault() != 0;
-                default:
-                    return defaultValue;
-            }
+                KVValueType.String => IsBlankText(obj) ? defaultValue : ValueParsing.ParseBool((string)obj, defaultValue),
+                KVValueType.Boolean => (bool)obj,
+                KVValueType.Int16 or KVValueType.Int32 or KVValueType.Int64
+                    or KVValueType.UInt16 or KVValueType.UInt32 or KVValueType.UInt64
+                    or KVValueType.FloatingPoint or KVValueType.FloatingPoint64 => obj.ToInt64OrDefault() != 0,
+                _ => defaultValue,
+            };
         }
 
         /// <summary>

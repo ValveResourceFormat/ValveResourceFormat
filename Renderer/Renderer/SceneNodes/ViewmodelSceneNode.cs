@@ -830,9 +830,9 @@ public class ViewmodelSceneNode : ModelSceneNode
             {
                 SetKnifeCooldown(fireDelay, connected);
             }
-            else if (muzzleFlashParticle != null)
+            else
             {
-                muzzleFlashParticle.Restart();
+                muzzleFlashParticle?.Restart();
             }
         }
         else if (input.Holding(TrackedKeys.MouseRight) && alternateAttackCooldown <= 0f && Deployed)
@@ -877,7 +877,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         UpdateTransforms(input, uptime);
     }
 
-    private PlayerBodyAnimator? bodyAnimator;
+    private readonly PlayerBodyAnimator? bodyAnimator;
     private bool bodyActionRestarted;
 
     // Tells the body's animation graph what is held and what it is being used for

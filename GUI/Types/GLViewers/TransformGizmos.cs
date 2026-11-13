@@ -1,6 +1,5 @@
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
-using ValveResourceFormat.Utils;
 
 namespace GUI.Types.GLViewers
 {

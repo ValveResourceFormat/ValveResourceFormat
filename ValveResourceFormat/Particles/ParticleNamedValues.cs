@@ -59,7 +59,7 @@ namespace ValveResourceFormat.Particles
 
         private ParticleNamedValue[] current;
         private ParticleNamedValue[] previous;
-        private ParticleNamedValue[] initial;
+        private readonly ParticleNamedValue[] initial;
         private readonly bool[] assigned;
 
         private bool capturePending = true;

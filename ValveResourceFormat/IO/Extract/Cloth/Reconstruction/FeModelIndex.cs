@@ -230,7 +230,7 @@ namespace ValveResourceFormat.IO
         internal IReadOnlyDictionary<int, int[]> FitMatrixTargets { get; }
 
         /// <summary>Gets the control nodes named by any twist constraint (<c>m_Twists</c>).</summary>
-        internal IReadOnlySet<int> TwistNodes => twistNodes ??= fe.Twists.SelectMany(static twist => (int[])[twist.NodeOrient, twist.NodeEnd]).ToHashSet();
+        internal IReadOnlySet<int> TwistNodes => twistNodes ??= [.. fe.Twists.SelectMany(static twist => (int[])[twist.NodeOrient, twist.NodeEnd])];
 
         /// <summary>Gets whether the cloth carries per-node local force or rotation values.</summary>
         internal bool HasPerNodeLocalForce => fe.LocalForces.Length > 0 || fe.LocalRotations.Length > 0;

@@ -3,7 +3,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
-using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Renderer.SceneEnvironment;

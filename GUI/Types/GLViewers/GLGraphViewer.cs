@@ -299,10 +299,7 @@ namespace GUI.Types.GLViewers
         {
             lastSearchResult = null;
 
-            if (searchBox != null)
-            {
-                searchBox.Text = string.Empty;
-            }
+            searchBox?.Text = string.Empty;
 
             View.SetSearchHighlight(null);
             View.ClearSelection();
@@ -316,15 +313,9 @@ namespace GUI.Types.GLViewers
                 View.StraightWires = openingStraightWires;
             }
 
-            if (stateMachinesCheckBox != null)
-            {
-                stateMachinesCheckBox.Checked = false;
-            }
+            stateMachinesCheckBox?.Checked = false;
 
-            if (parameterWiresCheckBox != null)
-            {
-                parameterWiresCheckBox.Checked = false;
-            }
+            parameterWiresCheckBox?.Checked = false;
 
             if (subtitleFilter != null)
             {
@@ -1038,7 +1029,7 @@ namespace GUI.Types.GLViewers
         /// </summary>
         protected override void OnKeyDown(Keys keyData)
         {
-            if (keyData == (Keys.Control | Keys.D0) || keyData == (Keys.Control | Keys.NumPad0))
+            if (keyData is (Keys.Control | Keys.D0) or (Keys.Control | Keys.NumPad0))
             {
                 RefitToGraph();
                 return;

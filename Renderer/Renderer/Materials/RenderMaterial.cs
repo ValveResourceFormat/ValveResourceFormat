@@ -6,7 +6,6 @@ using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.VfxEval;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Materials
 {
@@ -719,7 +718,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 var layerCharacter = param.Key[^1];
                 var layerIndex = layerCharacter - '0';
 
-                if (layerIndex < 1 || layerIndex > 3)
+                if (layerIndex is < 1 or > 3)
                 {
                     continue;
                 }

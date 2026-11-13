@@ -15,7 +15,7 @@ namespace GUI.Types.Viewers
         {
             if (stream == null)
             {
-                using var fileStream = File.Open(vrfGuiContext.FileName!, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var fileStream = File.Open(vrfGuiContext.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 input = new byte[fileStream.Length];
                 await fileStream.ReadExactlyAsync(input).ConfigureAwait(false);
             }

@@ -15,7 +15,7 @@ using ValveResourceFormat.Utils;
 using Vector2 = System.Numerics.Vector2;
 using Vector3 = System.Numerics.Vector3;
 
-internal class RenderTestWindow : GameWindow
+internal sealed class RenderTestWindow : GameWindow
 {
     private Renderer? SceneRenderer;
     private Framebuffer? framebuffer;
@@ -179,7 +179,7 @@ internal class RenderTestWindow : GameWindow
         if (input.IsKeyDown(Keys.LeftAlt) || input.IsKeyDown(Keys.RightAlt)) trackedKeys |= TrackedKeys.Alt;
         if (input.IsKeyDown(Keys.LeftControl) || input.IsKeyDown(Keys.RightControl)) trackedKeys |= TrackedKeys.Control;
 
-        if (Loaded == false)
+        if (!Loaded)
         {
             return;
         }
@@ -343,7 +343,7 @@ internal class RenderTestWindow : GameWindow
     }
 }
 
-internal class Program
+internal sealed class Program
 {
     private static void Main()
     {

@@ -366,7 +366,7 @@ public sealed partial class NmGraphExtract : IDisposable
             var stateNodeId = stateNodes[stateNodeIndex].GetStringProperty("m_ID");
 
             var pin = CreatePin(stateName, "Bool", isDynamicPin: true);
-            var resultPins = resultNode["m_inputPins"]!;
+            var resultPins = resultNode["m_inputPins"];
             resultPins.Add(pin);
             pinToStateMapping.Add(stateNodeId);
 
@@ -2382,7 +2382,7 @@ public sealed partial class NmGraphExtract : IDisposable
     }
 
     private static PinDef[] CreateRepeatedPins(string name, string type, int count)
-        => Enumerable.Range(0, count).Select(_ => new PinDef(name, type)).ToArray();
+        => [.. Enumerable.Range(0, count).Select(_ => new PinDef(name, type))];
 
     private static bool IsControlParameterNode(KVObject compiledNode)
         => GetCompiledClass(compiledNode).TryGetTypedSuffix("ControlParameter", out _);
@@ -2678,7 +2678,7 @@ public sealed partial class NmGraphExtract : IDisposable
         {
             if (pin.IsDynamicPin && pin.Type == "Pose" && overrideIndex < overridePoints.Count)
             {
-                var point = overridePoints[overrideIndex++]!;
+                var point = overridePoints[overrideIndex++];
                 array.Add(CreatePinWithId(pin.Name, pin.Type, point.GetStringProperty("m_pinID"), pin.IsDynamicPin, pin.AllowMultipleOutConnections));
                 continue;
             }
@@ -2704,10 +2704,10 @@ public sealed partial class NmGraphExtract : IDisposable
     }
 
     private static string GetInputPinId(KVObject node, int inputIndex)
-        => node.GetArray("m_inputPins")![inputIndex]!.GetStringProperty("m_ID");
+        => node.GetArray("m_inputPins")[inputIndex].GetStringProperty("m_ID");
 
     private static string GetOutputPinId(KVObject node, int outputIndex)
-        => node.GetArray("m_outputPins")![outputIndex]!.GetStringProperty("m_ID");
+        => node.GetArray("m_outputPins")[outputIndex].GetStringProperty("m_ID");
 
     private static KVObject MakeVector2(float x, float y)
     {

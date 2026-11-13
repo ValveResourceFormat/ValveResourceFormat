@@ -1,5 +1,3 @@
-using ValveResourceFormat.Utils;
-
 namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
@@ -55,7 +53,7 @@ namespace ValveResourceFormat.Particles.Utils
             var scale = new Vector3(255f) / range;
             var origin = (range * OriginFraction) + low;
 
-            Span<int> particleBoxes = count * 6 <= 1024 ? stackalloc int[count * 6] : new int[count * 6];
+            var particleBoxes = count * 6 <= 1024 ? stackalloc int[count * 6] : new int[count * 6];
 
             for (var i = 0; i < count; i++)
             {
@@ -90,7 +88,7 @@ namespace ValveResourceFormat.Particles.Utils
         private void CollectPairs()
         {
             var groupCount = MathUtils.DivideRoundUp(count, GroupSize);
-            Span<int> groupBoxes = groupCount * 6 <= 1024 ? stackalloc int[groupCount * 6] : new int[groupCount * 6];
+            var groupBoxes = groupCount * 6 <= 1024 ? stackalloc int[groupCount * 6] : new int[groupCount * 6];
 
             for (var group = 0; group < groupCount; group++)
             {

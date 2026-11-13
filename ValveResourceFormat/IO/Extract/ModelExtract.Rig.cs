@@ -115,7 +115,7 @@ partial class ModelExtract
     bool ProcessBoneConstraintChildren(KVObject boneConstraint, KVObject node)
     {
         var targets = boneConstraint.GetArray("m_targets")
-                                    .Select(p => ProcessBoneConstraintTarget(p))
+                                    .Select(ProcessBoneConstraintTarget)
                                     .OfType<KVObject>();
 
         IEnumerable<KVObject> children;
@@ -150,7 +150,7 @@ partial class ModelExtract
         else
         {
             var slaves = boneConstraint.GetArray("m_slaves")
-                                        .Select(p => ProcessBoneConstraintSlave(p))
+                                        .Select(ProcessBoneConstraintSlave)
                                         .OfType<KVObject>();
 
             children = slaves.Concat(targets);
@@ -494,7 +494,7 @@ partial class ModelExtract
         var boneMasks = sequenceData.Data.GetArray("m_localBoneMaskArray");
         var boneNames = sequenceData.Data.GetArray<string>("m_localBoneNameArray");
 
-        foreach (var boneMask in boneMasks!)
+        foreach (var boneMask in boneMasks)
         {
             var name = boneMask.GetStringProperty("m_sName");
             var boneArray = boneMask.GetIntegerArray("m_nLocalBoneArray");
@@ -521,7 +521,7 @@ partial class ModelExtract
             foreach (var (boneIndex, boneWeight) in boneArray.Zip(boneWeights))
             {
                 var weightDefinition = KVObject.Collection();
-                var boneName = boneNames![boneIndex];
+                var boneName = boneNames[boneIndex];
 
                 weightDefinition.Add("bone", boneName);
                 weightDefinition.Add("weight", boneWeight);
@@ -565,7 +565,7 @@ partial class ModelExtract
 
             for (var i = 0; i < boneArray.Length; i++)
             {
-                compiledScaleByBone[boneNames![boneArray[i]]] = boneScaleArray[i];
+                compiledScaleByBone[boneNames[boneArray[i]]] = boneScaleArray[i];
             }
 
             var authoredScaleByBone = new Dictionary<string, float>(boneArray.Length);
@@ -601,7 +601,7 @@ partial class ModelExtract
 
             foreach (var boneIndex in boneArray)
             {
-                var boneName = boneNames![boneIndex];
+                var boneName = boneNames[boneIndex];
                 var scaleDefinition = KVObject.Collection();
                 scaleDefinition.Add("bone", boneName);
                 scaleDefinition.Add("scale", GetAuthoredScale(boneName));

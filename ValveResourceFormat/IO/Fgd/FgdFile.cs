@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 using Token = ValveResourceFormat.IO.Fgd.FgdTokenizer.Token;
 
 namespace ValveResourceFormat.IO.Fgd;

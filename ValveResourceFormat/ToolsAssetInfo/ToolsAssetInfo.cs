@@ -426,14 +426,14 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
             if (magic == MAGIC2)
             {
-                if (Version < 11 || Version > 16)
+                if (Version is < 11 or > 16)
                 {
                     throw new UnexpectedMagicException("Unexpected version", Version, nameof(Version));
                 }
             }
             else if (magic == MAGIC)
             {
-                if (Version < 8 || Version > 10)
+                if (Version is < 8 or > 10)
                 {
                     throw new UnexpectedMagicException("Unexpected version (old magic)", Version, nameof(Version));
                 }

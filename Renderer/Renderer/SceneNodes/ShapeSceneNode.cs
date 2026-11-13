@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.Renderer.Materials;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
@@ -39,7 +38,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         protected int indexCount { get; private set; }
 
         // Line index pairs that follow the triangle indices, drawn instead of a wireframe
-        private int lineIndexCount;
+        private readonly int lineIndexCount;
 
         /// <summary>Gets the vertex array state for this shape.</summary>
         protected int vao { get; private set; }

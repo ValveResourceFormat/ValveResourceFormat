@@ -100,7 +100,7 @@ namespace ValveResourceFormat.Particles.Initializers
                     segmentEnd = segmentStart == pathParams.EndControlPointNumber ? segmentStart : segmentStart + 1;
                 }
 
-                if (t > 1.0000001f || t < 0f)
+                if (t is > 1.0000001f or < 0f)
                 {
                     if (loop || cpPairs)
                     {

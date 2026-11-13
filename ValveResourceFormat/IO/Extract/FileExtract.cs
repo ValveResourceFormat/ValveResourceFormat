@@ -309,7 +309,7 @@ namespace ValveResourceFormat.IO
 
         private static ContentFile ExtractPanorama(Resource resource)
         {
-            var data = resource.DataBlock == null ? Array.Empty<byte>() : ((Panorama)resource.DataBlock).Data;
+            var data = resource.DataBlock == null ? [] : ((Panorama)resource.DataBlock).Data;
 
             return new ContentFile
             {
@@ -371,7 +371,7 @@ namespace ValveResourceFormat.IO
             {
                 contentFile.AddSubFile(
                     fileName: Path.GetFileName(lutFileName)!,
-                    extractMethod: () => postProcessing.GetRAWData()
+                    extractMethod: postProcessing.GetRAWData
                 );
             }
 

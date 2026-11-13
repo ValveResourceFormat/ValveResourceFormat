@@ -1,5 +1,3 @@
-using ValveResourceFormat.Utils;
-
 namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>A light's distance falloff, <c>1 / (constant + linear*d + quadratic*d^2)</c>.</summary>

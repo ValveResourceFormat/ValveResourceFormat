@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Particles.Initializers
             attributeToCopy = parse.ParticleField("m_nAttributeToCopy", attributeToCopy);
         }
 
-        private bool CopiesAttribute => attributeToCopy >= 0 && attributeToCopy != ParticleField.NoneDisabled;
+        private bool CopiesAttribute => attributeToCopy is >= 0 and not ParticleField.NoneDisabled;
 
         public override ulong WrittenFields => CopiesAttribute ? attributeToCopy.Mask() : 0;
 

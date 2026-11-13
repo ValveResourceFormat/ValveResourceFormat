@@ -172,7 +172,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>An array of child entity lump names.</returns>
         public string[] GetChildEntityNames()
         {
-            return Data.GetArray<string>("m_childLumps")!;
+            return Data.GetArray<string>("m_childLumps");
         }
 
         /// <summary>
@@ -180,10 +180,9 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         /// <returns>A list of entities.</returns>
         public List<Entity> GetEntities()
-            => Data.GetArray("m_entityKeyValues")
+            => [.. Data.GetArray("m_entityKeyValues")
                 .Select(ParseEntityProperties)
-                .OfType<Entity>()
-                .ToList();
+                .OfType<Entity>()];
 
         private Entity? ParseEntityProperties(KVObject entityKv)
         {
@@ -196,7 +195,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else
             {
-                entity = ParseEntityProperties(entityKv.GetArray<byte>("m_keyValuesData")!);
+                entity = ParseEntityProperties(entityKv.GetArray<byte>("m_keyValuesData"));
             }
 
             // are there any kinds of valid entities which don't contain a classname?
@@ -299,7 +298,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var type = (EntityFieldType)dataReader.ReadUInt32();
 
-                KVObject entityProperty = type switch
+                var entityProperty = type switch
                 {
                     EntityFieldType.Boolean => dataReader.ReadBoolean(),
                     EntityFieldType.Float => (double)dataReader.ReadSingle(),

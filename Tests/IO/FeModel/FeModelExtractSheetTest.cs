@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using TUnit.Assertions.Enums;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using static Tests.IO.FeModelBuilder;
 using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
 
@@ -67,7 +66,7 @@ namespace Tests.IO
                 Debug.Assert(apart is not null);
                 await Assert.That(apart).IsNotNull();
                 await Assert.That(apartCurvature).IsEqualTo(0f);
-                await Assert.That(apart!.GetValueOrDefault(1) + apart.GetValueOrDefault(5)).IsEqualTo(0f).Within(0.02f);
+                await Assert.That(apart.GetValueOrDefault(1) + apart.GetValueOrDefault(5)).IsEqualTo(0f).Within(0.02f);
                 await Assert.That(apart.GetValueOrDefault(2) + apart.GetValueOrDefault(6)).IsEqualTo(1f).Within(0.02f);
                 await Assert.That(alike).IsNull();
                 await Assert.That(alikeCurvature).IsEqualTo(0.5f);
@@ -110,7 +109,7 @@ namespace Tests.IO
                 Debug.Assert(paint is not null);
                 await Assert.That(paint).IsNotNull();
                 await Assert.That(curvature).IsEqualTo(0f);
-                await Assert.That(paint!.GetValueOrDefault(1) + paint.GetValueOrDefault(5)).IsEqualTo(0.25f).Within(0.02f);
+                await Assert.That(paint.GetValueOrDefault(1) + paint.GetValueOrDefault(5)).IsEqualTo(0.25f).Within(0.02f);
                 await Assert.That(paint.GetValueOrDefault(5) + paint.GetValueOrDefault(9)).IsEqualTo(0.75f).Within(0.02f);
                 await Assert.That(paint.GetValueOrDefault(4) + paint.GetValueOrDefault(5)).IsEqualTo(0.5f).Within(0.02f);
             }
@@ -167,7 +166,7 @@ namespace Tests.IO
                 Debug.Assert(paint is not null);
                 await Assert.That(paint).IsNotNull();
                 await Assert.That(curvature).IsEqualTo(0.25f);
-                await Assert.That(paint!.GetValueOrDefault(1) + paint.GetValueOrDefault(5)).IsEqualTo(1f).Within(0.02f);
+                await Assert.That(paint.GetValueOrDefault(1) + paint.GetValueOrDefault(5)).IsEqualTo(1f).Within(0.02f);
                 await Assert.That(paint.GetValueOrDefault(5) + paint.GetValueOrDefault(6)).IsEqualTo(0.5f).Within(0.02f);
                 await Assert.That(paint.GetValueOrDefault(2) + paint.GetValueOrDefault(6)).IsEqualTo(0f).Within(0.02f);
                 await Assert.That(plain).IsNull();
@@ -328,7 +327,7 @@ namespace Tests.IO
                 await Assert.That(paint).IsNull();
                 await Assert.That(curvature).IsEqualTo(0.64999986f);
                 await Assert.That(folded).IsNotNull();
-                await Assert.That(folded!.GetValueOrDefault(3) + folded.GetValueOrDefault(4)).IsGreaterThan(0f);
+                await Assert.That(folded.GetValueOrDefault(3) + folded.GetValueOrDefault(4)).IsGreaterThan(0f);
                 await Assert.That(folded.GetValueOrDefault(2)).IsEqualTo(0f);
                 await Assert.That(foldedCurvature).IsEqualTo(0.64999986f);
             }
@@ -805,8 +804,8 @@ namespace Tests.IO
 
         private static List<int[]> CoveringPaintFaces => [[15, 12, 13], [14, 15, 13], [6, 7, 3, 4], [5, 8, 6, 4], [0, 5, 4, 1], [3, 2, 1, 4], [9, 10, 7, 6], [8, 11, 9, 6], [11, 14, 13, 9], [12, 10, 9, 13]];
 
-        private static HashSet<(int, int)> CoveringPaintNetwork =>
-            [(0, 8), (1, 6), (2, 7), (3, 5), (3, 10), (4, 9), (5, 11), (6, 13), (7, 8), (7, 12), (8, 14), (9, 15), (10, 11), (10, 15), (11, 15), (12, 14)];
+        private static HashSet<(int, int)> CoveringPaintNetwork
+            => [(0, 8), (1, 6), (2, 7), (3, 5), (3, 10), (4, 9), (5, 11), (6, 13), (7, 8), (7, 12), (8, 14), (9, 15), (10, 11), (10, 15), (11, 15), (12, 14)];
 
         private static ClothReconstruction CoveringPaintSheet => new FeModelBuilder
         {

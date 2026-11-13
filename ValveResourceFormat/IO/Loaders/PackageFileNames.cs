@@ -2,7 +2,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.IO.Enumeration;
-using System.Linq;
 using ValvePak;
 
 namespace ValveResourceFormat.IO

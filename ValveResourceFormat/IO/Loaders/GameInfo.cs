@@ -123,7 +123,7 @@ namespace ValveResourceFormat.IO
                 {
                     foreach (var (key, searchPath) in searchPaths)
                     {
-                        SearchPaths.Add(new(key, searchPath.ToString()!));
+                        SearchPaths.Add(new(key, searchPath.ToString()));
                     }
                 }
             }

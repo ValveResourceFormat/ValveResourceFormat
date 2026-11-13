@@ -1,8 +1,4 @@
 using System.Diagnostics;
-using System.Linq;
-using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.ModelAnimation2;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Animation
 {

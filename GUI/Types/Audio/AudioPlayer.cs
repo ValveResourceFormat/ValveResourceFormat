@@ -75,7 +75,7 @@ namespace GUI.Types.Audio
 
             try
             {
-                WaveStream waveStream = soundData.SoundType switch
+                var waveStream = soundData.SoundType switch
                 {
                     Sound.AudioFileType.WAV => CreateWavStream(new WaveFileReader(stream)),
                     Sound.AudioFileType.MP3 => new Mp3FileReaderBase(stream, wf => new Mp3FrameDecompressor(wf)),

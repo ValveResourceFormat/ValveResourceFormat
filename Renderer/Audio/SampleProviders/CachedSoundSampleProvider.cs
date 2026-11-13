@@ -1,5 +1,4 @@
 using System.Numerics.Tensors;
-using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.Renderer.Audio.SampleProviders;
 

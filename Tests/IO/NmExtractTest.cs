@@ -1,6 +1,5 @@
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using System.Threading.Tasks;
 using TUnit.Assertions.Enums;
 using ValveKeyValue;
@@ -39,8 +38,8 @@ namespace Tests.IO
             var additive = ExtractClipDoc("shoot_cz75.vnmclip_c");
 
             var events = ExtractClipDoc("shoot1_nova.vnmclip_c")
-                .GetArray("m_eventTracks")!
-                .SelectMany(track => track.GetArray("m_events")!)
+                .GetArray("m_eventTracks")
+                .SelectMany(track => track.GetArray("m_events"))
                 .ToArray();
 
             var idEvent = events.Single(ev => ev.GetStringProperty("_class") == "CNmClipDocEvent_ID");

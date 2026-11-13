@@ -11,24 +11,24 @@ partial class HalfEdgeMesh
     /// </summary>
     /// <typeparam name="TData">Type stored per vertex.</typeparam>
     /// <param name="name">Name to register the stream under.</param>
-    public VertexData<TData> CreateVertexData<TData>(string name) where TData : struct =>
-        VertexList.CreateDataStream<VertexData<TData>>(name);
+    public VertexData<TData> CreateVertexData<TData>(string name) where TData : struct
+        => VertexList.CreateDataStream<VertexData<TData>>(name);
 
     /// <summary>
     /// Attaches a named per face data stream to the mesh.
     /// </summary>
     /// <typeparam name="TData">Type stored per face.</typeparam>
     /// <param name="name">Name to register the stream under.</param>
-    public FaceData<TData> CreateFaceData<TData>(string name) where TData : struct =>
-        FaceList.CreateDataStream<FaceData<TData>>(name);
+    public FaceData<TData> CreateFaceData<TData>(string name) where TData : struct
+        => FaceList.CreateDataStream<FaceData<TData>>(name);
 
     /// <summary>
     /// Attaches a named per half edge data stream to the mesh.
     /// </summary>
     /// <typeparam name="TData">Type stored per half edge.</typeparam>
     /// <param name="name">Name to register the stream under.</param>
-    public HalfEdgeData<TData> CreateHalfEdgeData<TData>(string name) where TData : struct =>
-        HalfEdgeList.CreateDataStream<HalfEdgeData<TData>>(name);
+    public HalfEdgeData<TData> CreateHalfEdgeData<TData>(string name) where TData : struct
+        => HalfEdgeList.CreateDataStream<HalfEdgeData<TData>>(name);
 }
 
 /// <summary>

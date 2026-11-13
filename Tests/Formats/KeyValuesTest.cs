@@ -758,7 +758,7 @@ namespace Tests.Formats
                 await Assert.That(file.Root["doubleValue"].ValueType).IsEqualTo(KVValueType.FloatingPoint64);
                 await Assert.That((double)file.Root["doubleValue"]).IsEqualTo(64.000000);
                 await Assert.That(file.Root["negativeIntValue"].ValueType).IsEqualTo(KVValueType.Int64);
-                await Assert.That((long)file.Root["negativeIntValue"]).IsEqualTo((long)-1337);
+                await Assert.That((long)file.Root["negativeIntValue"]).IsEqualTo(-1337);
                 await Assert.That(file.Root["negativeDoubleValue"].ValueType).IsEqualTo(KVValueType.FloatingPoint64);
                 await Assert.That((double)file.Root["negativeDoubleValue"]).IsEqualTo(-0.133700);
                 await Assert.That(file.Root["stringValue"].ValueType).IsEqualTo(KVValueType.String);

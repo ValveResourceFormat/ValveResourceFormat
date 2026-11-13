@@ -1,7 +1,6 @@
 //#define SCREENSHOT_MODE // Uncomment to hide version, keep title bar static, set an exact window size
 
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -262,10 +261,10 @@ namespace GUI
                 for (var depth = 1; depth < packagePaths.Count; depth++)
                 {
                     var nestedPath = packagePaths[depth];
-                    var nestedEntry = packageContext.CurrentPackage!.FindEntry(nestedPath)
+                    var nestedEntry = packageContext.CurrentPackage.FindEntry(nestedPath)
                         ?? throw new MissingFileException($"File '{nestedPath}' does not exist in package '{packageContext.FileName}'.");
 
-                    var nestedPackage = NestedPackage.Open(packageContext.CurrentPackage!, nestedEntry);
+                    var nestedPackage = NestedPackage.Open(packageContext.CurrentPackage, nestedEntry);
                     try
                     {
                         packageContext = new VrfGuiContext(nestedEntry.GetFullPath(), packageContext)
@@ -280,7 +279,7 @@ namespace GUI
                     }
                 }
 
-                var packageFile = packageContext.CurrentPackage!.FindEntry(innerFile)
+                var packageFile = packageContext.CurrentPackage.FindEntry(innerFile)
                     ?? packageContext.CurrentPackage.FindEntry(innerFile + GameFileLoader.CompiledFileSuffix)
                     ?? throw new MissingFileException($"File '{innerFile}' does not exist in package '{packageContext.FileName}'.");
 
@@ -532,7 +531,7 @@ namespace GUI
                 CloseTabsToRight(mainTabs.SelectedTab);
             }
 
-            if (keyData == (Keys.Control | Keys.R) || keyData == Keys.F5)
+            if (keyData is (Keys.Control | Keys.R) or Keys.F5)
             {
                 CloseAndReOpenActiveTab();
             }

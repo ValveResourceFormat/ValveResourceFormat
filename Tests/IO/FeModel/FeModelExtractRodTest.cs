@@ -5,7 +5,6 @@ using TUnit.Assertions.Enums;
 using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
 using static Tests.IO.FeModelBuilder;
 using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
@@ -31,7 +30,7 @@ namespace Tests.IO
 
             await Assert.That(tied.Count).IsEqualTo(1);
             var cluster = tied.ElementAt(0).Value;
-            var joints = cluster.GetSubCollection("chain").GetArray("joints")!.ToArray();
+            var joints = cluster.GetSubCollection("chain").GetArray("joints").ToArray();
 
             using (Assert.Multiple())
             {
@@ -146,7 +145,7 @@ namespace Tests.IO
             var emitted = tied.Select(static child => child.Value).ToArray();
 
             static IEnumerable<KVObject> Members(IEnumerable<KVObject> nodes)
-                => nodes.SelectMany(static node => node.GetSubCollection("chain").GetArray("joints")!);
+                => nodes.SelectMany(static node => node.GetSubCollection("chain").GetArray("joints"));
 
             using (Assert.Multiple())
             {
@@ -247,7 +246,7 @@ namespace Tests.IO
             using (Assert.Multiple())
             {
                 await Assert.That(chain.GetSubCollection("joints")
-                    .Select(j => ((KVObject)j.Value!).GetStringProperty("joint_name")))
+                    .Select(j => j.Value.GetStringProperty("joint_name")))
                     .IsEquivalentTo(expectedMembers, StringComparer.Ordinal);
                 await Assert.That(chain.GetInt32Property("version")).IsEqualTo(0);
                 await Assert.That(Keys(chain.GetSubCollection("attrs"))).IsEquivalentTo(expectedKeys, StringComparer.Ordinal);

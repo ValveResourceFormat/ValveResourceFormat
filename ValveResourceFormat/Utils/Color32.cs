@@ -53,7 +53,7 @@ namespace ValveResourceFormat.Utils
         /// <param name="g">Green component (0-255).</param>
         /// <param name="b">Blue component (0-255).</param>
         /// <param name="a">Alpha component (0-255).</param>
-        public Color32(byte r, byte g, byte b, byte a) : this((uint)r | ((uint)g << 8) | ((uint)b << 16) | ((uint)a << 24)) { }
+        public Color32(byte r, byte g, byte b, byte a) : this(r | ((uint)g << 8) | ((uint)b << 16) | ((uint)a << 24)) { }
 
         /// <summary>
         /// Initializes a new color from RGBA float components.

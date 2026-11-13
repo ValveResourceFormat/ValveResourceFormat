@@ -1228,11 +1228,11 @@ namespace Tests.IO
 
                 await Assert.That(doubledChain.Joints[2].StretchStiffness).IsNotEqualTo(0f);
                 await Assert.That(doubled.GetAuthoredSourceSprings([doubledChain])
-                    .Select(static spring => spring.Copies).Sum()).IsEqualTo(1);
+                    .Sum(static spring => spring.Copies)).IsEqualTo(1);
 
                 await Assert.That(singleChain.Joints[2].StretchStiffness).IsEqualTo(0f);
                 await Assert.That(single.GetAuthoredSourceSprings([singleChain])
-                    .Select(static spring => spring.Copies).Sum()).IsEqualTo(1);
+                    .Sum(static spring => spring.Copies)).IsEqualTo(1);
             }
         }
 

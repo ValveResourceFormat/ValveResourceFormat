@@ -340,7 +340,7 @@ public sealed class TiledCullFeeder
         {
             var index = envMap.ShaderIndex;
 
-            if (index < 0 || index >= MaxItemsPerBatch)
+            if (index is < 0 or >= MaxItemsPerBatch)
             {
                 continue;
             }

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using Transform = ValveResourceFormat.ResourceTypes.ModelAnimation.FrameBone;
 

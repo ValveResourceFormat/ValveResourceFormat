@@ -22,15 +22,13 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the bind pose transformation matrices.
         /// </summary>
         public Matrix4x4[] BindPose
-           => bindPose ??= Data.GetArray("m_bindPose")
-                .Select(v => v.ToMatrix4x4())
-                .ToArray();
+           => bindPose ??= [.. Data.GetArray("m_bindPose").Select(v => v.ToMatrix4x4())];
 
         /// <summary>
         /// Gets the physics parts (shapes) in this aggregate.
         /// </summary>
         public Part[] Parts
-            => parts ??= Data.GetArray("m_parts").Select(p => new Part(p)).ToArray();
+            => parts ??= [.. Data.GetArray("m_parts").Select(p => new Part(p))];
 
         /// <summary>
         /// Gets the joints (constraints) between parts in this aggregate.

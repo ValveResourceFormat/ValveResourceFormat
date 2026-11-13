@@ -1,8 +1,6 @@
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using ValveKeyValue;
-using ValveResourceFormat.Particles.Upgrade;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles;
@@ -37,10 +35,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, S
     /// <summary>Records that the function being read declares a random float input.</summary>
     public readonly void AddRandomInput()
     {
-        if (RandomInputs is not null)
-        {
-            RandomInputs.Value = true;
-        }
+        RandomInputs?.Value = true;
     }
 
     private readonly T GetValueOrDefault<T>(string key, Func<string, T?> parsingMethod, T @default)

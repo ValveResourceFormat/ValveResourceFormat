@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Linq;
 using Microsoft.Extensions.Logging;
-using ValveKeyValue;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelData;

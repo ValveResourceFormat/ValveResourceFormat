@@ -297,13 +297,10 @@ namespace ValveResourceFormat.Particles
         /// <summary>Copies the current particles as the state before the step about to run.</summary>
         internal void CapturePreviousStep()
         {
-            if (previousStep == null)
+            previousStep ??= new ParticleBuffer(current.Capacity, StoredFields & blendedFieldMask)
             {
-                previousStep = new ParticleBuffer(current.Capacity, StoredFields & blendedFieldMask)
-                {
-                    Constants = current.Constants,
-                };
-            }
+                Constants = current.Constants,
+            };
 
             previousStep.Copy(current, 0, 0, Count);
             previousStep.Time = current.Time;

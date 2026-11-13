@@ -337,7 +337,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit | MemoryBarrierFlags.TextureFetchBarrierBit);
             }
 
-            RenderTexture resolvedScene = resolveTarget;
+            var resolvedScene = resolveTarget;
 
             if (DOF.Enabled)
             {

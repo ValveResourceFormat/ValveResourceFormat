@@ -149,7 +149,7 @@ namespace ValveResourceFormat.NavMesh
             }
 
             var version = binaryReader.ReadUInt32();
-            if (version < 30 || version > 36)
+            if (version is < 30 or > 36)
             {
                 throw new UnexpectedMagicException("Unsupported nav version", version, nameof(version));
             }

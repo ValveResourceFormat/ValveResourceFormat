@@ -1,5 +1,4 @@
 using System.Linq;
-using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.ResourceTypes;

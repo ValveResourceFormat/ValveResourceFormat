@@ -1,4 +1,3 @@
-using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;

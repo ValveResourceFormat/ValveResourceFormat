@@ -135,7 +135,7 @@ public sealed partial class MaterialExtract
             texturePath = Path.ChangeExtension(texturePath, null);
         }
 
-        var textureParts = Path.GetFileName(texturePath)!.Split('_');
+        var textureParts = Path.GetFileName(texturePath).Split('_');
 
         // Also seen "{MAT}_vmat_{G_TPARAM}_{HASH}.vtex"
         var compiledSuffix = CompiledTextureSuffixRegex().Match(texturePath);
@@ -299,7 +299,7 @@ public sealed partial class MaterialExtract
         {
             // Some attributes are actually SystemAttributes
             var systemAttributes = attributes.Where(attribute => SystemAttributeNames.Contains(attribute.Key)).ToList();
-            attributes = attributes.Except(systemAttributes).ToList();
+            attributes = [.. attributes.Except(systemAttributes)];
 
             if (attributes.Count > 0)
             {

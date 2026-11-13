@@ -1,5 +1,3 @@
-using ValveResourceFormat.Renderer.Materials;
-
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>How a node draws one of its materials.</summary>

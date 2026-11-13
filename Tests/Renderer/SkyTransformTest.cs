@@ -5,7 +5,6 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Utils;
 
 namespace Tests.Renderer
 {

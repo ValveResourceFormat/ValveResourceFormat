@@ -55,7 +55,7 @@ internal sealed class SpawnGroupLoader
             // The placing map stores prefab lights once its lump is done
             if (world.OwnsScene)
             {
-                group.Scene.LightingInfo.StoreLights(group.Scene.AllNodes.OfType<SceneLight>().ToList());
+                group.Scene.LightingInfo.StoreLights([.. group.Scene.AllNodes.OfType<SceneLight>()]);
             }
 
             world.LoadAfterEntities();
@@ -102,15 +102,15 @@ internal sealed class SpawnGroupLoader
     private List<BaseEntity> SpawnEntities(List<Entity> groupEntities)
     {
         static bool IsCubemapOrProbe(string cls)
-            => cls == "env_combined_light_probe_volume"
-            || cls == "env_light_probe_volume"
-            || cls == "env_cubemap_box"
-            || cls == "env_cubemap";
+            => cls is "env_combined_light_probe_volume"
+            or "env_light_probe_volume"
+            or "env_cubemap_box"
+            or "env_cubemap";
 
         var entitiesReordered = groupEntities
             .Select(entity => (Entity: entity, Classname: entity.GetStringProperty("classname")))
             .Where(x => x.Classname != null)
-            .Select(x => (x.Entity, Classname: x.Classname!))
+            .Select(x => (x.Entity, Classname: x.Classname))
             .OrderByDescending(x => IsCubemapOrProbe(x.Classname));
 
         var batch = new List<BaseEntity>(groupEntities.Count);

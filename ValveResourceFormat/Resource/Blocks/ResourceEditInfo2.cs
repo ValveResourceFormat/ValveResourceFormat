@@ -142,7 +142,7 @@ namespace ValveResourceFormat.Blocks
                     var definitions = new string[property.Count];
                     for (var i = 0; i < property.Count; i++)
                     {
-                        definitions[i] = (string)property[i]!;
+                        definitions[i] = (string)property[i];
                     }
 
                     SubassetDefinitions.Add(propertyKey, definitions);

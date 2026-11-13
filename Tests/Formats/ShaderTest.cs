@@ -331,11 +331,11 @@ namespace Tests.Formats
         {
             using (Assert.Multiple())
             {
-                await Assert.That(ChannelMapping.R.PackedValue).IsEqualTo((uint)0xFFFFFF00);
-                await Assert.That(ChannelMapping.G.PackedValue).IsEqualTo((uint)0xFFFFFF01);
-                await Assert.That(ChannelMapping.B.PackedValue).IsEqualTo((uint)0xFFFFFF02);
-                await Assert.That(ChannelMapping.A.PackedValue).IsEqualTo((uint)0xFFFFFF03);
-                await Assert.That(ChannelMapping.RGB.PackedValue).IsEqualTo((uint)0xFF020100);
+                await Assert.That(ChannelMapping.R.PackedValue).IsEqualTo(0xFFFFFF00);
+                await Assert.That(ChannelMapping.G.PackedValue).IsEqualTo(0xFFFFFF01);
+                await Assert.That(ChannelMapping.B.PackedValue).IsEqualTo(0xFFFFFF02);
+                await Assert.That(ChannelMapping.A.PackedValue).IsEqualTo(0xFFFFFF03);
+                await Assert.That(ChannelMapping.RGB.PackedValue).IsEqualTo(0xFF020100);
                 await Assert.That(ChannelMapping.RGBA.PackedValue).IsEqualTo((uint)0x03020100);
 
                 await Assert.That(ChannelMapping.RGBA.Channels[0]).IsEqualTo(ChannelMapping.Channel.R);

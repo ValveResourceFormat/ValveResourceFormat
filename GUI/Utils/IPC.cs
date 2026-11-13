@@ -105,7 +105,7 @@ internal class Ipc
             OnArgsReceived = onArgsReceived;
 
             // Marshal.GetHINSTANCE is not single file publish compatible
-            using (var exeModule = PInvoke.GetModuleHandle((string?)null))
+            using (var exeModule = PInvoke.GetModuleHandle(null))
             {
                 hInstance = (HINSTANCE)exeModule.DangerousGetHandle();
             }
@@ -153,7 +153,7 @@ internal class Ipc
                 // An exception escaping a native callback would crash the process
                 try
                 {
-                    var cds = *(Windows.Win32.System.DataExchange.COPYDATASTRUCT*)(nint)lParam.Value;
+                    var cds = *(Windows.Win32.System.DataExchange.COPYDATASTRUCT*)lParam.Value;
                     var message = Marshal.PtrToStringUTF8((IntPtr)cds.lpData, (int)cds.cbData);
                     var args = message.Split('\0', StringSplitOptions.RemoveEmptyEntries);
 

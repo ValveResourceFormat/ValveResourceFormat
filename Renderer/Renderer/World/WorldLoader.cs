@@ -9,7 +9,6 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.Renderer.Entities;
-using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.GenericData.CS2;
@@ -143,8 +142,7 @@ namespace ValveResourceFormat.Renderer.World
         private static (WorldLoader Loader, ResourceExtRefList? MapReferences) OpenMap(string mapResourceName, Scene scene, EntitySystem entitySystem, Matrix4x4 rootTransform, bool ownsScene)
         {
             var renderContext = scene.RendererContext;
-            Resource? mapResource = null;
-
+            Resource? mapResource;
             if (mapResourceName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.OrdinalIgnoreCase))
             {
                 mapResource = renderContext.FileLoader.LoadFile(mapResourceName);

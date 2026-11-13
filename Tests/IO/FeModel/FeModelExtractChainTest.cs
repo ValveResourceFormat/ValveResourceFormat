@@ -3,8 +3,6 @@ using System.Threading.Tasks;
 using TUnit.Assertions.Enums;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
 using static Tests.IO.FeModelBuilder;
 using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;

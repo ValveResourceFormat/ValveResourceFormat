@@ -344,7 +344,7 @@ namespace Tests.IO
             Vmap = Datamodel.Datamodel.Load(stream, Datamodel.Codecs.DeferredMode.Disabled);
 
             var world = (DMElement)Vmap.Root!["world"]!;
-            Entities = ((Datamodel.ElementArray)world["children"]!).OfType<DMElement>().ToList();
+            Entities = [.. ((Datamodel.ElementArray)world["children"]!).OfType<DMElement>()];
 
             return Task.CompletedTask;
         }

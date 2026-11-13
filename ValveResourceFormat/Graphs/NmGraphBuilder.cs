@@ -277,7 +277,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
         {
             CreateInputAndChild(node, parameterNodeIdx);
 
-            var totalWeight = hasWeightsSet ? Math.Max(1, weights.Sum(static w => (int)w)) : 0;
+            var totalWeight = hasWeightsSet ? Math.Max(1, weights.Sum(static w => w)) : 0;
 
             for (var i = 0; i < options.Length; i++)
             {

@@ -149,10 +149,7 @@ namespace ValveResourceFormat.Animation
 
         protected override void ShutdownInternal(GraphContext ctx)
         {
-            if (ActiveTransition != null)
-            {
-                ActiveTransition.Shutdown(ctx);
-            }
+            ActiveTransition?.Shutdown(ctx);
 
             ShutdownTransitionConditions(ctx);
 
@@ -264,7 +261,7 @@ namespace ValveResourceFormat.Animation
             TransitionNode.StartOptions startOptions = new(currentResult)
             {
                 IsSourceTransition = (ActiveTransition != null),
-                SourceNode = ActiveTransition != null ? (PoseNode)ActiveTransition : (PoseNode)ActiveState.StateNode,
+                SourceNode = ActiveTransition != null ? ActiveTransition : ActiveState.StateNode,
                 UpdateRange = updateRange,
                 StartCachingSourcePose = startCachingSourcePose,
             };

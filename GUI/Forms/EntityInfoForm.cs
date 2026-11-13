@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GUI.Controls;
-using GUI.Utils;
 using Windows.Win32;
 using Windows.Win32.UI.WindowsAndMessaging;
 

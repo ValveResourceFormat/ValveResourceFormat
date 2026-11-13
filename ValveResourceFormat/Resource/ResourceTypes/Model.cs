@@ -264,7 +264,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var max = d.GetFloatProperty("max");
                 return new FlexController(name, type, min, max);
             });
-            return flexControllers.ToArray();
+            return [.. flexControllers];
         }
 
         /// <inheritdoc/>

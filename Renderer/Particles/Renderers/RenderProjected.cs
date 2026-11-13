@@ -1,6 +1,5 @@
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Renderer.Decals;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers

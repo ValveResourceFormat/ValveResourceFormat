@@ -44,7 +44,7 @@ namespace ValveResourceFormat.IO
             else
             {
                 // Get the list of animation files
-                var animArray = data.GetArray<string>("m_localHAnimArray")!.Where(a => !string.IsNullOrEmpty(a));
+                var animArray = data.GetArray<string>("m_localHAnimArray").Where(a => !string.IsNullOrEmpty(a));
 
                 foreach (var animationFile in animArray)
                 {

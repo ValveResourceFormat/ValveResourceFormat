@@ -88,7 +88,7 @@ public sealed class ToolPickTargets
         var toOrigin = origin - a;
         var u = Vector3.Dot(toOrigin, p) * inverse;
 
-        if (u < 0f || u > 1f)
+        if (u is < 0f or > 1f)
         {
             return null;
         }

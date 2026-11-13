@@ -580,7 +580,7 @@ internal sealed class CrossingRepair
                 if (score < best)
                 {
                     best = score;
-                    bestOrder = new List<int>(order);
+                    bestOrder = [.. order];
                     moved = true;
                 }
             }
@@ -1007,7 +1007,7 @@ internal sealed class CrossingRepair
 
         foreach (var shift in Math.Abs(down) <= Math.Abs(up) ? (float[])[down, up] : [up, down])
         {
-            if (Math.Abs(shift) < 1f || Math.Abs(shift) > WireClearLimit)
+            if (Math.Abs(shift) is < 1f or > WireClearLimit)
             {
                 continue;
             }
@@ -1178,7 +1178,7 @@ internal sealed class CrossingRepair
         // The shift that just clears the other source, then the one parking the branch clear of the island.
         foreach (var candidate in (float[])[shift, ParkingShift(branchUpper, above: shift < 0f)])
         {
-            if (Math.Abs(candidate) < 1f || Math.Abs(candidate) > BranchShiftLimit)
+            if (Math.Abs(candidate) is < 1f or > BranchShiftLimit)
             {
                 continue;
             }

@@ -1,4 +1,3 @@
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using TUnit.Assertions.Enums;
@@ -102,12 +101,12 @@ namespace Tests.Resources
             using (Assert.Multiple())
             {
                 // Each level runs from its own switch value up to the next level's, the top one open-ended.
-                await Assert.That(lod.GetMetricRange(0)).IsEqualTo((0f, (float?)35f));
-                await Assert.That(lod.GetMetricRange(1)).IsEqualTo((35f, (float?)50f));
-                await Assert.That(lod.GetMetricRange(2)).IsEqualTo((50f, (float?)null));
+                await Assert.That(lod.GetMetricRange(0)).IsEqualTo((0f, 35f));
+                await Assert.That(lod.GetMetricRange(1)).IsEqualTo((35f, 50f));
+                await Assert.That(lod.GetMetricRange(2)).IsEqualTo((50f, null));
 
                 // No switch data: everything collapses to an open range from 0.
-                await Assert.That(noSwitches.GetMetricRange(0)).IsEqualTo((0f, (float?)null));
+                await Assert.That(noSwitches.GetMetricRange(0)).IsEqualTo((0f, null));
 
             }
         }

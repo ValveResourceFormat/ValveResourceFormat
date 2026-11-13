@@ -26,8 +26,7 @@ public sealed class ShaderExtract
         // If true, *all* buffers will be collapsed, otherwise only the ones in BuffersToCollapse.
         public bool CollapseAllBuffers { get; init; }
         /// <summary>Gets the set of buffer names to collapse.</summary>
-        public static HashSet<string> BuffersToCollapse =>
-        [
+        public static HashSet<string> BuffersToCollapse => [
             //"PerViewConstantBuffer_t",
             //"PerViewConstantBufferVR_t",
             //"PerViewLightingConstantBufferVr_t",
@@ -222,7 +221,7 @@ public sealed class ShaderExtract
         var firstPass = true;
         var stages = Shaders
             .Where(s =>
-                !(s.VcsProgramType is VcsProgramType.Features
+                s.VcsProgramType is not (VcsProgramType.Features
                     or VcsProgramType.PixelShaderRenderState
                     or VcsProgramType.RaytracingShader))
             .ToList();
@@ -754,7 +753,7 @@ public sealed class ShaderExtract
             }
 
             if (parameters.Count == 0 || parameters.All(p =>
-                variableDescriptions[p].RegisterType == VfxRegisterType.SamplerState || variableDescriptions[p].RegisterType == VfxRegisterType.ConstantBuffer))
+                variableDescriptions[p].RegisterType is VfxRegisterType.SamplerState or VfxRegisterType.ConstantBuffer))
             {
                 continue;
             }

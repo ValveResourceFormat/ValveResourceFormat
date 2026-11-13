@@ -40,7 +40,7 @@ internal sealed class GenericToVpcf1 : ParticleUpgradeStep
 
         value.Flag = KVFlag.Resource;
 
-        var path = value.ValueType == KVValueType.String ? (string)value! : "";
+        var path = value.ValueType == KVValueType.String ? (string)value : "";
 
         if (path.Length == 0)
         {

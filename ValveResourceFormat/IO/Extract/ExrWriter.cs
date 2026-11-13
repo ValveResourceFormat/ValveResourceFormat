@@ -46,7 +46,7 @@ internal static class ExrWriter
 
         var colorType = pixels.ColorType;
 
-        if (colorType != SKColorType.RgbaF16 && colorType != SKColorType.RgbaF32)
+        if (colorType is not SKColorType.RgbaF16 and not SKColorType.RgbaF32)
         {
             throw new ArgumentException($"Pixels must be RgbaF16 or RgbaF32, got {colorType}.", nameof(pixels));
         }

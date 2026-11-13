@@ -401,8 +401,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             return Vector128.ShuffleNative(vData.AsVector128(), indices).AsQuaternion();
         }
 
-        private static ReadOnlySpan<int> LargestValueShuffles =>
-        [
+        private static ReadOnlySpan<int> LargestValueShuffles => [
             3, 0, 1, 2,
             0, 3, 1, 2,
             0, 1, 3, 2,

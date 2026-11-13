@@ -1,7 +1,6 @@
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.Renderer.Materials;
 
 namespace ValveResourceFormat.Renderer.SceneEnvironment;
 

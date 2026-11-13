@@ -1564,7 +1564,7 @@ public partial class AnimationGraphExtract : IDisposable
         var componentArray = KVObject.Array();
         for (var i = 0; i < componentValues.Length; i++)
         {
-            componentArray.Add((float)componentValues[i]);
+            componentArray.Add(componentValues[i]);
         }
 
         comparisonValue.Add("m_data", componentArray);
@@ -3066,7 +3066,7 @@ public partial class AnimationGraphExtract : IDisposable
                     var paramHandles = compiledNode.GetArray("m_params");
                     var existingItems = node.GetArray("m_items");
                     var itemsList = existingItems?.Count > 0
-                        ? existingItems.ToList()
+                        ? [.. existingItems]
                         : footPinningItems ?? [];
 
                     for (var i = 0; i < itemsList.Count && i < paramHandles.Count; i++)
@@ -3749,7 +3749,7 @@ public partial class AnimationGraphExtract : IDisposable
 
                         metric.Add("m_flWeight", compiledMetric.GetFloatProperty("m_flWeight"));
 
-                        if (metricClassName == "CBonePositionMetricEvaluator" || metricClassName == "CBoneVelocityMetricEvaluator")
+                        if (metricClassName is "CBonePositionMetricEvaluator" or "CBoneVelocityMetricEvaluator")
                         {
                             var boneIndex = compiledMetric.GetIntegerProperty("m_nBoneIndex");
                             var boneName = GetBoneName((int)boneIndex);

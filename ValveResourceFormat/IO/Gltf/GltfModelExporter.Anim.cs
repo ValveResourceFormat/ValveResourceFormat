@@ -571,7 +571,7 @@ public partial class GltfModelExporter
 
     // glTF holds all animations in one flat named list, so AG2 clips are labelled by their resource
     // path with the .vnmclip extension stripped (the path keeps them unique across clip folders).
-    private static string ClipAnimationName(string clipName) => Path.ChangeExtension(clipName, null)!;
+    private static string ClipAnimationName(string clipName) => Path.ChangeExtension(clipName, null);
 
     private static SharpGLTF.Schema2.Animation UseAnimation(ModelRoot root, string name)
     {

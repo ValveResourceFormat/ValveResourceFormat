@@ -1,5 +1,4 @@
 using System.IO;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -31,14 +30,14 @@ public class VfxShaderFileDXIL : VfxShaderFile
         if (Size > 0)
         {
             Version = datareader.ReadInt16();
-            ShaderTypeToken = (int)datareader.ReadUInt16();
+            ShaderTypeToken = datareader.ReadUInt16();
             uint delimiter = datareader.ReadUInt16();
             if (delimiter != 0xFFFE)
             {
                 throw new ShaderParserException($"Unexpected DXIL delimiter {delimiter:x8}");
             }
 
-            HeaderBytes = (int)datareader.ReadUInt16() * 4; // size is given as a 4-byte count
+            HeaderBytes = datareader.ReadUInt16() * 4; // size is given as a 4-byte count
             Bytecode = ReadBytecode(datareader, Size - 8, readBytecode);
         }
 

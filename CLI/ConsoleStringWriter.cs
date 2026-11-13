@@ -3,7 +3,7 @@ using System.Text;
 
 namespace CLI;
 
-internal class ConsoleStringWriter : StringWriter
+internal sealed class ConsoleStringWriter : StringWriter
 {
     const int MaxLength = 64 * 1024 * 1024;
 

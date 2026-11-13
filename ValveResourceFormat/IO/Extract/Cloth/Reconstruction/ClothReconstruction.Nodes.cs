@@ -1,8 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
-using ValveResourceFormat.Utils;
 using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO

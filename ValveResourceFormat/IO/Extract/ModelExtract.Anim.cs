@@ -348,11 +348,8 @@ partial class ModelExtract
                 bonePositions[i] = position;
                 boneOrientations[i] = frameBone.Angle;
 
-                if (boneScales != null)
-                {
-                    // An additive written as is gets generated as the difference to its base frame, which holds scale one.
-                    boneScales[i] = scaleIsOffset ? 1f + frameBone.Scale : frameBone.Scale;
-                }
+                // An additive written as is gets generated as the difference to its base frame, which holds scale one.
+                boneScales?[i] = scaleIsOffset ? 1f + frameBone.Scale : frameBone.Scale;
             }
 
             for (var flexId = 0; flexId < flexValues.Length; flexId++)

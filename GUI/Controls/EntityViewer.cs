@@ -6,7 +6,6 @@ using GUI.Forms;
 using GUI.Utils;
 using SkiaSharp;
 using ValveResourceFormat.IO.Fgd;
-using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Helpers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;

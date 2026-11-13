@@ -49,7 +49,7 @@ public class VfxCombo : ShaderDataBlock
         RangeMax = data.GetInt32Property("m_nMax");
         ComboSourceType = NormalizeComboSourceType(data.GetInt32Property("m_shaderComboSourceType"), vcsVersion);
         FeatureIndex = data.GetInt32Property("m_iFeatureIndex");
-        StateNames = data.GetArray<string>("m_stringArray")!;
+        StateNames = data.GetArray<string>("m_stringArray");
 
         ComboIndexValue = data.GetIntegerProperty("m_nComboIndexValue");
 

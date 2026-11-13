@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.Serialization.KeyValues;

@@ -332,9 +332,9 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <param name="text">String to measure.</param>
         /// <param name="scale">Text scale in pixels-per-em.</param>
-        public static float MeasureTextWidth(string text, float scale) =>
+        public static float MeasureTextWidth(string text, float scale)
             // Same approximation used by CenterHorizontal above: every glyph in this font has the same advance.
-            text.Length * DefaultAdvance * scale;
+            => text.Length * DefaultAdvance * scale;
 
         /// <summary>Flushes all queued text requests to the GPU and renders them for the current frame.</summary>
         /// <param name="camera">Camera providing the viewport dimensions for the orthographic projection.</param>
@@ -424,7 +424,7 @@ namespace ValveResourceFormat.Renderer
                             }
                         }
 
-                        if (c < 33 || c > 126)
+                        if (c is < '!' or > '~')
                         {
                             x += DefaultAdvance * textRenderRequest.Scale;
                             continue;

@@ -15,7 +15,6 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.Shaders;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Utils;
 
 namespace GUI.Automation;
 

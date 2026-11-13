@@ -41,7 +41,7 @@ namespace ValveResourceFormat.TextureDecoders
                 var dg = (short)((block[1] << 3 & 0x18) - (block[1] << 3 & 0x20));
                 var b = (byte)(block[2] & 0xf8);
                 var db = (short)((block[2] << 3 & 0x18) - (block[2] << 3 & 0x20));
-                if (r + dr < 0 || r + dr > 255)
+                if (r + dr is < 0 or > 255)
                 {
                     // T
                     unchecked
@@ -66,7 +66,7 @@ namespace ValveResourceFormat.TextureDecoders
                         m_buf[WriteOrderTable[i]] = color_set[k << 1 & 2 | j & 1];
                     }
                 }
-                else if (g + dg < 0 || g + dg > 255)
+                else if (g + dg is < 0 or > 255)
                 {
                     // H
                     unchecked
@@ -99,7 +99,7 @@ namespace ValveResourceFormat.TextureDecoders
                         m_buf[WriteOrderTable[i]] = color_set[k << 1 & 2 | j & 1];
                     }
                 }
-                else if (b + db < 0 || b + db > 255)
+                else if (b + db is < 0 or > 255)
                 {
                     // planar
                     unchecked

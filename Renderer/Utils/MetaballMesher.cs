@@ -34,7 +34,7 @@ namespace ValveResourceFormat.Renderer.Utils
         /// The vertex on each edge leaving the grid points of two z slices, plus one so that zero is none.
         /// A slice is cleared once the cells above it are done.
         /// </summary>
-        private int[][] sliceEdgeVertices = [[], []];
+        private readonly int[][] sliceEdgeVertices = [[], []];
 
         private Vector3[] centers = [];
         private int centerCount;

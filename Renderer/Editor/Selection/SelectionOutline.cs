@@ -105,7 +105,7 @@ internal sealed class SelectionOutline
             edgeShader.Use();
             edgeShader.SetUniform("g_vOutlineColor", VisibleColor);
             edgeShader.SetUniform("g_vOccludedColor", OccludedColor);
-            edgeShader.SetTexture(0, "g_tOutlineMask", resolvedMask.Color!);
+            edgeShader.SetTexture(0, "g_tOutlineMask", resolvedMask.Color);
 
             GL.BindVertexArray(rendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);

@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -359,7 +358,7 @@ namespace Tests.IO
             // Eager load so deferred attributes don't read from the stream after it is disposed.
             var dm = Datamodel.Datamodel.Load(ms, Datamodel.Codecs.DeferredMode.Disabled);
 
-            var clip = (Datamodel.Element)((Datamodel.ElementArray)((Datamodel.Element)dm.Root!["animationList"]!)["animations"]!)[0]!;
+            var clip = ((Datamodel.ElementArray)((Datamodel.Element)dm.Root!["animationList"]!)["animations"]!)[0]!;
 
             return (Datamodel.ElementArray)clip["channels"]!;
         }
@@ -367,7 +366,7 @@ namespace Tests.IO
         private static Datamodel.Vector3Array RootChannelValues(Datamodel.ElementArray channels, string boneName)
         {
             var channel = channels.Cast<Datamodel.Element>().Single(c => c.Name == $"{boneName}_p");
-            var layer = (Datamodel.Element)((Datamodel.ElementArray)((Datamodel.Element)channel["log"]!)["layers"]!)[0]!;
+            var layer = ((Datamodel.ElementArray)((Datamodel.Element)channel["log"]!)["layers"]!)[0]!;
 
             return (Datamodel.Vector3Array)layer["values"]!;
         }

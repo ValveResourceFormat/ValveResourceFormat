@@ -162,13 +162,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 Movements[i] = new AnimationMovement(movementArray[i]);
             }
 
-            Events = animDesc.GetArray("m_eventArray")
-                                 .Select(x => new AnimationEvent(x))
-                                 .ToArray();
+            Events = [.. animDesc.GetArray("m_eventArray").Select(x => new AnimationEvent(x))];
 
-            Activities = animDesc.GetArray("m_activityArray")
-                                    .Select(x => new AnimationActivity(x))
-                                    .ToArray();
+            Activities = [.. animDesc.GetArray("m_activityArray").Select(x => new AnimationActivity(x))];
 
             LocalHierarchy = GetLocalHierarchy(animDesc);
 
@@ -202,9 +198,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             IsAdditive = Delta || AnimGraphAdditive;
 
-            Activities = seqDesc.GetArray("m_activityArray")
-                .Select(x => new AnimationActivity(x))
-                .ToArray();
+            Activities = [.. seqDesc.GetArray("m_activityArray").Select(x => new AnimationActivity(x))];
 
             LocalHierarchy = GetLocalHierarchy(animDesc);
 
@@ -228,9 +222,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     Movements[i] = new AnimationMovement(movementArray[i]);
                 }
 
-                Events = animDesc.GetArray("m_eventArray")
-                    .Select(x => new AnimationEvent(x))
-                    .ToArray();
+                Events = [.. animDesc.GetArray("m_eventArray").Select(x => new AnimationEvent(x))];
             }
 
             var autoLayerArray = seqDesc.GetArray("m_autoLayerArray");

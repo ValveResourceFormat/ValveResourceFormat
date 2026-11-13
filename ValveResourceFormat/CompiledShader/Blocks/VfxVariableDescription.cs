@@ -203,7 +203,7 @@ public class VfxVariableDescription : ShaderDataBlock
             DefaultInputTexture = data.GetStringProperty("m_defaultInputTexture");
             OutputTextureFormat = (ImageFormat)data.GetUInt32Property("m_outputTextureFormat");
             ChannelCount = data.GetInt32Property("m_nChannelCount");
-            ChannelInfoIndices = data.GetArray<int>("m_nChannelInfoIndex")!;
+            ChannelInfoIndices = data.GetArray<int>("m_nChannelInfoIndex");
             InputColorSpace = data.GetInt32Property("m_inputColorSpace");
             MinPrecisionBits = data.GetInt32Property("m_nMinPrecisionBits");
 

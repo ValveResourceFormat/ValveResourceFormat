@@ -108,7 +108,7 @@ partial class GraphView
 
         if (cached.HitPath == null)
         {
-            cached.HitPath = HitTestPaint.GetFillPath(cached.Path!);
+            cached.HitPath = HitTestPaint.GetFillPath(cached.Path);
             cached.HitBounds = cached.HitPath.Bounds;
         }
 
@@ -463,7 +463,7 @@ partial class GraphView
         }
 
         var cached = EnsureWirePath(wire);
-        var path = cached.Path!;
+        var path = cached.Path;
 
         var width = GraphMetrics.WireWidth * Math.Max(1f, 1f / zoom);
 

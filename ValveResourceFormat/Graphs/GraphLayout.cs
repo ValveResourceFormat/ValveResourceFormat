@@ -976,8 +976,8 @@ internal static class GraphLayout
                     return;
                 }
 
-                Span<float> farB = linksB.Count <= 256 ? stackalloc float[linksB.Count] : new float[linksB.Count];
-                Span<int> spanB = linksB.Count <= 256 ? stackalloc int[linksB.Count] : new int[linksB.Count];
+                var farB = linksB.Count <= 256 ? stackalloc float[linksB.Count] : new float[linksB.Count];
+                var spanB = linksB.Count <= 256 ? stackalloc int[linksB.Count] : new int[linksB.Count];
 
                 for (var j = 0; j < linksB.Count; j++)
                 {

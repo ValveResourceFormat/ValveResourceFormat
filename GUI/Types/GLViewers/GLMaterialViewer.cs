@@ -642,10 +642,7 @@ namespace GUI.Types.GLViewers
 
             var colorButton = CreateColorButton(Color.White, pickedColor =>
             {
-                if (previewNode != null)
-                {
-                    previewNode.TintAlpha = ColorToVector4(pickedColor);
-                }
+                previewNode?.TintAlpha = ColorToVector4(pickedColor);
             });
 
             previewObjectComboBox = new ThemedComboBox
@@ -671,12 +668,9 @@ namespace GUI.Types.GLViewers
             // Populate UI controls with scene data
             if (renderMat != null)
             {
-                if (openShaderButton != null)
-                {
-                    openShaderButton.Text = renderMat.Material.ShaderName;
-                }
+                openShaderButton?.Text = renderMat.Material.ShaderName;
 
-                previewObjectComboBox.Items.AddRange([.. Enum.GetValues<PreviewObjectType>().Where(type => previewObjects.ContainsKey(type)).Select(type => type.ToString())]);
+                previewObjectComboBox.Items.AddRange([.. Enum.GetValues<PreviewObjectType>().Where(previewObjects.ContainsKey).Select(type => type.ToString())]);
                 previewObjectComboBox.SelectedItem = currentPreviewObject.ToString();
 
                 CreateMaterialEditControls(renderMat);

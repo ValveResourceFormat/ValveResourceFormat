@@ -1,5 +1,4 @@
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 
 namespace ValveResourceFormat.IO;
 

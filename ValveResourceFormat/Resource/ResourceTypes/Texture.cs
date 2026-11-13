@@ -1111,17 +1111,17 @@ namespace ValveResourceFormat.ResourceTypes
                     height += 4 - misalign;
                 }
 
-                if (width < 4 && width > 0)
+                if (width is < 4 and > 0)
                 {
                     width = 4;
                 }
 
-                if (height < 4 && height > 0)
+                if (height is < 4 and > 0)
                 {
                     height = 4;
                 }
 
-                if (depth < 4 && depth > 1)
+                if (depth is < 4 and > 1)
                 {
                     depth = 4;
                 }

@@ -376,7 +376,7 @@ internal sealed class FlexRecovery
 
         var selector = new CtrlNode(nway.Selector);
 
-        Node Clamped(Node numerator, float span)
+        static Node Clamped(Node numerator, float span)
             => new OpNode(FlexOpCode.Min,
                 new OpNode(FlexOpCode.Max,
                     new OpNode(FlexOpCode.Div, numerator, new ConstNode(span)),

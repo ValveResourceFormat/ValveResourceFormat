@@ -160,7 +160,7 @@ namespace ValveResourceFormat.Particles.Utils
                 var h = HashSeeded(x + (y << 10) + (z << 20), 0u) & 15u;
 
                 var u = h < 8 ? dx : dy;
-                var v = h < 4 ? dy : h == 12 || h == 14 ? dx : dz;
+                var v = h < 4 ? dy : h is 12 or 14 ? dx : dz;
 
                 u = (h & 1) != 0 ? -u : u;
                 v = (h & 2) != 0 ? -v : v;
