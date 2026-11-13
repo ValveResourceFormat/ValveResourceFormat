@@ -261,16 +261,27 @@ public sealed class TextureExtract
             // The material references the image directly, so no vtex is written
             IgnoreVtexFile = true;
 
+            var materialFileName = mapsToUnpack.FirstOrDefault().FileName;
+
+            if (isCubeMap && !isArray && !ExportExr && materialFileName != null)
+            {
+                var stripContent = new ContentFile()
+                {
+                    FileName = fileName,
+                };
+
+                stripContent.AddSubFile(Path.GetFileName(materialFileName), ToCubeStripPngImage);
+                return stripContent;
+            }
+
             var vtexContent = ToContentFile();
 
             if (isCubeMap && LatLongCombineCubemap && ExportExr)
             {
                 // use the file name set in material properties
-                var firstUnpackInfo = mapsToUnpack.FirstOrDefault();
-
-                if (firstUnpackInfo.FileName != null)
+                if (materialFileName != null)
                 {
-                    vtexContent.SubFiles[0].FileName = Path.GetFileName(firstUnpackInfo.FileName);
+                    vtexContent.SubFiles[0].FileName = Path.GetFileName(materialFileName);
                 }
             }
 
@@ -342,6 +353,45 @@ public sealed class TextureExtract
     public static byte[] ToPngImage(SKBitmap bitmap)
     {
         return EncodePng(bitmap);
+    }
+
+    /// <summary>
+    /// Places the cube faces side by side in a 6:1 strip, in the face order the texture compiler splits it by.
+    /// </summary>
+    private byte[] ToCubeStripPngImage()
+    {
+        var faces = new SKBitmap[CubemapNames.Length];
+
+        try
+        {
+            for (var face = 0; face < faces.Length; face++)
+            {
+                faces[face] = texture.GenerateBitmap(face: (Texture.CubemapFace)face, decodeFlags: DecodeFlags);
+            }
+
+            var faceWidth = faces[0].Width;
+            var faceHeight = faces[0].Height;
+
+            using var strip = new SKBitmap(faceWidth * faces.Length, faceHeight, faces[0].ColorType, faces[0].AlphaType);
+            using var stripPixels = strip.PeekPixels();
+
+            for (var face = 0; face < faces.Length; face++)
+            {
+                using var facePixels = faces[face].PeekPixels();
+                using var target = stripPixels.ExtractSubset(SKRectI.Create(face * faceWidth, 0, faceWidth, faceHeight))
+                    ?? throw new InvalidOperationException("Cube face does not fit in the strip.");
+                facePixels.ReadPixels(target);
+            }
+
+            return EncodePng(strip);
+        }
+        finally
+        {
+            foreach (var face in faces)
+            {
+                face?.Dispose();
+            }
+        }
     }
 
     /// <summary>
