@@ -1,5 +1,6 @@
 //#define DEBUG_FILE_LOAD
 
+using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
@@ -82,7 +83,7 @@ namespace ValveResourceFormat.IO
         private volatile bool AddonDependenciesPending;
         private readonly Lock AddonDependenciesLock = new();
         private Game ResourceGame;
-        private bool StoredSurfacePropertyStringTokens;
+        private IReadOnlyDictionary<uint, string>? SurfacePropertyNames;
 
         /// <summary>
         /// Gets or sets the current package being processed.
@@ -202,22 +203,7 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            if (AddonDependenciesPending && (CurrentPackage != null || PreferredAddonFolderOnDisk != null))
-            {
-                // Files are looked up in parallel, the addon lists must be complete before anyone searches them
-                lock (AddonDependenciesLock)
-                {
-                    if (AddonDependenciesPending)
-                    {
-#if DEBUG_FILE_LOAD
-                        Logger.LogDebug("Attempting to find addon dependencies while loading \"{File}\"", file);
-#endif
-
-                        LoadAddonDependencies();
-                        AddonDependenciesPending = false;
-                    }
-                }
-            }
+            LoadPendingAddonDependencies();
 
             foreach (var (package, folder) in CurrentAddonSearchPaths)
             {
@@ -285,6 +271,58 @@ namespace ValveResourceFormat.IO
 #endif
 
             return (null, null, null);
+        }
+
+        private void LoadPendingAddonDependencies()
+        {
+            if (!AddonDependenciesPending || (CurrentPackage == null && PreferredAddonFolderOnDisk == null))
+            {
+                return;
+            }
+
+            // Files are looked up in parallel, the addon lists must be complete before anyone searches them
+            lock (AddonDependenciesLock)
+            {
+                if (AddonDependenciesPending)
+                {
+#if DEBUG_FILE_LOAD
+                    Logger.LogDebug("Attempting to find addon dependencies");
+#endif
+
+                    LoadAddonDependencies();
+                    AddonDependenciesPending = false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Finds the files with a given name in any folder of the mounted packages. Loose files on disk are not searched.
+        /// </summary>
+        /// <param name="fileName">The file name with its extension and without a folder, such as <c>chair.vmdl_c</c>.</param>
+        /// <returns>The full path of each match, in search order.</returns>
+        public virtual IEnumerable<string> FindFilesByName(string fileName)
+        {
+            LoadPendingAddonDependencies();
+
+            return FindFilesByName(EnumerateSearchedPackages(), fileName);
+        }
+
+        /// <summary>
+        /// Finds the entries of the given packages with a file name and extension, in any folder.
+        /// </summary>
+        /// <param name="packages">The packages to search.</param>
+        /// <param name="fileName">File name with extension, without a folder.</param>
+        /// <returns>The full paths of the matching entries, without duplicates.</returns>
+        public static IEnumerable<string> FindFilesByName(IEnumerable<Package> packages, string fileName)
+        {
+            var extension = Path.GetExtension(fileName).TrimStart('.');
+            var name = Path.GetFileNameWithoutExtension(fileName);
+
+            return packages
+                .SelectMany(package => package.Entries?.GetValueOrDefault(extension) ?? [])
+                .Where(entry => entry.FileName.Equals(name, StringComparison.OrdinalIgnoreCase))
+                .Select(static entry => entry.GetFullPath())
+                .Distinct();
         }
 
         /// <summary>
@@ -443,30 +481,47 @@ namespace ValveResourceFormat.IO
             return resourceToReturn;
         }
 
-        /// <summary>
-        /// Ensures surface property string tokens are loaded and stored.
-        /// </summary>
-        public void EnsureStringTokenGameKeys()
-        {
-            if (!StoredSurfacePropertyStringTokens)
-            {
-                using var vsurf = LoadFileCompiled("surfaceproperties/surfaceproperties.vsurf");
-                if (vsurf is not null && vsurf.DataBlock is BinaryKV3 kv3)
-                {
-                    var surfacePropertiesList = kv3.Data.Root.GetArray("SurfacePropertiesList");
-                    foreach (var surface in surfacePropertiesList)
-                    {
-                        var name = surface.GetStringProperty("surfacePropertyName");
-                        var hash = StringToken.Store(name);
-                        Debug.Assert(
-                            hash == surface.GetUnsignedIntegerProperty("m_nameHash"),
-                            "Stored surface property hash should be the same as the calculated one."
-                        );
-                    }
-                }
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Read once and cached.
+        /// </remarks>
+        public IReadOnlyDictionary<uint, string> GetSurfacePropertyNames()
+            => LazyInitializer.EnsureInitialized(ref SurfacePropertyNames, () => ReadSurfacePropertyNames(this));
 
-                StoredSurfacePropertyStringTokens = true;
+        internal static IReadOnlyDictionary<uint, string> ReadSurfacePropertyNames(IFileLoader fileLoader)
+        {
+            const string FileName = "surfaceproperties/surfaceproperties.vsurf" + CompiledFileSuffix;
+
+            using var stream = fileLoader.GetFileStream(FileName);
+
+            if (stream == null)
+            {
+                return FrozenDictionary<uint, string>.Empty;
             }
+
+            using var resource = new Resource();
+            resource.Read(stream);
+
+            if (resource.DataBlock is not BinaryKV3 kv3)
+            {
+                return FrozenDictionary<uint, string>.Empty;
+            }
+
+            var names = new Dictionary<uint, string>();
+
+            foreach (var surface in kv3.Data.Root.GetArray("SurfacePropertiesList"))
+            {
+                var name = surface.GetStringProperty("surfacePropertyName");
+                var hash = StringToken.Get(name);
+                Debug.Assert(
+                    hash == surface.GetUnsignedIntegerProperty("m_nameHash"),
+                    "Surface property hash should be the same as the calculated one."
+                );
+
+                names.TryAdd(hash, name);
+            }
+
+            return names.ToFrozenDictionary();
         }
 
         /// <summary>

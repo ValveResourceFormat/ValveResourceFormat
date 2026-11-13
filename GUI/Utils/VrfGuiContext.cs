@@ -524,6 +524,9 @@ namespace GUI.Utils
         // A file opened from another one, such as an entry of a package, finds no game of its own
         protected override GameFileLoader? GameInfoFallback => ParentGuiContext;
 
+        public override IEnumerable<string> FindFilesByName(string fileName)
+            => base.FindFilesByName(fileName).Concat(ParentGuiContext?.FindFilesByName(fileName) ?? []).Distinct();
+
         // Override to add support for parent file loaders
         protected override ShaderCollection LoadShaderFromDisk(string shaderName)
         {
@@ -547,6 +550,8 @@ namespace GUI.Utils
             public ShaderCollection? LoadShader(string shaderName) => context.LoadShader(shaderName);
             public Stream? GetFileStream(string file) => context.GetFileStream(file);
             public GameInfo GameInfo => context.GameInfo;
+            public IEnumerable<string> FindFilesByName(string fileName) => context.FindFilesByName(fileName);
+            public IReadOnlyDictionary<uint, string> GetSurfacePropertyNames() => context.GetSurfacePropertyNames();
         }
 
         private Resource? LoadFileUncached(string file) => base.LoadFile(file);

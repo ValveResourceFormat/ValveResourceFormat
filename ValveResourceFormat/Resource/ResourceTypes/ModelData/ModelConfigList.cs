@@ -23,11 +23,19 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         /// <summary>Gets the configs, in compiled order.</summary>
         public IReadOnlyList<ModelConfig> Configs { get; }
 
+        /// <summary>Gets whether tools hide the material group of an entity that uses this model.</summary>
+        public bool HideMaterialGroupInTools { get; }
+
+        /// <summary>Gets whether tools hide the render color of an entity that uses this model.</summary>
+        public bool HideRenderColorInTools { get; }
+
         /// <summary>Initializes the configs from the <c>m_pModelConfigList</c> of a model.</summary>
         /// <param name="data">The config list, or <see langword="null"/> for a model without one.</param>
         public ModelConfigList(KVObject? data)
         {
             Configs = data?.GetArray("m_Configs") is { } configs ? [.. configs.Select(ModelConfig.Read)] : [];
+            HideMaterialGroupInTools = data?.GetBooleanProperty("m_bHideMaterialGroupInTools") ?? false;
+            HideRenderColorInTools = data?.GetBooleanProperty("m_bHideRenderColorInTools") ?? false;
         }
 
         /// <summary>Gets a config by its name.</summary>
@@ -199,15 +207,16 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
     /// <param name="Name">The name picks refer to it by. A config the compiler names starts with <c>@</c>.</param>
     /// <param name="Elements">The elements, in compiled order.</param>
     /// <param name="IsTopLevel">Whether the config is offered on its own rather than only through picks.</param>
+    /// <param name="IsActiveInEditorByDefault">Whether tools show the config on the model by default.</param>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CModelConfig">CModelConfig</seealso>
-    public sealed record ModelConfig(string Name, IReadOnlyList<ModelConfigElement> Elements, bool IsTopLevel)
+    public sealed record ModelConfig(string Name, IReadOnlyList<ModelConfigElement> Elements, bool IsTopLevel, bool IsActiveInEditorByDefault)
     {
         internal static ModelConfig Read(KVObject data)
         {
             var name = data.GetStringProperty("m_ConfigName", string.Empty);
             var elements = ModelConfigElement.ReadList(data.GetArray("m_Elements"), string.Empty);
 
-            return new ModelConfig(name, elements, data.GetBooleanProperty("m_bTopLevel"));
+            return new ModelConfig(name, elements, data.GetBooleanProperty("m_bTopLevel"), data.GetBooleanProperty("m_bActiveInEditorByDefault"));
         }
     }
 
@@ -219,6 +228,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
     {
         /// <summary>Gets the name of the element, which may be empty.</summary>
         public string Name { get; }
+
+        /// <summary>Gets the compiled class of the element, such as <c>CModelConfigElement_AttachedModel</c>.</summary>
+        public string ClassName { get; }
 
         /// <summary>
         /// Gets the key the element is found by in the <c>config_state</c> of an entity: its name, or
@@ -232,6 +244,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         private protected ModelConfigElement(KVObject data, string stateKey)
         {
             Name = data.GetStringProperty("m_ElementName", string.Empty);
+            ClassName = data.GetStringProperty("_class", string.Empty);
             StateKey = stateKey;
             NestedElements = ReadList(data.GetArray("m_NestedElements"), stateKey);
         }
@@ -266,7 +279,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
                     "CModelConfigElement_SetBodygroup" => new ModelConfigSetBodyGroup(data, key),
                     "CModelConfigElement_SetMaterialGroupOnAttachedModels" => new ModelConfigSetMaterialGroupOnAttachedModels(data, key),
                     "CModelConfigElement_SetBodygroupOnAttachedModels" => new ModelConfigSetBodyGroupOnAttachedModels(data, key),
-                    var className => new ModelConfigUnsupportedElement(data, key, className ?? string.Empty),
+                    _ => new ModelConfigUnsupportedElement(data, key),
                 };
             }
 
@@ -308,6 +321,21 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         /// <summary>Gets whether the entity gives the material group of the attached model, as the <c>_matgrp</c> of the element's name.</summary>
         public bool UserSpecifiedMaterialGroup { get; }
 
+        /// <summary>Gets whether a <see cref="ModelConfigAttachmentType.Bonemerge"/> model also follows the flexes of the model it is attached to.</summary>
+        public bool BoneMergeFlex { get; }
+
+        /// <summary>Gets the body groups the attached model sets on the other attached models.</summary>
+        public string BodyGroupOnOtherModels { get; }
+
+        /// <summary>Gets the material group the attached model sets on the other attached models.</summary>
+        public string MaterialGroupOnOtherModels { get; }
+
+        /// <summary>Gets whether the attached model collides with the models of its hierarchy.</summary>
+        public bool CollideWithHierarchy { get; }
+
+        /// <summary>Gets whether the attached model collides with models outside of its hierarchy.</summary>
+        public bool CollideOutsideHierarchy { get; }
+
         internal ModelConfigAttachedModel(KVObject data, string stateKey) : base(data, stateKey)
         {
             InstanceName = data.GetStringProperty("m_InstanceName", string.Empty);
@@ -320,6 +348,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
             AttachmentType = data.GetEnumValue<ModelConfigAttachmentType>("m_AttachmentType", normalize: true, stripExtension: "Type");
             UserSpecifiedColor = data.GetBooleanProperty("m_bUserSpecifiedColor");
             UserSpecifiedMaterialGroup = data.GetBooleanProperty("m_bUserSpecifiedMaterialGroup");
+            BoneMergeFlex = data.GetBooleanProperty("m_bBoneMergeFlex");
+            BodyGroupOnOtherModels = data.GetStringProperty("m_BodygroupOnOtherModels", string.Empty);
+            MaterialGroupOnOtherModels = data.GetStringProperty("m_MaterialGroupOnOtherModels", string.Empty);
+            CollideWithHierarchy = data.GetBooleanProperty("m_bCollideWithHierarchy");
+            CollideOutsideHierarchy = data.GetBooleanProperty("m_bCollideOutsideHierarchy", true);
         }
     }
 
@@ -445,12 +478,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
     /// <summary>An element <see cref="ModelConfigList.Evaluate"/> does not apply, such as a random color or a command.</summary>
     public sealed class ModelConfigUnsupportedElement : ModelConfigElement
     {
-        /// <summary>Gets the compiled class of the element.</summary>
-        public string ClassName { get; }
-
-        internal ModelConfigUnsupportedElement(KVObject data, string stateKey, string className) : base(data, stateKey)
+        internal ModelConfigUnsupportedElement(KVObject data, string stateKey) : base(data, stateKey)
         {
-            ClassName = className;
         }
     }
 

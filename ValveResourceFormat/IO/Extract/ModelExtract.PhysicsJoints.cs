@@ -399,8 +399,9 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Gets the bodies that get a body markup: every named body that a <c>CPhysicsBodyGameMarkupData</c> entry targets
-    /// or whose part fields differ from what the compiler writes for a body without markup.
+    /// Gets the bodies that get a body markup: every body that a <c>CPhysicsBodyGameMarkupData</c> entry targets or whose
+    /// part fields differ from what the compiler writes for a body without markup. A body without a bone is named by the
+    /// empty string, which a markup targets the same way.
     /// </summary>
     private HashSet<string> GetMarkedUpPhysicsBodies()
     {
@@ -420,7 +421,7 @@ partial class ModelExtract
             {
                 var parentBone = physics.GetParentBoneName(i);
 
-                if (parentBone.Length > 0 && (gameMarkups.ContainsKey(parentBone) || IsPartAuthored(physics.Parts[i], partsData[i])))
+                if (gameMarkups.ContainsKey(parentBone) || IsPartAuthored(physics.Parts[i], partsData[i]))
                 {
                     bodies.Add(parentBone);
                 }

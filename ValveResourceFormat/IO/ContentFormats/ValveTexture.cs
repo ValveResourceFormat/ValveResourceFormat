@@ -63,38 +63,6 @@ public class CDmeVtex : DMElement
     // </summary>
     //[DMProperty(optional: true)]
     //public bool HiddenAssetFlag { get; set; }
-
-    /// <summary>
-    /// Creates a 2D texture configuration from input images.
-    /// </summary>
-    public static CDmeVtex CreateTexture2D((string FileName, string Channels, string MipAlgorithm)[] images, string outputFormat = "DXT1")
-    {
-        var vtex = new CDmeVtex
-        {
-            OutputFormat = outputFormat
-        };
-
-        var i = 0;
-        foreach (var image in images)
-        {
-            var inputImageId = "InputTexture" + i++;
-            var input = new CDmeInputTexture { Name = inputImageId, FileName = image.FileName };
-            input.ImageProcessorArray.Add(new CDmeImageProcessor()); // Empty
-            vtex.InputTextureArray.Add(input);
-
-            var output = new CDmeTextureOutputChannel()
-            {
-                SrcChannels = "rgba"[..image.Channels.Length],
-                DstChannels = image.Channels,
-            };
-
-            output.InputTextureArray.Add(inputImageId);
-            output.MipAlgorithm.Algorithm = image.MipAlgorithm;
-            vtex.TextureOutputChannelArray.Add(output);
-        }
-
-        return vtex;
-    }
 }
 
 /// <summary>

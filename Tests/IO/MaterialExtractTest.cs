@@ -43,19 +43,19 @@ namespace Tests.IO
                 new MaterialExtract.UnpackInfo()
                 {
                     TextureType = "TextureColor",
-                    FileName = "test_color.png",
+                    FileName = "test_color_jpg_65b7aff5_Color.png",
                     Channel = ChannelMapping.RGB
                 },
                 new MaterialExtract.UnpackInfo()
                 {
                     TextureType = translucent ? "TextureTranslucency" : "TextureMetalness",
-                    FileName = translucent ? "test_65b7aff5_trans.png" : "test_65b7aff5_metal.png",
+                    FileName = translucent ? "test_color_jpg_65b7aff5_Translucency.png" : "test_color_jpg_65b7aff5_Metalness.png",
                     Channel = ChannelMapping.A
                 }
             };
 
             var result = new MaterialExtract(GetMockMaterial(translucent), null, null, new BasicShaderDataProvider())
-                .GetTextureUnpackInfos("g_tColor", "test_color_jpg_65b7aff5.vtex", null, false, false);
+                .GetTextureUnpackInfos("g_tColor", "test_color_jpg_65b7aff5.vtex", null);
             await Assert.That(result).IsEquivalentTo(vr_complex_expected_inputs, EqualityComparer<MaterialExtract.UnpackInfo>.Default);
         }
 

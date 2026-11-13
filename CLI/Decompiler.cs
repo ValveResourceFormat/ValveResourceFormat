@@ -663,7 +663,7 @@ namespace CLI
 
                     if (!TestFileLoaders.TryGetValue(directory, out var testFileLoader))
                     {
-                        testFileLoader = new TestFileLoader(new Lazy<GameFileLoader>(() => CreateTestFileLoader(path)));
+                        testFileLoader = new TestFileLoader(new Lazy<GameFileLoader>(() => CreateGameFileLoader(null, path)));
                         TestFileLoaders.Add(directory, testFileLoader);
                     }
 
@@ -930,16 +930,6 @@ namespace CLI
                 FreeFileProcessingSlots++;
                 Monitor.Pulse(FileProcessingSlotsLock);
             }
-        }
-
-        private GameFileLoader CreateTestFileLoader(string path)
-        {
-            var fileLoader = CreateGameFileLoader(null, path);
-
-            // String tokens are only populated by the game file loader, and packages wrap it
-            fileLoader.EnsureStringTokenGameKeys();
-
-            return fileLoader;
         }
 
         private void ProcessInputFile(string path)
