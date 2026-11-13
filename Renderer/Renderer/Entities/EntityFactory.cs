@@ -48,8 +48,9 @@ public static class EntityFactory
         Register<PropDynamic>("prop_dynamic", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
         Register<PropDynamic>("prop_dynamic_override", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
         Register<GenericEntity>("prop_handpose", static (system, spawnInfo) => new GenericEntity(system, spawnInfo));
-        Register<NpcVrCitizen>("npc_vr_citizen_female", static (system, spawnInfo) => new NpcVrCitizen(system, spawnInfo));
-        Register<NpcVrCitizen>("npc_vr_citizen_male", static (system, spawnInfo) => new NpcVrCitizen(system, spawnInfo));
+        Register<ClassModelNpc>("npc_vr_citizen_female", static (system, spawnInfo) => new ClassModelNpc(system, spawnInfo, "models/characters/citizens/citizens_female.vmdl"));
+        Register<ClassModelNpc>("npc_vr_citizen_male", static (system, spawnInfo) => new ClassModelNpc(system, spawnInfo, "models/characters/citizens/citizens_male.vmdl"));
+        Register<ClassModelNpc>("npc_zombie", static (system, spawnInfo) => new ClassModelNpc(system, spawnInfo, "models/creatures/zombie_classic/zombie_classic.vmdl"));
         Register<NpcBossTier3>("npc_boss_tier3", static (system, spawnInfo) => new NpcBossTier3(system, spawnInfo));
         Register<FuncBreakable>("func_breakable", static (system, spawnInfo) => new FuncBreakable(system, spawnInfo));
         Register<FuncShatterglass>("func_shatterglass", static (system, spawnInfo) => new FuncShatterglass(system, spawnInfo));
