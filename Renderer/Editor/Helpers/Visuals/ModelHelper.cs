@@ -27,13 +27,14 @@ internal enum ModelBoundsMode
 
 /// <summary>
 /// The model an entity is drawn as: the one its class names, or the one its <c>model</c> key does. A class
-/// declares it as <c>editormodel</c> where the model only stands in for the entity in the editor. Words after
-/// the name of the model, or in its place, and the block the class declares it with change how it is drawn.
+/// declares it as <c>editormodel</c>, or passes the word <c>editormodel</c>, where the model only stands in for
+/// the entity in the editor. Words after the name of the model, or in its place, and the block the class declares
+/// it with change how it is drawn.
 /// </summary>
 public class ModelHelper : EntityHelper
 {
     /// <inheritdoc/>
-    public override bool IsStandIn => IsNamedByClass;
+    public override bool IsStandIn => IsNamedByClass || IsEditorModel;
 
     /// <inheritdoc/>
     public override bool HiddenInGameObjectsOnly => IsEditorModel;
@@ -42,7 +43,7 @@ public class ModelHelper : EntityHelper
     private static readonly Color32 BoundsColor = new(140, 215, 250);
 
     // What a class can put where the name of the model goes, to draw the model the entity names differently
-    private static readonly string[] Options = ["static", "fixedbounds", "castshadows", "nobounds", "posable", "postocclusionquery"];
+    private static readonly string[] Options = ["static", "fixedbounds", "castshadows", "nobounds", "posable", "postocclusionquery", "editormodel"];
 
     // A light without a directlight key is drawn as one that is lit as it moves
     private const int DefaultDirectLight = 2;
@@ -189,7 +190,8 @@ public class ModelHelper : EntityHelper
     {
         var block = declaration.Metadata;
         var isEditorModelName = declaration.Name.Equals("editormodel", StringComparison.OrdinalIgnoreCase);
-        var isEditorModel = isEditorModelName || GetBlockFlag(block, "editorobject");
+        var isEditorModel = isEditorModelName || GetBlockFlag(block, "editorobject")
+            || declaration.Arguments.Any(static argument => argument.Equals("editormodel", StringComparison.OrdinalIgnoreCase));
 
         string? name;
         bool isNamedByClass;
@@ -198,7 +200,7 @@ public class ModelHelper : EntityHelper
         // A class can name a key of the entity that holds the model, rather than the model itself
         if (GetBlockString(block, "preview_modelname") is { } previewKey)
         {
-            name = GetStringKey(owner, previewKey);
+            name = GetStringKey(owner, previewKey.ToLowerInvariant());
             isNamedByClass = true;
             firstOption = 0;
         }
@@ -219,7 +221,7 @@ public class ModelHelper : EntityHelper
         if (GetBlock(block, "model_from_key") is { } fromKey && GetBlockString(fromKey, "source_key") is { } sourceKey
             && GetBlock(fromKey, "value_to_vmdl") is { } models)
         {
-            var value = GetStringKey(owner, sourceKey);
+            var value = GetStringKey(owner, sourceKey.ToLowerInvariant());
 
             name = value.Length > 0 ? models.GetStringProperty(value) : null;
         }
@@ -266,7 +268,7 @@ public class ModelHelper : EntityHelper
             ? arguments[animation + 1]
             : null;
 
-        var previewClip = isEditorModelName && GetBlockString(block, "preview_clipname") is { } clipKey ? GetStringKey(owner, clipKey) : null;
+        var previewClip = isEditorModelName && GetBlockString(block, "preview_clipname") is { } clipKey ? GetStringKey(owner, clipKey.ToLowerInvariant()) : null;
 
         // The model of an entity is drawn the way the game draws it before it is told to play anything
         var defaultSequence = isEditorModel ? DefaultSequence.Search
