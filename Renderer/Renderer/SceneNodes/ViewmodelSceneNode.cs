@@ -270,7 +270,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
 
         entitySystem.TempEntities.DispatchEffect("KnifeSlash",
-            new EffectData(Scene, surface.HitPosition, surface.HitNormal, input.Camera.Forward, surface.SurfacePropertyHash, surface.HitEntity));
+            new EffectData(Scene, surface.HitPosition, from, surface.HitNormal, input.Camera.Forward, surface.SurfacePropertyHash, surface.HitEntity));
     }
 
     private const float BulletRange = 8192f;
@@ -303,13 +303,13 @@ public class ViewmodelSceneNode : ModelSceneNode
             end = trace.HitPosition;
 
             entitySystem.TempEntities.DispatchEffect("Impact",
-                new EffectData(Scene, trace.HitPosition, trace.HitNormal, direction, trace.SurfacePropertyHash, trace.HitEntity));
+                new EffectData(Scene, trace.HitPosition, camera.Location, trace.HitNormal, direction, trace.SurfacePropertyHash, trace.HitEntity));
         }
 
         if (input.EntitySystem?.TraceWaterSurface(camera.Location, end, out var waterSurface) == true)
         {
             entitySystem.TempEntities.DispatchEffect("gunshotsplash",
-                new EffectData(Scene, waterSurface, Vector3.UnitZ, direction, Scale: float.Lerp(8f, 12f, Random.Shared.NextSingle())));
+                new EffectData(Scene, waterSurface, camera.Location, Vector3.UnitZ, direction, Scale: float.Lerp(8f, 12f, Random.Shared.NextSingle())));
         }
 
         SpawnTracer(SelectedTracer, end);

@@ -8,13 +8,14 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <summary>Where and how a dispatched effect happens.</summary>
 /// <param name="Scene">The scene the effect shows in.</param>
 /// <param name="Origin">Where the effect happens.</param>
+/// <param name="Start">Where whatever caused it started from.</param>
 /// <param name="Normal">The normal of the surface it happens on.</param>
 /// <param name="Direction">The direction whatever caused it was travelling.</param>
 /// <param name="SurfacePropertyHash">The hash of the surface property that was hit, or zero for the default surface.</param>
 /// <param name="Entity">The entity that was hit, or null for the static world.</param>
 /// <param name="Scale">How big the effect is, for effects that come in sizes.</param>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEffectData">CEffectData</seealso>
-public readonly record struct EffectData(Scene Scene, Vector3 Origin, Vector3 Normal, Vector3 Direction,
+public readonly record struct EffectData(Scene Scene, Vector3 Origin, Vector3 Start, Vector3 Normal, Vector3 Direction,
     uint SurfacePropertyHash = 0, BaseEntity? Entity = null, float Scale = 1f);
 
 /// <summary>
@@ -106,13 +107,14 @@ public sealed class TempEntities
 
         var direction = Vector3.Normalize(data.Direction);
 
-        // The surface normal, the direction the bullet bounces off in, and the way back to the shooter
+        // CP0 faces the surface normal, CP1 the reflected bullet direction, CP2 back toward the shooter
         particle.SetControlPoint(1, ControlPoint(data.Origin, Vector3.Reflect(direction, data.Normal)));
         particle.SetControlPoint(2, ControlPoint(data.Origin, -direction));
 
-        // The effect scale, and the point just off the surface where effects sample the light that tints them
+        // CP3 position is the effect scale, CP4 is always (1, 1, 1), CP5 is the start of the bullet trace
         particle.GetControlPoint(3).Position = Vector3.One;
-        particle.GetControlPoint(4).Position = data.Origin + Vector3.One;
+        particle.GetControlPoint(4).Position = Vector3.One;
+        particle.GetControlPoint(5).Position = data.Start;
     }
 
     /// <summary>Plays a particle system once, removing it when it has finished.</summary>
