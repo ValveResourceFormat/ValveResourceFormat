@@ -132,7 +132,8 @@ Decompiling produces a `.vmdl` plus DMX files for meshes, physics shapes, and an
 loadable in ModelDoc. Reconstructed: render meshes with all vertex streams, skeleton,
 attachments with their camera previews, bodygroups, LOD groups, hitbox sets, material groups
 (skins), static collision shapes, physics joints and body properties, bone constraints, IK
-chains and control rigs, face flexes, breakable pieces, cloth (chains, sheets, springs,
+chains and control rigs, face flexes, breakable pieces, model configs (spawn and dynamic configs
+with their picks, attached models, colors, material groups and bodygroups), cloth (chains, sheets, springs,
 collision shapes and effects rebuilt from the compiled `FeModel`), embedded sequences with
 events/layers/root motion, Animgraph 2 clips and references, and a wide range of game data
 blocks (prop_data, particle attachments, and many more) passed through verbatim.
@@ -151,7 +152,6 @@ What a recompiled model will be missing:
 | Additive clip base             | Not in compiled files | An additive Animgraph 2 clip keeps only its offsets. One that holds an unchanged frame comes back relative to that frame; any other, such as one generated against another animation, comes back relative to the skeleton's reference pose, which recompiles to the same offsets.                                                       |
 | Vertical root motion           | Intentional           | The Z component of root motion is zeroed on export, matching how the engine applies movement to the visible body.                                                                                                                                                                                                                       |
 | Attachment camera preview look | Not in compiled files | The `preview_scale` and `background_color` of an `Attachment Camera Preview` only affect the editor, so they come back at their defaults. A camera on an attachment that the compiled model does not have is dropped.                                                                                                                   |
-
 ### glTF Export
 
 Models and maps export to glTF 2.0 (`.glb`/`.gltf`) with meshes, up to 8 bone weights per

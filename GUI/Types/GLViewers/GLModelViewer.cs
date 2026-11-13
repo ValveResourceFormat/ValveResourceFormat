@@ -8,6 +8,7 @@ using System.Threading;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
+using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Editor;
@@ -78,6 +79,20 @@ namespace GUI.Types.GLViewers
         private GLViewerTreeSelectionControl? collisionTree;
         private int animationComboBoxCurrentIndex = -1;
 
+        private const string NoModelConfig = "(none)";
+        private ComboBox? modelConfigComboBox;
+        private ThemedButton? rerollButton;
+        private readonly Dictionary<ModelConfigElement, ComboBox> pickSelections = [];
+        private string? modelConfigName;
+        private ModelConfigResult? modelConfigResult;
+        private readonly List<ModelSceneNode> modelConfigNodes = [];
+        private HashSet<string> defaultMeshGroups = [];
+        private bool updatingModelConfigControls;
+
+        // The config_state of the picks the user set, and the choices random picks drew while they were not set
+        private readonly Dictionary<string, KVObject> pickedChoices = [];
+        private readonly Dictionary<string, int> rolledChoices = [];
+
         public GLModelViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(vrfGuiContext, rendererContext)
         {
             //
@@ -114,6 +129,14 @@ namespace GUI.Types.GLViewers
             showAttachmentsCheckbox?.Dispose();
             showParticlesCheckbox?.Dispose();
             hitboxComboBox?.Dispose();
+            modelConfigComboBox?.Dispose();
+            rerollButton?.Dispose();
+
+            foreach (var comboBox in pickSelections.Values)
+            {
+                comboBox.Dispose();
+            }
+
             graphControlsHost?.Dispose();
             graphPlaybackControls?.Dispose();
             graphPlayImage?.Dispose();
@@ -341,6 +364,13 @@ namespace GUI.Types.GLViewers
                 animationController = modelSceneNode.AnimationController;
                 Scene.Add(modelSceneNode, true);
 
+                if (model.Configs.Configs.Count > 0)
+                {
+                    defaultMeshGroups = [.. modelSceneNode.GetActiveMeshGroups()];
+                    modelConfigName = model.Configs.Find(ModelConfigList.SpawnConfigName)?.Name;
+                    ApplyModelConfig();
+                }
+
                 if (modelSceneNode.RenderableMeshes.Count == 1)
                 {
                     var mesh = modelSceneNode.RenderableMeshes[0];
@@ -461,6 +491,224 @@ namespace GUI.Types.GLViewers
 
             bodyGroupSelections.Add((bodyGroup, comboBox));
             comboBox.SelectedIndex = FindActiveChoice(bodyGroup, modelSceneNode.GetActiveMeshGroups());
+        }
+
+        private void AddModelConfigControls(ModelConfigList configs)
+        {
+            Debug.Assert(UiControl != null);
+
+            using var _ = UiControl.BeginGroup("Model Config");
+
+            modelConfigComboBox = UiControl.AddSelection("Config", (name, index) =>
+            {
+                if (updatingModelConfigControls || index < 0)
+                {
+                    return;
+                }
+
+                modelConfigName = name == NoModelConfig ? null : name;
+                OnModelConfigChanged();
+            });
+
+            modelConfigComboBox.Items.AddRange([.. configs.Configs
+                .Where(static config => config.IsTopLevel)
+                .OrderBy(static config => config.Name != ModelConfigList.SpawnConfigName)
+                .Select(static config => config.Name)]);
+            modelConfigComboBox.Items.Add(NoModelConfig);
+
+            updatingModelConfigControls = true;
+            modelConfigComboBox.SelectedItem = modelConfigName ?? NoModelConfig;
+            updatingModelConfigControls = false;
+
+            rerollButton = new ThemedButton
+            {
+                Text = "Reroll",
+                AutoSize = true,
+            };
+            rerollButton.Click += (_, _) =>
+            {
+                rolledChoices.Clear();
+                OnModelConfigChanged();
+            };
+            UiControl.AddControl(rerollButton);
+
+            UpdatePickSelections();
+        }
+
+        private void OnModelConfigChanged()
+        {
+            Debug.Assert(modelSceneNode != null);
+
+            using (var lockedGl = MakeCurrent())
+            {
+                ApplyModelConfig();
+            }
+
+            if (materialGroupListBox != null && modelSceneNode.ActiveMaterialGroup is { } materialGroup)
+            {
+                materialGroupListBox.SelectedItem = materialGroup;
+            }
+
+            SetMeshGroupSelection([.. modelSceneNode.GetActiveMeshGroups()]);
+            UpdatePickSelections();
+        }
+
+        private void ApplyModelConfig()
+        {
+            Debug.Assert(model != null);
+            Debug.Assert(modelSceneNode != null);
+
+            foreach (var node in modelConfigNodes)
+            {
+                Scene.Remove(node, dynamic: true);
+                node.Delete();
+            }
+
+            modelConfigNodes.Clear();
+            modelSceneNode.Tint = Vector3.One;
+
+            // What the previous config set goes back to the model's own, while what the user set that it did not stays
+            if (modelConfigResult != null)
+            {
+                if (modelConfigResult.MaterialGroup != null && modelSceneNode.GetMaterialGroups().FirstOrDefault() is { } defaultMaterialGroup)
+                {
+                    modelSceneNode.SetMaterialGroup(defaultMaterialGroup);
+                }
+
+                foreach (var choice in modelSceneNode.GetBodyGroupChoices().ToList())
+                {
+                    if (defaultMeshGroups.Contains(choice.MeshGroup) && modelConfigResult.BodyGroups.Keys.Contains(choice.BodyGroup, StringComparer.OrdinalIgnoreCase))
+                    {
+                        modelSceneNode.SetBodyGroupChoice(choice);
+                    }
+                }
+            }
+
+            var state = new KVObject();
+
+            foreach (var (key, choice) in rolledChoices)
+            {
+                state[key] = choice;
+            }
+
+            foreach (var (key, choice) in pickedChoices)
+            {
+                state[key] = choice;
+            }
+
+            modelConfigResult = modelConfigName == null ? null : model.Configs.Evaluate(modelConfigName, state, Random.Shared);
+            modelStatsDirty = true;
+
+            if (modelConfigResult == null)
+            {
+                return;
+            }
+
+            foreach (var node in modelSceneNode.ApplyConfig(modelConfigResult, Vector3.One))
+            {
+                Scene.Add(node, dynamic: true);
+                modelConfigNodes.Add(node);
+            }
+
+            foreach (var (pick, choice) in modelConfigResult.Picks)
+            {
+                if (pick is ModelConfigRandomPick && !pickedChoices.ContainsKey(pick.StateKey))
+                {
+                    rolledChoices[pick.StateKey] = choice;
+                }
+            }
+        }
+
+        /// <summary>Shows a selection for each pick the config reaches, in the order it reaches them.</summary>
+        private void UpdatePickSelections()
+        {
+            Debug.Assert(UiControl != null);
+            Debug.Assert(rerollButton != null);
+
+            var picks = (modelConfigResult?.Picks ?? []).DistinctBy(static pick => pick.Pick.StateKey).ToList();
+
+            foreach (var (pick, comboBox) in pickSelections.ToList())
+            {
+                if (!picks.Exists(reached => reached.Pick == pick))
+                {
+                    pickSelections.Remove(pick);
+                    comboBox.Parent?.Dispose();
+                }
+            }
+
+            using var _ = UiControl.BeginGroup("Model Config");
+
+            updatingModelConfigControls = true;
+
+            foreach (var (pick, choice) in picks)
+            {
+                if (!pickSelections.TryGetValue(pick, out var comboBox))
+                {
+                    comboBox = AddPickSelection(pick);
+                    pickSelections[pick] = comboBox;
+                }
+
+                comboBox.Parent?.BringToFront();
+
+                if (pick is ModelConfigRandomPick randomPick)
+                {
+                    comboBox.Items[0] = $"Random ({randomPick.Choices[choice]})";
+                    comboBox.SelectedIndex = pickedChoices.ContainsKey(pick.StateKey) ? choice + 1 : 0;
+                }
+                else
+                {
+                    comboBox.SelectedIndex = choice;
+                }
+            }
+
+            updatingModelConfigControls = false;
+
+            rerollButton.Enabled = picks.Exists(reached => reached.Pick is ModelConfigRandomPick && !pickedChoices.ContainsKey(reached.Pick.StateKey));
+        }
+
+        private ComboBox AddPickSelection(ModelConfigElement pick)
+        {
+            Debug.Assert(UiControl != null);
+
+            var isRandom = pick is ModelConfigRandomPick;
+            var choices = pick switch
+            {
+                ModelConfigUserPick userPick => userPick.Choices,
+                ModelConfigRandomPick randomPick => randomPick.Choices,
+                _ => [],
+            };
+
+            var comboBox = UiControl.AddSelection(pick.StateKey, (_, index) =>
+            {
+                if (updatingModelConfigControls || index < 0)
+                {
+                    return;
+                }
+
+                if (!isRandom)
+                {
+                    pickedChoices[pick.StateKey] = choices[index];
+                }
+                else if (index > 0)
+                {
+                    pickedChoices[pick.StateKey] = index - 1;
+                }
+                else
+                {
+                    pickedChoices.Remove(pick.StateKey);
+                }
+
+                OnModelConfigChanged();
+            });
+
+            if (isRandom)
+            {
+                comboBox.Items.Add("Random");
+            }
+
+            comboBox.Items.AddRange([.. choices]);
+
+            return comboBox;
         }
 
         private void AddPoseParameterControl(PoseParameter parameter)
@@ -773,7 +1021,12 @@ namespace GUI.Types.GLViewers
                     });
 
                     materialGroupListBox.Items.AddRange(materialGroupNames);
-                    materialGroupListBox.SelectedIndex = 0;
+                    materialGroupListBox.SelectedIndex = Math.Max(0, materialGroupListBox.Items.IndexOf(modelSceneNode.ActiveMaterialGroup));
+                }
+
+                if (model.Configs.Configs.Count > 0)
+                {
+                    AddModelConfigControls(model.Configs);
                 }
 
                 AddFlexControllerControls(modelSceneNode, model.FlexControllers);

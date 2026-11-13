@@ -41,6 +41,7 @@ partial class ModelExtract
         public KVObject Vsnaps => Get("VSNAPList");
         public KVObject BreakPieces => Get("BreakPieceList");
         public KVObject GameData => Get("GameDataList");
+        public KVObject DynamicConfigs => Get("DynamicConfigList");
 
         private KVObject Get(string className)
         {
@@ -81,6 +82,7 @@ partial class ModelExtract
         {
             ExtractModelKeyValues(model, lists, root.Node);
             AddHitboxSetNodes(model, lists);
+            AddModelConfigNodes(model, lists);
 
             if (model.Skeleton.Roots.Length > 0)
             {
