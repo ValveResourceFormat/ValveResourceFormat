@@ -98,7 +98,7 @@ internal sealed partial class McpTools
     [Tool("Read the viewer log, oldest first. Each line is 'time L [component] message', where L is the first letter of the level. Repeats collapse into the last one with an (xN) count. Pass 'cursor' as 'since' to read only newer lines. 'dropped' counts the lines after 'since' that are too old to keep.", Concurrent = true)]
     private static object GetLog(
         [Description("Cursor from an earlier call.")] long since = 0,
-        [Description("Lowest level to include.")] Log.Category level = Log.Category.INFO,
+        [Description("Lowest level to include.")] Log.Category level = Log.Category.WARN,
         [Description("Case insensitive regular expression that '[component] message' must match.")] string? include = null,
         [Description("Case insensitive regular expression for lines to omit.")] string? exclude = null,
         [Description("Maximum lines. Keeps the newest.")][Range(1, int.MaxValue)] int limit = 200)

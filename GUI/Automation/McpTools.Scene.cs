@@ -310,8 +310,10 @@ internal sealed partial class McpTools
     private object GetEntity(
         GLWorldViewer viewer,
         [Description("Entity id.")] int id,
-        [Description("Describe each node (name, layers, materials, bounds, why it is hidden) instead of listing ids.")] bool nodes = false)
+        [Description("Describe each node (name, layers, materials, bounds, why it is hidden) instead of listing ids.")] bool nodes = false,
+        [Description("Case insensitive regex for the keys of the keyvalues to return. Omit for all.")] string? keys = null)
     {
+        var keysPattern = Pattern(keys, nameof(keys));
         var entities = Entities(viewer);
         var data = EntityById(entities, id).Data;
         var instance = Spawned(viewer, data);
@@ -332,7 +334,7 @@ internal sealed partial class McpTools
             SpawnGroup = row.Group?.MapName,
             Sky = Flag(row.Group?.WorldGroup != null),
             row.Position,
-            Keyvalues = data.Children.Where(static pair => pair.Key is not ("classname" or "targetname")).ToDictionary(static pair => pair.Key, static pair => KeyValueText(pair.Value)),
+            Keyvalues = data.Children.Where(pair => pair.Key is not ("classname" or "targetname") && Matches(keysPattern, pair.Key)).ToDictionary(static pair => pair.Key, static pair => KeyValueText(pair.Value)),
             Outputs = data.Connections?.Select(DescribeConnection).ToList(),
 
             Spawned = instance == null ? null : new

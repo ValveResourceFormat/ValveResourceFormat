@@ -22,9 +22,34 @@ internal sealed partial class McpTools
     /// <summary>One change of <see cref="SetControls"/>.</summary>
     private sealed record ControlChange(string Name, string? Group = null, string? Item = null, JsonNode? Value = null);
 
-    [Tool("List the sidebar and toolbar controls of a tab, top to bottom. Kinds: checkbox, toggle, dropdown, list (checked items), tree (checked items by path, where an item checks the items below it), slider (0 to 1), number (with its range), vector, button and text. The render mode dropdown is in the Toolbar group.")]
+    [Tool("List the sidebar and toolbar controls of a tab, top to bottom, in runs that share a 'group'. Kinds: checkbox, toggle, dropdown, list (checked items), tree (checked items by path, where an item checks the items below it), slider (0 to 1), number (with its range), vector, button and text. The render mode dropdown is in the Toolbar group.")]
     private static List<object> ListControls(GLBaseControl viewer, [Description("Include the items of dropdowns, lists and trees. An animation list can have hundreds.")] bool items = false)
-        => SidebarControls(viewer).Select(control => DescribeControl(control, items)).ToList();
+    {
+        var controls = SidebarControls(viewer);
+        var groups = new List<object>();
+        var start = 0;
+
+        while (start < controls.Count)
+        {
+            var group = controls[start].Group;
+            var end = start + 1;
+
+            while (end < controls.Count && controls[end].Group == group)
+            {
+                end++;
+            }
+
+            groups.Add(new
+            {
+                Group = group,
+                Controls = controls.GetRange(start, end - start).Select(control => DescribeControl(control, items, withGroup: false)).ToList(),
+            });
+
+            start = end;
+        }
+
+        return groups;
+    }
 
     [Tool("Change sidebar or toolbar controls in order, as a user would. Stops at the first change that fails and keeps the changes before it. Returns each changed control. "
         + "On a map, the Exposure slider sets a manual exposure of 10 times its value, even when the value does not change, until the tab is reloaded. 'exposure' then gives the mode and value.", Redraws = true)]
@@ -241,7 +266,8 @@ internal sealed partial class McpTools
         return control;
     }
 
-    private static object DescribeControl(SidebarControl control, bool items)
+    /// <param name="withGroup">False when the caller gives the group of the control itself.</param>
+    private static object DescribeControl(SidebarControl control, bool items, bool withGroup = true)
     {
         var input = control.Control;
 
@@ -249,7 +275,7 @@ internal sealed partial class McpTools
         {
             Kind = KindOf(input),
             Name = control.Label,
-            control.Group,
+            Group = withGroup ? control.Group : null,
             Value = ValueOf(input),
             Items = items ? ListItems(input) : null,
             Disabled = Flag(!input.Enabled),
