@@ -26,14 +26,14 @@ internal enum ModelBoundsMode
 
 /// <summary>
 /// The model an entity is drawn as: the model the class names, or the model in the <c>model</c> key of the
-/// entity. A class declares it as <c>editormodel</c> where the model only stands in for the entity in the
-/// editor. Options after the name of the model or in its place, and the metadata block of the declaration,
-/// change how it is drawn.
+/// entity. A class declares it as <c>editormodel</c>, or passes the option <c>editormodel</c>, where the model
+/// only stands in for the entity in the editor. Options after the name of the model or in its place, and the
+/// metadata block of the declaration, change how it is drawn.
 /// </summary>
 public class ModelHelper : EntityHelper
 {
     /// <inheritdoc/>
-    public override bool IsStandIn => IsNamedByClass;
+    public override bool IsStandIn => IsNamedByClass || IsEditorModel;
 
     /// <inheritdoc/>
     public override bool HiddenInGameObjectsOnly => IsEditorModel;
@@ -42,7 +42,7 @@ public class ModelHelper : EntityHelper
     private static readonly Color32 BoundsColor = new(140, 215, 250);
 
     // Options a class can put where the name of the model goes, to change how the model the entity names is drawn
-    private static readonly string[] Options = ["static", "fixedbounds", "castshadows", "nobounds", "posable", "postocclusionquery"];
+    private static readonly string[] Options = ["static", "fixedbounds", "castshadows", "nobounds", "posable", "postocclusionquery", "editormodel"];
 
     // A light without a directlight key is dynamic
     private const int DefaultDirectLight = 2;
@@ -189,7 +189,8 @@ public class ModelHelper : EntityHelper
     {
         var block = declaration.Metadata;
         var isEditorModelName = declaration.Name.Equals("editormodel", StringComparison.OrdinalIgnoreCase);
-        var isEditorModel = isEditorModelName || GetBlockFlag(block, "editorobject");
+        var isEditorModel = isEditorModelName || GetBlockFlag(block, "editorobject")
+            || declaration.Arguments.Any(static argument => argument.Equals("editormodel", StringComparison.OrdinalIgnoreCase));
 
         string? name;
         bool isNamedByClass;
