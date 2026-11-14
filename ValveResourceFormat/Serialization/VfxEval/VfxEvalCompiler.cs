@@ -124,7 +124,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 return;
             }
 
-            var function = Array.FindIndex(VfxEval.FUNCTION_REF, f => f.Name == name);
+            var function = FindFunction(name);
 
             if (function < 0)
             {
@@ -145,9 +145,9 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 Expect(')');
             }
 
-            if (argumentCount != VfxEval.FUNCTION_REF[function].ArgumentCount)
+            if (argumentCount != VfxEval.Functions[function].ArgumentCount)
             {
-                throw Error(string.Create(CultureInfo.InvariantCulture, $"'{name}' takes {VfxEval.FUNCTION_REF[function].ArgumentCount} arguments, not {argumentCount}"));
+                throw Error(string.Create(CultureInfo.InvariantCulture, $"'{name}' takes {VfxEval.Functions[function].ArgumentCount} arguments, not {argumentCount}"));
             }
 
             code.Add((byte)OPCODE.FUNC);
@@ -166,6 +166,19 @@ namespace ValveResourceFormat.Serialization.VfxEval
             Span<byte> bytes = stackalloc byte[sizeof(uint)];
             BinaryPrimitives.WriteUInt32LittleEndian(bytes, value);
             code.AddRange(bytes);
+        }
+
+        private static int FindFunction(string name)
+        {
+            for (var i = 0; i < VfxEval.Functions.Count; i++)
+            {
+                if (VfxEval.Functions[i].Name == name)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
         }
 
         private char Peek()

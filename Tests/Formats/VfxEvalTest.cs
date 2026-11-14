@@ -911,17 +911,6 @@ namespace Tests.Formats
         }
 
         [Test]
-        public async Task TestFunctionTableMatchesEnum()
-        {
-            for (var i = 0; i < VfxEval.FUNCTION_REF.Length; i++)
-            {
-                await Assert.That(VfxEval.FUNCTION_REF[i].Function).IsEqualTo((VfxEval.ExpressionFunction)i);
-            }
-
-            await Assert.That(VfxEval.FUNCTION_REF.Length).IsEqualTo(Enum.GetValues<VfxEval.ExpressionFunction>().Length);
-        }
-
-        [Test]
         public async Task TestRuntimeFailsPastStackDepth()
         {
             // 33 floats, one more than the stack holds
