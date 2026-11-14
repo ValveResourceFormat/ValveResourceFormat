@@ -1,7 +1,10 @@
 using System.Collections;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Threading;
 using ValvePak;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -45,6 +48,31 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
         => Get(VcsProgramType.MeshShader);
 
     private readonly Dictionary<VcsProgramType, VfxProgramData> shaders = new((int)VcsProgramType.Undetermined);
+
+    private Dictionary<StringToken, VfxVariableDescription>? variablesByToken;
+
+    /// <summary>Gets the variables of all programs by the tokens dynamic expressions refer to them with.</summary>
+    public IReadOnlyDictionary<StringToken, VfxVariableDescription> VariablesByToken
+        => LazyInitializer.EnsureInitialized(ref variablesByToken, CreateVariablesByToken);
+
+    private Dictionary<StringToken, VfxVariableDescription> CreateVariablesByToken()
+    {
+        var variables = new Dictionary<StringToken, VfxVariableDescription>();
+
+        foreach (var variable in shaders.Values.SelectMany(program => program.VariableDescriptions))
+        {
+            variables.TryAdd(StringToken.Lookup(variable.Name), variable);
+
+            var prefix = VfxVariableDescription.TypePrefixes.FirstOrDefault(prefix => variable.Name.StartsWith(prefix, StringComparison.Ordinal));
+
+            if (prefix != null)
+            {
+                variables.TryAdd(StringToken.Lookup(variable.Name.AsSpan(prefix.Length)), variable);
+            }
+        }
+
+        return variables;
+    }
 
     /// <summary>
     /// Loads all related shader files for a given shader.

@@ -58,6 +58,9 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the set of sampler uniform names that use material address modes via <c>// Sampler(UserConfig)</c>.</summary>
         public required HashSet<string> SamplerUserConfigUniforms { get; init; }
 
+        /// <summary>Gets the compiled expressions of uniforms annotated with <c>// Expression(...)</c>, used where game shader files do not provide them.</summary>
+        public IReadOnlyDictionary<string, byte[]> Expressions { get; init; } = new Dictionary<string, byte[]>();
+
         /// <summary>Gets the sampler uniform that holds the color of a material, annotated with <c>// RepresentativeTexture</c>, or <see langword="null"/> when the shader has none.</summary>
         public string? RepresentativeTexture { get; init; }
 

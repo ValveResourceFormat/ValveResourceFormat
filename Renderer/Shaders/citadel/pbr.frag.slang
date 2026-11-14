@@ -40,8 +40,11 @@ uniform sampler2D g_tNormalRoughness;
     uniform sampler2D g_tTintMask;
 #endif
 
-uniform mat4 g_mAlbedoColorCorrect = mat4(1.0);
-uniform mat4 g_mTextureColorTint = mat4(1.0);
+uniform vec3 g_vAlbedoContrastSaturationBrightness1 = vec3(1.0);
+uniform mat4 g_mAlbedoColorCorrect = mat4(1.0); // Expression(MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness1, TextureAverageColor(g_tColor)))
+uniform vec3 g_vColorTint1 = vec3(1.0);
+uniform int g_nTextureColorTintMode1 = 0;
+uniform mat4 g_mTextureColorTint = mat4(1.0); // Expression(MatrixColorTint3(SrgbGammaToLinear(g_vColorTint1), 0.85, g_nTextureColorTintMode1))
 
 uniform bool g_bMaskColorTint1 = true;
 uniform bool g_bMaskVertexColorTint1 = true;
@@ -140,7 +143,9 @@ uniform float g_flNormalAndRoughnessScrollQuantize1 = 0.0;
 
 #if (F_SHEEN == 1)
     uniform sampler2D g_tSheen; // SrgbRead(true)
-    uniform mat4 g_mSheenTextureColorTint = mat4(1.0); // currently unset
+    uniform vec3 g_vSheenColorTint1 = vec3(1.0);
+    uniform int g_nSheenTextureColorTintMode1 = 0;
+    uniform mat4 g_mSheenTextureColorTint = mat4(1.0); // Expression(MatrixColorTint3(SrgbGammaToLinear(g_vSheenColorTint1), 0.85, g_nSheenTextureColorTintMode1))
 
     uniform bool g_bSheenMaskColorTint1 = true;
     uniform bool g_bSheenMaskVertexColorTint1 = true;

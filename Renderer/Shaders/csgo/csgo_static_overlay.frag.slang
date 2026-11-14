@@ -15,7 +15,11 @@
 #include "../common/surface_shading.slang"
 
 uniform float g_flOpacityScale = 1.0;
-uniform mat4 g_mTextureColorAdjust; // evaluated on the CPU from g_fTextureColor* params
+uniform float g_fTextureColorContrast = 1.0;
+uniform float g_fTextureColorSaturation = 1.0;
+uniform float g_fTextureColorBrightness = 1.0;
+uniform vec3 g_vTextureColorCorrectionTint = vec3(1.0);
+uniform mat4 g_mTextureColorAdjust; // Expression(MatrixMultiply(MatrixColorTint2(g_vTextureColorCorrectionTint, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast, g_fTextureColorSaturation, g_fTextureColorBrightness), TextureAverageColor(g_tColor))))
 
 uniform float g_flAlphaTestReference = 0.5;
 
