@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using GUI.Utils;
+using Microsoft.Win32;
 using OpenTK.Windowing.Desktop;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -12,12 +13,77 @@ namespace GUI.Types.GLViewers;
 /// </summary>
 static class NativeWindowFactory
 {
+    private const string GpuPreferencesKey = @"Software\Microsoft\DirectX\UserGpuPreferences";
+    private static bool GpuPreferenceRequested;
     private static readonly System.Threading.Lock GlfwLock = new();
 
     public static NativeWindow Create(NativeWindowSettings settings)
     {
         using var _ = GlfwLock.EnterScope();
-        return new NativeWindow(settings);
+
+        // Windows picks the adapter once per process at the first pixel format call.
+        // The preference is only needed while the first window is created, so a portable exe leaves no entry behind.
+        var wroteGpuPreference = false;
+
+        if (!GpuPreferenceRequested)
+        {
+            GpuPreferenceRequested = true;
+            wroteGpuPreference = RequestHighPerformanceGpu();
+        }
+
+        try
+        {
+            return new NativeWindow(settings);
+        }
+        finally
+        {
+            if (wroteGpuPreference)
+            {
+                RemoveGpuPreference();
+            }
+        }
+    }
+
+    // Skipped when the user already set a preference
+    private static bool RequestHighPerformanceGpu()
+    {
+        var exePath = Environment.ProcessPath;
+
+        if (exePath == null)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var key = Registry.CurrentUser.CreateSubKey(GpuPreferencesKey);
+
+            if (key.GetValue(exePath) != null)
+            {
+                return false;
+            }
+
+            key.SetValue(exePath, "GpuPreference=2;");
+            return true;
+        }
+        catch (Exception e)
+        {
+            Log.Debug(nameof(NativeWindowFactory), $"Failed to request the high performance GPU: {e.Message}");
+            return false;
+        }
+    }
+
+    private static void RemoveGpuPreference()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(GpuPreferencesKey, writable: true);
+            key?.DeleteValue(Environment.ProcessPath!, throwOnMissingValue: false);
+        }
+        catch (Exception e)
+        {
+            Log.Debug(nameof(NativeWindowFactory), $"Failed to remove the GPU preference: {e.Message}");
+        }
     }
 
     /// <summary>
