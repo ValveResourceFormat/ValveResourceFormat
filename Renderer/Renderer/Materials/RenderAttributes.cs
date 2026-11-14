@@ -37,17 +37,46 @@ public sealed class RenderAttributes
     /// <returns>Whether it was set.</returns>
     public bool Remove(string name) => Values.Remove(name);
 
-    /// <summary>Gets whether any attribute changes what a shader with <paramref name="layout"/> draws.</summary>
-    internal bool Overrides(GlobalsLayout layout)
+    /// <summary>Gets whether any attribute changes what <paramref name="material"/> draws with a shader of <paramref name="layout"/>.</summary>
+    internal bool Overrides(RenderMaterial material, GlobalsLayout layout)
     {
         foreach (var name in Values.Keys)
         {
-            if (layout.Members.ContainsKey(name))
+            if (layout.Members.ContainsKey(name) || ReadByExpressions(material, name))
             {
                 return true;
             }
         }
 
+        return false;
+    }
+
+    private static bool ReadByExpressions(RenderMaterial material, string name)
+    {
+        foreach (var used in material.Material.RenderAttributesUsed)
+        {
+            if (string.Equals(used, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Gets an attribute by the token expressions read it with, with scalars in every component.</summary>
+    internal bool TryGetValue(StringToken name, out Vector4 value)
+    {
+        foreach (var (key, variant) in Values)
+        {
+            if (StringToken.Get(key) == name.Token)
+            {
+                value = variant.ToVector4();
+                return true;
+            }
+        }
+
+        value = default;
         return false;
     }
 
