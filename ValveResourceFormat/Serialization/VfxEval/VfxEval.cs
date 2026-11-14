@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.Serialization.VfxEval
@@ -24,69 +25,21 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // the decompiled expression, one statement per line
         private readonly List<string> DynamicExpressionList = [];
 
-        // name and number of arguments, indexed by ExpressionFunction
-        internal static readonly (ExpressionFunction Function, string Name, int ArgumentCount)[] FUNCTION_REF = [
-#pragma warning disable format
-            (ExpressionFunction.Sin,                 "sin",                   1),
-            (ExpressionFunction.Cos,                 "cos",                   1),
-            (ExpressionFunction.Tan,                 "tan",                   1),
-            (ExpressionFunction.Frac,                "frac",                  1),
-            (ExpressionFunction.Floor,               "floor",                 1),
-            (ExpressionFunction.Ceil,                "ceil",                  1),
-            (ExpressionFunction.Saturate,            "saturate",              1),
-            (ExpressionFunction.Clamp,               "clamp",                 3),
-            (ExpressionFunction.Lerp,                "lerp",                  3),
-            (ExpressionFunction.Dot4,                "dot4",                  2),
-            (ExpressionFunction.Dot3,                "dot3",                  2),
-            (ExpressionFunction.Dot2,                "dot2",                  2),
-            (ExpressionFunction.Log,                 "log",                   1),
-            (ExpressionFunction.Log2,                "log2",                  1),
-            (ExpressionFunction.Log10,               "log10",                 1),
-            (ExpressionFunction.Exp,                 "exp",                   1),
-            (ExpressionFunction.Exp2,                "exp2",                  1),
-            (ExpressionFunction.Sqrt,                "sqrt",                  1),
-            (ExpressionFunction.Rsqrt,               "rsqrt",                 1),
-            (ExpressionFunction.Sign,                "sign",                  1),
-            (ExpressionFunction.Abs,                 "abs",                   1),
-            (ExpressionFunction.Pow,                 "pow",                   2),
-            (ExpressionFunction.Step,                "step",                  2),
-            (ExpressionFunction.SmoothStep,          "smoothstep",            3),
-            (ExpressionFunction.Float4,              "float4",                4),
-            (ExpressionFunction.Float3,              "float3",                3),
-            (ExpressionFunction.Float2,              "float2",                2),
-            (ExpressionFunction.Time,                "time",                  0),
-            (ExpressionFunction.Min,                 "min",                   2),
-            (ExpressionFunction.Max,                 "max",                   2),
-            (ExpressionFunction.SrgbLinearToGamma,   "SrgbLinearToGamma",     1),
-            (ExpressionFunction.SrgbGammaToLinear,   "SrgbGammaToLinear",     1),
-            (ExpressionFunction.Random,              "random",                2),
-            (ExpressionFunction.Normalize,           "normalize",             1),
-            (ExpressionFunction.Length,              "length",                1),
-            (ExpressionFunction.Sqr,                 "sqr",                   1),
-            (ExpressionFunction.Rotation2d,          "rotation2d",            1),
-            (ExpressionFunction.Rotate2d,            "rotate2d",              2),
-            (ExpressionFunction.SinCos,              "sincos",                1),
-            (ExpressionFunction.TextureSize,         "TextureSize",           1),
-            (ExpressionFunction.TextureAverageColor, "TextureAverageColor",   1),
-            (ExpressionFunction.MatrixIdentity,      "MatrixIdentity",        0),
-            (ExpressionFunction.MatrixScale,         "MatrixScale",           1),
-            (ExpressionFunction.MatrixTranslate,     "MatrixTranslate",       1),
-            (ExpressionFunction.MatrixAxisAngle,     "MatrixAxisAngle",       1),
-            (ExpressionFunction.MatrixAxisToAxis,    "MatrixAxisToAxis",      2),
-            (ExpressionFunction.MatrixMultiply,      "MatrixMultiply",        2),
-            (ExpressionFunction.MatrixColorCorrect,  "MatrixColorCorrect",    1),
-            (ExpressionFunction.MatrixColorCorrect2, "MatrixColorCorrect2",   2),
-            (ExpressionFunction.MatrixColorTint,     "MatrixColorTint",       1),
-            (ExpressionFunction.NormalizeSafe,       "normalize_safe",        1),
-            (ExpressionFunction.Remap01ScaleOffset,  "Remap01ScaleOffset",    1),
-            (ExpressionFunction.Radians,             "radians",               1),
-            (ExpressionFunction.Degrees,             "degrees",               1),
-            (ExpressionFunction.MatrixColorTint2,    "MatrixColorTint2",      2),
-            (ExpressionFunction.MatrixColorTint3,    "MatrixColorTint3",      3),
-            (ExpressionFunction.RemapVal,            "RemapVal",              5),
-            (ExpressionFunction.RemapValClamped,     "RemapValClamped",       5),
-#pragma warning restore format
-        ];
+        /// <summary>Gets the functions expressions call, indexed by <see cref="ExpressionFunction"/>.</summary>
+        public static IReadOnlyList<FunctionAttribute> Functions { get; } = CreateFunctionTable();
+
+        private static FunctionAttribute[] CreateFunctionTable()
+        {
+            var functions = new FunctionAttribute[Enum.GetValues<ExpressionFunction>().Length];
+
+            foreach (var field in typeof(ExpressionFunction).GetFields(BindingFlags.Public | BindingFlags.Static))
+            {
+                functions[(ushort)field.GetValue(null)!] = field.GetCustomAttribute<FunctionAttribute>()
+                    ?? throw new InvalidOperationException($"{field.Name} has no {nameof(FunctionAttribute)}");
+            }
+
+            return functions;
+        }
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
         public enum OPCODE
@@ -131,64 +84,79 @@ namespace ValveResourceFormat.Serialization.VfxEval
         /// <summary>Functions an expression calls, by the index the bytecode refers to them with.</summary>
         public enum ExpressionFunction : ushort
         {
-            Sin,
-            Cos,
-            Tan,
-            Frac,
-            Floor,
-            Ceil,
-            Saturate,
-            Clamp,
-            Lerp,
-            Dot4,
-            Dot3,
-            Dot2,
-            Log,
-            Log2,
-            Log10,
-            Exp,
-            Exp2,
-            Sqrt,
-            Rsqrt,
-            Sign,
-            Abs,
-            Pow,
-            Step,
-            SmoothStep,
-            Float4,
-            Float3,
-            Float2,
-            Time,
-            Min,
-            Max,
-            SrgbLinearToGamma,
-            SrgbGammaToLinear,
-            Random,
-            Normalize,
-            Length,
-            Sqr,
-            Rotation2d,
-            Rotate2d,
-            SinCos,
-            TextureSize,
-            TextureAverageColor,
-            MatrixIdentity,
-            MatrixScale,
-            MatrixTranslate,
-            MatrixAxisAngle,
-            MatrixAxisToAxis,
-            MatrixMultiply,
-            MatrixColorCorrect,
-            MatrixColorCorrect2,
-            MatrixColorTint,
-            NormalizeSafe,
-            Remap01ScaleOffset,
-            Radians,
-            Degrees,
-            MatrixColorTint2,
-            MatrixColorTint3,
-            RemapVal,
-            RemapValClamped,
+#pragma warning disable format
+            [Function("sin", 1)]                 Sin,
+            [Function("cos", 1)]                 Cos,
+            [Function("tan", 1)]                 Tan,
+            [Function("frac", 1)]                Frac,
+            [Function("floor", 1)]               Floor,
+            [Function("ceil", 1)]                Ceil,
+            [Function("saturate", 1)]            Saturate,
+            [Function("clamp", 3)]               Clamp,
+            [Function("lerp", 3)]                Lerp,
+            [Function("dot4", 2)]                Dot4,
+            [Function("dot3", 2)]                Dot3,
+            [Function("dot2", 2)]                Dot2,
+            [Function("log", 1)]                 Log,
+            [Function("log2", 1)]                Log2,
+            [Function("log10", 1)]               Log10,
+            [Function("exp", 1)]                 Exp,
+            [Function("exp2", 1)]                Exp2,
+            [Function("sqrt", 1)]                Sqrt,
+            [Function("rsqrt", 1)]               Rsqrt,
+            [Function("sign", 1)]                Sign,
+            [Function("abs", 1)]                 Abs,
+            [Function("pow", 2)]                 Pow,
+            [Function("step", 2)]                Step,
+            [Function("smoothstep", 3)]          SmoothStep,
+            [Function("float4", 4)]              Float4,
+            [Function("float3", 3)]              Float3,
+            [Function("float2", 2)]              Float2,
+            [Function("time", 0)]                Time,
+            [Function("min", 2)]                 Min,
+            [Function("max", 2)]                 Max,
+            [Function("SrgbLinearToGamma", 1)]   SrgbLinearToGamma,
+            [Function("SrgbGammaToLinear", 1)]   SrgbGammaToLinear,
+            [Function("random", 2)]              Random,
+            [Function("normalize", 1)]           Normalize,
+            [Function("length", 1)]              Length,
+            [Function("sqr", 1)]                 Sqr,
+            [Function("rotation2d", 1)]          Rotation2d,
+            [Function("rotate2d", 2)]            Rotate2d,
+            [Function("sincos", 1)]              SinCos,
+            [Function("TextureSize", 1)]         TextureSize,
+            [Function("TextureAverageColor", 1)] TextureAverageColor,
+            [Function("MatrixIdentity", 0)]      MatrixIdentity,
+            [Function("MatrixScale", 1)]         MatrixScale,
+            [Function("MatrixTranslate", 1)]     MatrixTranslate,
+            [Function("MatrixAxisAngle", 1)]     MatrixAxisAngle,
+            [Function("MatrixAxisToAxis", 2)]    MatrixAxisToAxis,
+            [Function("MatrixMultiply", 2)]      MatrixMultiply,
+            [Function("MatrixColorCorrect", 1)]  MatrixColorCorrect,
+            [Function("MatrixColorCorrect2", 2)] MatrixColorCorrect2,
+            [Function("MatrixColorTint", 1)]     MatrixColorTint,
+            [Function("normalize_safe", 1)]      NormalizeSafe,
+            [Function("Remap01ScaleOffset", 1)]  Remap01ScaleOffset,
+            [Function("radians", 1)]             Radians,
+            [Function("degrees", 1)]             Degrees,
+            [Function("MatrixColorTint2", 2)]    MatrixColorTint2,
+            [Function("MatrixColorTint3", 3)]    MatrixColorTint3,
+            [Function("RemapVal", 5)]            RemapVal,
+            [Function("RemapValClamped", 5)]     RemapValClamped,
+#pragma warning restore format
+        }
+
+        /// <summary>Names an <see cref="ExpressionFunction"/> as expressions write it, with its number of arguments.</summary>
+        /// <param name="name">The function name.</param>
+        /// <param name="argumentCount">The number of arguments.</param>
+        [AttributeUsage(AttributeTargets.Field)]
+        public sealed class FunctionAttribute(string name, int argumentCount) : Attribute
+        {
+            /// <summary>Gets the function name.</summary>
+            public string Name { get; } = name;
+
+            /// <summary>Gets the number of arguments.</summary>
+            public int ArgumentCount { get; } = argumentCount;
         }
 #pragma warning restore CS1591
 
@@ -363,7 +331,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     var funcId = dataReader.ReadByte();
                     var funcCheckByte = dataReader.ReadByte();
 
-                    if (funcId >= FUNCTION_REF.Length)
+                    if (funcId >= Functions.Count)
                     {
                         throw new InvalidDataException($"Error parsing dynamic expression, invalid function Id = 0x{funcId:x} (position: {dataReader.BaseStream.Position})");
                     }
@@ -373,7 +341,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         throw new InvalidDataException($"Error parsing dynamic expression, malformed function signature (position: {dataReader.BaseStream.Position})");
                     }
 
-                    var (_, funcName, nrArguments) = FUNCTION_REF[funcId];
+                    var funcName = Functions[funcId].Name;
+                    var nrArguments = Functions[funcId].ArgumentCount;
                     var arguments = new string[nrArguments];
 
                     for (var i = nrArguments - 1; i >= 0; i--)
