@@ -1,8 +1,5 @@
-using System.IO;
 using System.Linq;
-using System.Text;
 using Microsoft.Extensions.Logging;
-using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
@@ -12,11 +9,9 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// leaving the target white.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/hlvr/server/CPointEntityFader">CPointEntityFader</seealso>
-public sealed partial class PointEntityFader : BaseEntity
+public sealed partial class PointEntityFader : BaseCurveOverTime
 {
-    private PiecewiseCurve? curve;
     private BaseModelEntity? target;
-    private float startTime;
 
     /// <summary>Initializes a <c>point_entity_fader</c> from its keyvalues.</summary>
     public PointEntityFader(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
@@ -24,50 +19,21 @@ public sealed partial class PointEntityFader : BaseEntity
     }
 
     /// <inheritdoc/>
-    public override void Activate()
+    protected override bool Apply(float value)
     {
-        var curveText = KeyValues.GetStringProperty("curve");
-
-        if (string.IsNullOrEmpty(curveText))
+        if (target is not { ModelNode: { } node, IsRemoved: false })
         {
-            return;
+            return false;
         }
 
-        try
-        {
-            using var stream = new StringStream(curveText, Encoding.UTF8);
-            curve = new PiecewiseCurve(KVDocumentExtensions.ParseKV3(stream).Root, isLooped: false);
-        }
-        catch (Exception e) when (e is InvalidDataException or KeyValueException or FormatException)
-        {
-            EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' failed to parse curve string - {Error}", Classname, TargetName, e.Message);
-        }
-    }
-
-    /// <summary>Applies the curve at the time since <c>Start</c>, until the time passes the end of the curve.</summary>
-    public override void Think()
-    {
-        if (curve == null || target is not { ModelNode: { } node, IsRemoved: false })
-        {
-            return;
-        }
-
-        var elapsed = EntitySystem.CurrentTime - startTime;
-        var alpha = unchecked((byte)(int)(curve.Evaluate(elapsed) * byte.MaxValue));
-
+        var alpha = unchecked((byte)(int)(value * byte.MaxValue));
         node.TintAlpha = new Vector4(Vector3.One, alpha / (float)byte.MaxValue);
-
-        if (elapsed <= curve.DomainMax.X)
-        {
-            SetNextThink(EntitySystem.CurrentTime + EntitySystem.TickInterval);
-        }
+        return true;
     }
 
-    // Restarts the fade, finding the target again
-    [EntityInput("Start")]
-    private void InputStart(EntityInputData data)
+    /// <inheritdoc/>
+    protected override bool OnStart(EntityInputData data)
     {
-        startTime = EntitySystem.CurrentTime;
         var targetName = KeyValues.GetStringProperty("target");
         var found = string.IsNullOrEmpty(targetName)
             ? null
@@ -78,9 +44,9 @@ public sealed partial class PointEntityFader : BaseEntity
         if (target == null)
         {
             EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' - failed to find target '{Target}'", Classname, TargetName, targetName);
-            return;
+            return false;
         }
 
-        Think();
+        return true;
     }
 }
