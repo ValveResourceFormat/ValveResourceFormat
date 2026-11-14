@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -314,6 +315,71 @@ public abstract partial class BaseModelEntity : BaseEntity
         }
 
         node.Alpha = Math.Clamp(data.Int(), 0, 255) / 255f;
+    }
+
+    /// <summary>Sets a render attribute on the model from <c>name=x[,y[,z[,w]]]</c>.</summary>
+    [EntityInput("SetRenderAttribute")]
+    protected void InputSetRenderAttribute(EntityInputData data)
+    {
+        if (ModelNode is not { } node)
+        {
+            return;
+        }
+
+        if (!TryParseRenderAttribute(data.Parameter, out var name, out var value))
+        {
+            EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' cannot take SetRenderAttribute \"{Value}\", which is not \"name=x[,y[,z[,w]]]\"", Classname, TargetName, data.Parameter);
+            return;
+        }
+
+        node.RenderAttributes[name] = value;
+    }
+
+    /// <summary>Removes a render attribute from the model, so its materials draw with their own value again.</summary>
+    [EntityInput("ClearRenderAttribute")]
+    protected void InputClearRenderAttribute(EntityInputData data)
+    {
+        if (ModelNode is not { } node || string.IsNullOrEmpty(data.Parameter))
+        {
+            return;
+        }
+
+        node.RenderAttributes.Remove(data.Parameter.Trim());
+    }
+
+    private static bool TryParseRenderAttribute(string? parameter, out string name, out Variant value)
+    {
+        name = string.Empty;
+        value = default;
+
+        var separator = parameter?.IndexOf('=', StringComparison.Ordinal) ?? -1;
+
+        if (parameter == null || separator <= 0)
+        {
+            return false;
+        }
+
+        name = parameter[..separator].Trim();
+
+        var values = parameter.AsSpan(separator + 1);
+        Span<float> components = stackalloc float[4];
+        var count = 0;
+
+        foreach (var range in values.Split(','))
+        {
+            if (count == components.Length || !float.TryParse(values[range], NumberStyles.Float, CultureInfo.InvariantCulture, out components[count]))
+            {
+                return false;
+            }
+
+            count++;
+        }
+
+        value = count == 1
+            ? components[0]
+            : new Vector4(components[0], components[1], components[2], components[3]);
+
+        return count > 0;
     }
 
     /// <summary>

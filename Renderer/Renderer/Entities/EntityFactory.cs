@@ -56,6 +56,7 @@ public static class EntityFactory
         ["trigger_teleport"] = static (system, spawnInfo) => new TriggerTeleport(system, spawnInfo),
         ["point_teleport"] = static (system, spawnInfo) => new PointTeleport(system, spawnInfo),
         ["point_entity_fader"] = static (system, spawnInfo) => new PointEntityFader(system, spawnInfo),
+        ["point_render_attr_curve"] = static (system, spawnInfo) => new PointRenderAttrCurve(system, spawnInfo),
 
         // lights
         ["light_barn"] = static (system, spawnInfo) => new LightEntity(system, spawnInfo),
