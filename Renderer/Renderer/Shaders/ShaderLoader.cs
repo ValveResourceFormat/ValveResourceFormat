@@ -103,6 +103,9 @@ namespace ValveResourceFormat.Renderer.Shaders
             /// <summary>Gets the set of uniform names annotated with <c>// SrgbRead(true)</c>.</summary>
             public HashSet<string> SrgbUniforms { get; } = [];
 
+            /// <summary>Gets the compiled expressions of uniforms annotated with <c>// Expression(...)</c>.</summary>
+            public Dictionary<string, byte[]> Expressions { get; } = [];
+
             /// <summary>Gets the set of sampler uniform names annotated with <c>// Sampler(UserConfig)</c>.</summary>
             public HashSet<string> SamplerUserConfigUniforms { get; } = [];
 
@@ -320,6 +323,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                     UniformNames = parsedData.Uniforms,
                     SrgbUniforms = parsedData.SrgbUniforms,
                     SamplerUserConfigUniforms = parsedData.SamplerUserConfigUniforms,
+                    Expressions = parsedData.Expressions,
                     RepresentativeTexture = parsedData.RepresentativeTexture,
 
                     // Copied, because the parsed data is shared by every variant of this shader, and the

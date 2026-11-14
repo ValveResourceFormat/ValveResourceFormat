@@ -89,6 +89,11 @@ public class RendererContext : IDisposable
     public bool ParallelSimulation { get; set; } = true;
 
     /// <summary>
+    /// The seconds the renderer has been running, published by the renderer each frame.
+    /// </summary>
+    public float Uptime { get; set; }
+
+    /// <summary>
     /// Initializes a new renderer context.
     /// </summary>
     /// <param name="fileLoader">Game file loader for resource access.</param>

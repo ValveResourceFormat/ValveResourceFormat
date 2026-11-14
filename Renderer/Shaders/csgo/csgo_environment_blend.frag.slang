@@ -64,8 +64,12 @@ uniform vec3 g_vAmbientOcclusionLevels1 = vec3(0, 0.5, 1);
 uniform float g_flHeightMapScale1 = 1.0;
 uniform float g_flHeightMapZeroPoint1 = 0.5;
 
-uniform mat4 g_mTextureColorAdjust1;
-uniform mat4 g_mTextureAdjust1;
+uniform float g_fTextureColorContrast1 = 1.0;
+uniform float g_fTextureColorSaturation1 = 1.0;
+uniform float g_fTextureColorBrightness1 = 1.0;
+uniform vec3 g_vTextureColorTint1 = vec3(1.0);
+uniform mat4 g_mTextureColorAdjust1; // Expression(MatrixMultiply(MatrixColorTint2(g_vTextureColorTint1, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), TextureAverageColor(g_tColor1))))
+uniform mat4 g_mTextureAdjust1; // Expression(MatrixMultiply(MatrixColorTint2(float3(1, 1, 1), 1), MatrixColorCorrect2(float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), TextureAverageColor(g_tColor1))))
 
 uniform int g_nUVSet1 = 1; // 0=Biplanar, 1=UV1, 2=UV2
 uniform vec2 g_vTexCoordScale1 = vec2(1.0);
@@ -138,8 +142,12 @@ uniform float g_flTexCoordRotation2 = 0.0;
 uniform float g_flHeightMapScale2 = 1.0;
 uniform float g_flHeightMapZeroPoint2 = 0.5;
 
-uniform mat4 g_mTextureColorAdjust2;
-uniform mat4 g_mTextureAdjust2;
+uniform float g_fTextureColorContrast2 = 1.0;
+uniform float g_fTextureColorSaturation2 = 1.0;
+uniform float g_fTextureColorBrightness2 = 1.0;
+uniform vec3 g_vTextureColorTint2 = vec3(1.0);
+uniform mat4 g_mTextureColorAdjust2; // Expression(MatrixMultiply(MatrixColorTint2(g_vTextureColorTint2, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast2, g_fTextureColorSaturation2, g_fTextureColorBrightness2), TextureAverageColor(g_tColor2))))
+uniform mat4 g_mTextureAdjust2; // Expression(MatrixMultiply(MatrixColorTint2(float3(1, 1, 1), 1), MatrixColorCorrect2(float3(g_fTextureColorContrast2, g_fTextureColorSaturation2, g_fTextureColorBrightness2), TextureAverageColor(g_tColor2))))
 
 #if (F_ENABLE_LAYER_3 == 1)
     uniform sampler2D g_tColor3; // SrgbRead(true)
@@ -172,8 +180,12 @@ uniform mat4 g_mTextureAdjust2;
     uniform float g_flHeightMapScale3 = 1.0;
     uniform float g_flHeightMapZeroPoint3 = 0.5;
 
-    uniform mat4 g_mTextureColorAdjust3;
-    uniform mat4 g_mTextureAdjust3;
+    uniform float g_fTextureColorContrast3 = 1.0;
+    uniform float g_fTextureColorSaturation3 = 1.0;
+    uniform float g_fTextureColorBrightness3 = 1.0;
+    uniform vec3 g_vTextureColorTint3 = vec3(1.0);
+    uniform mat4 g_mTextureColorAdjust3; // Expression(MatrixMultiply(MatrixColorTint2(g_vTextureColorTint3, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast3, g_fTextureColorSaturation3, g_fTextureColorBrightness3), TextureAverageColor(g_tColor3))))
+    uniform mat4 g_mTextureAdjust3; // Expression(MatrixMultiply(MatrixColorTint2(float3(1, 1, 1), 1), MatrixColorCorrect2(float3(g_fTextureColorContrast3, g_fTextureColorSaturation3, g_fTextureColorBrightness3), TextureAverageColor(g_tColor3))))
 
     #if (F_BLEND_EFFECTS_3 == 1)
         uniform int F_BORDER_BLEND_MODE_3;
