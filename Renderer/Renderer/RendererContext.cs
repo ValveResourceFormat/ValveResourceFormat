@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer;
@@ -92,6 +93,9 @@ public class RendererContext : IDisposable
     /// The seconds the renderer has been running, published by the renderer each frame.
     /// </summary>
     public float Uptime { get; set; }
+
+    /// <summary>Gets the global render attributes (per view).</summary>
+    public RenderAttributes GlobalRenderAttributes { get; } = new();
 
     /// <summary>
     /// Initializes a new renderer context.
