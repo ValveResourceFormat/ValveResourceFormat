@@ -2508,6 +2508,7 @@ public class Renderer : ISceneHost
         Uptime += updateContext.Timestep;
         DeltaTime = updateContext.Timestep;
         ViewBuffer.Data.Time = Uptime;
+        Scene.RendererContext.Uptime = Uptime;
 
         updateContext = updateContext with { Uptime = Uptime };
 

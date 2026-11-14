@@ -67,7 +67,10 @@ public sealed class Globals : Buffer
         dirtyEnd = Size;
     }
 
-    /// <summary>Ends a fill started by <see cref="BeginFill"/> and uploads it as one range.</summary>
+    /// <summary>Starts writing over the current values, held back until <see cref="EndFill"/> so the writes cost one upload.</summary>
+    public void BeginUpdate() => filling = true;
+
+    /// <summary>Ends a fill started by <see cref="BeginFill"/> or <see cref="BeginUpdate"/> and uploads it as one range.</summary>
     public void EndFill()
     {
         filling = false;

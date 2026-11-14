@@ -45,8 +45,12 @@ uniform float g_fTintMaskBrightness1 = 1.0;
 uniform float g_fTintMaskContrast1 = 1.0;
 uniform vec3 g_vAmbientOcclusionLevels1 = vec3(0, 0.5, 1);
 
-uniform mat4 g_mTextureColorAdjust1;
-uniform mat4 g_mTextureAdjust1;
+uniform float g_fTextureColorContrast1 = 1.0;
+uniform float g_fTextureColorSaturation1 = 1.0;
+uniform float g_fTextureColorBrightness1 = 1.0;
+uniform vec3 g_vTextureColorTint1 = vec3(1.0);
+uniform mat4 g_mTextureColorAdjust1; // Expression(F_MATERIAL_REFERENCE ? MatrixMultiply(MatrixColorTint2(g_vTextureColorTint1, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), TextureAverageColor(g_tColor1))) : MatrixIdentity())
+uniform mat4 g_mTextureAdjust1; // Expression(MatrixMultiply(MatrixColorTint2(float3(1, 1, 1), 1), MatrixColorCorrect2(float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), TextureAverageColor(g_tColor1))))
 
 uniform int g_nUVSet1 = 1; // 0=Biplanar, 1=UV1, 2=UV2
 uniform vec2 g_vTexCoordScale1 = vec2(1.0);

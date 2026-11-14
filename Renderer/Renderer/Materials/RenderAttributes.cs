@@ -22,6 +22,7 @@ public sealed class RenderAttributes
         public Globals Buffer { get; } = buffer;
         public uint MaterialVersion { get; set; }
         public uint AttributesVersion { get; set; }
+        public float EvaluatedTime { get; set; }
     }
 
     /// <summary>Gets or sets an attribute.</summary>

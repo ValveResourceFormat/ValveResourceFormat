@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using ValveResourceFormat.Serialization.VfxEval;
 using static ValveResourceFormat.Renderer.Shaders.ShaderLoader;
 
 namespace ValveResourceFormat.Renderer.Shaders
@@ -36,7 +37,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         // uniform sampler{dim} d; // Sampler(UserConfig)
         // layout(binding = n) uniform sampler{dim} e;
         // uniform layout(binding = n) sampler{dim} f;
-        [GeneratedRegex("^(?:layout\\s*\\([^)]*\\)\\s*)?uniform (?:layout\\s*\\([^)]*\\)\\s*)?(?<Type>\\S+) (?<Name>[A-Za-z_][A-Za-z0-9_]*)(?<Array>\\[[^\\]]*\\])?(?:\\s*=\\s*(?<Default>[^;]+?))?\\s*;[ \t]*(?:// )?(?<SrgbRead>SrgbRead\\(true\\))?[ \t]*(?<SamplerUserConfig>Sampler\\(UserConfig\\))?[ \t]*(?<RepresentativeTexture>RepresentativeTexture)?")]
+        // uniform mat4 g; // Expression(MatrixIdentity())
+        [GeneratedRegex("^(?:layout\\s*\\([^)]*\\)\\s*)?uniform (?:layout\\s*\\([^)]*\\)\\s*)?(?<Type>\\S+) (?<Name>[A-Za-z_][A-Za-z0-9_]*)(?<Array>\\[[^\\]]*\\])?(?:\\s*=\\s*(?<Default>[^;]+?))?\\s*;[ \t]*(?:// )?(?<SrgbRead>SrgbRead\\(true\\))?[ \t]*(?<SamplerUserConfig>Sampler\\(UserConfig\\))?[ \t]*(?<RepresentativeTexture>RepresentativeTexture)?[ \t]*(?:Expression\\((?<Expression>.*)\\))?")]
         private static partial Regex RegexUniform();
 
         [GeneratedRegex("^#extension .+$")]
@@ -419,6 +421,17 @@ namespace ValveResourceFormat.Renderer.Shaders
                 if (match.Groups["SrgbRead"].Success)
                 {
                     parsedData.SrgbUniforms.Add(uniformName);
+                }
+                if (match.Groups["Expression"].Success)
+                {
+                    try
+                    {
+                        parsedData.Expressions[uniformName] = VfxEvalCompiler.Compile(match.Groups["Expression"].Value);
+                    }
+                    catch (InvalidDataException e)
+                    {
+                        throw new ShaderCompilerException($"Line {file.LineNumber} in '{file.Name}': {e.Message}");
+                    }
                 }
                 if (match.Groups["SamplerUserConfig"].Success)
                 {

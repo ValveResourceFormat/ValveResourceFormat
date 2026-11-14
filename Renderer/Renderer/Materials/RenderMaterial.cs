@@ -1,8 +1,10 @@
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
@@ -200,15 +202,18 @@ namespace ValveResourceFormat.Renderer.Materials
             && (IsAlphaTest || (IntParams.GetValueOrDefault("F_NO_Z_PREPASS") == 0 && IntParams.GetValueOrDefault("F_DISABLE_Z_PREPASS") == 0));
 
         private readonly MaterialLoader? Loader;
+        private readonly RendererContext? Context;
 
         private Globals? globals;
         private GlobalsLayout? filledLayout;
         private uint filledVersion;
+        private float evaluatedTime;
 
         private uint InputsVersion => unchecked(
             IntParams.Version + FloatParams.Version + VectorParams.Version + Matrices.Version + Textures.Version);
 
         private readonly IShaderDataProvider shaderDataProvider;
+        private ExpressionContext expressionContext;
         private RsBlendMode srcBlend;
         private RsBlendMode destBlend;
         private bool isRenderBackfaces;
@@ -231,6 +236,7 @@ namespace ValveResourceFormat.Renderer.Materials
             : this(material, rendererContext.ShaderDataProvider)
         {
             Loader = rendererContext.MaterialLoader;
+            Context = rendererContext;
 
             var materialArguments = material.GetShaderArguments();
             var combinedShaderParameters = shaderArguments ?? materialArguments;
@@ -343,10 +349,12 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>
         /// Load or reload render state from material data.
         /// </summary>
+        [MemberNotNull(nameof(expressionContext))]
         public void LoadRenderState()
         {
             var material = Material;
             var attributes = shaderDataProvider.GetIntAttributes(material, IntParams);
+            expressionContext = new ExpressionContext(this, shaderDataProvider.GetExpressions(material, IntParams));
             IsToolsMaterial = attributes.ContainsKey("tools.toolsmaterial");
             BlocksLight = attributes.GetValueOrDefault("mapbuilder.blocklight") != 0;
             DoNotCastShadows = attributes.GetValueOrDefault("DoNotCastShadows") == 1;
@@ -421,8 +429,17 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 filledLayout = layout;
                 filledVersion = InputsVersion;
+                evaluatedTime = expressionContext.Time;
 
                 FillGlobals(shader, layout, globals, attributes: null);
+            }
+            else if (ExpressionsOutdated(evaluatedTime))
+            {
+                evaluatedTime = expressionContext.Time;
+
+                globals.BeginUpdate();
+                EvaluateExpressions(shader, globals);
+                globals.EndFill();
             }
 
             return globals;
@@ -438,16 +455,20 @@ namespace ValveResourceFormat.Renderer.Materials
                 attributes.Baked.Add((this, layout), baked);
             }
 
-            if (baked.MaterialVersion != InputsVersion || baked.AttributesVersion != attributes.Version)
+            if (baked.MaterialVersion != InputsVersion || baked.AttributesVersion != attributes.Version || ExpressionsOutdated(baked.EvaluatedTime))
             {
                 baked.MaterialVersion = InputsVersion;
                 baked.AttributesVersion = attributes.Version;
+                baked.EvaluatedTime = expressionContext.Time;
 
                 FillGlobals(shader, layout, baked.Buffer, attributes);
             }
 
             return baked.Buffer;
         }
+
+        // Expressions that are not constant, such as ones reading time, are evaluated again once per frame
+        private bool ExpressionsOutdated(float evaluatedAt) => !expressionContext.IsConstant && evaluatedAt != expressionContext.Time;
 
         private string GetGlobalsName(Shader shader) => Material.Name.Length > 0 ? Material.Name : shader.Name;
 
@@ -478,9 +499,7 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 if (members.TryGetValue(name, out var constant))
                 {
-                    buffer.SetVector(constant, shader.SrgbUniforms.Contains(name)
-                        ? new Vector4(ColorSpace.SrgbGammaToLinear(value.AsVector3()), value.W)
-                        : value);
+                    SetVectorParam(shader, buffer, constant, name, value);
                 }
             }
 
@@ -492,20 +511,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 }
             }
 
-            // todo: dynamic eval
-
-            if (shader.Name.StartsWith("csgo_environment", StringComparison.Ordinal))
-            {
-                EvalCsgoEnvironmentColorMatrices(shader, buffer);
-            }
-            else if (shader.Name is "environment_blend.vfx" or "environment_layer.vfx" or "environment_parallax_layered.vfx" or "pbr.vfx")
-            {
-                EvalDeadlockColorMatrices(shader, buffer);
-            }
-            else if (ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal) || ShaderName == "csgo_foliage.vfx")
-            {
-                EvalStaticOverlayColorAdjust(shader, buffer);
-            }
+            EvaluateExpressions(shader, buffer);
 
             if (attributes != null)
             {
@@ -525,16 +531,108 @@ namespace ValveResourceFormat.Renderer.Materials
                             buffer.SetScalar(constant, value.Vector.X);
                             break;
                         case Variant.VariantType.Vector:
-                            var vector = value.Vector;
-                            buffer.SetVector(constant, shader.SrgbUniforms.Contains(name)
-                                ? new Vector4(ColorSpace.SrgbGammaToLinear(vector.AsVector3()), vector.W)
-                                : vector);
+                            SetVectorParam(shader, buffer, constant, name, value.Vector);
                             break;
                     }
                 }
             }
 
             buffer.EndFill();
+        }
+
+        private void EvaluateExpressions(Shader shader, Globals buffer)
+        {
+            var members = shader.GlobalsLayout.Members;
+            var variables = expressionContext.Variables;
+
+            expressionContext.IsConstant = true;
+
+            foreach (var (name, variable) in variables)
+            {
+                if (variable.VfxType == VfxVariableType.Float4x4)
+                {
+                    EvaluateMatrix(buffer, members, name, variable.CompiledExpression);
+                }
+            }
+
+            foreach (var (name, expression) in shader.Expressions)
+            {
+                if (!variables.ContainsKey(name))
+                {
+                    EvaluateMatrix(buffer, members, name, expression);
+                }
+            }
+
+            foreach (var (name, expression) in Material.DynamicParams)
+            {
+                if (!IsOverridden(name) && members.TryGetValue(name, out var constant) && expressionContext.TryEvaluate(expression, out var value))
+                {
+                    SetEvaluated(shader, buffer, constant, name, value);
+                }
+            }
+        }
+
+        private void EvaluateMatrix(Globals buffer, IReadOnlyDictionary<string, GlobalsMember> members, string name, byte[] expression)
+        {
+            if (!Matrices.ContainsKey(name) && members.TryGetValue(name, out var constant) && expressionContext.TryEvaluateMatrix(expression, out var matrix))
+            {
+                buffer.SetMatrix(constant, matrix);
+            }
+        }
+
+        private static void SetEvaluated(Shader shader, Globals buffer, in GlobalsMember constant, string name, Vector4 value)
+        {
+            if (constant.ComponentCount == 1)
+            {
+                buffer.SetScalar(constant, value.X);
+                return;
+            }
+
+            SetVectorParam(shader, buffer, constant, name, value);
+        }
+
+        private static void SetVectorParam(Shader shader, Globals buffer, in GlobalsMember constant, string name, Vector4 value)
+        {
+            buffer.SetVector(constant, shader.SrgbUniforms.Contains(name)
+                ? new Vector4(ColorSpace.SrgbGammaToLinear(value.AsVector3()), value.W)
+                : value);
+        }
+
+        private bool TryGetParam(string name, out Vector4 value)
+        {
+            if (VectorParams.TryGetValue(name, out value))
+            {
+                return true;
+            }
+
+            if (FloatParams.TryGetValue(name, out var scalar))
+            {
+                value = new Vector4(scalar);
+                return true;
+            }
+
+            if (IntParams.TryGetValue(name, out var integer))
+            {
+                value = new Vector4(integer);
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool IsOverridden(string name)
+        {
+            if (VectorParams.TryGetValue(name, out var vector))
+            {
+                return vector != Material.VectorParams.GetValueOrDefault(name);
+            }
+
+            if (FloatParams.TryGetValue(name, out var scalar))
+            {
+                return scalar != Material.FloatParams.GetValueOrDefault(name);
+            }
+
+            return IntParams.TryGetValue(name, out var integer) && integer != Material.IntParams.GetValueOrDefault(name);
         }
 
         [Conditional("DEBUG")]
@@ -729,220 +827,109 @@ namespace ValveResourceFormat.Renderer.Materials
             renderState.Apply(ComposeRenderState(renderState.CurrentPass));
         }
 
-        private static void SetMatrix(Shader shader, Globals buffer, string name, Matrix4x4 value)
+        private sealed class ExpressionContext(RenderMaterial material, ShaderExpressions? expressions) : IVfxEvalContext
         {
-            if (shader.GlobalsLayout.Members.TryGetValue(name, out var constant))
+            // Parameters reading each other in a loop would otherwise overflow the stack
+            private const int MaxDepth = 8;
+            private int depth;
+
+            public IReadOnlyDictionary<string, VfxVariableDescription> Variables { get; } = expressions?.Variables ?? ReadOnlyDictionary<string, VfxVariableDescription>.Empty;
+
+            private bool TryGetVariable(StringToken name, [NotNullWhen(true)] out VfxVariableDescription? variable)
             {
-                buffer.SetMatrix(constant, value);
-            }
-        }
-
-        private void EvalCsgoEnvironmentColorMatrices(Shader shader, Globals buffer)
-        {
-            const string contrastBaseKeyString = "g_fTextureColorContrast1";
-            const string saturationBaseKeyString = "g_fTextureColorSaturation1";
-            const string brightnessBaseKeyString = "g_fTextureColorBrightness1";
-            const string tintBaseKeyString = "g_vTextureColorTint1";
-            const string colorTextureBaseKeyString = "g_tColor1";
-
-            Span<char> contrastKey = stackalloc char[contrastBaseKeyString.Length]; contrastBaseKeyString.AsSpan().CopyTo(contrastKey);
-            Span<char> saturationKey = stackalloc char[saturationBaseKeyString.Length]; saturationBaseKeyString.AsSpan().CopyTo(saturationKey);
-            Span<char> brightnessKey = stackalloc char[brightnessBaseKeyString.Length]; brightnessBaseKeyString.AsSpan().CopyTo(brightnessKey);
-            Span<char> tintKey = stackalloc char[tintBaseKeyString.Length]; tintBaseKeyString.AsSpan().CopyTo(tintKey);
-            Span<char> colorTextureKey = stackalloc char[colorTextureBaseKeyString.Length]; colorTextureBaseKeyString.AsSpan().CopyTo(colorTextureKey);
-
-            var floatValueLookup = FloatParams.GetAlternateLookup<ReadOnlySpan<char>>();
-            var vectorValueLookup = VectorParams.GetAlternateLookup<ReadOnlySpan<char>>();
-            var textureLookup = Textures.GetAlternateLookup<ReadOnlySpan<char>>();
-
-            static void TryGetValueNoUpdate<T>(Dictionary<string, T>.AlternateLookup<ReadOnlySpan<char>> lookup, ReadOnlySpan<char> key, ref T outValue)
-            {
-                if (lookup.TryGetValue(key, out var value))
-                {
-                    outValue = value;
-                }
+                variable = null;
+                return expressions?.Shader.VariablesByToken.TryGetValue(name, out variable) == true;
             }
 
-            // csgo_environment only applies its color adjust to material reference combos, and keeps it neutral otherwise
-            var hasNeutralColorAdjust = ShaderName == "csgo_environment.vfx" && IntParams.GetValueOrDefault("F_MATERIAL_REFERENCE") != 1;
+            /// <summary>Gets or sets whether everything evaluated since this was last set only depends on the material.</summary>
+            public bool IsConstant { get; set; } = true;
 
-            foreach (var param in shader.Default.Matrices)
+            public float Time => material.Context?.Uptime ?? 0f;
+
+            public bool TryEvaluate(byte[] expression, out Vector4 value)
             {
-                if (!param.Key.StartsWith("g_mTexture", StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                var layerCharacter = param.Key[^1];
-                var layerIndex = layerCharacter - '0';
-
-                if (layerIndex is < 1 or > 3)
-                {
-                    continue;
-                }
-
-                if (hasNeutralColorAdjust && param.Key.StartsWith("g_mTextureColorAdjust", StringComparison.Ordinal))
-                {
-                    SetMatrix(shader, buffer, param.Key, Matrix4x4.Identity);
-                    continue;
-                }
-
-                var csb = Vector3.One;
-                var tint = Vector4.One;
-                var textureAverageColor = Vector4.One;
-
-                contrastKey[^1] = layerCharacter;
-                saturationKey[^1] = layerCharacter;
-                brightnessKey[^1] = layerCharacter;
-                tintKey[^1] = layerCharacter;
-                colorTextureKey[^1] = layerCharacter;
-
-                TryGetValueNoUpdate(floatValueLookup, contrastKey, ref csb.X);
-                TryGetValueNoUpdate(floatValueLookup, saturationKey, ref csb.Y);
-                TryGetValueNoUpdate(floatValueLookup, brightnessKey, ref csb.Z);
-                TryGetValueNoUpdate(vectorValueLookup, tintKey, ref tint);
-
-                if (textureLookup.TryGetValue(colorTextureKey, out var colorTexture))
-                {
-                    textureAverageColor = colorTexture.Reflectivity;
-                }
-
-                var ccMatrix = VfxEvalFunctions.MatrixColorCorrect2(csb, textureAverageColor.AsVector3());
-
-                if (param.Key.StartsWith("g_mTextureAdjust", StringComparison.Ordinal))
-                {
-                    tint = Vector4.One;
-                }
-
-                var tintMatrix = VfxEvalFunctions.MatrixColorTint2(tint.AsVector3(), 1f);
-
-                ccMatrix = Matrix4x4.Multiply(tintMatrix, ccMatrix);
-                SetMatrix(shader, buffer, param.Key, ccMatrix);
+                var success = VfxEvalRuntime.TryEvaluate(expression, this, out value, out var isConstant);
+                IsConstant &= isConstant;
+                return success;
             }
-        }
 
-        // environment_blend and environment_layer suffix both the matrices and their inputs by layer;
-        // pbr and environment_parallax_layered have an unsuffixed pair fed by layer 1's params.
-        private void EvalDeadlockColorMatrices(Shader shader, Globals buffer)
-        {
-            const float TintStrength = 0.85f;
-
-            const string albedoCorrectPrefix = "g_mAlbedoColorCorrect";
-            const string colorTintPrefix = "g_mTextureColorTint";
-
-            const string csbBaseKeyString = "g_vAlbedoContrastSaturationBrightness1";
-            const string tintBaseKeyString = "g_vColorTint1";
-            const string tintModeBaseKeyString = "g_nTextureColorTintMode1";
-            const string colorTextureBaseKeyString = "g_tColor1";
-
-            Span<char> csbKey = stackalloc char[csbBaseKeyString.Length]; csbBaseKeyString.AsSpan().CopyTo(csbKey);
-            Span<char> tintKey = stackalloc char[tintBaseKeyString.Length]; tintBaseKeyString.AsSpan().CopyTo(tintKey);
-            Span<char> tintModeKey = stackalloc char[tintModeBaseKeyString.Length]; tintModeBaseKeyString.AsSpan().CopyTo(tintModeKey);
-            Span<char> colorTextureKey = stackalloc char[colorTextureBaseKeyString.Length]; colorTextureBaseKeyString.AsSpan().CopyTo(colorTextureKey);
-
-            var vectorValueLookup = VectorParams.GetAlternateLookup<ReadOnlySpan<char>>();
-            var intValueLookup = IntParams.GetAlternateLookup<ReadOnlySpan<char>>();
-            var textureLookup = Textures.GetAlternateLookup<ReadOnlySpan<char>>();
-
-            foreach (var param in shader.Default.Matrices)
+            public bool TryEvaluateMatrix(byte[] expression, out Matrix4x4 value)
             {
-                // Sheen has a tint matrix but no colour correct matrix.
-                // It reads the sheen params instead of the albedo ones.
-                if (param.Key == "g_mSheenTextureColorTint")
-                {
-                    var sheenTint = VectorParams.GetValueOrDefault("g_vSheenColorTint1", Vector4.One).AsVector3();
-                    var sheenMode = (int)IntParams.GetValueOrDefault("g_nSheenTextureColorTintMode1", 0L);
+                var success = VfxEvalRuntime.TryEvaluateMatrix(expression, this, out value, out var isConstant);
+                IsConstant &= isConstant;
+                return success;
+            }
 
-                    SetMatrix(shader, buffer, param.Key, VfxEvalFunctions.MatrixColorTint3(ColorSpace.SrgbGammaToLinear(sheenTint), TintStrength, sheenMode));
-                    continue;
+            public bool TryGetMaterialParam(StringToken name, out Vector4 value)
+            {
+                TryGetVariable(name, out var variable);
+                var paramName = variable?.Name ?? name.Name;
+
+                // Expressions in our shaders read features by name, there is no features file to index
+                if (paramName.StartsWith("F_", StringComparison.Ordinal))
+                {
+                    value = new Vector4(material.IntParams.GetValueOrDefault(paramName));
+                    return true;
                 }
 
-                var isAlbedoCorrect = param.Key.StartsWith(albedoCorrectPrefix, StringComparison.Ordinal);
-
-                if (!isAlbedoCorrect && !param.Key.StartsWith(colorTintPrefix, StringComparison.Ordinal))
+                // A parameter with an expression reads as its result, or its baked value when that fails
+                if (depth < MaxDepth && !material.IsOverridden(paramName) && material.Material.DynamicParams.TryGetValue(paramName, out var expression))
                 {
-                    continue;
-                }
+                    depth++;
+                    var success = TryEvaluate(expression, out value);
+                    depth--;
 
-                // pbr's unsuffixed pair reads the params layer 1 would have used.
-                var isLayered = char.IsAsciiDigit(param.Key[^1]);
-                var layerCharacter = isLayered ? param.Key[^1] : '1';
-
-                if (isAlbedoCorrect)
-                {
-                    csbKey[^1] = layerCharacter;
-                    colorTextureKey[^1] = layerCharacter;
-
-                    var csb = Vector3.One;
-                    if (vectorValueLookup.TryGetValue(csbKey, out var csbValue))
+                    if (success)
                     {
-                        csb = csbValue.AsVector3();
+                        return true;
                     }
-
-                    var textureAverageColor = Vector3.One;
-                    if (textureLookup.TryGetValue(isLayered ? colorTextureKey : colorTextureKey[..^1], out var colorTexture))
-                    {
-                        textureAverageColor = colorTexture.Reflectivity.AsVector3();
-                    }
-
-                    SetMatrix(shader, buffer, param.Key, VfxEvalFunctions.MatrixColorCorrect2(csb, textureAverageColor));
                 }
-                else
+
+                if (material.TryGetParam(paramName, out value) || material.Shader.Default.TryGetParam(paramName, out value))
                 {
-                    tintKey[^1] = layerCharacter;
-                    tintModeKey[^1] = layerCharacter;
-
-                    var tint = Vector3.One;
-                    if (vectorValueLookup.TryGetValue(tintKey, out var tintValue))
-                    {
-                        tint = tintValue.AsVector3();
-                    }
-
-                    intValueLookup.TryGetValue(tintModeKey, out var mode);
-
-                    SetMatrix(shader, buffer, param.Key, VfxEvalFunctions.MatrixColorTint3(ColorSpace.SrgbGammaToLinear(tint), TintStrength, (int)mode));
+                    return true;
                 }
-            }
-        }
 
-        private void EvalStaticOverlayColorAdjust(Shader shader, Globals buffer)
-        {
-            if (!shader.Default.Matrices.ContainsKey("g_mTextureColorAdjust"))
+                if (variable == null)
+                {
+                    return false;
+                }
+
+                var floats = variable.FloatDefs;
+                var ints = variable.IntDefs;
+
+                Vector4? fallback = variable.VfxType switch
+                {
+                    VfxVariableType.Float => new Vector4(floats[0]),
+                    VfxVariableType.Float2 or VfxVariableType.Float3 or VfxVariableType.Float4 => new Vector4(floats[0], floats[1], floats[2], floats[3]),
+                    VfxVariableType.Int or VfxVariableType.Bool => new Vector4(ints[0]),
+                    VfxVariableType.Int2 or VfxVariableType.Int3 or VfxVariableType.Int4 => new Vector4(ints[0], ints[1], ints[2], ints[3]),
+                    _ => null,
+                };
+
+                value = fallback.GetValueOrDefault();
+                return fallback.HasValue;
+            }
+
+            public bool IsTextureParam(StringToken name)
+                => TryGetVariable(name, out var variable)
+                    ? variable.RegisterType is VfxRegisterType.Texture or VfxRegisterType.TextureIndex
+                    : name.Name.StartsWith("g_t", StringComparison.Ordinal);
+
+            public int GetFeature(int index)
+                => expressions?.Shader.Features is { } features ? (int)material.IntParams.GetValueOrDefault(features.StaticComboArray[index].Name) : 0;
+
+            public Vector4 GetTextureSize(StringToken textureName)
+                => TryGetTexture(textureName, out var texture) ? new Vector4(texture.Width, texture.Height, texture.Depth, 0f) : Vector4.Zero;
+
+            public Vector4 GetTextureAverageColor(StringToken textureName)
+                => TryGetTexture(textureName, out var texture) ? new Vector4(texture.Reflectivity.AsVector3(), 1f) : Vector4.One;
+
+            private bool TryGetTexture(StringToken textureName, [NotNullWhen(true)] out RenderTexture? texture)
             {
-                return;
+                TryGetVariable(textureName, out var variable);
+                return material.Textures.TryGetValue(variable?.Name ?? textureName.Name, out texture);
             }
-
-            var csb = new Vector3(
-                FloatParams.GetValueOrDefault("g_fTextureColorContrast", 1f),
-                FloatParams.GetValueOrDefault("g_fTextureColorSaturation", 1f),
-                FloatParams.GetValueOrDefault("g_fTextureColorBrightness", 1f));
-
-            var tint = VectorParams.GetValueOrDefault("g_vTextureColorCorrectionTint", Vector4.One);
-
-            var textureAverageColor = Vector3.One;
-            if (Textures.TryGetValue("g_tColor", out var colorTexture))
-            {
-                textureAverageColor = colorTexture.Reflectivity.AsVector3();
-            }
-
-            var ccMatrix = VfxEvalFunctions.MatrixColorCorrect2(csb, textureAverageColor);
-            var tintMatrix = VfxEvalFunctions.MatrixColorTint2(tint.AsVector3(), 1f);
-
-            SetMatrix(shader, buffer, "g_mTextureColorAdjust", Matrix4x4.Multiply(tintMatrix, ccMatrix));
-
-            if (!shader.Default.Matrices.ContainsKey("g_mTransmissiveTextureColorAdjust"))
-            {
-                return;
-            }
-
-            var transmissiveAverageColor = Vector3.One;
-            if (Textures.TryGetValue("g_tTransmissiveColor", out var transmissiveTexture))
-            {
-                transmissiveAverageColor = transmissiveTexture.Reflectivity.AsVector3();
-            }
-
-            var transmissiveCcMatrix = VfxEvalFunctions.MatrixColorCorrect2(csb, transmissiveAverageColor);
-            SetMatrix(shader, buffer, "g_mTransmissiveTextureColorAdjust", Matrix4x4.Multiply(tintMatrix, transmissiveCcMatrix));
         }
 
         /// <summary>Unbinds the samplers that were bound for this material's draw call.</summary>
