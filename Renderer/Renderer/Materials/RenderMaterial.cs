@@ -853,7 +853,8 @@ namespace ValveResourceFormat.Renderer.Materials
             public bool TryGetAttribute(StringToken name, out Vector4 value)
             {
                 value = default;
-                return Attributes?.TryGetValue(name, out value) == true;
+                return Attributes?.TryGetValue(name, out value) == true
+                    || material.Context?.GlobalRenderAttributes.TryGetValue(name, out value) == true;
             }
 
             public bool TryEvaluate(byte[] expression, out Vector4 value)
