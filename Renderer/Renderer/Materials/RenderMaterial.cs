@@ -426,7 +426,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 return;
             }
 
-            var buffer = attributes?.Overrides(shader.GlobalsLayout) == true
+            var buffer = attributes?.Overrides(this, shader.GlobalsLayout) == true
                 ? EnsureGlobals(shader, attributes)
                 : EnsureGlobals(shader);
 
@@ -452,7 +452,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 evaluatedTime = expressionContext.Time;
 
                 globals.BeginUpdate();
-                EvaluateExpressions(shader, globals);
+                EvaluateExpressions(shader, globals, attributes: null);
                 globals.EndFill();
             }
 
@@ -525,7 +525,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 }
             }
 
-            EvaluateExpressions(shader, buffer);
+            EvaluateExpressions(shader, buffer, attributes);
 
             if (attributes != null)
             {
@@ -554,12 +554,13 @@ namespace ValveResourceFormat.Renderer.Materials
             buffer.EndFill();
         }
 
-        private void EvaluateExpressions(Shader shader, Globals buffer)
+        private void EvaluateExpressions(Shader shader, Globals buffer, RenderAttributes? attributes)
         {
             var members = shader.GlobalsLayout.Members;
             var variables = expressionContext.Variables;
 
             expressionContext.IsConstant = true;
+            expressionContext.Attributes = attributes;
 
             foreach (var (name, variable) in variables)
             {
@@ -858,7 +859,16 @@ namespace ValveResourceFormat.Renderer.Materials
             /// <summary>Gets or sets whether everything evaluated since this was last set only depends on the material.</summary>
             public bool IsConstant { get; set; } = true;
 
+            /// <summary>Gets or sets the node render attributes of the buffer being filled, null for the material's own.</summary>
+            public RenderAttributes? Attributes { get; set; }
+
             public float Time => material.Context?.Uptime ?? 0f;
+
+            public bool TryGetAttribute(StringToken name, out Vector4 value)
+            {
+                value = default;
+                return Attributes?.TryGetValue(name, out value) == true;
+            }
 
             public bool TryEvaluate(byte[] expression, out Vector4 value)
             {

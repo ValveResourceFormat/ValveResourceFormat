@@ -960,7 +960,7 @@ public sealed class SceneViewState
         => opaqueCall.Material switch
         {
             { VertexAnimation: true } => DepthOnlyBucket.MaterialDepthMode,
-            var material when node.RenderAttributesOrNull?.Overrides(material.Shader.GlobalsLayout) == true
+            var material when node.RenderAttributesOrNull?.Overrides(material, material.Shader.GlobalsLayout) == true
                 => DepthOnlyBucket.MaterialDepthMode,
             { IsAlphaTest: true } material => material.Shader.DepthMode != null
                 ? DepthOnlyBucket.MaterialDepthMode
