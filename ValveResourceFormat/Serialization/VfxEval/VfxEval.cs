@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         private readonly List<string> DynamicExpressionList = [];
 
         // function reference, name and number of arguments
-        private static readonly (string Name, int ArgumentCount)[] FUNCTION_REF = [
+        internal static readonly (string Name, int ArgumentCount)[] FUNCTION_REF = [
 #pragma warning disable format
             ("sin",        1),     // 00
             ("cos",        1),     // 01
@@ -87,7 +87,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
 #pragma warning restore format
         ];
 
-        private enum OPCODE
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+        public enum OPCODE
         {
             RETURN,             // 00
             NOP,                // 01
@@ -125,6 +126,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             FLOAT4,             // 21
             SYSTEM_VALUE,       // 22
         };
+#pragma warning restore CS1591
 
         // Binding strength, loosest first. An operand is bracketed only where it binds looser than
         // the operator using it, so the output has no brackets the reader would infer anyway.

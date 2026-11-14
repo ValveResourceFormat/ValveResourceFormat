@@ -82,7 +82,6 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// Gets <see cref="DynamicParams"/> and <see cref="DynamicTextureParams"/> decompiled to readable source.
-        /// Nothing evaluates them; a parameter driven by one keeps its static baked value.
         /// </summary>
         public Dictionary<string, string> DynamicExpressions => dynamicExpressions ??= DecompileDynamicExpressions();
 
