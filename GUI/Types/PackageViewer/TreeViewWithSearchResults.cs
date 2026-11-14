@@ -786,9 +786,26 @@ namespace GUI.Types.PackageViewer
                 return null;
             }
 
-            if (!renderer.Loaded)
+            if (renderer.Loaded)
+            {
+                return renderer;
+            }
+
+            try
             {
                 renderer.Load(mainListView.VrfGuiContext!);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(nameof(TreeViewWithSearchResults), $"Failed to initialize thumbnail renderer, disabling thumbnails: {ex.Message}");
+
+                foreach (var loadedRenderer in ThumbnailRenderers.Values)
+                {
+                    loadedRenderer.Dispose();
+                }
+
+                ThumbnailRenderers.Clear();
+                return null;
             }
 
             return renderer;
