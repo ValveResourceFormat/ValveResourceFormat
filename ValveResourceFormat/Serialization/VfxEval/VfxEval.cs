@@ -24,67 +24,67 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // the decompiled expression, one statement per line
         private readonly List<string> DynamicExpressionList = [];
 
-        // function reference, name and number of arguments
-        internal static readonly (string Name, int ArgumentCount)[] FUNCTION_REF = [
+        // name and number of arguments, indexed by ExpressionFunction
+        internal static readonly (ExpressionFunction Function, string Name, int ArgumentCount)[] FUNCTION_REF = [
 #pragma warning disable format
-            ("sin",        1),     // 00
-            ("cos",        1),     // 01
-            ("tan",        1),     // 02
-            ("frac",       1),     // 03
-            ("floor",      1),     // 04
-            ("ceil",       1),     // 05
-            ("saturate",   1),     // 06
-            ("clamp",      3),     // 07
-            ("lerp",       3),     // 08
-            ("dot4",       2),     // 09
-            ("dot3",       2),     // 0A
-            ("dot2",       2),     // 0B
-            ("log",        1),     // 0C
-            ("log2",       1),     // 0D
-            ("log10",      1),     // 0E
-            ("exp",        1),     // 0F
-            ("exp2",       1),     // 10
-            ("sqrt",       1),     // 11
-            ("rsqrt",      1),     // 12
-            ("sign",       1),     // 13
-            ("abs",        1),     // 14
-            ("pow",        2),     // 15
-            ("step",       2),     // 16
-            ("smoothstep", 3),     // 17
-            ("float4",     4),     // 18
-            ("float3",     3),     // 19
-            ("float2",     2),     // 1A
-            ("time",       0),     // 1B
-            ("min",        2),     // 1C
-            ("max",        2),     // 1D
-            ("SrgbLinearToGamma",1), // 1E
-            ("SrgbGammaToLinear",1), // 1F
-            ("random",     2),     // 20
-            ("normalize",  1),     // 21
-            ("length",     1),     // 22
-            ("sqr",        1),     // 23
-            ("rotation2d", 1),     // 24
-            ("rotate2d",   2),     // 25
-            ("sincos",     1),     // 26
-            ("TextureSize",1),     // 27
-            ("TextureAverageColor", 1), // 28
-            ("MatrixIdentity",      0), // 29
-            ("MatrixScale",         1), // 2A
-            ("MatrixTranslate",     1), // 2B
-            ("MatrixAxisAngle",     1), // 2C
-            ("MatrixAxisToAxis",    2), // 2D
-            ("MatrixMultiply",      2), // 2E
-            ("MatrixColorCorrect",  1), // 2F
-            ("MatrixColorCorrect2", 2), // 30
-            ("MatrixColorTint",     1), // 31
-            ("normalize_safe",      1), // 32
-            ("Remap01ScaleOffset",  1), // 33
-            ("radians",             1), // 34
-            ("degrees",             1), // 35
-            ("MatrixColorTint2",    2), // 36
-            ("MatrixColorTint3",    3), // 37
-            ("RemapVal",            5), // 38
-            ("RemapValClamped",     5), // 39
+            (ExpressionFunction.Sin,                 "sin",                   1),
+            (ExpressionFunction.Cos,                 "cos",                   1),
+            (ExpressionFunction.Tan,                 "tan",                   1),
+            (ExpressionFunction.Frac,                "frac",                  1),
+            (ExpressionFunction.Floor,               "floor",                 1),
+            (ExpressionFunction.Ceil,                "ceil",                  1),
+            (ExpressionFunction.Saturate,            "saturate",              1),
+            (ExpressionFunction.Clamp,               "clamp",                 3),
+            (ExpressionFunction.Lerp,                "lerp",                  3),
+            (ExpressionFunction.Dot4,                "dot4",                  2),
+            (ExpressionFunction.Dot3,                "dot3",                  2),
+            (ExpressionFunction.Dot2,                "dot2",                  2),
+            (ExpressionFunction.Log,                 "log",                   1),
+            (ExpressionFunction.Log2,                "log2",                  1),
+            (ExpressionFunction.Log10,               "log10",                 1),
+            (ExpressionFunction.Exp,                 "exp",                   1),
+            (ExpressionFunction.Exp2,                "exp2",                  1),
+            (ExpressionFunction.Sqrt,                "sqrt",                  1),
+            (ExpressionFunction.Rsqrt,               "rsqrt",                 1),
+            (ExpressionFunction.Sign,                "sign",                  1),
+            (ExpressionFunction.Abs,                 "abs",                   1),
+            (ExpressionFunction.Pow,                 "pow",                   2),
+            (ExpressionFunction.Step,                "step",                  2),
+            (ExpressionFunction.SmoothStep,          "smoothstep",            3),
+            (ExpressionFunction.Float4,              "float4",                4),
+            (ExpressionFunction.Float3,              "float3",                3),
+            (ExpressionFunction.Float2,              "float2",                2),
+            (ExpressionFunction.Time,                "time",                  0),
+            (ExpressionFunction.Min,                 "min",                   2),
+            (ExpressionFunction.Max,                 "max",                   2),
+            (ExpressionFunction.SrgbLinearToGamma,   "SrgbLinearToGamma",     1),
+            (ExpressionFunction.SrgbGammaToLinear,   "SrgbGammaToLinear",     1),
+            (ExpressionFunction.Random,              "random",                2),
+            (ExpressionFunction.Normalize,           "normalize",             1),
+            (ExpressionFunction.Length,              "length",                1),
+            (ExpressionFunction.Sqr,                 "sqr",                   1),
+            (ExpressionFunction.Rotation2d,          "rotation2d",            1),
+            (ExpressionFunction.Rotate2d,            "rotate2d",              2),
+            (ExpressionFunction.SinCos,              "sincos",                1),
+            (ExpressionFunction.TextureSize,         "TextureSize",           1),
+            (ExpressionFunction.TextureAverageColor, "TextureAverageColor",   1),
+            (ExpressionFunction.MatrixIdentity,      "MatrixIdentity",        0),
+            (ExpressionFunction.MatrixScale,         "MatrixScale",           1),
+            (ExpressionFunction.MatrixTranslate,     "MatrixTranslate",       1),
+            (ExpressionFunction.MatrixAxisAngle,     "MatrixAxisAngle",       1),
+            (ExpressionFunction.MatrixAxisToAxis,    "MatrixAxisToAxis",      2),
+            (ExpressionFunction.MatrixMultiply,      "MatrixMultiply",        2),
+            (ExpressionFunction.MatrixColorCorrect,  "MatrixColorCorrect",    1),
+            (ExpressionFunction.MatrixColorCorrect2, "MatrixColorCorrect2",   2),
+            (ExpressionFunction.MatrixColorTint,     "MatrixColorTint",       1),
+            (ExpressionFunction.NormalizeSafe,       "normalize_safe",        1),
+            (ExpressionFunction.Remap01ScaleOffset,  "Remap01ScaleOffset",    1),
+            (ExpressionFunction.Radians,             "radians",               1),
+            (ExpressionFunction.Degrees,             "degrees",               1),
+            (ExpressionFunction.MatrixColorTint2,    "MatrixColorTint2",      2),
+            (ExpressionFunction.MatrixColorTint3,    "MatrixColorTint3",      3),
+            (ExpressionFunction.RemapVal,            "RemapVal",              5),
+            (ExpressionFunction.RemapValClamped,     "RemapValClamped",       5),
 #pragma warning restore format
         ];
 
@@ -127,6 +127,69 @@ namespace ValveResourceFormat.Serialization.VfxEval
             FLOAT4,             // 21
             SYSTEM_VALUE,       // 22
         };
+
+        /// <summary>Functions an expression calls, by the index the bytecode refers to them with.</summary>
+        public enum ExpressionFunction : ushort
+        {
+            Sin,
+            Cos,
+            Tan,
+            Frac,
+            Floor,
+            Ceil,
+            Saturate,
+            Clamp,
+            Lerp,
+            Dot4,
+            Dot3,
+            Dot2,
+            Log,
+            Log2,
+            Log10,
+            Exp,
+            Exp2,
+            Sqrt,
+            Rsqrt,
+            Sign,
+            Abs,
+            Pow,
+            Step,
+            SmoothStep,
+            Float4,
+            Float3,
+            Float2,
+            Time,
+            Min,
+            Max,
+            SrgbLinearToGamma,
+            SrgbGammaToLinear,
+            Random,
+            Normalize,
+            Length,
+            Sqr,
+            Rotation2d,
+            Rotate2d,
+            SinCos,
+            TextureSize,
+            TextureAverageColor,
+            MatrixIdentity,
+            MatrixScale,
+            MatrixTranslate,
+            MatrixAxisAngle,
+            MatrixAxisToAxis,
+            MatrixMultiply,
+            MatrixColorCorrect,
+            MatrixColorCorrect2,
+            MatrixColorTint,
+            NormalizeSafe,
+            Remap01ScaleOffset,
+            Radians,
+            Degrees,
+            MatrixColorTint2,
+            MatrixColorTint3,
+            RemapVal,
+            RemapValClamped,
+        }
 #pragma warning restore CS1591
 
         // Binding strength, loosest first. An operand is bracketed only where it binds looser than
@@ -310,7 +373,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         throw new InvalidDataException($"Error parsing dynamic expression, malformed function signature (position: {dataReader.BaseStream.Position})");
                     }
 
-                    var (funcName, nrArguments) = FUNCTION_REF[funcId];
+                    var (_, funcName, nrArguments) = FUNCTION_REF[funcId];
                     var arguments = new string[nrArguments];
 
                     for (var i = nrArguments - 1; i >= 0; i--)
