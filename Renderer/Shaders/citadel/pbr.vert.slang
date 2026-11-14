@@ -6,6 +6,7 @@
 
 #include "../common/instancing.slang"
 #include "../common/animation.slang"
+#include "../common/morph.slang"
 
 in vec3 vPOSITION;
 in vec2 vTEXCOORD;
@@ -95,7 +96,8 @@ void main()
     ObjectData_t object = GetObjectData();
 
     mat3x4 skinTransform = CalculateSkinTransform();
-    vec3 fragPosition = vec4(vPOSITION, 1.0) * skinTransform;
+    vec3 position = vPOSITION + GetMorphOffset();
+    vec3 fragPosition = vec4(position, 1.0) * skinTransform;
 
     #if (F_JITTER_VERTICES > 0)
         vec2 jitterTexCoord = vTEXCOORD.xy;
@@ -109,7 +111,7 @@ void main()
         #if (F_JITTER_VERTICES == 2)
             // Object space: the noise travels with the prop, so the displacement has to be
             // rotated into world space rather than added to it.
-            fragPosition += vec4(GetJitterDisplacement(vPOSITION, jitterTexCoord), 0.0) * skinTransform;
+            fragPosition += vec4(GetJitterDisplacement(position, jitterTexCoord), 0.0) * skinTransform;
         #else
             fragPosition += GetJitterDisplacement(fragPosition, jitterTexCoord);
         #endif
@@ -120,7 +122,10 @@ void main()
 
     // Normals are deliberately not recomputed against the displacement.
 
-    ComputeWorldTangentFrame(skinTransform, vNormalOut, vTangentOut);
+    vec3 normal;
+    vec4 tangent;
+    GetOptionallyCompressedNormalTangent(normal, tangent);
+    ComputeWorldTangentFrame(skinTransform, ApplyMorphNormal(normal), tangent, vNormalOut, vTangentOut);
     vCentroidNormalOut = vNormalOut;
 
     WriteBakedLighting();

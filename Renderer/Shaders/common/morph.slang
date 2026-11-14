@@ -5,10 +5,10 @@
 
 #include "instancing_base.slang"
 
-#define F_MORPH_SUPPORTED 0 // most shaders
+#define D_MORPH 0 // set on meshes with morph data
 #define IS_MORPHED (g_instanceBuffer[gl_BaseInstance].MorphVertexIdOffset != -1)
 
-#if (F_MORPH_SUPPORTED == 1)
+#if (D_MORPH == 1)
     uniform sampler2D g_tCompositeMorphTextureAtlas; // reserved
 
     #define MORPH_FIELD_POSITION_SPEED 0
@@ -33,7 +33,7 @@
 
 vec3 GetMorphOffset()
 {
-    #if (F_MORPH_SUPPORTED == 1)
+    #if (D_MORPH == 1)
         if (IS_MORPHED)
         {
             return texelFetch(g_tCompositeMorphTextureAtlas, GetMorphTexel(MORPH_FIELD_POSITION_SPEED), 0).xyz;
@@ -46,7 +46,7 @@ vec3 GetMorphOffset()
 // Normal/wrinkle field: normal delta in rgb, wrinkle weight in a. Wrinkle is only composited so far.
 vec3 ApplyMorphNormal(vec3 normal)
 {
-    #if (F_MORPH_SUPPORTED == 1)
+    #if (D_MORPH == 1)
         if (IS_MORPHED)
         {
             return normalize(normal + texelFetch(g_tCompositeMorphTextureAtlas, GetMorphTexel(MORPH_FIELD_NORMAL_WRINKLE), 0).xyz);

@@ -2,6 +2,7 @@
 
 #include "../common/instancing.slang"
 #include "../common/animation.slang"
+#include "../common/morph.slang"
 
 in vec3 vPOSITION;
 in vec2 vTEXCOORD;
@@ -21,12 +22,16 @@ uniform vec2 g_vTexCoordScrollSpeed;
 void main()
 {
     mat3x4 skinTransform = CalculateSkinTransform();
-    vec3 fragPosition = vec4(vPOSITION, 1.0) * skinTransform;
+    vec3 fragPosition = vec4(vPOSITION + GetMorphOffset(), 1.0) * skinTransform;
     gl_Position = g_matWorldToProjection * vec4(fragPosition, 1.0);
     vFragPosition = fragPosition;
 
+    vec3 normal;
+    vec4 tangent;
+    GetOptionallyCompressedNormalTangent(normal, tangent);
+
     vec4 tangentWs;
-    ComputeWorldTangentFrame(skinTransform, vNormalOut, tangentWs);
+    ComputeWorldTangentFrame(skinTransform, ApplyMorphNormal(normal), tangent, vNormalOut, tangentWs);
 
     vTexCoordOut = vTEXCOORD + g_vTexCoordScrollSpeed * g_flTime;
 

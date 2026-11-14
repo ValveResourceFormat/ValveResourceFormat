@@ -95,14 +95,14 @@ namespace ValveResourceFormat.Renderer
             BoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
             MeshIndex = meshIndex;
 
-            var meshSceneObjects = mesh.Data.GetArray("m_sceneObjects");
-            ConfigureDrawCalls(scene, vbib, gpuVbib, meshSceneObjects, initialMaterialTable, isAggregate, shaderArguments);
-
             // Without an atlas of deltas there is nothing for the composite to sample.
             if (morph?.TextureResource != null)
             {
                 FlexStateManager = new FlexStateManager(renderContext, morph);
             }
+
+            var meshSceneObjects = mesh.Data.GetArray("m_sceneObjects");
+            ConfigureDrawCalls(scene, vbib, gpuVbib, meshSceneObjects, initialMaterialTable, isAggregate, shaderArguments);
         }
 
         /// <summary>Returns render mode names of all draw call materials, without deduplication.</summary>
@@ -367,6 +367,11 @@ namespace ValveResourceFormat.Renderer
                     if (Skinning != MeshSkinning.None)
                     {
                         shaderArguments.Add("D_SKINNING", (byte)Skinning);
+                    }
+
+                    if (FlexStateManager != null)
+                    {
+                        shaderArguments.Add(Shader.MorphCombo, 1);
                     }
 
                     if (Mesh.IsCompressedNormalTangent(objectDrawCall))

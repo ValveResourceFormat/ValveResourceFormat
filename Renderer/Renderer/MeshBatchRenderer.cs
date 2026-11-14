@@ -173,7 +173,7 @@ namespace ValveResourceFormat.Renderer
         {
             if (context.ReplacementShader is { } replacement)
             {
-                return replacement.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest).WithMorph(material.Shader);
+                return replacement.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest).WithMorph(mesh.FlexStateManager != null);
             }
 
             if (context.Layer == RenderLayer.BloomAmount)
@@ -184,13 +184,13 @@ namespace ValveResourceFormat.Renderer
             if (context.DepthOnlyShader is { } depthOnly)
             {
                 return material.Shader.DepthMode
-                    ?? depthOnly.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest).WithMorph(material.Shader);
+                    ?? depthOnly.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest).WithMorph(mesh.FlexStateManager != null);
             }
 
             if (context.OverdrawShader is { } overdraw)
             {
                 return material.Shader.OverdrawMode
-                    ?? overdraw.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest);
+                    ?? overdraw.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest).WithMorph(mesh.FlexStateManager != null);
             }
 
             return material.Shader;

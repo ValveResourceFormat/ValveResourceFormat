@@ -580,7 +580,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 mesh.LoadExternalMorphData(Scene.RendererContext.FileLoader);
                 model.SetExternalMeshData(mesh);
 
-                meshRenderers.Add(new RenderableMesh(mesh, refMesh.MeshIndex, Scene, model, materialTable));
+                meshRenderers.Add(new RenderableMesh(mesh, refMesh.MeshIndex, Scene, model, materialTable, mesh.MorphData));
                 SetSlotInverseBindPose(model, mesh, refMesh.MeshIndex, modelInverseBindPose);
             }
 
