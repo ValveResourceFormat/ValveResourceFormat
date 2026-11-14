@@ -1,6 +1,6 @@
 using System.Buffers.Binary;
 using ValveResourceFormat.Utils;
-using Function = ValveResourceFormat.Serialization.VfxEval.VfxEval.ExpressionFunction;
+using ExpressionFunction = ValveResourceFormat.Serialization.VfxEval.VfxEval.ExpressionFunction;
 using OPCODE = ValveResourceFormat.Serialization.VfxEval.VfxEval.OPCODE;
 
 namespace ValveResourceFormat.Serialization.VfxEval
@@ -163,9 +163,9 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         var function = BinaryPrimitives.ReadUInt16LittleEndian(bytecode[offset..]);
                         offset += 2;
 
-                        isConstant &= (Function)function is not (Function.Time or Function.Random);
+                        isConstant &= (ExpressionFunction)function is not (ExpressionFunction.Time or ExpressionFunction.Random);
 
-                        if (!CallFunction((Function)function, ref stack, context))
+                        if (!CallFunction((ExpressionFunction)function, ref stack, context))
                         {
                             return false;
                         }
@@ -329,66 +329,66 @@ namespace ValveResourceFormat.Serialization.VfxEval
             return result ? 1f : 0f;
         }
 
-        private static bool CallFunction(Function function, ref ValueStack stack, IVfxEvalContext context)
+        private static bool CallFunction(ExpressionFunction function, ref ValueStack stack, IVfxEvalContext context)
         {
             switch (function)
             {
-                case Function.Sin: stack.Push(Vector4.Sin(stack.Pop())); break;
-                case Function.Cos: stack.Push(Vector4.Cos(stack.Pop())); break;
-                case Function.Tan: stack.Push(Map(stack.Pop(), MathF.Tan)); break;
-                case Function.Frac: stack.Push(Map(stack.Pop(), static x => x - MathF.Floor(x))); break;
-                case Function.Floor: stack.Push(Map(stack.Pop(), MathF.Floor)); break;
-                case Function.Ceil: stack.Push(Map(stack.Pop(), MathF.Ceiling)); break;
-                case Function.Saturate: stack.Push(Vector4.Clamp(stack.Pop(), Vector4.Zero, Vector4.One)); break;
-                case Function.Clamp:
+                case ExpressionFunction.Sin: stack.Push(Vector4.Sin(stack.Pop())); break;
+                case ExpressionFunction.Cos: stack.Push(Vector4.Cos(stack.Pop())); break;
+                case ExpressionFunction.Tan: stack.Push(Map(stack.Pop(), MathF.Tan)); break;
+                case ExpressionFunction.Frac: stack.Push(Map(stack.Pop(), static x => x - MathF.Floor(x))); break;
+                case ExpressionFunction.Floor: stack.Push(Map(stack.Pop(), MathF.Floor)); break;
+                case ExpressionFunction.Ceil: stack.Push(Map(stack.Pop(), MathF.Ceiling)); break;
+                case ExpressionFunction.Saturate: stack.Push(Vector4.Clamp(stack.Pop(), Vector4.Zero, Vector4.One)); break;
+                case ExpressionFunction.Clamp:
                 {
                     var max = stack.Pop();
                     var min = stack.Pop();
                     stack.Push(Vector4.Clamp(stack.Pop(), min, max));
                     break;
                 }
-                case Function.Lerp:
+                case ExpressionFunction.Lerp:
                 {
                     var t = stack.Pop();
                     var b = stack.Pop();
                     stack.Push(Vector4.Lerp(stack.Pop(), b, t));
                     break;
                 }
-                case Function.Dot4:
+                case ExpressionFunction.Dot4:
                 {
                     var b = stack.Pop();
                     stack.Push(new Vector4(Vector4.Dot(stack.Pop(), b)));
                     break;
                 }
-                case Function.Dot3:
+                case ExpressionFunction.Dot3:
                 {
                     var b = stack.Pop().AsVector3();
                     stack.Push(new Vector4(Vector3.Dot(stack.Pop().AsVector3(), b)));
                     break;
                 }
-                case Function.Dot2:
+                case ExpressionFunction.Dot2:
                 {
                     var b = stack.Pop().AsVector2();
                     stack.Push(new Vector4(Vector2.Dot(stack.Pop().AsVector2(), b)));
                     break;
                 }
-                case Function.Log: stack.Push(Vector4.Log(stack.Pop())); break;
-                case Function.Log2: stack.Push(Vector4.Log2(stack.Pop())); break;
-                case Function.Log10: stack.Push(Map(stack.Pop(), MathF.Log10)); break;
-                case Function.Exp: stack.Push(Vector4.Exp(stack.Pop())); break;
-                case Function.Exp2: stack.Push(Map(stack.Pop(), static x => MathF.Pow(2f, x))); break;
-                case Function.Sqrt: stack.Push(Vector4.SquareRoot(stack.Pop())); break;
-                case Function.Rsqrt: stack.Push(Vector4.One / Vector4.SquareRoot(stack.Pop())); break;
-                case Function.Sign: stack.Push(Map(stack.Pop(), static x => x > 0f ? 1f : x < 0f ? -1f : 0f)); break;
-                case Function.Abs: stack.Push(Vector4.Abs(stack.Pop())); break;
-                case Function.Pow:
+                case ExpressionFunction.Log: stack.Push(Vector4.Log(stack.Pop())); break;
+                case ExpressionFunction.Log2: stack.Push(Vector4.Log2(stack.Pop())); break;
+                case ExpressionFunction.Log10: stack.Push(Map(stack.Pop(), MathF.Log10)); break;
+                case ExpressionFunction.Exp: stack.Push(Vector4.Exp(stack.Pop())); break;
+                case ExpressionFunction.Exp2: stack.Push(Map(stack.Pop(), static x => MathF.Pow(2f, x))); break;
+                case ExpressionFunction.Sqrt: stack.Push(Vector4.SquareRoot(stack.Pop())); break;
+                case ExpressionFunction.Rsqrt: stack.Push(Vector4.One / Vector4.SquareRoot(stack.Pop())); break;
+                case ExpressionFunction.Sign: stack.Push(Map(stack.Pop(), static x => x > 0f ? 1f : x < 0f ? -1f : 0f)); break;
+                case ExpressionFunction.Abs: stack.Push(Vector4.Abs(stack.Pop())); break;
+                case ExpressionFunction.Pow:
                 {
                     var b = stack.Pop();
                     var a = stack.Pop();
                     stack.Push(new Vector4(MathF.Pow(a.X, b.X), MathF.Pow(a.Y, b.Y), MathF.Pow(a.Z, b.Z), MathF.Pow(a.W, b.W)));
                     break;
                 }
-                case Function.Step:
+                case ExpressionFunction.Step:
                 {
                     // First operand against second, unlike the HLSL function of this name
                     var b = stack.Pop();
@@ -396,7 +396,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     stack.Push(new Vector4(a.X >= b.X ? 1f : 0f, a.Y >= b.Y ? 1f : 0f, a.Z >= b.Z ? 1f : 0f, a.W >= b.W ? 1f : 0f));
                     break;
                 }
-                case Function.SmoothStep:
+                case ExpressionFunction.SmoothStep:
                 {
                     var x = stack.Pop();
                     var max = stack.Pop();
@@ -405,7 +405,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     stack.Push(t * t * (new Vector4(3f) - 2f * t));
                     break;
                 }
-                case Function.Float4:
+                case ExpressionFunction.Float4:
                 {
                     var w = stack.Pop().X;
                     var z = stack.Pop().X;
@@ -413,71 +413,71 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     stack.Push(new Vector4(stack.Pop().X, y, z, w));
                     break;
                 }
-                case Function.Float3:
+                case ExpressionFunction.Float3:
                 {
                     var z = stack.Pop().X;
                     var y = stack.Pop().X;
                     stack.Push(new Vector4(stack.Pop().X, y, z, z));
                     break;
                 }
-                case Function.Float2:
+                case ExpressionFunction.Float2:
                 {
                     var y = stack.Pop().X;
                     stack.Push(new Vector4(stack.Pop().X, y, y, y));
                     break;
                 }
-                case Function.Time: stack.Push(new Vector4(context.Time)); break;
-                case Function.Min:
+                case ExpressionFunction.Time: stack.Push(new Vector4(context.Time)); break;
+                case ExpressionFunction.Min:
                 {
                     var b = stack.Pop();
                     stack.Push(Vector4.Min(stack.Pop(), b));
                     break;
                 }
-                case Function.Max:
+                case ExpressionFunction.Max:
                 {
                     var b = stack.Pop();
                     stack.Push(Vector4.Max(stack.Pop(), b));
                     break;
                 }
-                case Function.SrgbLinearToGamma:
+                case ExpressionFunction.SrgbLinearToGamma:
                 {
                     var color = stack.Pop();
                     stack.Push(new Vector4(ColorSpace.SrgbLinearToGamma(color.AsVector3()), color.W));
                     break;
                 }
-                case Function.SrgbGammaToLinear:
+                case ExpressionFunction.SrgbGammaToLinear:
                 {
                     var color = stack.Pop();
                     stack.Push(new Vector4(ColorSpace.SrgbGammaToLinear(color.AsVector3()), color.W));
                     break;
                 }
-                case Function.Random:
+                case ExpressionFunction.Random:
                 {
                     var max = stack.Pop().X;
                     var min = stack.Pop().X;
                     stack.Push(new Vector4(min + Random.Shared.NextSingle() * (max - min)));
                     break;
                 }
-                case Function.Normalize:
+                case ExpressionFunction.Normalize:
                 {
                     var v = stack.Pop();
                     stack.Push(new Vector4(Vector3.Normalize(v.AsVector3()), v.W));
                     break;
                 }
-                case Function.Length: stack.Push(new Vector4(stack.Pop().AsVector3().Length())); break;
-                case Function.Sqr:
+                case ExpressionFunction.Length: stack.Push(new Vector4(stack.Pop().AsVector3().Length())); break;
+                case ExpressionFunction.Sqr:
                 {
                     var v = stack.Pop();
                     stack.Push(v * v);
                     break;
                 }
-                case Function.TextureSize:
+                case ExpressionFunction.TextureSize:
                 {
                     var texture = stack.Pop();
                     stack.Push(IsTexture(texture) ? context.GetTextureSize(BitConverter.SingleToUInt32Bits(texture.W)) : Vector4.Zero);
                     break;
                 }
-                case Function.TextureAverageColor:
+                case ExpressionFunction.TextureAverageColor:
                 {
                     var texture = stack.Pop();
                     stack.Push(IsTexture(texture) ? context.GetTextureAverageColor(BitConverter.SingleToUInt32Bits(texture.W)) : Vector4.Zero);
@@ -485,73 +485,73 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 }
 
                 // Expression matrices are column vector, the transpose of what System.Numerics builds
-                case Function.MatrixIdentity: PushMatrix(ref stack, Matrix4x4.Identity); break;
-                case Function.MatrixScale: PushMatrix(ref stack, Matrix4x4.CreateScale(stack.Pop().AsVector3())); break;
-                case Function.MatrixTranslate: PushMatrix(ref stack, Matrix4x4.Transpose(Matrix4x4.CreateTranslation(stack.Pop().AsVector3()))); break;
-                case Function.MatrixAxisAngle:
+                case ExpressionFunction.MatrixIdentity: PushMatrix(ref stack, Matrix4x4.Identity); break;
+                case ExpressionFunction.MatrixScale: PushMatrix(ref stack, Matrix4x4.CreateScale(stack.Pop().AsVector3())); break;
+                case ExpressionFunction.MatrixTranslate: PushMatrix(ref stack, Matrix4x4.Transpose(Matrix4x4.CreateTranslation(stack.Pop().AsVector3()))); break;
+                case ExpressionFunction.MatrixAxisAngle:
                 {
                     var axisAngle = stack.Pop();
                     PushMatrix(ref stack, Matrix4x4.Transpose(Matrix4x4.CreateFromAxisAngle(Vector3.Normalize(axisAngle.AsVector3()), axisAngle.W)));
                     break;
                 }
-                case Function.MatrixAxisToAxis:
+                case ExpressionFunction.MatrixAxisToAxis:
                 {
                     var to = Vector3.Normalize(stack.Pop().AsVector3());
                     var from = Vector3.Normalize(stack.Pop().AsVector3());
                     PushMatrix(ref stack, Matrix4x4.Transpose(AxisToAxis(from, to)));
                     break;
                 }
-                case Function.MatrixMultiply:
+                case ExpressionFunction.MatrixMultiply:
                 {
                     var b = PopMatrix(ref stack);
                     PushMatrix(ref stack, Matrix4x4.Multiply(PopMatrix(ref stack), b));
                     break;
                 }
-                case Function.MatrixColorCorrect: PushMatrix(ref stack, VfxEvalFunctions.MatrixColorCorrect2(stack.Pop().AsVector3(), new Vector3(0.5f))); break;
-                case Function.MatrixColorCorrect2:
+                case ExpressionFunction.MatrixColorCorrect: PushMatrix(ref stack, VfxEvalFunctions.MatrixColorCorrect2(stack.Pop().AsVector3(), new Vector3(0.5f))); break;
+                case ExpressionFunction.MatrixColorCorrect2:
                 {
                     var colorOffset = stack.Pop().AsVector3();
                     PushMatrix(ref stack, VfxEvalFunctions.MatrixColorCorrect2(stack.Pop().AsVector3(), colorOffset));
                     break;
                 }
-                case Function.MatrixColorTint: PushMatrix(ref stack, VfxEvalFunctions.MatrixColorTint2(stack.Pop().AsVector3(), 1f)); break;
-                case Function.NormalizeSafe:
+                case ExpressionFunction.MatrixColorTint: PushMatrix(ref stack, VfxEvalFunctions.MatrixColorTint2(stack.Pop().AsVector3(), 1f)); break;
+                case ExpressionFunction.NormalizeSafe:
                 {
                     var v = stack.Pop();
                     var xyz = v.AsVector3();
                     stack.Push(new Vector4(xyz.LengthSquared() > 0f ? Vector3.Normalize(xyz) : Vector3.Zero, v.W));
                     break;
                 }
-                case Function.Remap01ScaleOffset:
+                case ExpressionFunction.Remap01ScaleOffset:
                 {
                     var v = stack.Pop();
                     stack.Push(new Vector4(v.Y - v.X, v.X, v.Z, v.W));
                     break;
                 }
-                case Function.Radians: stack.Push(stack.Pop() * (MathF.PI / 180f)); break;
-                case Function.Degrees: stack.Push(stack.Pop() * (180f / MathF.PI)); break;
-                case Function.MatrixColorTint2:
+                case ExpressionFunction.Radians: stack.Push(stack.Pop() * (MathF.PI / 180f)); break;
+                case ExpressionFunction.Degrees: stack.Push(stack.Pop() * (180f / MathF.PI)); break;
+                case ExpressionFunction.MatrixColorTint2:
                 {
                     var strength = stack.Pop().X;
                     PushMatrix(ref stack, VfxEvalFunctions.MatrixColorTint2(stack.Pop().AsVector3(), strength));
                     break;
                 }
-                case Function.MatrixColorTint3:
+                case ExpressionFunction.MatrixColorTint3:
                 {
                     var mode = (int)stack.Pop().X;
                     var strength = stack.Pop().X;
                     PushMatrix(ref stack, VfxEvalFunctions.MatrixColorTint3(stack.Pop().AsVector3(), strength, mode));
                     break;
                 }
-                case Function.RemapVal:
-                case Function.RemapValClamped:
+                case ExpressionFunction.RemapVal:
+                case ExpressionFunction.RemapValClamped:
                 {
                     var outMax = stack.Pop();
                     var outMin = stack.Pop();
                     var inMax = stack.Pop();
                     var inMin = stack.Pop();
                     var remapped = outMin + (stack.Pop() - inMin) / (inMax - inMin) * (outMax - outMin);
-                    stack.Push(function == Function.RemapValClamped ? Vector4.Clamp(remapped, Vector4.Min(outMin, outMax), Vector4.Max(outMin, outMax)) : remapped);
+                    stack.Push(function == ExpressionFunction.RemapValClamped ? Vector4.Clamp(remapped, Vector4.Min(outMin, outMax), Vector4.Max(outMin, outMax)) : remapped);
                     break;
                 }
 
