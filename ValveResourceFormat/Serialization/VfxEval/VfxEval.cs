@@ -44,105 +44,105 @@ namespace ValveResourceFormat.Serialization.VfxEval
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
         public enum OPCODE
         {
-            RETURN,             // 00
-            NOP,                // 01
-            JUMP,               // 02
-            CALL,               // 03
-            BRANCH,             // 04
-            RET,                // 05
-            FUNC,               // 06
-            FLOAT,              // 07
-            STORE,              // 08
-            LOAD,               // 09
-            OR,                 // 0A
-            AND,                // 0B
-            NOT,                // 0C
-            EQUALS,             // 0D
-            NEQUALS,            // 0E
-            GT,                 // 0F
-            GTE,                // 10
-            LT,                 // 11
-            LTE,                // 12
-            ADD,                // 13
-            SUB,                // 14
-            MUL,                // 15
-            DIV,                // 16
-            MODULO,             // 17
-            NEGATE,             // 18
-            ATTRIBUTE,          // 19
-            FEATURE,            // 1A
-            FEATURE2,           // 1B
-            FEATURE3,           // 1C
-            MATERIAL_PARAM,     // 1D
-            SWIZZLE,            // 1E
-            EXISTS,             // 1F
-            MATERIAL_PARAM_IDX, // 20
-            FLOAT4,             // 21
-            SYSTEM_VALUE,       // 22
+            RETURN = 0x00,
+            NOP = 0x01,
+            JUMP = 0x02,
+            CALL = 0x03,
+            BRANCH = 0x04,
+            RET = 0x05,
+            FUNC = 0x06,
+            FLOAT = 0x07,
+            STORE = 0x08,
+            LOAD = 0x09,
+            OR = 0x0A,
+            AND = 0x0B,
+            NOT = 0x0C,
+            EQUALS = 0x0D,
+            NEQUALS = 0x0E,
+            GT = 0x0F,
+            GTE = 0x10,
+            LT = 0x11,
+            LTE = 0x12,
+            ADD = 0x13,
+            SUB = 0x14,
+            MUL = 0x15,
+            DIV = 0x16,
+            MODULO = 0x17,
+            NEGATE = 0x18,
+            ATTRIBUTE = 0x19,
+            FEATURE = 0x1A,
+            FEATURE2 = 0x1B,
+            FEATURE3 = 0x1C,
+            MATERIAL_PARAM = 0x1D,
+            SWIZZLE = 0x1E,
+            EXISTS = 0x1F,
+            MATERIAL_PARAM_IDX = 0x20,
+            FLOAT4 = 0x21,
+            SYSTEM_VALUE = 0x22,
         };
 
         /// <summary>Functions an expression calls, by the index the bytecode refers to them with.</summary>
         public enum ExpressionFunction : ushort
         {
 #pragma warning disable format
-            [Function("sin", 1)]                 Sin,
-            [Function("cos", 1)]                 Cos,
-            [Function("tan", 1)]                 Tan,
-            [Function("frac", 1)]                Frac,
-            [Function("floor", 1)]               Floor,
-            [Function("ceil", 1)]                Ceil,
-            [Function("saturate", 1)]            Saturate,
-            [Function("clamp", 3)]               Clamp,
-            [Function("lerp", 3)]                Lerp,
-            [Function("dot4", 2)]                Dot4,
-            [Function("dot3", 2)]                Dot3,
-            [Function("dot2", 2)]                Dot2,
-            [Function("log", 1)]                 Log,
-            [Function("log2", 1)]                Log2,
-            [Function("log10", 1)]               Log10,
-            [Function("exp", 1)]                 Exp,
-            [Function("exp2", 1)]                Exp2,
-            [Function("sqrt", 1)]                Sqrt,
-            [Function("rsqrt", 1)]               Rsqrt,
-            [Function("sign", 1)]                Sign,
-            [Function("abs", 1)]                 Abs,
-            [Function("pow", 2)]                 Pow,
-            [Function("step", 2)]                Step,
-            [Function("smoothstep", 3)]          SmoothStep,
-            [Function("float4", 4)]              Float4,
-            [Function("float3", 3)]              Float3,
-            [Function("float2", 2)]              Float2,
-            [Function("time", 0)]                Time,
-            [Function("min", 2)]                 Min,
-            [Function("max", 2)]                 Max,
-            [Function("SrgbLinearToGamma", 1)]   SrgbLinearToGamma,
-            [Function("SrgbGammaToLinear", 1)]   SrgbGammaToLinear,
-            [Function("random", 2)]              Random,
-            [Function("normalize", 1)]           Normalize,
-            [Function("length", 1)]              Length,
-            [Function("sqr", 1)]                 Sqr,
-            [Function("rotation2d", 1)]          Rotation2d,
-            [Function("rotate2d", 2)]            Rotate2d,
-            [Function("sincos", 1)]              SinCos,
-            [Function("TextureSize", 1)]         TextureSize,
-            [Function("TextureAverageColor", 1)] TextureAverageColor,
-            [Function("MatrixIdentity", 0)]      MatrixIdentity,
-            [Function("MatrixScale", 1)]         MatrixScale,
-            [Function("MatrixTranslate", 1)]     MatrixTranslate,
-            [Function("MatrixAxisAngle", 1)]     MatrixAxisAngle,
-            [Function("MatrixAxisToAxis", 2)]    MatrixAxisToAxis,
-            [Function("MatrixMultiply", 2)]      MatrixMultiply,
-            [Function("MatrixColorCorrect", 1)]  MatrixColorCorrect,
-            [Function("MatrixColorCorrect2", 2)] MatrixColorCorrect2,
-            [Function("MatrixColorTint", 1)]     MatrixColorTint,
-            [Function("normalize_safe", 1)]      NormalizeSafe,
-            [Function("Remap01ScaleOffset", 1)]  Remap01ScaleOffset,
-            [Function("radians", 1)]             Radians,
-            [Function("degrees", 1)]             Degrees,
-            [Function("MatrixColorTint2", 2)]    MatrixColorTint2,
-            [Function("MatrixColorTint3", 3)]    MatrixColorTint3,
-            [Function("RemapVal", 5)]            RemapVal,
-            [Function("RemapValClamped", 5)]     RemapValClamped,
+            [Function("sin", 1)]                 Sin = 0x00,
+            [Function("cos", 1)]                 Cos = 0x01,
+            [Function("tan", 1)]                 Tan = 0x02,
+            [Function("frac", 1)]                Frac = 0x03,
+            [Function("floor", 1)]               Floor = 0x04,
+            [Function("ceil", 1)]                Ceil = 0x05,
+            [Function("saturate", 1)]            Saturate = 0x06,
+            [Function("clamp", 3)]               Clamp = 0x07,
+            [Function("lerp", 3)]                Lerp = 0x08,
+            [Function("dot4", 2)]                Dot4 = 0x09,
+            [Function("dot3", 2)]                Dot3 = 0x0A,
+            [Function("dot2", 2)]                Dot2 = 0x0B,
+            [Function("log", 1)]                 Log = 0x0C,
+            [Function("log2", 1)]                Log2 = 0x0D,
+            [Function("log10", 1)]               Log10 = 0x0E,
+            [Function("exp", 1)]                 Exp = 0x0F,
+            [Function("exp2", 1)]                Exp2 = 0x10,
+            [Function("sqrt", 1)]                Sqrt = 0x11,
+            [Function("rsqrt", 1)]               Rsqrt = 0x12,
+            [Function("sign", 1)]                Sign = 0x13,
+            [Function("abs", 1)]                 Abs = 0x14,
+            [Function("pow", 2)]                 Pow = 0x15,
+            [Function("step", 2)]                Step = 0x16,
+            [Function("smoothstep", 3)]          SmoothStep = 0x17,
+            [Function("float4", 4)]              Float4 = 0x18,
+            [Function("float3", 3)]              Float3 = 0x19,
+            [Function("float2", 2)]              Float2 = 0x1A,
+            [Function("time", 0)]                Time = 0x1B,
+            [Function("min", 2)]                 Min = 0x1C,
+            [Function("max", 2)]                 Max = 0x1D,
+            [Function("SrgbLinearToGamma", 1)]   SrgbLinearToGamma = 0x1E,
+            [Function("SrgbGammaToLinear", 1)]   SrgbGammaToLinear = 0x1F,
+            [Function("random", 2)]              Random = 0x20,
+            [Function("normalize", 1)]           Normalize = 0x21,
+            [Function("length", 1)]              Length = 0x22,
+            [Function("sqr", 1)]                 Sqr = 0x23,
+            [Function("rotation2d", 1)]          Rotation2d = 0x24,
+            [Function("rotate2d", 2)]            Rotate2d = 0x25,
+            [Function("sincos", 1)]              SinCos = 0x26,
+            [Function("TextureSize", 1)]         TextureSize = 0x27,
+            [Function("TextureAverageColor", 1)] TextureAverageColor = 0x28,
+            [Function("MatrixIdentity", 0)]      MatrixIdentity = 0x29,
+            [Function("MatrixScale", 1)]         MatrixScale = 0x2A,
+            [Function("MatrixTranslate", 1)]     MatrixTranslate = 0x2B,
+            [Function("MatrixAxisAngle", 1)]     MatrixAxisAngle = 0x2C,
+            [Function("MatrixAxisToAxis", 2)]    MatrixAxisToAxis = 0x2D,
+            [Function("MatrixMultiply", 2)]      MatrixMultiply = 0x2E,
+            [Function("MatrixColorCorrect", 1)]  MatrixColorCorrect = 0x2F,
+            [Function("MatrixColorCorrect2", 2)] MatrixColorCorrect2 = 0x30,
+            [Function("MatrixColorTint", 1)]     MatrixColorTint = 0x31,
+            [Function("normalize_safe", 1)]      NormalizeSafe = 0x32,
+            [Function("Remap01ScaleOffset", 1)]  Remap01ScaleOffset = 0x33,
+            [Function("radians", 1)]             Radians = 0x34,
+            [Function("degrees", 1)]             Degrees = 0x35,
+            [Function("MatrixColorTint2", 2)]    MatrixColorTint2 = 0x36,
+            [Function("MatrixColorTint3", 3)]    MatrixColorTint3 = 0x37,
+            [Function("RemapVal", 5)]            RemapVal = 0x38,
+            [Function("RemapValClamped", 5)]     RemapValClamped = 0x39,
 #pragma warning restore format
         }
 
