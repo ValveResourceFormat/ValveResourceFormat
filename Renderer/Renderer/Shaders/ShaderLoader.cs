@@ -268,9 +268,15 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                 var nameWithExtension = $"{shaderFileName}.{extension}.slang";
 
-                var shaderSource = parser.PreprocessShader(nameWithExtension, parsedData);
-                parsedData.Sources[@type] = shaderSource;
-                parser.ClearBuilder();
+                // Cleared even when a stage fails, as the parser is reused for every shader of this thread
+                try
+                {
+                    parsedData.Sources[@type] = parser.PreprocessShader(nameWithExtension, parsedData);
+                }
+                finally
+                {
+                    parser.ClearBuilder();
+                }
             }
 
             parsedData.GlobalsLayout = GlobalsLayout.Build(parsedData.GlobalsDeclarations);
