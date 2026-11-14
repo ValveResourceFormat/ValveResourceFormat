@@ -20,13 +20,11 @@ public sealed partial class PointRenderAttrCurve : BaseCurveOverTime
     }
 
     /// <inheritdoc/>
+    protected override bool OnStart(EntityInputData data) => !string.IsNullOrEmpty(attributeName);
+
+    /// <inheritdoc/>
     protected override bool Apply(float value)
     {
-        if (string.IsNullOrEmpty(attributeName))
-        {
-            return false;
-        }
-
         EntitySystem.RendererContext.GlobalRenderAttributes[attributeName] = value;
         return true;
     }

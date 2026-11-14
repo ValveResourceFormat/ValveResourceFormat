@@ -361,6 +361,11 @@ public abstract partial class BaseModelEntity : BaseEntity
 
         name = parameter[..separator].Trim();
 
+        if (name.Length == 0)
+        {
+            return false;
+        }
+
         var values = parameter.AsSpan(separator + 1);
         Span<float> components = stackalloc float[4];
         var count = 0;
@@ -379,7 +384,7 @@ public abstract partial class BaseModelEntity : BaseEntity
             ? components[0]
             : new Vector4(components[0], components[1], components[2], components[3]);
 
-        return count > 0;
+        return true;
     }
 
     /// <summary>
