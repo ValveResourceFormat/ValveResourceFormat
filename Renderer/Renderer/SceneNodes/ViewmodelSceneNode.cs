@@ -42,7 +42,6 @@ public class ViewmodelSceneNode : ModelSceneNode
     private readonly List<ModelSceneNode> thirdpersonItems = [];
 
     readonly List<ModelSceneNode?> Items = [];
-    readonly List<RenderMaterial> legsMaterials = [];
 
     ModelSceneNode? SelectedItem => Items.ElementAtOrDefault(SelectedItemIndex - 1);
 
@@ -544,19 +543,6 @@ public class ViewmodelSceneNode : ModelSceneNode
             "first_or_third_person_@2_#&firstperson_default"
         ]);
 
-        // Cache material references for efficient uniform updates (exclude arms/viewmodel materials)
-        var armsMaterials = Arms.RenderableMeshes
-            .SelectMany(m => m.DrawCalls)
-            .Select(dc => dc.Material)
-            .ToHashSet();
-
-        legsMaterials.AddRange(
-            Legs.RenderableMeshes
-                .SelectMany(m => m.DrawCalls)
-                .Select(dc => dc.Material)
-                .Except(armsMaterials)
-        );
-
         // The body plays the graph that drives third person models, the model's default one
         if (Legs.AnimationGraphReferences.Count > 0 && Legs.LoadAnimationGraph(Legs.AnimationGraphReferences[0].GraphPath) is { } graph)
         {
@@ -1049,12 +1035,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             Legs.AnimationController.EnableFirstPersonLegs = FirstPersonMode;
             Legs.Transform = PlayerTransform;
 
-            var distortionValue = FirstPersonMode ? 1 : 0;
-            foreach (var material in legsMaterials)
-            {
-                material.IntParams["g_bFirstpersonLegsDistortion"] = distortionValue;
-                material.IntParams["F_NO_Z_PREPASS"] = distortionValue;
-            }
+            Legs.RenderAttributes["g_bFirstpersonLegsDistortion"] = FirstPersonMode;
 
             Legs.UpdateHierarchy(context);
 
