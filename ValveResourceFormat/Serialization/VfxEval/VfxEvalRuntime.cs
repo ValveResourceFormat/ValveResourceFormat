@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using ValveResourceFormat.Utils;
+using Function = ValveResourceFormat.Serialization.VfxEval.VfxEval.ExpressionFunction;
 using OPCODE = ValveResourceFormat.Serialization.VfxEval.VfxEval.OPCODE;
 
 namespace ValveResourceFormat.Serialization.VfxEval
@@ -102,69 +103,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
                 return items[--Count];
             }
-        }
-
-        // In the order of VfxEval.FUNCTION_REF, whose indices the bytecode refers to functions by
-        private enum Function : ushort
-        {
-            Sin,
-            Cos,
-            Tan,
-            Frac,
-            Floor,
-            Ceil,
-            Saturate,
-            Clamp,
-            Lerp,
-            Dot4,
-            Dot3,
-            Dot2,
-            Log,
-            Log2,
-            Log10,
-            Exp,
-            Exp2,
-            Sqrt,
-            Rsqrt,
-            Sign,
-            Abs,
-            Pow,
-            Step,
-            SmoothStep,
-            Float4,
-            Float3,
-            Float2,
-            Time,
-            Min,
-            Max,
-            SrgbLinearToGamma,
-            SrgbGammaToLinear,
-            Random,
-            Normalize,
-            Length,
-            Sqr,
-            Rotation2d,
-            Rotate2d,
-            SinCos,
-            TextureSize,
-            TextureAverageColor,
-            MatrixIdentity,
-            MatrixScale,
-            MatrixTranslate,
-            MatrixAxisAngle,
-            MatrixAxisToAxis,
-            MatrixMultiply,
-            MatrixColorCorrect,
-            MatrixColorCorrect2,
-            MatrixColorTint,
-            NormalizeSafe,
-            Remap01ScaleOffset,
-            Radians,
-            Degrees,
-            MatrixColorTint2,
-            MatrixColorTint3,
-            RemapVal,
-            RemapValClamped,
         }
 
         private static bool Run(ReadOnlySpan<byte> bytecode, IVfxEvalContext context, ref ValueStack stack, out bool isConstant)
