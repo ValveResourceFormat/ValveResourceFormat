@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using ValveResourceFormat.Serialization.VfxEval;
 
@@ -847,6 +848,123 @@ namespace Tests.Formats
                 await Assert.That(actual.M43).IsEqualTo(expected.M43).Within(tolerance);
                 await Assert.That(actual.M44).IsEqualTo(expected.M44).Within(tolerance);
             }
+        }
+
+        private sealed class RuntimeContext : IVfxEvalContext
+        {
+            public bool TryGetMaterialParam(StringToken name, out Vector4 value)
+            {
+                value = new Vector4(3f);
+                return name.Token == 7;
+            }
+
+            public bool IsTextureParam(StringToken name) => name.Token == 5;
+
+            public Vector4 GetTextureAverageColor(StringToken textureName) => new(textureName.Token);
+        }
+
+        [Test]
+        // 5 - 3
+        [Arguments("07 00 00 A0 40 07 00 00 40 40 14 00", 2f, 2f, 2f, 2f)]
+        // float4(1, 2, 3, 4).wzyx through local 200
+        [Arguments("21 00 00 80 3F 00 00 00 40 00 00 40 40 00 00 80 40 1E 1B 08 C8 09 C8 00", 4f, 3f, 2f, 1f)]
+        // 0 ? 1 : 2
+        [Arguments("07 00 00 00 00 04 0A 00 10 00 07 00 00 80 3F 00 07 00 00 00 40 00", 2f, 2f, 2f, 2f)]
+        // frac(-0.25)
+        [Arguments("07 00 00 80 BE 06 03 00 00", 0.75f, 0.75f, 0.75f, 0.75f)]
+        // step(2, 1)
+        [Arguments("07 00 00 00 40 07 00 00 80 3F 06 16 00 00", 1f, 1f, 1f, 1f)]
+        // step(1, 2)
+        [Arguments("07 00 00 80 3F 07 00 00 00 40 06 16 00 00", 0f, 0f, 0f, 0f)]
+        // param 7 + 1
+        [Arguments("1D 07 00 00 00 07 00 00 80 3F 13 00", 4f, 4f, 4f, 4f)]
+        // TextureAverageColor(1), which is not a texture
+        [Arguments("07 00 00 80 3F 06 28 00 00", 0f, 0f, 0f, 0f)]
+        // TextureAverageColor(texture 5)
+        [Arguments("1D 05 00 00 00 06 28 00 00", 5f, 5f, 5f, 5f)]
+        // exists(attribute 7)
+        [Arguments("1F 07 00 00 00 00", 0f, 0f, 0f, 0f)]
+        public async Task TestRuntimeEvaluatesTo(string exampleStr, float x, float y, float z, float w)
+        {
+            await Assert.That(VfxEvalRuntime.TryEvaluate(ParseString(exampleStr), new RuntimeContext(), out var value, out _)).IsTrue();
+            await Assert.That(value).IsEqualTo(new Vector4(x, y, z, w));
+        }
+
+        [Test]
+        // Attribute that is not set
+        [Arguments("19 07 00 00 00 00")]
+        // Param that does not exist
+        [Arguments("1D 09 00 00 00 00")]
+        // sincos(1)
+        [Arguments("07 00 00 80 3F 06 26 00 00")]
+        // 1 - nothing
+        [Arguments("07 00 00 80 3F 14 00")]
+        // ret without a call
+        [Arguments("05 00")]
+        public async Task TestRuntimeFailsToEvaluate(string exampleStr)
+        {
+            await Assert.That(VfxEvalRuntime.TryEvaluate(ParseString(exampleStr), new RuntimeContext(), out _, out _)).IsFalse();
+        }
+
+        [Test]
+        public async Task TestRuntimeFailsPastStackDepth()
+        {
+            // 33 floats, one more than the stack holds
+            var exampleStr = string.Join(' ', Enumerable.Repeat("07 00 00 80 3F", 33)) + " 00";
+
+            await Assert.That(VfxEvalRuntime.TryEvaluate(ParseString(exampleStr), new RuntimeContext(), out _, out _)).IsFalse();
+        }
+
+        [Test]
+        public async Task TestRuntimeMultipliesMatricesInOperandOrder()
+        {
+            // MatrixMultiply(MatrixScale(2, 2, 2), MatrixTranslate(1, 0, 0))
+            var exampleStr = "21 00 00 00 40 00 00 00 40 00 00 00 40 00 00 00 00 06 2A 00 21 00 00 80 3F 00 00 00 00 00 00 00 00 00 00 00 00 06 2B 00 06 2E 00 00";
+
+            await Assert.That(VfxEvalRuntime.TryEvaluateMatrix(ParseString(exampleStr), new RuntimeContext(), out var matrix, out _)).IsTrue();
+            await Assert.That(matrix).IsEqualTo(Matrix4x4.CreateScale(2f) * Matrix4x4.Transpose(Matrix4x4.CreateTranslation(1f, 0f, 0f)));
+        }
+
+        private sealed class CompilerContext : IVfxEvalContext
+        {
+            public bool TryGetMaterialParam(StringToken name, out Vector4 value)
+            {
+                value = new Vector4(name == StringToken.Lookup("F_ON") ? 1f : 0f);
+                return true;
+            }
+        }
+
+        [Test]
+        [Arguments("-1.5", -1.5f, -1.5f, -1.5f, -1.5f)]
+        [Arguments("float4(1, 2.5, (3), .5)", 1f, 2.5f, 3f, 0.5f)]
+        [Arguments("F_ON ? 1 : 2", 1f, 1f, 1f, 1f)]
+        [Arguments("F_OFF ? 1 : 2", 2f, 2f, 2f, 2f)]
+        [Arguments("F_OFF ? 1 : F_ON ? max(2, 3) : 4", 3f, 3f, 3f, 3f)]
+        public async Task TestCompilerEvaluatesTo(string source, float x, float y, float z, float w)
+        {
+            await Assert.That(VfxEvalRuntime.TryEvaluate(VfxEvalCompiler.Compile(source), new CompilerContext(), out var value, out _)).IsTrue();
+            await Assert.That(value).IsEqualTo(new Vector4(x, y, z, w));
+        }
+
+        [Test]
+        public async Task TestCompilerMatrixBranches()
+        {
+            var code = VfxEvalCompiler.Compile("F_OFF ? MatrixScale(float3(2, 2, 2)) : MatrixIdentity()");
+
+            await Assert.That(VfxEvalRuntime.TryEvaluateMatrix(code, new CompilerContext(), out var matrix, out _)).IsTrue();
+            await Assert.That(matrix).IsEqualTo(Matrix4x4.Identity);
+        }
+
+        [Test]
+        [Arguments("")]
+        [Arguments("nope(1)")]
+        [Arguments("max(1)")]
+        [Arguments("1 ? 2")]
+        [Arguments("max(1, 2")]
+        [Arguments("1 2")]
+        public async Task TestCompilerRejects(string source)
+        {
+            await Assert.That(() => VfxEvalCompiler.Compile(source)).Throws<InvalidDataException>();
         }
 
         private static byte[] ParseString(string bytestring)

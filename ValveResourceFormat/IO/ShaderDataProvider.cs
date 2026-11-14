@@ -58,7 +58,15 @@ namespace ValveResourceFormat.IO
         /// <param name="material">The material.</param>
         /// <param name="combos">Overrides for the integer parameters of the material.</param>
         public IReadOnlyDictionary<string, long> GetIntAttributes(Material material, IReadOnlyDictionary<string, long>? combos = null);
+
+        /// <summary>
+        /// Gets the variables with compiled expressions in the shader variant of a material, or null without shader files.
+        /// </summary>
+        public ShaderExpressions? GetExpressions(Material material, IReadOnlyDictionary<string, long>? combos = null) => null;
     }
+
+    /// <summary>The variables with compiled expressions in a shader variant.</summary>
+    public sealed record ShaderExpressions(IReadOnlyDictionary<string, VfxVariableDescription> Variables, ShaderCollection Shader);
 
     /// <summary>
     /// Provides shader data by querying compiled shader files, with optional fallback to basic hardcoded mappings.
@@ -606,6 +614,42 @@ namespace ValveResourceFormat.IO
             }
 
             return attributes;
+        }
+
+        /// <inheritdoc/>
+        public ShaderExpressions? GetExpressions(Material material, IReadOnlyDictionary<string, long>? combos = null)
+        {
+            ArgumentNullException.ThrowIfNull(material);
+
+            var shader = fileLoader.LoadShader(material.ShaderName);
+
+            if (shader?.Features == null)
+            {
+                return null;
+            }
+
+            combos ??= material.IntParams;
+            var variables = new Dictionary<string, VfxVariableDescription>();
+
+            foreach (var program in (ReadOnlySpan<VfxProgramData?>)[shader.Pixel, shader.Vertex])
+            {
+                if (program == null || GetStaticCombo(shader, program, combos) is not { } staticCombo)
+                {
+                    continue;
+                }
+
+                foreach (var field in staticCombo.AllVariables.Fields)
+                {
+                    var variable = program.VariableDescriptions[field.VariableIndex];
+
+                    if (variable.CompiledExpression.Length > 0)
+                    {
+                        variables.TryAdd(variable.Name, variable);
+                    }
+                }
+            }
+
+            return new ShaderExpressions(variables, shader);
         }
 
         private VfxStaticComboData? GetStaticCombo(ShaderCollection shader, VfxProgramData program, IReadOnlyDictionary<string, long> combos)
