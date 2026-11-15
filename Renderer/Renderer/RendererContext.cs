@@ -94,7 +94,7 @@ public class RendererContext : IDisposable
     /// </summary>
     public float Uptime { get; set; }
 
-    /// <summary>Gets the global render attributes (per view).</summary>
+    /// <summary>Gets the global render attributes.</summary>
     public RenderAttributes GlobalRenderAttributes { get; } = new();
 
     /// <summary>
