@@ -529,115 +529,6 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
-        private bool EvaluateExpressions(Shader shader, Globals buffer, RenderAttributes? attributes)
-        {
-            var members = shader.GlobalsLayout.Members;
-            var variables = expressionContext.Variables;
-
-            expressionContext.IsConstant = true;
-            expressionContext.Attributes = attributes;
-
-            // Game shader files compile the same expressions, with constants folded per static combo
-            foreach (var (name, expression) in shader.Expressions)
-            {
-                Evaluate(shader, buffer, members, name, variables.TryGetValue(name, out var variable) ? variable.CompiledExpression : expression);
-            }
-
-            // Other game expressions mostly convert a raw parameter our shaders already convert, matrices are final
-            foreach (var (name, variable) in variables)
-            {
-                if (variable.VfxType == VfxVariableType.Float4x4 && !shader.Expressions.ContainsKey(name))
-                {
-                    Evaluate(shader, buffer, members, name, variable.CompiledExpression);
-                }
-            }
-
-            foreach (var (name, expression) in Material.DynamicParams)
-            {
-                if (!IsOverridden(name) && members.TryGetValue(name, out var constant) && expressionContext.TryEvaluate(expression, out var value))
-                {
-                    SetEvaluated(shader, buffer, constant, name, value);
-                }
-            }
-
-            return expressionContext.IsConstant;
-        }
-
-        private void Evaluate(Shader shader, Globals buffer, IReadOnlyDictionary<string, GlobalsMember> members, string name, byte[] expression)
-        {
-            if (!members.TryGetValue(name, out var constant))
-            {
-                return;
-            }
-
-            if (constant.Type == GlobalsType.Mat4)
-            {
-                if (!Matrices.ContainsKey(name) && expressionContext.TryEvaluateMatrix(expression, out var matrix))
-                {
-                    buffer.SetMatrix(constant, matrix);
-                }
-            }
-            else if (expressionContext.TryEvaluate(expression, out var value))
-            {
-                SetEvaluated(shader, buffer, constant, name, value);
-            }
-        }
-
-        private static void SetEvaluated(Shader shader, Globals buffer, in GlobalsMember constant, string name, Vector4 value)
-        {
-            if (constant.ComponentCount == 1)
-            {
-                buffer.SetScalar(constant, value.X);
-                return;
-            }
-
-            SetVectorParam(shader, buffer, constant, name, value);
-        }
-
-        private static void SetVectorParam(Shader shader, Globals buffer, in GlobalsMember constant, string name, Vector4 value)
-        {
-            buffer.SetVector(constant, shader.SrgbUniforms.Contains(name)
-                ? new Vector4(ColorSpace.SrgbGammaToLinear(value.AsVector3()), value.W)
-                : value);
-        }
-
-        private bool TryGetParam(string name, out Vector4 value)
-        {
-            if (VectorParams.TryGetValue(name, out value))
-            {
-                return true;
-            }
-
-            if (FloatParams.TryGetValue(name, out var scalar))
-            {
-                value = new Vector4(scalar);
-                return true;
-            }
-
-            if (IntParams.TryGetValue(name, out var integer))
-            {
-                value = new Vector4(integer);
-                return true;
-            }
-
-            return false;
-        }
-
-        private bool IsOverridden(string name)
-        {
-            if (VectorParams.TryGetValue(name, out var vector))
-            {
-                return vector != Material.VectorParams.GetValueOrDefault(name);
-            }
-
-            if (FloatParams.TryGetValue(name, out var scalar))
-            {
-                return scalar != Material.FloatParams.GetValueOrDefault(name);
-            }
-
-            return IntParams.TryGetValue(name, out var integer) && integer != Material.IntParams.GetValueOrDefault(name);
-        }
-
         [Conditional("DEBUG")]
         private void AssertGlobalsAreForThisShader()
         {
@@ -827,6 +718,115 @@ namespace ValveResourceFormat.Renderer.Materials
 
             var renderState = GraphicsContext.RenderState;
             renderState.Apply(ComposeRenderState(renderState.CurrentPass, shader.IsInteriorVariant));
+        }
+
+        private bool EvaluateExpressions(Shader shader, Globals buffer, RenderAttributes? attributes)
+        {
+            var members = shader.GlobalsLayout.Members;
+            var variables = expressionContext.Variables;
+
+            expressionContext.IsConstant = true;
+            expressionContext.Attributes = attributes;
+
+            // Game shader files compile the same expressions, with constants folded per static combo
+            foreach (var (name, expression) in shader.Expressions)
+            {
+                Evaluate(shader, buffer, members, name, variables.TryGetValue(name, out var variable) ? variable.CompiledExpression : expression);
+            }
+
+            // Other game expressions mostly convert a raw parameter our shaders already convert, matrices are final
+            foreach (var (name, variable) in variables)
+            {
+                if (variable.VfxType == VfxVariableType.Float4x4 && !shader.Expressions.ContainsKey(name))
+                {
+                    Evaluate(shader, buffer, members, name, variable.CompiledExpression);
+                }
+            }
+
+            foreach (var (name, expression) in Material.DynamicParams)
+            {
+                if (!IsOverridden(name) && members.TryGetValue(name, out var constant) && expressionContext.TryEvaluate(expression, out var value))
+                {
+                    SetEvaluated(shader, buffer, constant, name, value);
+                }
+            }
+
+            return expressionContext.IsConstant;
+        }
+
+        private void Evaluate(Shader shader, Globals buffer, IReadOnlyDictionary<string, GlobalsMember> members, string name, byte[] expression)
+        {
+            if (!members.TryGetValue(name, out var constant))
+            {
+                return;
+            }
+
+            if (constant.Type == GlobalsType.Mat4)
+            {
+                if (!Matrices.ContainsKey(name) && expressionContext.TryEvaluateMatrix(expression, out var matrix))
+                {
+                    buffer.SetMatrix(constant, matrix);
+                }
+            }
+            else if (expressionContext.TryEvaluate(expression, out var value))
+            {
+                SetEvaluated(shader, buffer, constant, name, value);
+            }
+        }
+
+        private static void SetEvaluated(Shader shader, Globals buffer, in GlobalsMember constant, string name, Vector4 value)
+        {
+            if (constant.ComponentCount == 1)
+            {
+                buffer.SetScalar(constant, value.X);
+                return;
+            }
+
+            SetVectorParam(shader, buffer, constant, name, value);
+        }
+
+        private static void SetVectorParam(Shader shader, Globals buffer, in GlobalsMember constant, string name, Vector4 value)
+        {
+            buffer.SetVector(constant, shader.SrgbUniforms.Contains(name)
+                ? new Vector4(ColorSpace.SrgbGammaToLinear(value.AsVector3()), value.W)
+                : value);
+        }
+
+        private bool TryGetParam(string name, out Vector4 value)
+        {
+            if (VectorParams.TryGetValue(name, out value))
+            {
+                return true;
+            }
+
+            if (FloatParams.TryGetValue(name, out var scalar))
+            {
+                value = new Vector4(scalar);
+                return true;
+            }
+
+            if (IntParams.TryGetValue(name, out var integer))
+            {
+                value = new Vector4(integer);
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool IsOverridden(string name)
+        {
+            if (VectorParams.TryGetValue(name, out var vector))
+            {
+                return vector != Material.VectorParams.GetValueOrDefault(name);
+            }
+
+            if (FloatParams.TryGetValue(name, out var scalar))
+            {
+                return scalar != Material.FloatParams.GetValueOrDefault(name);
+            }
+
+            return IntParams.TryGetValue(name, out var integer) && integer != Material.IntParams.GetValueOrDefault(name);
         }
 
         private sealed class ExpressionContext(RenderMaterial material, ShaderExpressions? expressions) : IVfxEvalContext
