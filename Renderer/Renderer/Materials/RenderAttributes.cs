@@ -3,10 +3,7 @@ using ValveResourceFormat.Renderer.Utils;
 
 namespace ValveResourceFormat.Renderer.Materials;
 
-/// <summary>Per-node values by name, overriding what materials draw with. Materials stay shared.</summary>
-/// <remarks>
-/// Each material they touch gets a constant buffer baked with them, rebaked when either or the shader layout changes.
-/// </remarks>
+/// <summary>Per-node values by name that override what shared materials draw with.</summary>
 public sealed class RenderAttributes
 {
     internal MaterialInputs<Variant> Values { get; } = [];
@@ -55,7 +52,7 @@ public sealed class RenderAttributes
         return false;
     }
 
-    /// <summary>Gets an attribute by the token expressions read it with, with scalars in every component.</summary>
+    /// <summary>Gets an attribute by token, with scalars in every component.</summary>
     internal bool TryGetValue(StringToken name, out Vector4 value)
     {
         foreach (var (key, variant) in Values)

@@ -89,9 +89,7 @@ public class RendererContext : IDisposable
     /// </summary>
     public bool ParallelSimulation { get; set; } = true;
 
-    /// <summary>
-    /// The seconds the renderer has been running, published by the renderer each frame.
-    /// </summary>
+    /// <summary>Gets or sets the seconds the renderer has been running.</summary>
     public float Uptime { get; set; }
 
     /// <summary>Gets the global render attributes.</summary>

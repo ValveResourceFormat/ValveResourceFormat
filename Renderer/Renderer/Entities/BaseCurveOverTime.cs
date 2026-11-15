@@ -6,9 +6,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
-/// <summary>
-/// An entity that plays its <c>curve</c> of values over seconds from <c>Start</c>, holding the last value after.
-/// </summary>
+/// <summary>An entity that plays its <c>curve</c> of values from <c>Start</c>, holding the last value after.</summary>
 public abstract partial class BaseCurveOverTime : BaseEntity
 {
     private PiecewiseCurve? curve;
@@ -40,7 +38,7 @@ public abstract partial class BaseCurveOverTime : BaseEntity
         }
     }
 
-    /// <summary>Applies the curve at the time since <c>Start</c>, until the time passes the end of the curve.</summary>
+    /// <summary>Applies the curve until it ends.</summary>
     public override void Think()
     {
         if (curve == null)
