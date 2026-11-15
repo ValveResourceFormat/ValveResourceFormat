@@ -61,7 +61,7 @@ namespace ValveResourceFormat.Renderer
         private RenderAttributes? renderAttributes;
         /// <summary>Gets render attributes for this node only. Created on first use.</summary>
         public RenderAttributes RenderAttributes => renderAttributes ??= new();
-        internal RenderAttributes? RenderAttributesOrNull => renderAttributes; // Does not create them
+        internal RenderAttributes? RenderAttributesOrNull => renderAttributes;
 
         /// <summary>
         /// Gets or sets the world transform. Setting this also updates <see cref="BoundingBox"/>.
