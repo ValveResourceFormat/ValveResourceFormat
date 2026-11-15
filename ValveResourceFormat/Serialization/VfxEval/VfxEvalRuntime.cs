@@ -472,6 +472,25 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     stack.Push(v * v);
                     break;
                 }
+                case ExpressionFunction.Rotation2d:
+                {
+                    var (sin, cos) = MathF.SinCos(stack.Pop().X);
+                    stack.Push(new Vector4(cos, -sin, sin, cos));
+                    break;
+                }
+                case ExpressionFunction.Rotate2d:
+                {
+                    var (sin, cos) = MathF.SinCos(stack.Pop().X);
+                    var v = stack.Pop();
+                    stack.Push(new Vector4(v.X * cos - v.Y * sin, v.X * sin + v.Y * cos, v.Z, v.W));
+                    break;
+                }
+                case ExpressionFunction.SinCos:
+                {
+                    var (sin, cos) = MathF.SinCos(stack.Pop().X);
+                    stack.Push(new Vector4(sin, cos, -sin, -cos));
+                    break;
+                }
                 case ExpressionFunction.TextureSize:
                 {
                     var texture = stack.Pop();
@@ -555,35 +574,12 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     stack.Push(function == ExpressionFunction.RemapValClamped ? Vector4.Clamp(remapped, Vector4.Min(outMin, outMax), Vector4.Max(outMin, outMax)) : remapped);
                     break;
                 }
-
                 case ExpressionFunction.MakeOrthonormalRight:
                 case ExpressionFunction.MakeOrthonormalForward:
                 {
                     var normal = stack.Pop();
                     var (right, forward) = VfxEvalFunctions.OrthonormalBasis(IsTexture(normal) ? Vector3.Zero : normal.AsVector3());
                     stack.Push(new Vector4(function == ExpressionFunction.MakeOrthonormalRight ? right : forward, 0f));
-                    break;
-                }
-
-                case ExpressionFunction.SinCos:
-                {
-                    var (sin, cos) = MathF.SinCos(stack.Pop().X);
-                    stack.Push(new Vector4(sin, cos, -sin, -cos));
-                    break;
-                }
-
-                case ExpressionFunction.Rotation2d:
-                {
-                    var (sin, cos) = MathF.SinCos(stack.Pop().X);
-                    stack.Push(new Vector4(cos, -sin, sin, cos));
-                    break;
-                }
-
-                case ExpressionFunction.Rotate2d:
-                {
-                    var (sin, cos) = MathF.SinCos(stack.Pop().X);
-                    var v = stack.Pop();
-                    stack.Push(new Vector4(v.X * cos - v.Y * sin, v.X * sin + v.Y * cos, v.Z, v.W));
                     break;
                 }
 
