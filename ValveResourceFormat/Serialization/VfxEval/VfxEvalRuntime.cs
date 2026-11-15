@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Runtime.CompilerServices;
 using ValveResourceFormat.Utils;
 using ExpressionFunction = ValveResourceFormat.Serialization.VfxEval.VfxEval.ExpressionFunction;
 using OPCODE = ValveResourceFormat.Serialization.VfxEval.VfxEval.OPCODE;
@@ -42,6 +43,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
     public static class VfxEvalRuntime
     {
         /// <summary>Runs an expression that results in a vector or scalar, failing on an unset attribute, an unknown parameter or an unsupported operation.</summary>
+        [SkipLocalsInit]
         public static bool TryEvaluate(ReadOnlySpan<byte> bytecode, IVfxEvalContext context, out Vector4 value, out bool isConstant)
         {
             var stack = new ValueStack(stackalloc Vector4[MaxStackDepth]);
@@ -57,6 +59,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         }
 
         /// <summary>Runs an expression that results in a 4x4 matrix, failing on an unset attribute, an unknown parameter or an unsupported operation.</summary>
+        [SkipLocalsInit]
         public static bool TryEvaluateMatrix(ReadOnlySpan<byte> bytecode, IVfxEvalContext context, out Matrix4x4 value, out bool isConstant)
         {
             var stack = new ValueStack(stackalloc Vector4[MaxStackDepth]);
@@ -105,6 +108,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
             }
         }
 
+        // Bytecode stores every local before loading it
+        [SkipLocalsInit]
         private static bool Run(ReadOnlySpan<byte> bytecode, IVfxEvalContext context, ref ValueStack stack, out bool isConstant)
         {
             isConstant = true;
