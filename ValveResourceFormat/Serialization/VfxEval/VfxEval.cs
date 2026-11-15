@@ -180,6 +180,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
         private static (string Symbol, Precedence Precedence) GetOperator(OPCODE op) => op switch
         {
+            OPCODE.OR => ("||", Precedence.Or),
+            OPCODE.AND => ("&&", Precedence.And),
             OPCODE.EQUALS => ("==", Precedence.Equality),
             OPCODE.NEQUALS => ("!=", Precedence.Equality),
             OPCODE.GT => (">", Precedence.Relational),
@@ -387,6 +389,17 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     }
 
                     Push($"{GetOperator(op).Symbol}{operand}", Precedence.Unary);
+                    return;
+                }
+
+                // Both operands are evaluated, unlike the branches || and && usually compile to
+                case OPCODE.OR or OPCODE.AND:
+                {
+                    var (symbol, precedence) = GetOperator(op);
+                    var exp2 = PopExpression(dataReader);
+                    var exp1 = PopExpression(dataReader);
+
+                    Push($"{exp1.Operand(precedence)} {symbol} {exp2.Operand(precedence + 1)}", precedence);
                     return;
                 }
 

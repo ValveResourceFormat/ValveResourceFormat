@@ -200,6 +200,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         stack.Push(locals[bytecode[offset++]]);
                         break;
 
+                    case OPCODE.OR:
+                    case OPCODE.AND:
                     case OPCODE.EQUALS:
                     case OPCODE.NEQUALS:
                     case OPCODE.GT:
@@ -319,6 +321,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
         {
             var result = opcode switch
             {
+                OPCODE.OR => a != 0f || b != 0f,
+                OPCODE.AND => a != 0f && b != 0f,
                 OPCODE.EQUALS => a == b,
                 OPCODE.NEQUALS => a != b,
                 OPCODE.GT => a > b,
