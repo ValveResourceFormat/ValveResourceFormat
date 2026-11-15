@@ -548,19 +548,9 @@ namespace ValveResourceFormat.Renderer.Materials
             expressionContext.IsConstant = true;
             expressionContext.Attributes = attributes;
 
-            foreach (var (name, variable) in variables)
-            {
-                if (variable.VfxType == VfxVariableType.Float4x4)
-                {
-                    EvaluateMatrix(buffer, members, name, variable.CompiledExpression);
-                }
-            }
-
-            // Only the matrices of game shader files are evaluated, so those are the only results ours give way to
             foreach (var (name, expression) in shader.Expressions)
             {
-                if (variables.TryGetValue(name, out var variable) && variable.VfxType == VfxVariableType.Float4x4
-                    || !members.TryGetValue(name, out var constant))
+                if (!members.TryGetValue(name, out var constant))
                 {
                     continue;
                 }
@@ -572,6 +562,15 @@ namespace ValveResourceFormat.Renderer.Materials
                 else if (expressionContext.TryEvaluate(expression, out var value))
                 {
                     SetEvaluated(shader, buffer, constant, name, value);
+                }
+            }
+
+            // Game shader matrices overwrite ours
+            foreach (var (name, variable) in variables)
+            {
+                if (variable.VfxType == VfxVariableType.Float4x4)
+                {
+                    EvaluateMatrix(buffer, members, name, variable.CompiledExpression);
                 }
             }
 
