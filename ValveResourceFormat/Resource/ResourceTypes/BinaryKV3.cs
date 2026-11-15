@@ -1223,7 +1223,9 @@ namespace ValveResourceFormat.ResourceTypes
             }
             catch (Exception ex)
             {
+#pragma warning disable RS0030 // Native callers have no logger, stderr is the only channel
                 Console.Error.WriteLine(ex.Message);
+#pragma warning restore RS0030
                 return Marshal.StringToHGlobalAnsi(string.Empty);
             }
         }

@@ -531,7 +531,6 @@ public static partial class ShaderSpirvReflection
 
             if (string.IsNullOrEmpty(name))
             {
-                Console.WriteLine($"Unhandled resource type {resourceType}");
                 continue;
             }
 

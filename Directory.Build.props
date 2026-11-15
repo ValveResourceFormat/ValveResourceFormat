@@ -59,6 +59,14 @@
     <EnableSingleFileAnalyzer>false</EnableSingleFileAnalyzer>
   </PropertyGroup>
 
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'ValveResourceFormat' Or '$(MSBuildProjectName)' == 'Renderer' Or '$(MSBuildProjectName)' == 'GUI'">
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.Shared.txt" />
+  </ItemGroup>
+
   <ItemGroup>
     <Using Include="System" />
     <Using Include="System.Numerics" />

@@ -654,9 +654,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 foreach (var segmentIndex in frameBlock.SegmentIndexArray)
                 {
-                    if (seen.Add(segmentIndex) && segments.Get(segmentIndex) is { } segment)
+                    if (seen.Add(segmentIndex))
                     {
-                        yield return segment;
+                        yield return segments.Get(segmentIndex);
                     }
                 }
             }
@@ -672,9 +672,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 {
                     foreach (var segmentIndex in frameBlock.SegmentIndexArray)
                     {
-                        var segment = segments.Get(segmentIndex);
-                        // Segment could be null for unknown decoders
-                        segment?.Read(outFrame.FrameIndex - frameBlock.StartFrame, outFrame);
+                        segments.Get(segmentIndex).Read(outFrame.FrameIndex - frameBlock.StartFrame, outFrame);
                     }
                 }
             }

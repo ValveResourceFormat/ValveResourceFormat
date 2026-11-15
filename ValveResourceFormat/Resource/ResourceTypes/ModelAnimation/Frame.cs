@@ -1,3 +1,4 @@
+using System.IO;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
@@ -48,11 +49,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     Bones[bone].Position = data;
                     break;
 
-#if DEBUG
                 default:
-                    Console.WriteLine($"Unknown frame attribute '{attribute}' encountered with Vector3 data");
-                    break;
-#endif
+                    throw new InvalidDataException($"Unknown frame attribute '{attribute}' encountered with Vector3 data");
             }
         }
 
@@ -67,11 +65,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     Bones[bone].Angle = data;
                     break;
 
-#if DEBUG
                 default:
-                    Console.WriteLine($"Unknown frame attribute '{attribute}' encountered with Quaternion data");
-                    break;
-#endif
+                    throw new InvalidDataException($"Unknown frame attribute '{attribute}' encountered with Quaternion data");
             }
         }
 
@@ -94,11 +89,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     // Named material-attribute channels have no consumer yet.
                     break;
 
-#if DEBUG
                 default:
-                    Console.WriteLine($"Unknown frame attribute '{attribute}' encountered with float data");
-                    break;
-#endif
+                    throw new InvalidDataException($"Unknown frame attribute '{attribute}' encountered with float data");
             }
         }
 

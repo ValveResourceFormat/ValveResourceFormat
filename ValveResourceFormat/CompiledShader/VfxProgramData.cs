@@ -238,20 +238,12 @@ namespace ValveResourceFormat.CompiledShader
         }
 
         /// <summary>
-        /// Prints a summary of the shader program data to the console or a provided writer.
+        /// Prints a summary of the shader program data to a writer.
         /// </summary>
-        /// <param name="outputWriter">Optional indented text writer for output.</param>
+        /// <param name="outputWriter">Indented text writer for output.</param>
         /// <param name="featuresProgram">Optional features program for resolving feature names.</param>
-        public void PrintSummary(IndentedTextWriter? outputWriter = null, VfxProgramData? featuresProgram = null)
+        public void PrintSummary(IndentedTextWriter outputWriter, VfxProgramData? featuresProgram = null)
         {
-            if (outputWriter == null)
-            {
-                using var output = new IndentedTextWriter();
-                _ = new PrintVcsFileSummary(this, output, featuresProgram);
-                Console.Write(output.ToString());
-                return;
-            }
-
             _ = new PrintVcsFileSummary(this, outputWriter, featuresProgram);
         }
 

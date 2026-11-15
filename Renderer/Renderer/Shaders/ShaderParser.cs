@@ -607,10 +607,8 @@ namespace ValveResourceFormat.Renderer.Shaders
             {
                 return File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             }
-            catch (IOException e)
+            catch (IOException)
             {
-                Console.Error.WriteLine(e.Message);
-
                 // Sometimes hot reloading shaders throws "The process cannot access the file x because it is being used by another process."
                 // Just sleep for a second and try again
                 System.Threading.Thread.Sleep(TimeSpan.FromSeconds(1));

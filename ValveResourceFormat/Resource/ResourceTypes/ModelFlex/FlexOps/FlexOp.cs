@@ -78,8 +78,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
         /// </summary>
         public static FlexOp? Build(FlexOpCode? opCode, int data)
         {
-            var floatData = BitConverter.Int32BitsToSingle(data);
-            var flexOp = opCode switch
+            var floatData = BitConverter.Int32BitsToSingle(data); return opCode switch
             {
                 FlexOpCode.Fetch1 => new FlexOpFetch1(data),
                 FlexOpCode.Const => new FlexOpConst(floatData),
@@ -106,17 +105,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
 
                 // These never reach a compiled op stream.
                 FlexOpCode.Exp or FlexOpCode.Open or FlexOpCode.Close or FlexOpCode.Comma => new FlexOpNop(floatData),
-                _ => (FlexOp?)null,
+                _ => null,
             };
-
-#if DEBUG
-            if (flexOp is null)
-            {
-                Console.WriteLine($"Unknown flex opcode: {opCode}");
-            }
-#endif
-
-            return flexOp;
         }
     }
 }

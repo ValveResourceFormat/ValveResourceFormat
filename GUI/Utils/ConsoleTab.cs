@@ -181,11 +181,13 @@ namespace GUI.Utils
             };
             tab.Controls.Add(control);
 
+#pragma warning disable RS0030 // Captures console writes of third-party code into the tab
             loggerOut = new MyLogger((message) => WriteLine(Log.Category.INFO, CONSOLE, message));
             Console.SetOut(loggerOut);
 
             loggerError = new MyLogger((message) => WriteLine(Log.Category.ERROR, CONSOLE, message));
             Console.SetError(loggerError);
+#pragma warning restore RS0030
 
             return tab;
         }

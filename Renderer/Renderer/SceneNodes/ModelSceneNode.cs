@@ -682,7 +682,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     return null;
                 }
 
-                return AnimationGraph.TryLoad(graphDefinition, fileLoader, clipName => Animations.GetValueOrDefault(clipName) as ClipAnimation);
+                return AnimationGraph.TryLoad(graphDefinition, fileLoader, clipName => Animations.GetValueOrDefault(clipName) as ClipAnimation, Scene.RendererContext.Logger);
             }
             catch (Exception e)
             {

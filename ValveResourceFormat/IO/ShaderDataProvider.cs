@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
@@ -75,15 +77,18 @@ namespace ValveResourceFormat.IO
         private readonly IFileLoader fileLoader;
         private readonly IShaderDataProvider? basicProvider;
 #pragma warning restore CA1859
+        private readonly ILogger logger;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ShaderDataProvider"/> class.
         /// </summary>
         /// <param name="fileLoader">The file loader used to load shader files.</param>
         /// <param name="useFallback">Whether to use the basic provider as a fallback when shader files are unavailable.</param>
-        public ShaderDataProvider(IFileLoader fileLoader, bool useFallback = true)
+        /// <param name="logger">Optional logger for shader data warnings.</param>
+        public ShaderDataProvider(IFileLoader fileLoader, bool useFallback = true, ILogger? logger = null)
         {
             this.fileLoader = fileLoader;
+            this.logger = logger ?? NullLogger.Instance;
             basicProvider = useFallback ? new BasicShaderDataProvider() : null;
         }
 
@@ -168,12 +173,14 @@ namespace ValveResourceFormat.IO
         /// <param name="program">Stage for which the configuration will be generated.</param>
         /// <param name="featureParams">Feature parameters have the 'F_' prefix.</param>
         /// <param name="staticParams">Statics (not tied to a feature) that you want to override. Static parameters have the 'S_' prefix.</param>
+        /// <param name="logger">Optional logger for out of range feature values.</param>
         /// <returns>A tuple containing the static configuration array and the corresponding static combo identifier.</returns>
         public static (int[] StaticConfig, long StaticComboId) GetStaticConfiguration_ForFeatureState(
             VfxProgramData features,
             VfxProgramData program,
             IDictionary<string, byte> featureParams,
-            IDictionary<string, byte>? staticParams = null)
+            IDictionary<string, byte>? staticParams = null,
+            ILogger? logger = null)
         {
             ArgumentNullException.ThrowIfNull(features, nameof(features));
             ArgumentNullException.ThrowIfNull(program, nameof(program));
@@ -215,12 +222,12 @@ namespace ValveResourceFormat.IO
                     // Check that data coming from the material is within the allowed range
                     if (featureValue > feature.RangeMax)
                     {
-                        Console.WriteLine($"Value for feature '{feature.Name}' is higher ({featureValue}) than the maximum ({feature.RangeMax})."); // TODO: logger
+                        logger?.LogWarning("Value for feature '{Feature}' is higher ({Value}) than the maximum ({Maximum})", feature.Name, featureValue, feature.RangeMax);
                         configValue = feature.RangeMax;
                     }
                     else if (featureValue < feature.RangeMin)
                     {
-                        Console.WriteLine($"Value for feature '{feature.Name}' is lower ({featureValue}) than the minimum ({feature.RangeMin})."); // TODO: logger
+                        logger?.LogWarning("Value for feature '{Feature}' is lower ({Value}) than the minimum ({Minimum})", feature.Name, featureValue, feature.RangeMin);
                         configValue = feature.RangeMin;
                     }
 
@@ -254,17 +261,19 @@ namespace ValveResourceFormat.IO
         /// <param name="program">Stage for which the configuration will be generated.</param>
         /// <param name="featureParams">Feature parameters have the 'F_' prefix.</param>
         /// <param name="staticParams">Statics (not tied to a feature) that you want to override. Static parameters have the 'S_' prefix.</param>
+        /// <param name="logger">Optional logger for shader data warnings.</param>
         /// <returns>The static configuration and its static combo identifier, which may still be missing from <paramref name="program"/> if reducing did not help.</returns>
         public static (int[] StaticConfig, long StaticComboId) ResolveStaticConfiguration(
             VfxProgramData features,
             VfxProgramData program,
             IDictionary<string, byte> featureParams,
-            IDictionary<string, byte>? staticParams = null)
+            IDictionary<string, byte>? staticParams = null,
+            ILogger? logger = null)
         {
-            var (staticConfig, staticComboId) = GetStaticConfiguration_ForFeatureState(features, program, featureParams, staticParams);
+            var (staticConfig, staticComboId) = GetStaticConfiguration_ForFeatureState(features, program, featureParams, staticParams, logger);
 
             // The shader feature rules may not match the static rules, producing a configuration that was never compiled
-            if (!program.StaticComboEntries.ContainsKey(staticComboId) && TryReduceStaticConfiguration(program, staticConfig, out var reducedConfig))
+            if (!program.StaticComboEntries.ContainsKey(staticComboId) && TryReduceStaticConfiguration(program, staticConfig, out var reducedConfig, logger))
             {
                 staticConfig = reducedConfig;
                 staticComboId = new ComboConfigMapping(program).CalcComboIdFromValues(reducedConfig);
@@ -279,8 +288,9 @@ namespace ValveResourceFormat.IO
         /// <param name="program">The file that contains the combos and combo rules.</param>
         /// <param name="staticConfiguration">The original static configuration.</param>
         /// <param name="reducedConfiguration">The reduced configuration with invalid switches removed.</param>
+        /// <param name="logger">Optional logger for malformed combo rules.</param>
         /// <returns>True if the configuration was modified, false otherwise.</returns>
-        public static bool TryReduceStaticConfiguration(VfxProgramData program, int[] staticConfiguration, out int[] reducedConfiguration)
+        public static bool TryReduceStaticConfiguration(VfxProgramData program, int[] staticConfiguration, out int[] reducedConfiguration, ILogger? logger = null)
         {
             reducedConfiguration = [.. staticConfiguration];
 
@@ -299,7 +309,7 @@ namespace ValveResourceFormat.IO
                         {
                             if (constraint.ArgTypes[i] is not VfxRuleType.Static)
                             {
-                                Console.WriteLine($"WARNING: Static combo rule {constraint.RuleMethod} has non-static arg type {constraint.ArgTypes[i]} at index {i}");
+                                logger?.LogWarning("Static combo rule {RuleMethod} has non-static arg type {ArgType} at index {Index}", constraint.RuleMethod, constraint.ArgTypes[i], i);
                                 break;
                             }
                         }
@@ -453,7 +463,7 @@ namespace ValveResourceFormat.IO
                         staticState.Add(forcedStatic.Key, forcedStatic.Value);
                     }
 
-                    var (staticConfig, staticComboId) = ResolveStaticConfiguration(shader.Features!, shaderFile, featureState, staticState);
+                    var (staticConfig, staticComboId) = ResolveStaticConfiguration(shader.Features!, shaderFile, featureState, staticState, logger);
 
                     // That or the material data is just bad/incompatible
                     if (!shaderFile.StaticComboEntries.ContainsKey(staticComboId))
@@ -487,9 +497,11 @@ namespace ValveResourceFormat.IO
                 // Parameter not found in write sequence for any shader file.
                 // Most likely the material was compiled against an older shader version, and the
                 // feature combination that references this parameter no longer exists.
-                Console.WriteLine($"WARNING: Varying parameter '{paramName}' in '{shader.Features!.ShaderName}' could not be resolved. "
-                    + $"Features ({string.Join(", ", featureState.Select(p => $"{p.Key}={p.Value}"))}). "
-                    + "The material may reference a texture that no longer exists in the shader.");
+                logger.LogWarning(
+                    "Varying parameter '{Param}' in '{Shader}' could not be resolved. Features ({Features}). The material may reference a texture that no longer exists in the shader",
+                    paramName,
+                    shader.Features!.ShaderName,
+                    string.Join(", ", featureState.Select(p => $"{p.Key}={p.Value}")));
                 return default;
             }
 
@@ -630,7 +642,7 @@ namespace ValveResourceFormat.IO
             return attributes;
         }
 
-        private static VfxStaticComboData? GetStaticCombo(ShaderCollection shader, VfxProgramData program, IReadOnlyDictionary<string, long> combos)
+        private VfxStaticComboData? GetStaticCombo(ShaderCollection shader, VfxProgramData program, IReadOnlyDictionary<string, long> combos)
         {
             var entry = GetStaticComboEntry(shader, program, combos);
 
@@ -642,14 +654,14 @@ namespace ValveResourceFormat.IO
             return program.StaticComboCache.Get(entry.StaticComboId);
         }
 
-        private static VfxStaticComboVcsEntry? GetStaticComboEntry(ShaderCollection shader, VfxProgramData program, IReadOnlyDictionary<string, long> combos)
+        private VfxStaticComboVcsEntry? GetStaticComboEntry(ShaderCollection shader, VfxProgramData program, IReadOnlyDictionary<string, long> combos)
         {
             if (shader.Features == null)
             {
                 return null;
             }
 
-            var (_, staticComboId) = ResolveStaticConfiguration(shader.Features, program, GetComboState(combos, "F_"), GetComboState(combos, "S_"));
+            var (_, staticComboId) = ResolveStaticConfiguration(shader.Features, program, GetComboState(combos, "F_"), GetComboState(combos, "S_"), logger);
 
             return program.StaticComboEntries.GetValueOrDefault(staticComboId);
         }

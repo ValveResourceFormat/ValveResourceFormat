@@ -96,7 +96,7 @@ public class RendererContext : IDisposable
     public RendererContext(GameFileLoader fileLoader, ILogger logger)
     {
         FileLoader = fileLoader;
-        ShaderDataProvider = new ShaderDataProvider(fileLoader);
+        ShaderDataProvider = new ShaderDataProvider(fileLoader, logger: logger);
         Logger = logger;
         Device = GraphicsDevice.Create();
 

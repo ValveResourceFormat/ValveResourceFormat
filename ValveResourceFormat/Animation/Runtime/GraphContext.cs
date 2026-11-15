@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -77,8 +78,11 @@ namespace ValveResourceFormat.Animation
         // Control and virtual parameter node indices by parameter name
         private readonly Dictionary<string, short> parameterLookup = [];
 
-        internal GraphContext(KVObject graph, AnimationGraph owner)
+        private readonly ILogger logger;
+
+        internal GraphContext(KVObject graph, AnimationGraph owner, ILogger logger)
         {
+            this.logger = logger;
             graphDefinition = new GraphDefinition(graph);
             Graph = owner;
             LayerContext = ownLayerContext;
@@ -415,7 +419,7 @@ namespace ValveResourceFormat.Animation
         {
             if (loggedWarnings.Add((nodeIdx, message)))
             {
-                Console.WriteLine($"[AnimGraph][Node {nodeIdx}] Warning: {message} ('{detail}')");
+                logger.LogWarning("[AnimGraph][Node {NodeIndex}] Warning: {Message} ('{Detail}')", nodeIdx, message, detail);
             }
         }
 
@@ -426,7 +430,7 @@ namespace ValveResourceFormat.Animation
             // entry; log each distinct warning once per node.
             if (loggedWarnings.Add((nodeIdx, message)))
             {
-                Console.WriteLine($"[AnimGraph][Node {nodeIdx}] Warning: {message}");
+                logger.LogWarning("[AnimGraph][Node {NodeIndex}] Warning: {Message}", nodeIdx, message);
             }
         }
 
@@ -440,7 +444,7 @@ namespace ValveResourceFormat.Animation
         {
             if (warnedNotImplemented.Add(typeName))
             {
-                Console.WriteLine($"[AnimGraph][Node {nodeIdx}] {typeName} is not implemented yet; returning a default value.");
+                logger.LogWarning("[AnimGraph][Node {NodeIndex}] {TypeName} is not implemented yet; returning a default value", nodeIdx, typeName);
             }
         }
 

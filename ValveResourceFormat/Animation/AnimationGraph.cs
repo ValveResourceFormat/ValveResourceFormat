@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using ValveKeyValue;
 using ValveResourceFormat.Animation;
 using ValveResourceFormat.IO;
@@ -90,9 +92,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// </summary>
         /// <param name="graphDefinition">The graph definition resource data.</param>
         /// <param name="fileLoader">Loader used to resolve the skeleton and clip resources.</param>
+        /// <param name="logger">Optional logger for graph warnings.</param>
         /// <exception cref="InvalidDataException">A graph of the tree animates a skeleton the loader cannot provide.</exception>
-        public AnimationGraph(BinaryKV3 graphDefinition, IFileLoader fileLoader)
-            : this(graphDefinition, LoadResources(graphDefinition, fileLoader), [])
+        public AnimationGraph(BinaryKV3 graphDefinition, IFileLoader fileLoader, ILogger? logger = null)
+            : this(graphDefinition, LoadResources(graphDefinition, fileLoader), [], logger ?? NullLogger.Instance)
         {
         }
 
@@ -104,10 +107,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// <param name="fileLoader">Loader used to resolve the skeleton and clip resources.</param>
         /// <param name="loadedClips">Clips already loaded elsewhere, such as by the model playing the graph, looked up by
         /// resource name and used instead of reading them again.</param>
-        public static AnimationGraph? TryLoad(BinaryKV3 graphDefinition, IFileLoader fileLoader, Func<string, ClipAnimation?>? loadedClips = null)
+        /// <param name="logger">Optional logger for graph warnings.</param>
+        public static AnimationGraph? TryLoad(BinaryKV3 graphDefinition, IFileLoader fileLoader, Func<string, ClipAnimation?>? loadedClips = null, ILogger? logger = null)
         {
             var resources = GraphResources.Load(graphDefinition, fileLoader, loadedClips);
-            return resources.MissingSkeleton == null ? new AnimationGraph(graphDefinition, resources, []) : null;
+            return resources.MissingSkeleton == null ? new AnimationGraph(graphDefinition, resources, [], logger ?? NullLogger.Instance) : null;
         }
 
         private static GraphResources LoadResources(BinaryKV3 graphDefinition, IFileLoader fileLoader)
@@ -122,7 +126,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             return resources;
         }
 
-        private AnimationGraph(BinaryKV3 graphDefinition, GraphResources resources, HashSet<string> loadStack)
+        private AnimationGraph(BinaryKV3 graphDefinition, GraphResources resources, HashSet<string> loadStack, ILogger logger)
         {
             var graph = graphDefinition.Data.Root;
             Debug.Assert(graph != null, "Animation graph definition data is null.");
@@ -162,14 +166,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                 else if (resources.Files.GetValueOrDefault(resourceName) is { ResourceType: ResourceType.NmGraph, DataBlock: BinaryKV3 childDefinition } childFile
                     && !loadStack.Contains(childFile.FileName ?? resourceName))
                 {
-                    ChildGraphs[ri] = new AnimationGraph(childDefinition, resources, loadStack);
+                    ChildGraphs[ri] = new AnimationGraph(childDefinition, resources, loadStack, logger);
                 }
             }
 
             loadStack.Remove(graphResourceName);
 
             signaledBoolParameters.EnsureCapacity(BoolParameters.Count);
-            graphContext = new Animation.GraphContext(graph, this);
+            graphContext = new Animation.GraphContext(graph, this, logger);
             CollectParameterHeuristics(graphContext.Nodes);
             SetNeutralFloatDefaults();
         }

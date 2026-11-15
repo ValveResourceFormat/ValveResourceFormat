@@ -52,8 +52,10 @@ namespace GUI
 #if DEBUG
             // Touching Trace.Listeners reroutes Debug.Assert through the listeners,
             // which prevents the default behavior of Environment.FailFast when no debugger is attached
+#pragma warning disable RS0030 // Listeners are the only hook for assert failures
             Trace.Listeners.Clear();
             Trace.Listeners.Add(new AssertTraceListener());
+#pragma warning restore RS0030
 #endif
 
             // Set invariant culture so we have consistent localization (e.g. dots do not get encoded as commas)

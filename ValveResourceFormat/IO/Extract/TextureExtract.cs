@@ -5,6 +5,8 @@ using System.Numerics.Tensors;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using SkiaSharp;
 using ValveResourceFormat.IO.ContentFormats.ValveTexture;
 using ValveResourceFormat.ResourceTypes;
@@ -603,6 +605,16 @@ public sealed class TextureExtract
         /// </summary>
         public SKBitmap? Bitmap { get; private set; }
         private readonly HashSet<ChannelMapping> Packed = [];
+        private readonly ILogger logger;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TexturePacker"/> class.
+        /// </summary>
+        /// <param name="logger">Optional logger for packing warnings.</param>
+        public TexturePacker(ILogger? logger = null)
+        {
+            this.logger = logger ?? NullLogger.Instance;
+        }
 
         /// <summary>
         /// Collects a channel from source pixmap into the packed texture.
@@ -611,7 +623,7 @@ public sealed class TextureExtract
         {
             if (!Packed.Add(dstChannel))
             {
-                Console.WriteLine($"{dstChannel} has already been packed in texture: {fileName}");
+                logger.LogWarning("{Channel} has already been packed in texture: {FileName}", dstChannel, fileName);
             }
 
             if (Bitmap is null)

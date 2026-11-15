@@ -18,7 +18,9 @@ internal static class Log
 
     private static void WriteToConsole(string component, string message)
     {
+#pragma warning disable RS0030 // Fallback before the console tab exists
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [{component}] {message}");
+#pragma warning restore RS0030
     }
 
     [System.Diagnostics.Conditional("DEBUG")]
@@ -40,7 +42,9 @@ internal static class Log
         }
 
 #if DEBUG
+#pragma warning disable RS0030 // Mirrors the console tab to the debugger output
         System.Diagnostics.Debug.WriteLine($"[{component}] {message}");
+#pragma warning restore RS0030
 #endif
 
         console.WriteLine(Category.DEBUG, component, message);

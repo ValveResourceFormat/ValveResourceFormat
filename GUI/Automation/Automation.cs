@@ -100,7 +100,9 @@ internal static class Automation
     [DoesNotReturn]
     private static void Fail(string message)
     {
+#pragma warning disable RS0030 // Reports to stderr before exiting
         Console.Error.WriteLine(message);
+#pragma warning restore RS0030
         Environment.Exit(1);
     }
 }

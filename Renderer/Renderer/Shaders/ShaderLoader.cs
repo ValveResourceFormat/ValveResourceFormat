@@ -136,9 +136,8 @@ namespace ValveResourceFormat.Renderer.Shaders
                     {
                         GetOrParseShader(shader);
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
-                        Console.Error.WriteLine(e.ToString());
                         Parser.ClearBuilder();
 
 #if DEBUG
@@ -477,7 +476,9 @@ namespace ValveResourceFormat.Renderer.Shaders
                 var errorMessage = $"{info}\n({shaderFile}, original={originalShaderName})";
                 annotation += $"title={nameof(ShaderCompilerException)}::{errorMessage.Replace("\n", "%0A", StringComparison.Ordinal).Replace("\r", "%0D", StringComparison.Ordinal)}";
 
+#pragma warning disable RS0030 // GitHub Actions reads the annotation from stdout
                 Console.WriteLine(annotation);
+#pragma warning restore RS0030
             }
 #endif
 
