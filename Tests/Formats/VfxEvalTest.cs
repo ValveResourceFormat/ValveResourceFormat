@@ -905,8 +905,6 @@ namespace Tests.Formats
         [Arguments("19 07 00 00 00 00")]
         // Param that does not exist
         [Arguments("1D 09 00 00 00 00")]
-        // sincos(1)
-        [Arguments("07 00 00 80 3F 06 26 00 00")]
         // 1 - nothing
         [Arguments("07 00 00 80 3F 14 00")]
         // ret without a call
@@ -925,6 +923,25 @@ namespace Tests.Formats
         {
             await Assert.That(VfxEvalRuntime.TryEvaluate(ParseString(exampleStr), new RuntimeContext(), out var value, out _)).IsTrue();
             await Assert.That(Vector4.Distance(value, new Vector4(x, y, z, 0f))).IsLessThan(1e-6f);
+        }
+
+        [Test]
+        public async Task TestRuntimeRotations()
+        {
+            var (s, c) = MathF.SinCos(1f);
+
+            async Task AssertNear(string exampleStr, Vector4 expected)
+            {
+                await Assert.That(VfxEvalRuntime.TryEvaluate(ParseString(exampleStr), new RuntimeContext(), out var value, out _)).IsTrue();
+                await Assert.That(Vector4.Distance(value, expected)).IsLessThan(1e-6f);
+            }
+
+            // sincos(1)
+            await AssertNear("07 00 00 80 3F 06 26 00 00", new Vector4(s, c, -s, -c));
+            // rotation2d(1)
+            await AssertNear("07 00 00 80 3F 06 24 00 00", new Vector4(c, -s, s, c));
+            // rotate2d(float4(2, 3, 5, 6), 1)
+            await AssertNear("21 00 00 00 40 00 00 40 40 00 00 A0 40 00 00 C0 40 07 00 00 80 3F 06 25 00 00", new Vector4(2 * c - 3 * s, 2 * s + 3 * c, 5, 6));
         }
 
         [Test]
