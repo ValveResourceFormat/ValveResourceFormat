@@ -372,7 +372,7 @@ public abstract partial class BaseModelEntity : BaseEntity
 
         foreach (var range in values.Split(','))
         {
-            if (count == components.Length || !float.TryParse(values[range], NumberStyles.Float, CultureInfo.InvariantCulture, out components[count]))
+            if (count == components.Length || !ValueParsing.TryParseFloat(values[range], out components[count]))
             {
                 return false;
             }

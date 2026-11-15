@@ -213,7 +213,6 @@ namespace ValveResourceFormat.Renderer.Materials
         public bool CanPrimeDepth => !IsOverlay && !disableDepthTest && !HasInterior
             && (IsAlphaTest || (IntParams.GetValueOrDefault("F_NO_Z_PREPASS") == 0 && IntParams.GetValueOrDefault("F_DISABLE_Z_PREPASS") == 0));
 
-        private readonly MaterialLoader? Loader;
         private readonly RendererContext? Context;
 
         private Globals? globals;
@@ -247,7 +246,6 @@ namespace ValveResourceFormat.Renderer.Materials
         public RenderMaterial(Material material, RendererContext rendererContext, Dictionary<string, byte>? shaderArguments)
             : this(material, rendererContext.ShaderDataProvider)
         {
-            Loader = rendererContext.MaterialLoader;
             Context = rendererContext;
 
             var materialArguments = material.GetShaderArguments();
@@ -531,22 +529,9 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 foreach (var (name, value) in attributes.Values)
                 {
-                    if (!members.TryGetValue(name, out var constant))
+                    if (members.TryGetValue(name, out var constant))
                     {
-                        continue;
-                    }
-
-                    switch (value.Type)
-                    {
-                        case Variant.VariantType.Int:
-                            buffer.SetScalar(constant, value.Int);
-                            break;
-                        case Variant.VariantType.Float:
-                            buffer.SetScalar(constant, value.Vector.X);
-                            break;
-                        case Variant.VariantType.Vector:
-                            SetVectorParam(shader, buffer, constant, name, value.Vector);
-                            break;
+                        SetEvaluated(shader, buffer, constant, name, value.ToVector4());
                     }
                 }
             }
@@ -768,7 +753,7 @@ namespace ValveResourceFormat.Renderer.Materials
             depth.FloatParams["g_flAlphaTestReference"] = FloatParams.GetValueOrDefault("g_flAlphaTestReference", 0.5f);
 
             // Without a color texture the alpha test would sample whatever the unit was left holding
-            depthColorTexture = GetColorTexture() ?? Loader?.GetDefaultColor();
+            depthColorTexture = GetColorTexture() ?? Context?.MaterialLoader.GetDefaultColor();
 
             return depth;
         }
@@ -809,11 +794,11 @@ namespace ValveResourceFormat.Renderer.Materials
             boundSamplerUnits.Clear();
 
             var userConfigSampler = 0;
-            if (shader.SamplerUserConfigUniforms.Count > 0 && Loader != null)
+            if (shader.SamplerUserConfigUniforms.Count > 0 && Context?.MaterialLoader is { } loader)
             {
                 var addressModeU = ToAddressMode(IntParams.GetValueOrDefault("g_nTextureAddressModeU"));
                 var addressModeV = ToAddressMode(IntParams.GetValueOrDefault("g_nTextureAddressModeV"));
-                userConfigSampler = Loader.GetOrCreateSampler(addressModeU, addressModeV);
+                userConfigSampler = loader.GetOrCreateSampler(addressModeU, addressModeV);
 
                 static RsTextureAddressMode ToAddressMode(long mode)
                     => mode is >= 0 and <= (long)RsTextureAddressMode.MirrorOnce
