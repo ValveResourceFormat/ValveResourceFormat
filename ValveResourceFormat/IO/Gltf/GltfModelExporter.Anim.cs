@@ -429,7 +429,7 @@ public partial class GltfModelExporter
     /// Writes animations authored on another skeleton, retargeted onto the model by world pose.
     /// One retargeter serves every clip targeting the same skeleton.
     /// </summary>
-    private void WriteAnimationGraphClips(ModelRoot exportedModel, Scene scene, VModel model, Node?[] joints, HashSet<string> animationFilter)
+    private void WriteAnimationGraphClips(ModelRoot exportedModel, Scene scene, VModel model, Node?[] joints, HashSet<string> animationFilter, HashSet<string> writtenNames)
     {
         var clipRetargeters = new Dictionary<string, SkeletonRetargeter?>();
 
@@ -461,10 +461,6 @@ public partial class GltfModelExporter
             return created;
         }
 
-        // UseAnimation is find-or-create by name, so a clip sharing a name with an already-written
-        // animation (embedded, or an earlier clip) would merge its channels onto it. Keep the first, skip the rest.
-        var writtenNames = exportedModel.LogicalAnimations.Select(a => a.Name).ToHashSet();
-
         var retargetWriter = new AnimationWriter(model.Skeleton, model.FlexControllers, model.ClothRootPins) { ComposeAdditive = ComposeAdditiveAnimations, ReduceKeyframes = ReduceAnimationKeyframes };
 
         foreach (var animation in model.GetAllAnimations(FileLoader))
@@ -484,6 +480,7 @@ public partial class GltfModelExporter
                 continue;
             }
 
+            // UseAnimation merges by name, so skip names this model already wrote onto its joints
             if (writtenNames.Contains(animationName))
             {
                 ProgressReporter?.Report($"Skipping animation graph clip '{animationName}': an animation with that name was already exported.");

@@ -527,6 +527,7 @@ namespace ValveResourceFormat.IO
 
                 var animations = model.GetAllAnimations(FileLoader);
                 var animationWriter = new AnimationWriter(model.Skeleton, model.FlexControllers, model.ClothRootPins) { ComposeAdditive = ComposeAdditiveAnimations, ReduceKeyframes = ReduceAnimationKeyframes };
+                var writtenNames = new HashSet<string>();
 
                 foreach (var animation in animations)
                 {
@@ -537,10 +538,11 @@ namespace ValveResourceFormat.IO
                     }
 
                     animationWriter.WriteAnimation(exportedModel, joints, animation);
+                    writtenNames.Add(animation.Name);
                     CancellationToken.ThrowIfCancellationRequested();
                 }
 
-                WriteAnimationGraphClips(exportedModel, scene, model, joints, animationFilter);
+                WriteAnimationGraphClips(exportedModel, scene, model, joints, animationFilter, writtenNames);
             }
 
             var nodeTransform = GetPlacementTransform(transform);
