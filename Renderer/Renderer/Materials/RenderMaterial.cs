@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.CompiledShader;
@@ -203,11 +204,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
         private readonly RendererContext? Context;
 
-        private Globals? globals;
-        private GlobalsLayout? filledLayout;
-        private uint filledVersion;
-        private float evaluatedTime;
-        private bool expressionsConstant;
+        private GlobalsState? globals;
 
         private uint InputsVersion => unchecked(
             IntParams.Version + FloatParams.Version + VectorParams.Version + Matrices.Version + Textures.Version);
@@ -411,73 +408,79 @@ namespace ValveResourceFormat.Renderer.Materials
                 return;
             }
 
-            var buffer = attributes?.Overrides(this, shader.GlobalsLayout) == true
-                ? EnsureGlobals(shader, attributes)
-                : EnsureGlobals(shader);
+            if (attributes?.Overrides(this, shader.GlobalsLayout) != true)
+            {
+                attributes = null;
+            }
 
-            buffer.Bind();
+            EnsureGlobals(shader, attributes).Bind();
         }
 
-        private Globals EnsureGlobals(Shader shader)
+        /// <summary>A constant buffer and what it was last filled from.</summary>
+        internal sealed class GlobalsState(Globals buffer)
         {
-            var layout = shader.GlobalsLayout;
-
-            globals ??= new Globals(GetGlobalsName(shader));
-
-            if (filledLayout != layout || filledVersion != InputsVersion)
-            {
-                filledLayout = layout;
-                filledVersion = InputsVersion;
-                evaluatedTime = expressionContext.Time;
-                expressionsConstant = FillGlobals(shader, layout, globals, attributes: null);
-            }
-            else if (ExpressionsOutdated(evaluatedTime, expressionsConstant))
-            {
-                evaluatedTime = expressionContext.Time;
-
-                globals.BeginUpdate();
-                expressionsConstant = EvaluateExpressions(shader, globals, attributes: null);
-                globals.EndFill();
-            }
-
-            return globals;
+            public Globals Buffer { get; } = buffer;
+            public GlobalsLayout? Layout { get; set; }
+            public uint InputsVersion { get; set; }
+            public uint AttributesVersion { get; set; }
+            public float EvaluatedTime { get; set; }
+            public bool ExpressionsConstant { get; set; }
         }
 
-        private Globals EnsureGlobals(Shader shader, RenderAttributes attributes)
+        // The material's own buffer, or the one baked with node attributes
+        private Globals EnsureGlobals(Shader shader, RenderAttributes? attributes = null)
         {
+            var state = attributes == null
+                ? globals ??= new GlobalsState(new Globals(GetGlobalsName(shader)))
+                : CollectionsMarshal.GetValueRefOrAddDefault(attributes.Baked, this, out _) ??= new GlobalsState(new Globals(GetGlobalsName(shader)));
+
             var layout = shader.GlobalsLayout;
+            var attributesVersion = attributes?.Version ?? 0;
+            var buffer = state.Buffer;
 
-            if (!attributes.Baked.TryGetValue(this, out var baked))
+            if (state.Layout != layout || state.InputsVersion != InputsVersion || state.AttributesVersion != attributesVersion)
             {
-                baked = new RenderAttributes.BakedGlobals(new Globals(GetGlobalsName(shader)));
-                attributes.Baked.Add(this, baked);
+                state.Layout = layout;
+                state.InputsVersion = InputsVersion;
+                state.AttributesVersion = attributesVersion;
+
+                buffer.BeginFill(layout);
+                SetParams(shader, buffer);
+            }
+            else if (state.ExpressionsConstant || state.EvaluatedTime == expressionContext.Time)
+            {
+                return buffer;
+            }
+            else
+            {
+                // Expressions that read time or attributes are evaluated again once per frame
+                buffer.BeginUpdate();
             }
 
-            if (baked.Layout != layout || baked.MaterialVersion != InputsVersion || baked.AttributesVersion != attributes.Version
-                || ExpressionsOutdated(baked.EvaluatedTime, baked.ExpressionsConstant))
+            state.EvaluatedTime = expressionContext.Time;
+            state.ExpressionsConstant = EvaluateExpressions(shader, buffer, attributes);
+
+            // Attributes go last so they beat derived constants
+            if (attributes != null)
             {
-                baked.Layout = layout;
-                baked.MaterialVersion = InputsVersion;
-                baked.AttributesVersion = attributes.Version;
-                baked.EvaluatedTime = expressionContext.Time;
-                baked.ExpressionsConstant = FillGlobals(shader, layout, baked.Buffer, attributes);
+                foreach (var (name, value) in attributes.Values)
+                {
+                    if (layout.Members.TryGetValue(name, out var constant))
+                    {
+                        SetEvaluated(shader, buffer, constant, name, value);
+                    }
+                }
             }
 
-            return baked.Buffer;
+            buffer.EndFill();
+            return buffer;
         }
-
-        // Expressions that are not constant, such as ones reading time, are evaluated again once per frame
-        private bool ExpressionsOutdated(float evaluatedAt, bool constant) => !constant && evaluatedAt != expressionContext.Time;
 
         private string GetGlobalsName(Shader shader) => Material.Name.Length > 0 ? Material.Name : shader.Name;
 
-        /// <summary>Fills <paramref name="buffer"/> with material values, then render attributes last so they beat derived constants.</summary>
-        /// <returns>Whether the expressions only depend on the material.</returns>
-        private bool FillGlobals(Shader shader, GlobalsLayout layout, Globals buffer, RenderAttributes? attributes)
+        private void SetParams(Shader shader, Globals buffer)
         {
-            buffer.BeginFill(layout);
-
-            var members = layout.Members;
+            var members = shader.GlobalsLayout.Members;
 
             foreach (var (name, value) in IntParams)
             {
@@ -510,22 +513,6 @@ namespace ValveResourceFormat.Renderer.Materials
                     buffer.SetMatrix(constant, value);
                 }
             }
-
-            var expressionsAreConstant = EvaluateExpressions(shader, buffer, attributes);
-
-            if (attributes != null)
-            {
-                foreach (var (name, value) in attributes.Values)
-                {
-                    if (members.TryGetValue(name, out var constant))
-                    {
-                        SetEvaluated(shader, buffer, constant, name, value.ToVector4());
-                    }
-                }
-            }
-
-            buffer.EndFill();
-            return expressionsAreConstant;
         }
 
         private bool EvaluateExpressions(Shader shader, Globals buffer, RenderAttributes? attributes)
@@ -640,7 +627,7 @@ namespace ValveResourceFormat.Renderer.Materials
         [Conditional("DEBUG")]
         private void AssertGlobalsAreForThisShader()
         {
-            Debug.Assert(filledLayout is null || filledLayout == Shader.GlobalsLayout,
+            Debug.Assert(globals?.Layout is null || globals.Layout == Shader.GlobalsLayout,
                 $"'{Material.Name}' was last filled for a different shader's layout.");
         }
 
@@ -704,9 +691,8 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Releases the GPU resources this material owns. Safe to call more than once.</summary>
         public void Delete()
         {
-            globals?.Delete();
+            globals?.Buffer.Delete();
             globals = null;
-            filledLayout = null;
 
             depthMaterial?.Delete();
             depthMaterial = null;

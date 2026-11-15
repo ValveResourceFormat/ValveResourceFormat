@@ -1,6 +1,4 @@
-using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.Shaders;
-using ValveResourceFormat.Renderer.Utils;
 
 namespace ValveResourceFormat.Renderer.Materials;
 
@@ -10,26 +8,16 @@ namespace ValveResourceFormat.Renderer.Materials;
 /// </remarks>
 public sealed class RenderAttributes
 {
-    internal MaterialInputs<Variant> Values { get; } = [];
+    internal MaterialInputs<Vector4> Values { get; } = [];
 
     internal uint Version => Values.Version;
 
     // Filled by the material, freed with the node
-    internal Dictionary<RenderMaterial, BakedGlobals> Baked { get; } = [];
+    internal Dictionary<RenderMaterial, RenderMaterial.GlobalsState> Baked { get; } = [];
 
-    internal sealed class BakedGlobals(Globals buffer)
-    {
-        public Globals Buffer { get; } = buffer;
-        public GlobalsLayout? Layout { get; set; }
-        public uint MaterialVersion { get; set; }
-        public uint AttributesVersion { get; set; }
-        public float EvaluatedTime { get; set; }
-        public bool ExpressionsConstant { get; set; }
-    }
-
-    /// <summary>Gets or sets an attribute.</summary>
+    /// <summary>Gets or sets an attribute, with scalars in every component.</summary>
     /// <exception cref="KeyNotFoundException">The attribute is not set.</exception>
-    public Variant this[string name]
+    public Vector4 this[string name]
     {
         get => Values[name];
         set => Values[name] = value;
@@ -69,11 +57,11 @@ public sealed class RenderAttributes
     /// <summary>Gets an attribute by the token expressions read it with, with scalars in every component.</summary>
     internal bool TryGetValue(StringToken name, out Vector4 value)
     {
-        foreach (var (key, variant) in Values)
+        foreach (var (key, attribute) in Values)
         {
             if (StringToken.Get(key) == name.Token)
             {
-                value = variant.ToVector4();
+                value = attribute;
                 return true;
             }
         }
