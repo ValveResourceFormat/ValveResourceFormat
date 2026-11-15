@@ -6,9 +6,7 @@ using OpCode = ValveResourceFormat.Serialization.VfxEval.VfxEval.OpCode;
 
 namespace ValveResourceFormat.Serialization.VfxEval
 {
-    /// <summary>
-    /// Compiles expression text, as <see cref="VfxEval"/> decompiles it, for <see cref="VfxEvalRuntime"/>.
-    /// </summary>
+    /// <summary>Compiles expression text for <see cref="VfxEvalRuntime"/>.</summary>
     /// <remarks>
     /// Takes function definitions, then <c>v0 = ...;</c> locals, then an expression of calls, names, numbers,
     /// operators, swizzles and <c>?:</c>, optionally after <c>return</c>. A function has typed parameters, locals and

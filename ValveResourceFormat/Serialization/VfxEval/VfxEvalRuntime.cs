@@ -37,9 +37,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         public Vector4 GetTextureAverageColor(StringToken textureName) => Vector4.UnitW;
     }
 
-    /// <summary>
-    /// Runs compiled dynamic expressions, the counterpart of <see cref="VfxEval"/> which decompiles them.
-    /// </summary>
+    /// <summary>Runs compiled dynamic expressions.</summary>
     public static class VfxEvalRuntime
     {
         /// <summary>Runs an expression that results in a vector or scalar, failing on an unset attribute, an unknown parameter or an unsupported operation.</summary>
