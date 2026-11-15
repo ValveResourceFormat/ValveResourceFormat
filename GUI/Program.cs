@@ -82,6 +82,8 @@ namespace GUI
 #pragma warning restore RS0030
 #endif
 
+            Translations.SystemCulture = CultureInfo.CurrentUICulture;
+
             // Set invariant culture so we have consistent localization (e.g. dots do not get encoded as commas)
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;

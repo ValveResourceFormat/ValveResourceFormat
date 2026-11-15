@@ -73,6 +73,8 @@ namespace GUI.Utils
             public Dictionary<string, float[]> SavedCameras { get; set; } = [];
             /// <summary>Gets or sets the selected UI theme index.</summary>
             public int Theme { get; set; }
+            /// <summary>Gets or sets the UI language as a culture name, empty for the system language.</summary>
+            public string Language { get; set; } = string.Empty;
             /// <summary>Gets or sets the maximum texture resolution loaded by the renderer.</summary>
             public int MaxTextureSize { get; set => field = value <= 0 ? 10240 : Math.Min(value, 10240); } = 10240;
             /// <summary>Gets or sets the shadow map resolution.</summary>

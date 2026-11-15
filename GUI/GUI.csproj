@@ -32,6 +32,7 @@
   </ItemGroup>
   <ItemGroup>
     <AdditionalFiles Include="BannedSymbols.txt" />
+    <AdditionalFiles Include="Localization\*.csv" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Icons\**" />
@@ -41,10 +42,12 @@
   <ItemGroup>
     <ProjectReference Include="..\Renderer\Renderer.csproj" />
     <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj" />
+    <ProjectReference Include="..\Misc\SourceGenerators\SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <EmbeddedResource Include="..\THIRD_PARTY_NOTICES.txt" Link="Utils\THIRD_PARTY_NOTICES.txt" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="ValveResourceFormat.Utils" />
     <Using Include="ValveResourceFormat.CompiledShader" />
+    <Using Include="GUI.Utils.Translations" Static="true" />
   </ItemGroup>
 </Project>
