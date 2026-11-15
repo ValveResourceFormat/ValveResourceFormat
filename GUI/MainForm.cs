@@ -62,6 +62,10 @@ namespace GUI
             InitializeComponent();
             LoadIcons();
 
+            var installText = SettingsControl.GetInstallText();
+            installToolStripMenuItem.Visible = installText != null;
+            installToolStripMenuItem.Text = installText;
+
             mainTabs.ConfirmClose = ConfirmCloseTab;
 
             // Let the explorer start scanning games before the window even spawns

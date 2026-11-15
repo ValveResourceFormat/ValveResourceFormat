@@ -180,7 +180,7 @@ namespace GUI.Forms
         {
             if (UpdateInstaller.InstalledVersionText != null)
             {
-                UpdateInstaller.Restart();
+                UpdateInstaller.Restart(Environment.ProcessPath!);
                 return;
             }
 

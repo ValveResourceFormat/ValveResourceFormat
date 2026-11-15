@@ -75,6 +75,9 @@ COPYDATASTRUCT
 HWND_MESSAGE
 HWND_BOTTOM
 ITaskbarList3
+IShellLinkW
+ShellLink
+IPersistFile
 RegisterWindowMessage
 TaskbarList
 ImageList_GetIcon

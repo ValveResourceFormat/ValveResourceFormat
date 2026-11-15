@@ -1,10 +1,8 @@
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Utils;
-using Microsoft.Win32;
 using ValveResourceFormat.IO;
 
 namespace GUI.Controls
@@ -81,6 +79,10 @@ namespace GUI.Controls
             using var _ = antiAliasingComboBox.SuspendPainting();
             antiAliasingComboBox.Items.AddRange(strings);
             antiAliasingComboBox.SelectedIndex = selectedSamples;
+
+            var installText = GetInstallText();
+            installButton.Visible = installText != null;
+            installButton.Text = installText;
         }
 
         private void GamePathRemoveClick(object sender, EventArgs e)
@@ -296,56 +298,39 @@ namespace GUI.Controls
             //Application.SetColorMode(Settings.GetSystemColor());
         }
 
-        private async void OnRegisterAssociationButtonClick(object sender, EventArgs e) => await RegisterFileAssociationAsync().ConfigureAwait(true);
+        private async void OnInstallButtonClick(object sender, EventArgs e) => await InstallAsync().ConfigureAwait(true);
 
-        public static async Task RegisterFileAssociationAsync()
+        /// <summary>The text of the install button, or null when the running copy is the installed one.</summary>
+        public static string? GetInstallText()
         {
-            const string extension = ".vpk";
-            const string progId = $"VRF.Source2Viewer{extension}";
-
-            var applicationPath = Application.ExecutablePath;
-
-            // copy vpk icon to settings folder
-            var vpkIconPath = Path.Join(Settings.SettingsFolder, "vpk.ico");
-
-            if (!File.Exists(vpkIconPath))
+            if (AppInstaller.IsInstalledCopy)
             {
-                using var iconStream = Program.Assembly.GetManifestResourceStream("GUI.Utils.vpk.ico");
-                Debug.Assert(iconStream != null);
-                using var iconDiskStream = File.Create(vpkIconPath);
-                await iconStream.CopyToAsync(iconDiskStream).ConfigureAwait(true);
+                return null;
             }
 
-            // .vpk file extension
-            using var reg = Registry.CurrentUser.CreateSubKey(@$"Software\Classes\{extension}\OpenWithProgids");
-            reg.SetValue(progId, Array.Empty<byte>(), RegistryValueKind.None);
-
-            using var reg2 = Registry.CurrentUser.CreateSubKey(@$"Software\Classes\{progId}");
-            reg2.SetValue(null, "Valve Pak File");
-
-            using var reg3 = reg2.CreateSubKey(@"shell\open\command");
-            reg3.SetValue(null, $"\"{applicationPath}\" \"%1\"");
-
-            using var regIco = reg2.CreateSubKey("DefaultIcon");
-            regIco.SetValue(null, vpkIconPath);
-
-            // Protocol
-            using var regProtocol = Registry.CurrentUser.CreateSubKey(@"Software\Classes\vpk");
-            regProtocol.SetValue(string.Empty, "URL:Valve Pak protocol");
-            regProtocol.SetValue("URL Protocol", string.Empty);
-
-            using var regProtocolOpen = regProtocol.CreateSubKey(@"shell\open\command");
-            regProtocolOpen.SetValue(null, $"\"{applicationPath}\" \"%1\"");
-
-            unsafe
+            // A debug build only registers itself in place
+            if (!ExecutableSwap.IsSingleFileBundle(Environment.ProcessPath!))
             {
-                Windows.Win32.PInvoke.SHChangeNotify(Windows.Win32.UI.Shell.SHCNE_ID.SHCNE_ASSOCCHANGED, Windows.Win32.UI.Shell.SHCNF_FLAGS.SHCNF_FLUSH, null, null);
+                return "Install app";
+            }
+
+            var installedVersion = AppInstaller.InstalledVersion;
+
+            return installedVersion == null ? "Install app" : $"Replace installed version ({installedVersion})";
+        }
+
+        public static async Task InstallAsync()
+        {
+            if (AppInstaller.Install())
+            {
+                UpdateInstaller.Restart(AppInstaller.InstallPath);
+                return;
             }
 
             await AppMessageDialogs.ShowMessageAsync(
-                $"Registered .vpk file association as well as \"vpk:\" protocol link handling.{Environment.NewLine}{Environment.NewLine}If you move {Path.GetFileName(applicationPath)}, you will have to register it again.",
+                "Registered .vpk file association as well as \"vpk:\" protocol link handling.",
                 "File association registered"
-            ).ConfigureAwait(false);
+            ).ConfigureAwait(true);
         }
 
         private void OnSmoothCameraChanged(object sender, EventArgs e)

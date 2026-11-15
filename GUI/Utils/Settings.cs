@@ -122,7 +122,7 @@ namespace GUI.Utils
         /// <summary>Gets whether this is the first time the application has been launched (no prior settings were found).</summary>
         public static bool IsFirstStartup { get; private set; }
         /// <summary>Gets the folder path where the settings file and other persistent application data are stored.</summary>
-        public static string SettingsFolder { get; private set; } = string.Empty;
+        public static string SettingsFolder { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Source2Viewer");
         private static string SettingsFilePath = string.Empty;
         private static bool SaveDisabled;
 
@@ -140,7 +140,6 @@ namespace GUI.Utils
         /// </summary>
         public static void Load()
         {
-            SettingsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Source2Viewer");
             SettingsFilePath = Path.Combine(SettingsFolder, "settings.vdf");
 
             Directory.CreateDirectory(SettingsFolder);

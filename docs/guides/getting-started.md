@@ -36,7 +36,7 @@ A `vpk:` link opens a file inside a package:
 vpk:steam:730/game/csgo/maps/de_dust2.vpk:maps/de_dust2.vmap_c
 ```
 
-Right-click a file and choose **Copy URL** to get its link. `steam:730/` stands for the install folder of the Steam app 730, so the link works on any computer with the game. After **Register .vpk file association** in settings, clicking a `vpk:` link opens it in Source 2 Viewer.
+Right-click a file and choose **Copy URL** to get its link. `steam:730/` stands for the install folder of the Steam app 730, so the link works on any computer with the game. After **Install app** in settings, clicking a `vpk:` link opens it in Source 2 Viewer.
 
 ## Searching
 

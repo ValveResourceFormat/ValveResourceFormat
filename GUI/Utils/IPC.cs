@@ -12,14 +12,13 @@ internal class Ipc
 {
     private const string IpcWindowTitle = "Source2Viewer_IPC";
 
+    private static HWND FindExistingInstance() => PInvoke.FindWindowEx(HWND.HWND_MESSAGE, HWND.Null, null, IpcWindowTitle);
+
+    public static bool IsInstanceRunning() => !FindExistingInstance().IsNull;
+
     public static unsafe bool TryForwardToExistingInstance(string[] args)
     {
-        var hwnd = PInvoke.FindWindowEx(
-            HWND.HWND_MESSAGE,
-            HWND.Null,
-            null,
-            IpcWindowTitle
-        );
+        var hwnd = FindExistingInstance();
 
         if (hwnd.IsNull)
         {

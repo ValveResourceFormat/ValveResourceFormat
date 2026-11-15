@@ -50,7 +50,7 @@ namespace GUI.Controls
             mouseSensitivityValueLabel = new System.Windows.Forms.Label();
             antiAliasingLabel = new System.Windows.Forms.Label();
             antiAliasingComboBox = new ThemedComboBox();
-            registerAssociationButton = new ThemedButton();
+            installButton = new ThemedButton();
             displayFpsCheckBox = new System.Windows.Forms.CheckBox();
             groupBox1 = new ThemedGroupBox();
             groupBox2 = new ThemedGroupBox();
@@ -269,20 +269,20 @@ namespace GUI.Controls
             antiAliasingComboBox.TabIndex = 7;
             antiAliasingComboBox.SelectedIndexChanged += OnAntiAliasingValueChanged;
             // 
-            // registerAssociationButton
+            // installButton
             // 
-            registerAssociationButton.ClickedBackColor = System.Drawing.Color.Gray;
-            registerAssociationButton.CornerRadius = 5;
-            registerAssociationButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            registerAssociationButton.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
-            registerAssociationButton.Location = new System.Drawing.Point(15, 174);
-            registerAssociationButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            registerAssociationButton.Name = "registerAssociationButton";
-            registerAssociationButton.Size = new System.Drawing.Size(208, 30);
-            registerAssociationButton.TabIndex = 10;
-            registerAssociationButton.Text = "Register .vpk file association";
-            registerAssociationButton.UseVisualStyleBackColor = true;
-            registerAssociationButton.Click += OnRegisterAssociationButtonClick;
+            installButton.ClickedBackColor = System.Drawing.Color.Gray;
+            installButton.CornerRadius = 5;
+            installButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            installButton.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
+            installButton.Location = new System.Drawing.Point(15, 174);
+            installButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            installButton.Name = "installButton";
+            installButton.Size = new System.Drawing.Size(208, 30);
+            installButton.TabIndex = 10;
+            installButton.Text = "Install app";
+            installButton.UseVisualStyleBackColor = true;
+            installButton.Click += OnInstallButtonClick;
             // 
             // displayFpsCheckBox
             // 
@@ -394,7 +394,7 @@ namespace GUI.Controls
             groupBox3.BorderColor = System.Drawing.Color.Black;
             groupBox3.BorderWidth = 2;
             groupBox3.Controls.Add(textViewerFontSizeLabel);
-            groupBox3.Controls.Add(registerAssociationButton);
+            groupBox3.Controls.Add(installButton);
             groupBox3.Controls.Add(textViewerFontSize);
             groupBox3.Controls.Add(openExplorerOnStartCheckbox);
             groupBox3.Controls.Add(themeComboBox);
@@ -644,7 +644,7 @@ namespace GUI.Controls
         private ThemedButton gamePathsRemove;
         private ThemedButton gamePathsAddFolder;
         private ThemedComboBox antiAliasingComboBox;
-        private ThemedButton registerAssociationButton;
+        private ThemedButton installButton;
         private ThemedComboBox themeComboBox;
         private ThemedGroupBox groupBox1;
         private ThemedGroupBox groupBox2;

@@ -46,6 +46,28 @@ namespace GUI
                 return;
             }
 
+            LoadVersion();
+
+            if (args.Length > 0 && args[0] == AppInstaller.InstallArgument)
+            {
+                try
+                {
+                    AppInstaller.Install();
+                }
+                catch (Exception e)
+                {
+                    Environment.ExitCode = e.HResult;
+                }
+
+                return;
+            }
+
+            if (args.Length > 0 && args[0] == AppInstaller.UninstallArgument)
+            {
+                Environment.ExitCode = Uninstall();
+                return;
+            }
+
             AppDomain.CurrentDomain.UnhandledException += UnhandledException;
             Application.ThreadException += ThreadException;
 
@@ -76,6 +98,16 @@ namespace GUI
             // The explorer and tab paths need the installed games, find them while the window is being created
             _ = InstalledSteamGames.FindAsync();
 
+            UpdateInstaller.CleanupPreviousInstall();
+            AppInstaller.RefreshUninstallEntry();
+
+            MainForm = new MainForm(args);
+
+            Application.Run(MainForm);
+        }
+
+        private static void LoadVersion()
+        {
             Assembly = Assembly.GetExecutingAssembly();
 
             // from winforms dep: Application.ProductVersion
@@ -96,12 +128,30 @@ namespace GUI
             }
 
             DisplayVersion = FormatDisplayVersion(ProductVersion);
+        }
 
-            UpdateInstaller.CleanupPreviousInstall();
+        private static int Uninstall()
+        {
+            try
+            {
+                if (AppInstaller.Uninstall() == AppInstaller.UninstallResult.Done)
+                {
+                    return 0;
+                }
 
-            MainForm = new MainForm(args);
+                ShowUninstallError("Close all Source 2 Viewer windows and try again.");
+            }
+            catch (Exception e)
+            {
+                ShowUninstallError(e.Message);
+            }
 
-            Application.Run(MainForm);
+            return 1;
+        }
+
+        private static void ShowUninstallError(string message)
+        {
+            AppMessageDialogs.ShowMessageAsync(message, "Uninstall Source 2 Viewer", MessageIcon.Error).GetAwaiter().GetResult();
         }
 
         private static string FormatDisplayVersion(string version)
