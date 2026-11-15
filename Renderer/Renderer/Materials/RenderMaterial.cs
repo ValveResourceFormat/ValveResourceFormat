@@ -556,11 +556,22 @@ namespace ValveResourceFormat.Renderer.Materials
                 }
             }
 
+            // Only the matrices of game shader files are evaluated, so those are the only results ours give way to
             foreach (var (name, expression) in shader.Expressions)
             {
-                if (!variables.ContainsKey(name))
+                if (variables.TryGetValue(name, out var variable) && variable.VfxType == VfxVariableType.Float4x4
+                    || !members.TryGetValue(name, out var constant))
+                {
+                    continue;
+                }
+
+                if (constant.Type == GlobalsType.Mat4)
                 {
                     EvaluateMatrix(buffer, members, name, expression);
+                }
+                else if (expressionContext.TryEvaluate(expression, out var value))
+                {
+                    SetEvaluated(shader, buffer, constant, name, value);
                 }
             }
 
