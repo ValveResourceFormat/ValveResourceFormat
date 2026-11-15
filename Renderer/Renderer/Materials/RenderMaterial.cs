@@ -467,7 +467,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 {
                     if (layout.Members.TryGetValue(name, out var constant))
                     {
-                        SetEvaluated(shader, buffer, constant, name, value);
+                        SetEvaluated(shader, buffer, constant, name, value.ToVector4());
                     }
                 }
             }
