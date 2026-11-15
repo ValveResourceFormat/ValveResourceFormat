@@ -944,6 +944,17 @@ namespace Tests.Formats
         [Arguments("F_ON ? 1 : 2", 1f, 1f, 1f, 1f)]
         [Arguments("F_OFF ? 1 : 2", 2f, 2f, 2f, 2f)]
         [Arguments("F_OFF ? 1 : F_ON ? max(2, 3) : 4", 3f, 3f, 3f, 3f)]
+        [Arguments("1 + 2 * 3 - 4 / 2", 5f, 5f, 5f, 5f)]
+        [Arguments("-(1 - 3) % 3", 2f, 2f, 2f, 2f)]
+        [Arguments("float4(1, 2, 3, 4).wzy", 4f, 3f, 2f, 2f)]
+        [Arguments("a = 2; b = a * a;\n return float2(a, b).yx;", 4f, 2f, 2f, 2f)]
+        [Arguments("F_OFF || 2 < 3", 1f, 1f, 1f, 1f)]
+        [Arguments("F_ON && !F_ON", 0f, 0f, 0f, 0f)]
+        [Arguments("float x = 3; return x * 2;", 6f, 6f, 6f, 6f)]
+        [Arguments("float Twice(float x) { return x * 2; }\nTwice(3) + Twice(1)", 8f, 8f, 8f, 8f)]
+        [Arguments("float2 Swap(float2 v) { float2 x = v.yx; return x; }\nx = 5;\nSwap(float2(1, 2)).x * 10 + x", 25f, 25f, 25f, 25f)]
+        [Arguments("float Sub(float a, float b) { return a - b; }\nfloat Outer(float a) { return Sub(a, 1); }\nOuter(Sub(9, 3))", 5f, 5f, 5f, 5f)]
+        [Arguments("return max(1, 2);", 2f, 2f, 2f, 2f)]
         public async Task TestCompilerEvaluatesTo(string source, float x, float y, float z, float w)
         {
             await Assert.That(VfxEvalRuntime.TryEvaluate(VfxEvalCompiler.Compile(source), new CompilerContext(), out var value, out _)).IsTrue();
@@ -966,9 +977,27 @@ namespace Tests.Formats
         [Arguments("1 ? 2")]
         [Arguments("max(1, 2")]
         [Arguments("1 2")]
+        [Arguments("float4(1, 2, 3, 4).xyzwx")]
+        [Arguments("a = 1;")]
+        [Arguments("float Loop(float x) { return Loop(x); }\nLoop(1)")]
+        [Arguments("float Twice(float x) { return x * 2; }\nTwice(1, 2)")]
+        [Arguments("float max(float x) { return x; }\n1")]
+        [Arguments("float Open(float x) { return x;\n1")]
         public async Task TestCompilerRejects(string source)
         {
             await Assert.That(() => VfxEvalCompiler.Compile(source)).Throws<InvalidDataException>();
+        }
+
+        [Test]
+        [Arguments("v0 = g_flRotation*3.1415927/180;\nv1 = cos(v0);\nv2 = sin(v0);\nv3 = g_vScale;\nv3.xxy*float4(v1,-v2,v2,v1)")]
+        [Arguments("-.5*g_vScale*float2(g_flA-g_flB,g_flB+g_flA)+g_vOffset+.5")]
+        [Arguments("g_nU!=0 || g_nV!=0")]
+        [Arguments("(g_bA && g_flB>=1) ? -(-g_flC) : g_flD")]
+        public async Task TestCompilerRoundTripsDecompiledText(string source)
+        {
+            var decompiled = new VfxEval(VfxEvalCompiler.Compile(source), omitReturnStatement: true).DynamicExpressionResult;
+
+            await Assert.That(decompiled.ReplaceLineEndings("\n")).IsEqualTo(source);
         }
 
         private static byte[] ParseString(string bytestring)
