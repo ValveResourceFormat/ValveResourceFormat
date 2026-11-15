@@ -262,7 +262,7 @@ float2 TexCoordMatrixOffset(float rotation, float2 scale, float2 offset)
     float r = radians(rotation);
     float c = cos(r);
     float s = sin(r);
-    return -.5 * scale * float2(c - s, s + c) + offset + .5;
+    return offset + 0.5 - 0.5 * scale * float2(c - s, s + c);
 }
 
 // Rotation as a row-major 2x2 matrix
