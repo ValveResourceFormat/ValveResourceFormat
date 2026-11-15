@@ -58,13 +58,14 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the set of sampler uniform names that use material address modes via <c>// Sampler(UserConfig)</c>.</summary>
         public required HashSet<string> SamplerUserConfigUniforms { get; init; }
 
-        /// <summary>Gets the compiled expressions of uniforms annotated with <c>// Expression(...)</c>, used where game shader files do not provide them.</summary>
+        /// <summary>Gets the compiled expressions of the uniforms the <c>/* Expressions</c> blocks assign, used where game shader files do not provide them.</summary>
         public IReadOnlyDictionary<string, byte[]> Expressions { get; init; } = new Dictionary<string, byte[]>();
 
         /// <summary>Gets the sampler uniform that holds the color of a material, annotated with <c>// RepresentativeTexture</c>, or <see langword="null"/> when the shader has none.</summary>
         public string? RepresentativeTexture { get; init; }
 
         private GlobalsLayout globalsLayout = GlobalsLayout.Empty;
+        private GlobalsLayout expressionInputs = GlobalsLayout.Empty;
 
         /// <summary>Gets the packed layout of this shader's loose global uniforms, derived from the source and shared by every variant.</summary>
         public GlobalsLayout GlobalsLayout
@@ -79,25 +80,42 @@ namespace ValveResourceFormat.Renderer.Shaders
                 Default.VectorParams.Clear();
                 Default.Matrices.Clear();
 
-                foreach (var (name, defaultValue) in value.FloatDefaults)
-                {
-                    Default.FloatParams[name] = defaultValue;
-                }
+                AddDefaults(value);
+                AddDefaults(expressionInputs);
+            }
+        }
 
-                foreach (var (name, defaultValue) in value.IntDefaults)
-                {
-                    Default.IntParams[name] = defaultValue;
-                }
+        /// <summary>Gets the inputs only expressions read, which hold defaults but are never bound.</summary>
+        public GlobalsLayout ExpressionInputs
+        {
+            get => expressionInputs;
+            init
+            {
+                expressionInputs = value;
+                AddDefaults(value);
+            }
+        }
 
-                foreach (var (name, defaultValue) in value.VectorDefaults)
-                {
-                    Default.VectorParams[name] = defaultValue;
-                }
+        private void AddDefaults(GlobalsLayout layout)
+        {
+            foreach (var (name, defaultValue) in layout.FloatDefaults)
+            {
+                Default.FloatParams[name] = defaultValue;
+            }
 
-                foreach (var (name, defaultValue) in value.MatrixDefaults)
-                {
-                    Default.Matrices[name] = defaultValue;
-                }
+            foreach (var (name, defaultValue) in layout.IntDefaults)
+            {
+                Default.IntParams[name] = defaultValue;
+            }
+
+            foreach (var (name, defaultValue) in layout.VectorDefaults)
+            {
+                Default.VectorParams[name] = defaultValue;
+            }
+
+            foreach (var (name, defaultValue) in layout.MatrixDefaults)
+            {
+                Default.Matrices[name] = defaultValue;
             }
         }
 

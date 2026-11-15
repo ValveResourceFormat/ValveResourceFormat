@@ -40,11 +40,8 @@ uniform sampler2D g_tNormalRoughness2;
 uniform sampler2D g_tPacked2;
 uniform sampler2D g_tRevealMask2;
 
-uniform vec3 g_vAlbedoContrastSaturationBrightness2 = vec3(1.0);
-uniform mat4 g_mAlbedoColorCorrect2 = mat4(1.0); // Expression(MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness2, TextureAverageColor(g_tColor2)))
-uniform vec3 g_vColorTint2 = vec3(1.0);
-uniform int g_nTextureColorTintMode2 = 0;
-uniform mat4 g_mTextureColorTint2 = mat4(1.0); // Expression(MatrixColorTint3(SrgbGammaToLinear(g_vColorTint2), 0.85, g_nTextureColorTintMode2))
+uniform mat4 g_mAlbedoColorCorrect2 = mat4(1.0);
+uniform mat4 g_mTextureColorTint2 = mat4(1.0);
 
 uniform bool g_bMaskColorTint2 = true;
 uniform bool g_bMaskVertexColorTint2 = true;
@@ -89,11 +86,8 @@ uniform float g_flBorderRoughness2 = 0.5;
     uniform sampler2D g_tPacked3;
     uniform sampler2D g_tRevealMask3;
 
-    uniform vec3 g_vAlbedoContrastSaturationBrightness3 = vec3(1.0);
-    uniform mat4 g_mAlbedoColorCorrect3 = mat4(1.0); // Expression(MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness3, TextureAverageColor(g_tColor3)))
-    uniform vec3 g_vColorTint3 = vec3(1.0);
-    uniform int g_nTextureColorTintMode3 = 0;
-    uniform mat4 g_mTextureColorTint3 = mat4(1.0); // Expression(MatrixColorTint3(SrgbGammaToLinear(g_vColorTint3), 0.85, g_nTextureColorTintMode3))
+    uniform mat4 g_mAlbedoColorCorrect3 = mat4(1.0);
+    uniform mat4 g_mTextureColorTint3 = mat4(1.0);
 
     uniform bool g_bMaskColorTint3 = true;
     uniform bool g_bMaskVertexColorTint3 = true;
@@ -192,6 +186,20 @@ uniform float g_flBorderRoughness2 = 0.5;
         #endif
     #endif
 #endif
+
+/* Expressions
+uniform vec3 g_vAlbedoContrastSaturationBrightness2 = vec3(1.0);
+uniform vec3 g_vColorTint2 = vec3(1.0);
+uniform int g_nTextureColorTintMode2 = 0;
+uniform vec3 g_vAlbedoContrastSaturationBrightness3 = vec3(1.0);
+uniform vec3 g_vColorTint3 = vec3(1.0);
+uniform int g_nTextureColorTintMode3 = 0;
+
+g_mAlbedoColorCorrect2 = MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness2, TextureAverageColor(g_tColor2));
+g_mTextureColorTint2 = MatrixColorTint3(SrgbGammaToLinear(g_vColorTint2), 0.85, g_nTextureColorTintMode2);
+g_mAlbedoColorCorrect3 = MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness3, TextureAverageColor(g_tColor3));
+g_mTextureColorTint3 = MatrixColorTint3(SrgbGammaToLinear(g_vColorTint3), 0.85, g_nTextureColorTintMode3);
+*/
 
 // Every layer above the first is revealed by its own mask weighed against a channel of
 // the vertex paint.

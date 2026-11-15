@@ -45,7 +45,7 @@ ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source
 - A shader declares only the combos it ships (an undeclared combo is 0 in `#if`), its uniforms (`// SrgbRead(true)` as the game shader converts them) and `GetMaterial()`. It sets the UPPER_CASE lighting knobs, includes `common/surface_base_ps.slang`, and ends with `RenderSurface()` built from the functions in `common/surface_*.slang` and `features/`.
 - Games or shaders that share code include a body file without a stage extension (`hlvr/vr_complex.slang`), or a stub includes the shared file. `GameVfx_{vfxName}` is 1 for the loaded name, for shaders of one game that differ in a couple of lines.
 - `// RepresentativeTexture` on a sampler marks the texture that holds the color of a material.
-- `// Expression(...)` on a uniform holds the game shader expression that computes it, compiled by `VfxEvalCompiler` and used where game shader files do not provide it. Inputs only an expression reads are declared as uniforms too, with their defaults.
+- A `/* Expressions` comment after the uniforms computes uniforms per material on the CPU, as `name = expression;` statements in the game shader expression syntax, compiled by `VfxEvalCompiler` and used where game shader files do not provide them. Any other name assigned is a local for the statements after it, and inputs only expressions read are declared there as `uniform` with their defaults, outside the globals buffer. Functions with typed parameters, locals and one `return` are inlined where called, from any block of the shader; shared ones live in `common/utils.slang`. No `if`, loops, `out` parameters or recursion.
 
 ### Transforms and Angles
 
