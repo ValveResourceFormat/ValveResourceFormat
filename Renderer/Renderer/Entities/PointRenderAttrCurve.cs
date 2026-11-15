@@ -25,7 +25,7 @@ public sealed partial class PointRenderAttrCurve : BaseCurveOverTime
     /// <inheritdoc/>
     protected override bool Apply(float value)
     {
-        EntitySystem.RendererContext.GlobalRenderAttributes[attributeName] = value;
+        EntitySystem.RendererContext.GlobalRenderAttributes[attributeName] = new Vector4(value);
         return true;
     }
 }

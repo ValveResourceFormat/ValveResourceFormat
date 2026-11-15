@@ -1038,7 +1038,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             // Left unset in third person so the legs share the material's own buffer
             if (FirstPersonMode)
             {
-                Legs.RenderAttributes["g_bFirstpersonLegsDistortion"] = true;
+                Legs.RenderAttributes["g_bFirstpersonLegsDistortion"] = Vector4.One;
             }
             else
             {
