@@ -13,9 +13,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Forms;
 using Sigstore;
-using Windows.Win32;
 using Windows.Win32.Foundation;
-using Windows.Win32.Storage.FileSystem;
 
 namespace GUI.Utils;
 
@@ -41,39 +39,6 @@ static class UpdateInstaller
 
     /// <summary>Whether an update is being downloaded or installed.</summary>
     public static bool IsInstalling { get; private set; }
-
-    /// <summary>
-    /// Removes the executable that a previous update replaced, and any download that never got swapped in.
-    /// </summary>
-    public static void CleanupPreviousInstall()
-    {
-        var exePath = Environment.ProcessPath;
-
-        if (exePath == null)
-        {
-            return;
-        }
-
-        ExecutableSwap.TryDelete(exePath + ExecutableSwap.PendingSuffix);
-
-        // An elevated install schedules its replaced executable for deletion on reboot instead
-        var replacedPath = exePath + ExecutableSwap.ReplacedSuffix;
-
-        if (File.Exists(replacedPath) && IsDirectoryWritable(Path.GetDirectoryName(exePath)!))
-        {
-            _ = DeleteReplacedAsync(replacedPath);
-        }
-    }
-
-    // The previous instance is usually still exiting when this one starts, so keep trying for a while.
-    // Whatever is still in use after that is removed by a later launch.
-    private static async Task DeleteReplacedAsync(string path)
-    {
-        for (var attempt = 0; attempt < 30 && !ExecutableSwap.TryDelete(path); attempt++)
-        {
-            await Task.Delay(1000).ConfigureAwait(false);
-        }
-    }
 
     /// <summary>
     /// Downloads and installs the offered build behind a progress dialog.
@@ -105,9 +70,10 @@ static class UpdateInstaller
         var exePath = Environment.ProcessPath ?? throw new InvalidOperationException("Could not determine the path of the running executable.");
 
         // Only a download that can be verified is ever offered, there is no unverified fallback
+        var build = offer?.Build;
         var download = offer?.Download;
 
-        if (offer == null || download == null)
+        if (build == null || download == null)
         {
             throw new InvalidOperationException("The update does not provide a verifiable download.");
         }
@@ -116,7 +82,7 @@ static class UpdateInstaller
         var downloadPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         var downloaded = false;
 
-        using (var dialog = new GenericProgressForm { Text = $"Downloading {offer.NewVersionText}" })
+        using (var dialog = new GenericProgressForm { Text = $"Downloading {build.Text}" })
         {
             dialog.OnProcess = async cancellationToken =>
             {
@@ -131,7 +97,7 @@ static class UpdateInstaller
                 {
                     try
                     {
-                        await DownloadVerifiedAsync(httpClient, offer, download, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
+                        await DownloadVerifiedAsync(httpClient, build, download, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
                     }
                     catch (HttpRequestException e) when (e.StatusCode == HttpStatusCode.NotFound)
                     {
@@ -141,17 +107,18 @@ static class UpdateInstaller
                         await UpdateChecker.RecheckForUpdates().WaitAsync(cancellationToken).ConfigureAwait(false);
 
                         var newerOffer = UpdateChecker.Offer;
+                        var newerBuild = newerOffer?.Build;
                         var newerDownload = newerOffer?.Download;
 
-                        if (newerOffer == null || newerDownload == null || newerDownload.Url == download.Url)
+                        if (newerBuild == null || newerDownload == null || newerDownload.Url == download.Url)
                         {
                             throw;
                         }
 
-                        offer = newerOffer;
+                        build = newerBuild;
                         download = newerDownload;
 
-                        await DownloadVerifiedAsync(httpClient, offer, download, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
+                        await DownloadVerifiedAsync(httpClient, build, download, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
                     }
 
                     downloaded = true;
@@ -186,10 +153,10 @@ static class UpdateInstaller
 
         try
         {
-            if (IsDirectoryWritable(Path.GetDirectoryName(exePath)!))
+            if (ExecutableSwap.IsDirectoryWritable(Path.GetDirectoryName(exePath)!))
             {
                 // A single file bundle loads assemblies from the executable path on first use.
-                // After the swap that path is the new build, so load System.Diagnostics.Process now, before Restart needs it
+                // After the swap that path is the new build, so load System.Diagnostics.Process now, before Program.Restart needs it
                 RuntimeHelpers.RunClassConstructor(typeof(Process).TypeHandle);
 
                 ExecutableSwap.Swap(exePath, downloadPath, download.Sha256);
@@ -213,7 +180,7 @@ static class UpdateInstaller
             return;
         }
 
-        InstalledVersionText = offer.NewVersionText;
+        InstalledVersionText = build.Text;
 
         var restartButton = new TaskDialogButton("Restart now");
         var page = new TaskDialogPage
@@ -228,39 +195,23 @@ static class UpdateInstaller
 
         if (await TaskDialog.ShowDialogAsync(owner, page).ConfigureAwait(true) == restartButton)
         {
-            Restart(exePath);
+            Program.Restart(exePath);
         }
-    }
-
-    /// <summary>
-    /// Closes this instance and starts the executable.
-    /// </summary>
-    public static void Restart(string exePath)
-    {
-        // Closing the main window saves the settings, so the new instance starts from the final state
-        Program.MainForm.Close();
-
-        if (!Program.MainForm.IsDisposed)
-        {
-            return; // Closing was cancelled
-        }
-
-        Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
     }
 
     // The provenance is looked up by the hash the manifest promises while the file downloads,
     // and covers the file once it is verified to have that hash
-    private static async Task DownloadVerifiedAsync(HttpClient httpClient, UpdateChecker.UpdateOffer offer, UpdateChecker.UpdateDownload download, string downloadPath, GenericProgressForm dialog, CancellationToken cancellationToken)
+    private static async Task DownloadVerifiedAsync(HttpClient httpClient, UpdateChecker.UpdateBuild build, UpdateChecker.UpdateDownload download, string downloadPath, GenericProgressForm dialog, CancellationToken cancellationToken)
     {
         using var provenanceCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var provenance = VerifyProvenanceAsync(httpClient, offer, download, provenanceCancellation.Token);
+        var provenance = VerifyProvenanceAsync(httpClient, build, download, provenanceCancellation.Token);
 
         try
         {
             var (size, hash) = await DownloadAsync(httpClient, download, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
 
             dialog.SetProgress("Verifying…");
-            Verify(offer, download, downloadPath, size, hash);
+            Verify(build, download, downloadPath, size, hash);
         }
         catch
         {
@@ -311,7 +262,7 @@ static class UpdateInstaller
 
     // The manifest only names the file. The CI origin of the file is proven by the provenance attestation GitHub stores for
     // the file hash, signed through Sigstore with the identity of the workflow run that produced it.
-    private static async Task VerifyProvenanceAsync(HttpClient httpClient, UpdateChecker.UpdateOffer offer, UpdateChecker.UpdateDownload download, CancellationToken cancellationToken)
+    private static async Task VerifyProvenanceAsync(HttpClient httpClient, UpdateChecker.UpdateBuild build, UpdateChecker.UpdateDownload download, CancellationToken cancellationToken)
     {
         var hash = download.Sha256;
         var url = $"https://api.github.com/repositories/{RepositoryId}/attestations/sha256:{hash}?per_page=100&predicate_type={Uri.EscapeDataString(ProvenancePredicateType)}";
@@ -332,7 +283,7 @@ static class UpdateInstaller
         using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false), cancellationToken: cancellationToken).ConfigureAwait(false);
 
         // Dev builds are attested on the branch, releases on their tag
-        var expectedRef = offer.IsNewVersionStableBuild ? $"refs/tags/{offer.NewVersion}" : "refs/heads/master";
+        var expectedRef = build.GitRef;
         var policy = new VerificationPolicy
         {
             CertificateIdentity = new CertificateIdentity
@@ -408,7 +359,7 @@ static class UpdateInstaller
         return SigstoreBundle.Deserialize(json);
     }
 
-    private static void Verify(UpdateChecker.UpdateOffer offer, UpdateChecker.UpdateDownload download, string downloadPath, long actualSize, string actualHash)
+    private static void Verify(UpdateChecker.UpdateBuild build, UpdateChecker.UpdateDownload download, string downloadPath, long actualSize, string actualHash)
     {
         var expectedSize = download.Size;
 
@@ -422,35 +373,9 @@ static class UpdateInstaller
         // The file is what the manifest promised, now make sure the manifest promised the right build
         var fileVersion = FileVersionInfo.GetVersionInfo(downloadPath).FileVersion;
 
-        if (!Version.TryParse(fileVersion, out var version) || !Version.TryParse(offer.NewVersion, out var expectedVersion))
+        if (!Version.TryParse(fileVersion, out var version) || !build.Matches(version))
         {
-            // Dev builds are identified by build number alone
-            if (!int.TryParse(offer.NewVersion, out var expectedBuild) || version?.Build != expectedBuild)
-            {
-                throw new InvalidDataException($"The downloaded file reports version {fileVersion} instead of {offer.NewVersion}.");
-            }
-
-            return;
-        }
-
-        if (version.Major != expectedVersion.Major || version.Minor != expectedVersion.Minor)
-        {
-            throw new InvalidDataException($"The downloaded file reports version {fileVersion} instead of {offer.NewVersion}.");
-        }
-    }
-
-    // Probing is the only reliable check, a running executable that cannot be deleted
-    // and a folder without write access both fail with access denied
-    private static bool IsDirectoryWritable(string directory)
-    {
-        try
-        {
-            using var probe = new FileStream(Path.Combine(directory, Path.GetRandomFileName()), FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose);
-            return true;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
+            throw new InvalidDataException($"The downloaded file reports version {fileVersion} instead of {build.Text}.");
         }
     }
 
@@ -498,8 +423,7 @@ static class UpdateInstaller
             return e.HResult;
         }
 
-        // The viewer cannot delete it on the next launch without elevation
-        _ = PInvoke.MoveFileEx(exePath + ExecutableSwap.ReplacedSuffix, null, MOVE_FILE_FLAGS.MOVEFILE_DELAY_UNTIL_REBOOT);
+        ExecutableSwap.DeleteReplacedOnReboot(exePath);
 
         return 0;
     }

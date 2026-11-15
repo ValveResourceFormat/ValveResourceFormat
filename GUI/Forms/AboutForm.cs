@@ -100,9 +100,16 @@ namespace GUI.Forms
         {
             var installed = UpdateInstaller.InstalledVersionText;
             var offer = UpdateChecker.Offer;
-            var newVersion = offer?.NewVersionText;
+            var build = offer?.Build;
+            var newVersion = build?.Text ?? "Not available";
 
-            if (installed != null)
+            if (UpdateChecker.GetUpdateStatus() == UpdateChecker.UpdateStatus.LocalBuild)
+            {
+                newVersionLabel.Text = ":)";
+                downloadButton.Text = "Up to date";
+                downloadButton.Enabled = false;
+            }
+            else if (installed != null)
             {
                 newVersionLabel.Text = $"{installed} (installed)";
                 downloadButton.Text = "Restart to update";
@@ -111,15 +118,23 @@ namespace GUI.Forms
             else if (offer != null && offer.IsNewVersionAvailable)
             {
                 newVersionLabel.Text = newVersion;
-                downloadButton.Text = offer.IsNewer
-                    ? $"Download {newVersion}"
-                    : $"Switch to {(offer.IsNewVersionStableBuild ? "stable " : "")}{newVersion}";
+
+                if (offer.IsNewer)
+                {
+                    downloadButton.Text = $"Download {newVersion}";
+                }
+                else
+                {
+                    var switchTarget = build?.Channel == Settings.UpdateChannel.Stable ? $"stable {newVersion}" : newVersion;
+                    downloadButton.Text = $"Switch to {switchTarget}";
+                }
+
                 downloadButton.Enabled = true;
             }
             else
             {
                 newVersionLabel.Text = newVersion;
-                downloadButton.Text = offer?.NewVersion == null ? "Not available" : "Up to date";
+                downloadButton.Text = build == null ? "Not available" : "Up to date";
                 downloadButton.Enabled = false;
             }
 
@@ -181,7 +196,7 @@ namespace GUI.Forms
         {
             if (UpdateInstaller.InstalledVersionText != null)
             {
-                UpdateInstaller.Restart(Environment.ProcessPath!);
+                Program.Restart(Environment.ProcessPath!);
                 return;
             }
 

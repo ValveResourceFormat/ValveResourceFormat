@@ -506,7 +506,7 @@ namespace GUI
             }
         }
 
-        private async void InstallToolStripMenuItem_Click(object sender, EventArgs e) => await SettingsControl.InstallAsync().ConfigureAwait(true);
+        private async void InstallToolStripMenuItem_Click(object sender, EventArgs e) => await AppInstaller.InstallFromUiAsync().ConfigureAwait(true);
 
         private void OnOpenWelcomeScreenToolStripMenuItem_Click(object sender, EventArgs e)
         {

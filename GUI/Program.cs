@@ -17,6 +17,8 @@ namespace GUI
         public static MainForm MainForm { get; private set; }
         public static string ProductVersion { get; private set; }
         public static string DisplayVersion { get; private set; }
+        /// <summary>The numeric part of <see cref="ProductVersion"/>, without the git commit.</summary>
+        public static Version Version { get; private set; }
 #nullable enable
 
         /// <summary>Whether this build was produced by the CI for a tagged stable release.</summary>
@@ -98,12 +100,28 @@ namespace GUI
             // The explorer and tab paths need the installed games, find them while the window is being created
             _ = InstalledSteamGames.FindAsync();
 
-            UpdateInstaller.CleanupPreviousInstall();
+            ExecutableSwap.CleanupLeftovers();
             AppInstaller.RefreshUninstallEntry();
 
             MainForm = new MainForm(args);
 
             Application.Run(MainForm);
+        }
+
+        /// <summary>
+        /// Closes this instance and starts the executable.
+        /// </summary>
+        public static void Restart(string exePath)
+        {
+            // Closing the main window saves the settings, so the new instance starts from the final state
+            MainForm.Close();
+
+            if (!MainForm.IsDisposed)
+            {
+                return; // Closing was cancelled
+            }
+
+            Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
         }
 
         private static void LoadVersion()
@@ -127,6 +145,10 @@ namespace GUI
                 throw new InvalidDataException("Failed to find version number");
             }
 
+            var versionPlus = ProductVersion.IndexOf('+', StringComparison.Ordinal);
+            var numericVersion = versionPlus < 0 ? ProductVersion : ProductVersion[..versionPlus];
+
+            Version = new Version(numericVersion);
             DisplayVersion = FormatDisplayVersion(ProductVersion);
         }
 

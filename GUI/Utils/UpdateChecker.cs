@@ -97,6 +97,64 @@ static partial class UpdateChecker
     public static UpdateOffer? Offer => CurrentOffer;
 
     /// <summary>
+    /// A build of one update channel: a stable release by its tag, or a dev build by its CI build number.
+    /// </summary>
+    public sealed class UpdateBuild
+    {
+        /// <summary>The channel that publishes this build.</summary>
+        public Settings.UpdateChannel Channel { get; private init; }
+
+        /// <summary>Release tag of a stable build, e.g. "20.0", empty for a dev build.</summary>
+        public string Tag { get; private init; } = string.Empty;
+
+        /// <summary>Version parsed from <see cref="Tag"/>, 0.0 for a dev build.</summary>
+        public Version Release { get; private init; } = new();
+
+        /// <summary>CI build number of a dev build, 0 for a stable build.</summary>
+        public int BuildNumber { get; private init; }
+
+        private bool IsStable => Channel == Settings.UpdateChannel.Stable;
+
+        /// <summary>The build as shown to the user, e.g. "20.0" or "dev build 7125".</summary>
+        public string Text => IsStable ? Tag : string.Create(CultureInfo.InvariantCulture, $"dev build {BuildNumber}");
+
+        /// <summary>The git ref the build is attested on.</summary>
+        public string GitRef => IsStable ? $"refs/tags/{Tag}" : "refs/heads/master";
+
+        /// <summary>Whether this build is newer than the given running version. Tag and branch builds share one build number sequence.</summary>
+        public bool IsNewerThan(Version current) => IsStable
+            ? Release > new Version(current.Major, current.Minor)
+            : BuildNumber > current.Build;
+
+        /// <summary>Whether the version of a downloaded file identifies this build.</summary>
+        public bool Matches(Version fileVersion) => IsStable
+            ? fileVersion.Major == Release.Major && fileVersion.Minor == Release.Minor
+            : fileVersion.Build == BuildNumber;
+
+        /// <summary>Creates a stable build from a release tag, or null when it is not a version.</summary>
+        public static UpdateBuild? FromStable(string? tag)
+        {
+            if (!Version.TryParse(tag, out var release))
+            {
+                return null;
+            }
+
+            return new UpdateBuild { Channel = Settings.UpdateChannel.Stable, Tag = tag, Release = release };
+        }
+
+        /// <summary>Creates a dev build, or null when the build number is not positive.</summary>
+        public static UpdateBuild? FromDev(int buildNumber)
+        {
+            if (buildNumber <= 0)
+            {
+                return null;
+            }
+
+            return new UpdateBuild { Channel = Settings.UpdateChannel.Dev, BuildNumber = buildNumber };
+        }
+    }
+
+    /// <summary>
     /// A consistent view of the build offered by one evaluation of the manifest.
     /// </summary>
     public sealed class UpdateOffer
@@ -105,10 +163,8 @@ static partial class UpdateChecker
         public bool IsNewVersionAvailable { get; init; }
         /// <summary>Whether the offered build is newer than the running one.</summary>
         public bool IsNewer { get; init; }
-        public bool IsNewVersionStableBuild { get; init; }
-        public string? NewVersion { get; init; }
-        /// <summary>The offered version as shown to the user, e.g. "20.0" or "dev build 7125".</summary>
-        public string? NewVersionText { get; init; }
+        /// <summary>The build the selected channel offers, or null when it has none.</summary>
+        public UpdateBuild? Build { get; init; }
         public string? ReleaseNotesUrl { get; init; }
         public string? ReleaseNotesVersion { get; init; }
         /// <summary>The file to install, or null when the manifest does not give a download that can be verified.</summary>
@@ -138,9 +194,38 @@ static partial class UpdateChecker
     /// <summary>
     /// Whether the selected channel has a build newer than the running one, according to the last successful update check.
     /// </summary>
-    public static bool IsUpdateAvailable => Settings.Config.Update.Channel == Settings.UpdateChannel.Stable
-        ? GetUpdateStatus() == UpdateStatus.NewerStable
-        : GetUpdateStatus() == UpdateStatus.NewerDev;
+    public static bool IsUpdateAvailable => GetNewerBuild()?.Channel == Settings.Config.Update.Channel;
+
+    /// <summary>
+    /// The newest build newer than the running one according to the last successful update check, or null.
+    /// The selected channel is preferred when it has a newer stable release. Never performs a request.
+    /// </summary>
+    public static UpdateBuild? GetNewerBuild()
+    {
+        if (IsLocalBuild)
+        {
+            return null;
+        }
+
+        var currentVersion = Program.Version;
+
+        var state = Settings.Config.Update;
+        var stable = UpdateBuild.FromStable(state.LatestStableVersion);
+        var dev = UpdateBuild.FromDev(state.LatestDevBuild);
+        var stableIsNewer = stable != null && stable.IsNewerThan(currentVersion);
+
+        if (state.Channel == Settings.UpdateChannel.Stable && stableIsNewer)
+        {
+            return stable;
+        }
+
+        if (dev != null && dev.IsNewerThan(currentVersion))
+        {
+            return dev;
+        }
+
+        return stableIsNewer ? stable : null;
+    }
 
     /// <summary>
     /// Compares the running build to the releases recorded by the last successful update check.
@@ -148,30 +233,16 @@ static partial class UpdateChecker
     /// </summary>
     public static UpdateStatus GetUpdateStatus()
     {
-        var currentVersion = GetCurrentVersion();
-
-        if (IsLocalBuild(currentVersion))
+        if (IsLocalBuild)
         {
             return UpdateStatus.LocalBuild;
         }
 
-        var state = Settings.Config.Update;
-        var stableIsNewer = IsStableNewer(state.LatestStableVersion, currentVersion);
-        var devIsNewer = IsDevNewer(state.LatestDevBuild, currentVersion);
+        var newerBuild = GetNewerBuild();
 
-        if (state.Channel == Settings.UpdateChannel.Stable && stableIsNewer)
+        if (newerBuild != null)
         {
-            return UpdateStatus.NewerStable;
-        }
-
-        if (devIsNewer)
-        {
-            return UpdateStatus.NewerDev;
-        }
-
-        if (stableIsNewer)
-        {
-            return UpdateStatus.NewerStable;
+            return newerBuild.Channel == Settings.UpdateChannel.Stable ? UpdateStatus.NewerStable : UpdateStatus.NewerDev;
         }
 
         // A release may have come out since the recorded check
@@ -301,35 +372,12 @@ static partial class UpdateChecker
         }
     }
 
-    private static Version GetCurrentVersion()
-    {
-        var version = Program.ProductVersion;
-        var versionPlus = version.IndexOf('+', StringComparison.InvariantCulture); // Drop the git commit
-
-        return new Version(versionPlus > 0 ? version[..versionPlus] : version);
-    }
-
-    private static bool IsLocalBuild(Version currentVersion)
-    {
+    private static bool IsLocalBuild =>
 #if TEST_NON_LOCAL_BUILD
-        return false;
+        false;
 #else
-        return currentVersion.Build == 0;
+        Program.Version.Build == 0;
 #endif
-    }
-
-    private static bool IsStableNewer(string? stableVersion, Version currentVersion)
-    {
-        var releaseVersion = Version.TryParse(stableVersion, out var parsed) ? parsed : new Version(0, 0);
-
-        return releaseVersion > new Version(currentVersion.Major, currentVersion.Minor);
-    }
-
-    // Tag and branch builds share one run number sequence, so this compares across channels too
-    private static bool IsDevNewer(int devBuild, Version currentVersion)
-    {
-        return devBuild > 0 && devBuild > currentVersion.Build;
-    }
 
     private static void Evaluate(UpdateManifest? manifest, int fetch)
     {
@@ -343,35 +391,19 @@ static partial class UpdateChecker
 
             AppliedFetch = fetch;
 
-            var offer = CreateOffer(manifest);
-
-            if (offer != null)
+            if (manifest == null)
             {
-                CurrentOffer = offer;
+                return;
             }
+
+            RecordManifest(manifest);
+            CurrentOffer = CreateOffer(manifest);
         }
     }
 
-    private static UpdateOffer? CreateOffer(UpdateManifest? manifest)
+    // Remembers the latest builds, so the status can be read without a request
+    private static void RecordManifest(UpdateManifest manifest)
     {
-        var currentVersion = GetCurrentVersion();
-
-        if (IsLocalBuild(currentVersion))
-        {
-            // This was not built on the CI
-            return new UpdateOffer
-            {
-                IsNewVersionStableBuild = true,
-                NewVersion = ":)",
-                NewVersionText = ":)",
-            };
-        }
-
-        if (manifest == null)
-        {
-            return null;
-        }
-
         var stable = manifest.Stable;
         var dev = manifest.Dev;
 
@@ -386,44 +418,28 @@ static partial class UpdateChecker
         }
 
         CheckedThisSession = true;
+    }
 
+    private static UpdateOffer CreateOffer(UpdateManifest manifest)
+    {
+        var stable = manifest.Stable;
+        var dev = manifest.Dev;
         var channel = Settings.Config.Update.Channel;
-        var isStableBuild = channel == Settings.UpdateChannel.Stable;
-        string? newVersion = null;
-        var isNewer = false;
-        Dictionary<string, UpdateAsset>? assets = null;
+        UpdateBuild? build;
+        Dictionary<string, UpdateAsset>? assets;
 
-        if (isStableBuild)
+        if (channel == Settings.UpdateChannel.Stable)
         {
-            if (stable is { Version.Length: > 0 })
-            {
-                newVersion = stable.Version;
-                isNewer = IsStableNewer(stable.Version, currentVersion);
-                assets = stable.Assets;
-            }
-        }
-        else if (dev is { BuildNumber: > 0 })
-        {
-            newVersion = dev.BuildNumber.ToString(CultureInfo.InvariantCulture);
-            isNewer = IsDevNewer(dev.BuildNumber, currentVersion);
-            assets = dev.Assets;
-        }
-
-        string newVersionText;
-
-        if (newVersion == null)
-        {
-            newVersionText = "Not available";
-        }
-        else if (isStableBuild)
-        {
-            newVersionText = newVersion;
+            build = UpdateBuild.FromStable(stable?.Version);
+            assets = stable?.Assets;
         }
         else
         {
-            newVersionText = $"dev build {newVersion}";
+            build = UpdateBuild.FromDev(dev?.BuildNumber ?? 0);
+            assets = dev?.Assets;
         }
 
+        var isNewer = build != null && build.IsNewerThan(Program.Version);
         var asset = assets?.GetValueOrDefault(RuntimeInformation.RuntimeIdentifier);
 
         // The file is verified after download, but the request itself should not go out in the clear either
@@ -437,11 +453,9 @@ static partial class UpdateChecker
         return new UpdateOffer
         {
             // An older or equal build on the other channel is offered from the About dialog, but never announced
-            IsNewVersionAvailable = isNewer || (newVersion != null && channel != Program.BuildChannel),
+            IsNewVersionAvailable = isNewer || (build != null && build.Channel != Program.BuildChannel),
             IsNewer = isNewer,
-            IsNewVersionStableBuild = isStableBuild,
-            NewVersion = newVersion,
-            NewVersionText = newVersionText,
+            Build = build,
             // Release notes are always for the stable release, no matter which channel is selected
             ReleaseNotesUrl = stable?.ReleaseNotesUrl,
             ReleaseNotesVersion = stable?.Version,
@@ -451,7 +465,7 @@ static partial class UpdateChecker
 
     private static async Task<UpdateManifest?> GetManifestAsync()
     {
-        if (IsLocalBuild(GetCurrentVersion()))
+        if (IsLocalBuild)
         {
             return null; // Local builds have nothing to compare against
         }

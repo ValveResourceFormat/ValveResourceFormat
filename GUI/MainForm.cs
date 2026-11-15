@@ -62,7 +62,7 @@ namespace GUI
             InitializeComponent();
             LoadIcons();
 
-            var installText = SettingsControl.GetInstallText();
+            var installText = AppInstaller.GetInstallButtonText();
             installToolStripMenuItem.Visible = installText != null;
             installToolStripMenuItem.Text = installText;
 

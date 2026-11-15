@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.IO;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Utils;
 using ValveResourceFormat.IO;
@@ -80,7 +79,7 @@ namespace GUI.Controls
             antiAliasingComboBox.Items.AddRange(strings);
             antiAliasingComboBox.SelectedIndex = selectedSamples;
 
-            var installText = GetInstallText();
+            var installText = AppInstaller.GetInstallButtonText();
             installButton.Visible = installText != null;
             installButton.Text = installText;
         }
@@ -298,40 +297,7 @@ namespace GUI.Controls
             //Application.SetColorMode(Settings.GetSystemColor());
         }
 
-        private async void OnInstallButtonClick(object sender, EventArgs e) => await InstallAsync().ConfigureAwait(true);
-
-        /// <summary>The text of the install button, or null when the running copy is the installed one.</summary>
-        public static string? GetInstallText()
-        {
-            if (AppInstaller.IsInstalledCopy)
-            {
-                return null;
-            }
-
-            // A debug build only registers itself in place
-            if (!ExecutableSwap.IsSingleFileBundle(Environment.ProcessPath!))
-            {
-                return "Install app";
-            }
-
-            var installedVersion = AppInstaller.InstalledVersion;
-
-            return installedVersion == null ? "Install app" : $"Replace installed version ({installedVersion})";
-        }
-
-        public static async Task InstallAsync()
-        {
-            if (AppInstaller.Install())
-            {
-                UpdateInstaller.Restart(AppInstaller.InstallPath);
-                return;
-            }
-
-            await AppMessageDialogs.ShowMessageAsync(
-                "Registered .vpk file association as well as \"vpk:\" protocol link handling.",
-                "File association registered"
-            ).ConfigureAwait(true);
-        }
+        private async void OnInstallButtonClick(object sender, EventArgs e) => await AppInstaller.InstallFromUiAsync().ConfigureAwait(true);
 
         private void OnSmoothCameraChanged(object sender, EventArgs e)
         {

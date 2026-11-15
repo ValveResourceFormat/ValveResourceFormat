@@ -1,4 +1,5 @@
 using System.IO;
+using System.Threading.Tasks;
 using Microsoft.Win32;
 using Windows.Win32;
 using Windows.Win32.System.Com;
@@ -51,9 +52,43 @@ static class AppInstaller
         }
     }
 
-    private static string Version => Program.ProductVersion.Split('+')[0];
-
     private static string ShortcutPath => Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Source 2 Viewer.lnk");
+
+    /// <summary>The text of the install button, or null when the running copy is the installed one.</summary>
+    public static string? GetInstallButtonText()
+    {
+        if (IsInstalledCopy)
+        {
+            return null;
+        }
+
+        // A debug build only registers itself in place
+        if (!ExecutableSwap.IsSingleFileBundle(Environment.ProcessPath!))
+        {
+            return "Install app";
+        }
+
+        var installedVersion = InstalledVersion;
+
+        return installedVersion == null ? "Install app" : $"Replace installed version ({installedVersion})";
+    }
+
+    /// <summary>
+    /// Installs the viewer, then restarts into the installed copy or reports the registered file association.
+    /// </summary>
+    public static async Task InstallFromUiAsync()
+    {
+        if (Install())
+        {
+            Program.Restart(InstallPath);
+            return;
+        }
+
+        await AppMessageDialogs.ShowMessageAsync(
+            "Registered .vpk file association as well as \"vpk:\" protocol link handling.",
+            "File association registered"
+        ).ConfigureAwait(true);
+    }
 
     /// <summary>
     /// Registers the viewer, and installs it unless it is the installed copy or a build that cannot be copied.
@@ -197,7 +232,7 @@ static class AppInstaller
 
         using var key = Registry.CurrentUser.CreateSubKey(UninstallKeyPath);
         key.SetValue("DisplayName", "Source 2 Viewer");
-        key.SetValue("DisplayVersion", Version);
+        key.SetValue("DisplayVersion", Program.Version.ToString());
         key.SetValue("Publisher", Publisher);
         key.SetValue("DisplayIcon", InstallPath);
         key.SetValue("InstallLocation", InstallFolder);

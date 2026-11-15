@@ -16,7 +16,7 @@ namespace GUI.Controls
 
             versionLabel.Text = Program.DisplayVersion;
 
-            var installText = SettingsControl.GetInstallText();
+            var installText = AppInstaller.GetInstallButtonText();
             installLayout.Visible = installText != null;
             installButton.Text = installText;
         }
@@ -60,7 +60,7 @@ namespace GUI.Controls
 
         private async void installButton_Click(object sender, EventArgs e)
         {
-            await SettingsControl.InstallAsync().ConfigureAwait(true);
+            await AppInstaller.InstallFromUiAsync().ConfigureAwait(true);
 
             installLayout.Visible = false;
         }

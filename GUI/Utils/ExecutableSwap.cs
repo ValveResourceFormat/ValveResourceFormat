@@ -2,16 +2,18 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using Windows.Win32;
+using Windows.Win32.Storage.FileSystem;
 
 namespace GUI.Utils;
 
 /// <summary>
-/// Puts an executable in place of the one that may be running, and starts it.
+/// Puts an executable in place of one that may be running, and removes the files the swap leaves behind.
 /// </summary>
 static class ExecutableSwap
 {
-    public const string ReplacedSuffix = ".old";
-    public const string PendingSuffix = ".new";
+    private const string ReplacedSuffix = ".old";
+    private const string PendingSuffix = ".new";
     private const int SwapAttempts = 5;
     private static readonly TimeSpan SwapRetryDelay = TimeSpan.FromMilliseconds(500);
 
@@ -30,6 +32,58 @@ static class ExecutableSwap
         {
             return false;
         }
+    }
+
+    // Probing is the only reliable check, a running executable that cannot be deleted
+    // and a folder without write access both fail with access denied
+    public static bool IsDirectoryWritable(string directory)
+    {
+        try
+        {
+            using var probe = new FileStream(Path.Combine(directory, Path.GetRandomFileName()), FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose);
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    // Removes the executable that a previous swap replaced, and any copy that never got swapped in
+    public static void CleanupLeftovers()
+    {
+        var exePath = Environment.ProcessPath;
+
+        if (exePath == null)
+        {
+            return;
+        }
+
+        TryDelete(exePath + PendingSuffix);
+
+        // An elevated install schedules its replaced executable for deletion on reboot instead
+        var replacedPath = exePath + ReplacedSuffix;
+
+        if (File.Exists(replacedPath) && IsDirectoryWritable(Path.GetDirectoryName(exePath)!))
+        {
+            _ = DeleteReplacedAsync(replacedPath);
+        }
+    }
+
+    // The previous instance is usually still exiting when this one starts, so keep trying for a while.
+    // Whatever is still in use after that is removed by a later launch.
+    private static async Task DeleteReplacedAsync(string path)
+    {
+        for (var attempt = 0; attempt < 30 && !TryDelete(path); attempt++)
+        {
+            await Task.Delay(1000).ConfigureAwait(false);
+        }
+    }
+
+    // The next launch cannot delete the replaced executable without elevation
+    public static void DeleteReplacedOnReboot(string exePath)
+    {
+        _ = PInvoke.MoveFileEx(exePath + ReplacedSuffix, null, MOVE_FILE_FLAGS.MOVEFILE_DELAY_UNTIL_REBOOT);
     }
 
     public static void VerifyHash(string actualHash, string expectedHash)

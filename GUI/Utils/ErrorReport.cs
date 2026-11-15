@@ -203,33 +203,28 @@ static class ErrorReport
 
     private static string GetAdvice(UpdateChecker.UpdateStatus status)
     {
-        var state = Settings.Config.Update;
-        string newerBuild;
+        var newerBuild = UpdateChecker.GetNewerBuild();
 
-        switch (status)
+        if (newerBuild == null)
         {
-            case UpdateChecker.UpdateStatus.NewerDev:
-                newerBuild = string.Create(CultureInfo.InvariantCulture, $"dev build {state.LatestDevBuild}");
-                break;
-            case UpdateChecker.UpdateStatus.NewerStable:
-                newerBuild = $"version {state.LatestStableVersion}";
-                break;
-            case UpdateChecker.UpdateStatus.UpToDate:
-                return "You are on the latest build. Report this error with your exact steps.";
-            case UpdateChecker.UpdateStatus.Unknown:
-                return "Check for updates in the About window and try the latest dev build before reporting this error.";
-            default:
-                return string.Empty;
+            return status switch
+            {
+                UpdateChecker.UpdateStatus.UpToDate => "You are on the latest build. Report this error with your exact steps.",
+                UpdateChecker.UpdateStatus.Unknown => "Check for updates in the About window and try the latest dev build before reporting this error.",
+                _ => string.Empty,
+            };
         }
+
+        var buildText = newerBuild.Channel == Settings.UpdateChannel.Stable ? $"version {newerBuild.Text}" : newerBuild.Text;
 
         var where = "from the About window";
 
-        if (status == UpdateChecker.UpdateStatus.NewerDev && state.Channel == Settings.UpdateChannel.Stable)
+        if (newerBuild.Channel == Settings.UpdateChannel.Dev && Settings.Config.Update.Channel == Settings.UpdateChannel.Stable)
         {
             where = "by switching to the Dev update channel in the About window";
         }
 
-        return $"A newer build ({newerBuild}) is available {where}. Try it before reporting this error.";
+        return $"A newer build ({buildText}) is available {where}. Try it before reporting this error.";
     }
 
     private static void CopyToClipboard(string text)
