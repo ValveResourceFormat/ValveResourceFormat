@@ -10,6 +10,8 @@ public sealed class RenderAttributes
 
     internal uint Version => Values.Version;
 
+    internal bool IsEmpty => Values.Count == 0;
+
     // Filled by the material, freed with the node
     internal Dictionary<RenderMaterial, RenderMaterial.GlobalsState> Baked { get; } = [];
 
