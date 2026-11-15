@@ -16,11 +16,11 @@ namespace ValveResourceFormat.Serialization.VfxEval
     /// </remarks>
     public sealed class VfxEvalCompiler
     {
-        // Binary operators by precedence, two-character symbols first
-        private static readonly (string Symbol, OPCODE Opcode, int Precedence)[] BinaryOperators =
+        // Binary operators by precedence, two-character symbols first; || and && compile to branches
+        private static readonly (string Symbol, OPCODE? Opcode, int Precedence)[] BinaryOperators =
         [
-            ("||", OPCODE.OR, 1),
-            ("&&", OPCODE.AND, 2),
+            ("||", null, 1),
+            ("&&", null, 2),
             ("==", OPCODE.EQUALS, 3),
             ("!=", OPCODE.NEQUALS, 3),
             (">=", OPCODE.GTE, 4),
@@ -91,8 +91,12 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 {
                     do
                     {
-                        var parameter = TryParseIdentifier() == null ? null : TryParseIdentifier();
-                        parameters.Add(parameter ?? throw Error("Expected a parameter type and name"));
+                        if (TryParseIdentifier() == null || TryParseIdentifier() is not { } parameter)
+                        {
+                            throw Error("Expected a parameter type and name");
+                        }
+
+                        parameters.Add(parameter);
                     }
                     while (TryConsume(','));
 
@@ -162,24 +166,25 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 return;
             }
 
-            var branch = WriteBranch(trueBlockFirst: true);
+            var falseTarget = WriteBranch(trueBlockFirst: true);
             ParseExpression();
             Expect(':');
 
             var jump = WriteJump();
-            WriteOffset(branch + 2);
+            WriteOffset(falseTarget);
             ParseExpression();
             WriteOffset(jump);
         }
 
-        // Writes a branch whose first block follows it, and returns the offset of its targets
+        // Writes a branch whose first block follows it, and returns the offset of the second block's target
         private int WriteBranch(bool trueBlockFirst)
         {
             code.Add((byte)OPCODE.BRANCH);
-            var branch = code.Count;
+            var whenTrue = code.Count;
+            var whenFalse = whenTrue + 2;
             code.AddRange(new byte[4]);
-            WriteOffset(trueBlockFirst ? branch : branch + 2);
-            return branch;
+            WriteOffset(trueBlockFirst ? whenTrue : whenFalse);
+            return trueBlockFirst ? whenFalse : whenTrue;
         }
 
         // Writes a jump past the second block of a branch, and returns the offset of its target
@@ -204,42 +209,44 @@ namespace ValveResourceFormat.Serialization.VfxEval
         {
             ParseUnary();
 
-            while (TryConsumeOperator(minPrecedence, out var opcode, out var precedence))
+            while (TryConsumeOperator(minPrecedence, out var symbol, out var opcode, out var precedence))
             {
-                if (opcode is not (OPCODE.OR or OPCODE.AND))
+                if (opcode is { } binary)
                 {
                     ParseBinary(precedence + 1);
-                    code.Add((byte)opcode);
+                    code.Add((byte)binary);
                     continue;
                 }
 
                 // a || b is a ? 1 : b, and a && b is a ? b : 0 with the false block first
-                var isOr = opcode == OPCODE.OR;
-                var branch = WriteBranch(trueBlockFirst: isOr);
+                var isOr = symbol == "||";
+                var secondTarget = WriteBranch(trueBlockFirst: isOr);
                 WriteFloat(isOr ? 1f : 0f);
 
                 var jump = WriteJump();
-                WriteOffset(isOr ? branch + 2 : branch);
+                WriteOffset(secondTarget);
                 ParseBinary(precedence + 1);
                 WriteOffset(jump);
             }
         }
 
-        private bool TryConsumeOperator(int minPrecedence, out OPCODE opcode, out int precedence)
+        private bool TryConsumeOperator(int minPrecedence, out string symbol, out OPCODE? opcode, out int precedence)
         {
-            Peek();
+            SkipWhitespace();
 
-            foreach (var (symbol, op, operatorPrecedence) in BinaryOperators)
+            foreach (var (operatorSymbol, op, operatorPrecedence) in BinaryOperators)
             {
-                if (operatorPrecedence >= minPrecedence && source.AsSpan(position).StartsWith(symbol, StringComparison.Ordinal))
+                if (operatorPrecedence >= minPrecedence && source.AsSpan(position).StartsWith(operatorSymbol, StringComparison.Ordinal))
                 {
-                    position += symbol.Length;
+                    position += operatorSymbol.Length;
+                    symbol = operatorSymbol;
                     opcode = op;
                     precedence = operatorPrecedence;
                     return true;
                 }
             }
 
+            symbol = string.Empty;
             opcode = default;
             precedence = 0;
             return false;
@@ -476,7 +483,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             expanding.Remove(name);
         }
 
-        private byte AllocateSlot() => nextSlot < byte.MaxValue + 1 ? (byte)nextSlot++ : throw Error("Too many locals");
+        private byte AllocateSlot() => nextSlot <= byte.MaxValue ? (byte)nextSlot++ : throw Error("Too many locals");
 
         private void Write(ushort value)
         {
@@ -507,12 +514,16 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
         private char Peek()
         {
+            SkipWhitespace();
+            return position < source.Length ? source[position] : '\0';
+        }
+
+        private void SkipWhitespace()
+        {
             while (position < source.Length && char.IsWhiteSpace(source[position]))
             {
                 position++;
             }
-
-            return position < source.Length ? source[position] : '\0';
         }
 
         private char PeekNext() => position + 1 < source.Length ? source[position + 1] : '\0';

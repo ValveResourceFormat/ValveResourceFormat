@@ -56,7 +56,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             return false;
         }
 
-        /// <inheritdoc cref="TryEvaluate"/>
+        /// <summary>Runs an expression that results in a 4x4 matrix, failing on an unset attribute, an unknown parameter or an unsupported operation.</summary>
         public static bool TryEvaluateMatrix(ReadOnlySpan<byte> bytecode, IVfxEvalContext context, out Matrix4x4 value, out bool isConstant)
         {
             var stack = new ValueStack(stackalloc Vector4[MaxStackDepth]);
@@ -195,8 +195,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         stack.Push(locals[bytecode[offset++]]);
                         break;
 
-                    case OPCODE.OR:
-                    case OPCODE.AND:
                     case OPCODE.EQUALS:
                     case OPCODE.NEQUALS:
                     case OPCODE.GT:
@@ -316,8 +314,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
         {
             var result = opcode switch
             {
-                OPCODE.OR => a != 0f || b != 0f,
-                OPCODE.AND => a != 0f && b != 0f,
                 OPCODE.EQUALS => a == b,
                 OPCODE.NEQUALS => a != b,
                 OPCODE.GT => a > b,
