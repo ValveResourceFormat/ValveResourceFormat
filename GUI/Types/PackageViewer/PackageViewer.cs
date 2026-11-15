@@ -333,7 +333,8 @@ namespace GUI.Types.PackageViewer
 
             if (failedFiles.Count > 0)
             {
-                _ = AppMessageDialogs.ShowMessageAsync(string.Create(CultureInfo.InvariantCulture, $"Failed to add {failedFiles.Count} files:\n{ListLines(failedFiles, 10)}"), "Failed to add files", MessageIcon.Error);
+                var failedSuffix = failedFiles.Count == 1 ? "file" : "files";
+                _ = AppMessageDialogs.ShowMessageAsync(string.Create(CultureInfo.InvariantCulture, $"Failed to add {failedFiles.Count} {failedSuffix}:\n{ListLines(failedFiles, 10)}"), "Failed to add files", MessageIcon.Error);
             }
 
             if (addedFiles.Count > 0)
@@ -586,7 +587,7 @@ namespace GUI.Types.PackageViewer
             => folderPath.Length > 0 && Package.NormalizeDirectoryPath(folderPath) == folderPath;
 
         private static string GetNotNormalizedFolderMessage(string folderPath, string action)
-            => $"\"{folderPath}\" can not be {action} because its stored name is not normalized, such as having upper case letters.";
+            => $"\"{folderPath}\" cannot be {action} because its stored name is not normalized, such as having upper case letters.";
 
         private static void ShowRenameFailure(string message)
             => _ = AppMessageDialogs.ShowMessageAsync(message, "Failed to rename", MessageIcon.Warning);
@@ -751,7 +752,8 @@ namespace GUI.Types.PackageViewer
 
                         hiddenFiles.Add(newEntry);
 
-                        progress.SetProgress($"Found {hiddenFiles.Count} files ({HumanReadableByteSizeFormatter.Format(totalSlackSize)}) so far…");
+                        var hiddenSuffix = hiddenFiles.Count == 1 ? "file" : "files";
+                        progress.SetProgress($"Found {hiddenFiles.Count} {hiddenSuffix} ({HumanReadableByteSizeFormatter.Format(totalSlackSize)}) so far…");
                     }
                 }
 

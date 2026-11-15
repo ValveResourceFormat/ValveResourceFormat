@@ -175,7 +175,7 @@ namespace GUI.Forms
 
             using var form = new ThemedForm
             {
-                Text = "Third party licenses",
+                Text = "Third-party licenses",
                 Icon = Icon,
                 StartPosition = FormStartPosition.CenterParent,
                 ShowInTaskbar = false,

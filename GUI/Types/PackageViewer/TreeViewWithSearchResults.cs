@@ -1343,7 +1343,7 @@ namespace GUI.Types.PackageViewer
             };
             progressDialog.OnProcess = _ =>
             {
-                progressDialog.SetProgress("Scanning for deleted files, this may take a while…");
+                progressDialog.SetProgress("Scanning for deleted files. This may take a while…");
 
                 List<PackageEntry> foundFiles;
 
@@ -1375,7 +1375,8 @@ namespace GUI.Types.PackageViewer
 
                     using (mainTreeView.SuspendPainting())
                     {
-                        var name = $"Deleted files ({foundFiles.Count} files found, names are guessed)";
+                        var fileSuffix = foundFiles.Count == 1 ? "file" : "files";
+                        var name = $"Deleted files ({foundFiles.Count} {fileSuffix} found, names are guessed)";
                         var rootVirtual = new VirtualPackageNode(name, 0, null);
                         DeletedFilesRoot = rootVirtual;
 

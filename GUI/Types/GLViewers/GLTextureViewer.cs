@@ -573,9 +573,11 @@ namespace GUI.Types.GLViewers
         {
             var isDescriptive = sequence.IsNamed && !uint.TryParse(sequence.Name, out _);
 
+            var frameSuffix = sequence.Frames.Length == 1 ? "frame" : "frames";
+
             return isDescriptive
-                ? $"#{sequence.Id} {sequence.Name} ({sequence.Frames.Length} frames)"
-                : $"#{sequence.Id} ({sequence.Frames.Length} frames)";
+                ? $"#{sequence.Id} {sequence.Name} ({sequence.Frames.Length} {frameSuffix})"
+                : $"#{sequence.Id} ({sequence.Frames.Length} {frameSuffix})";
         }
 
         private void UpdateSpriteAnimationRate()

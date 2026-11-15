@@ -120,7 +120,7 @@ namespace GUI.Types.Exporter
         {
             if (filesToExtract.Count == 0)
             {
-                _ = AppMessageDialogs.ShowMessageAsync("There are no files to extract", "Failed to extract", MessageIcon.Warning);
+                _ = AppMessageDialogs.ShowMessageAsync("There are no files to extract.", "Failed to extract", MessageIcon.Warning);
                 return;
             }
 

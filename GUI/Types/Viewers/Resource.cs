@@ -1142,7 +1142,7 @@ namespace GUI.Types.Viewers
 
             var saveButton = new ThemedButton
             {
-                Text = "Save as text...",
+                Text = "Save as text…",
                 Dock = DockStyle.Top,
                 Height = 32,
             };

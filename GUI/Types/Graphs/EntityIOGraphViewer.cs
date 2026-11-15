@@ -278,7 +278,11 @@ internal class EntityIOGraphViewer : GLGraphViewer
         }
     }
 
-    protected override string BuildStatsText(int islandCount) => $"{entityCount} entities\n{base.BuildStatsText(islandCount)}\nIsland: {focusedIslandName ?? "(all)"}";
+    protected override string BuildStatsText(int islandCount)
+    {
+        var entitySuffix = entityCount == 1 ? "entity" : "entities";
+        return $"{entityCount} {entitySuffix}\n{base.BuildStatsText(islandCount)}\nIsland: {focusedIslandName ?? "(all)"}";
+    }
 
     public override void Dispose()
     {
@@ -319,6 +323,8 @@ internal class EntityIOGraphViewer : GLGraphViewer
     {
         var best = island.MaxBy(node => node.Inputs.Count + node.Outputs.Count);
 
-        return $"{best!.Title} ({island.Count} nodes)";
+        var nodeSuffix = island.Count == 1 ? "node" : "nodes";
+
+        return $"{best!.Title} ({island.Count} {nodeSuffix})";
     }
 }

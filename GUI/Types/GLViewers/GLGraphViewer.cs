@@ -256,7 +256,7 @@ namespace GUI.Types.GLViewers
 
                 reduceButton.Enabled = false;
                 var previous = reduceButton.Text;
-                reduceButton.Text = "Working...";
+                reduceButton.Text = "Working…";
 
                 // Repaints the caption without pumping the message queue.
                 reduceButton.Update();
@@ -339,7 +339,9 @@ namespace GUI.Types.GLViewers
         protected virtual string BuildStatsText(int islandCount)
         {
             var islandSuffix = islandCount == 1 ? "island" : "islands";
-            var text = $"{View.NodeCount} nodes\n{View.WireCount} connections\n{islandCount} {islandSuffix}";
+            var nodeSuffix = View.NodeCount == 1 ? "node" : "nodes";
+            var wireSuffix = View.WireCount == 1 ? "connection" : "connections";
+            var text = $"{View.NodeCount} {nodeSuffix}\n{View.WireCount} {wireSuffix}\n{islandCount} {islandSuffix}";
             var (selfLoops, orphans) = View.CountSelfLoopsAndOrphans();
 
             if (selfLoops > 0)

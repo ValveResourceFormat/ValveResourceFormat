@@ -1305,7 +1305,8 @@ namespace GUI.Types.GLViewers
             if (animations.Length > 0 || graphSessions.Length > 0)
             {
                 animationComboBox.Enabled = true;
-                animationComboBox.Items.Add(animations.Length > 0 ? $"({animations.Length} animations available)" : "(bind pose)");
+                var animationSuffix = animations.Length == 1 ? "animation" : "animations";
+                animationComboBox.Items.Add(animations.Length > 0 ? $"({animations.Length} {animationSuffix} available)" : "(bind pose)");
                 animationIndexMap.Add(default);
 
                 if (graphSessions.Length > 0)
