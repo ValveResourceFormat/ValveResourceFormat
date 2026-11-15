@@ -26,7 +26,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         private readonly List<string> DynamicExpressionList = [];
 
         /// <summary>Gets the functions expressions call, indexed by <see cref="ExpressionFunction"/>.</summary>
-        public static IReadOnlyList<FunctionAttribute> Functions { get; } = CreateFunctionTable();
+        internal static IReadOnlyList<FunctionAttribute> Functions { get; } = CreateFunctionTable();
 
         private static FunctionAttribute[] CreateFunctionTable()
         {
@@ -41,8 +41,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             return functions;
         }
 
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-        public enum OPCODE
+        internal enum OPCODE
         {
             RETURN = 0x00,
             NOP = 0x01,
@@ -82,7 +81,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         };
 
         /// <summary>Functions an expression calls, by the index the bytecode refers to them with.</summary>
-        public enum ExpressionFunction : ushort
+        internal enum ExpressionFunction : ushort
         {
 #pragma warning disable format
             [Function("sin", 1)]                 Sin = 0x00,
@@ -150,7 +149,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         /// <param name="name">The function name.</param>
         /// <param name="argumentCount">The number of arguments.</param>
         [AttributeUsage(AttributeTargets.Field)]
-        public sealed class FunctionAttribute(string name, int argumentCount) : Attribute
+        internal sealed class FunctionAttribute(string name, int argumentCount) : Attribute
         {
             /// <summary>Gets the function name.</summary>
             public string Name { get; } = name;
@@ -158,7 +157,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
             /// <summary>Gets the number of arguments.</summary>
             public int ArgumentCount { get; } = argumentCount;
         }
-#pragma warning restore CS1591
 
         // Binding strength, loosest first. An operand is bracketed only where it binds looser than
         // the operator using it, so the output has no brackets the reader would infer anyway.
@@ -341,8 +339,9 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         throw new InvalidDataException($"Error parsing dynamic expression, malformed function signature (position: {dataReader.BaseStream.Position})");
                     }
 
-                    var funcName = Functions[funcId].Name;
-                    var nrArguments = Functions[funcId].ArgumentCount;
+                    var function = Functions[funcId];
+                    var funcName = function.Name;
+                    var nrArguments = function.ArgumentCount;
                     var arguments = new string[nrArguments];
 
                     for (var i = nrArguments - 1; i >= 0; i--)
