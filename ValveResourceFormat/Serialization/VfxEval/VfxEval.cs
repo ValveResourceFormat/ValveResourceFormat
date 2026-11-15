@@ -140,7 +140,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             /// <summary>Pushes 1 when the render attribute whose uint token follows is set, else 0.</summary>
             Exists = 0x1F,
 
-            /// <summary>Pushes the material parameter whose int index follows, mapped to its slot in the material instead of found by token.</summary>
+            /// <summary>Pushes the material parameter whose int index follows.</summary>
             MaterialParamByIndex = 0x20,
 
             /// <summary>Pushes the four floats that follow.</summary>
