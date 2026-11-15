@@ -6,7 +6,13 @@ description: Download Source 2 Viewer and learn the basics of browsing game file
 
 ## Downloading Source 2 Viewer
 
-Download the latest release from [s2v.app](https://s2v.app). It needs no installation.
+Download the latest release from [s2v.app](https://s2v.app). It runs without installation. **Install app** on the welcome screen or in settings installs it for your user, with a Start menu shortcut, and opens `.vpk` files and `vpk:` links in it. Uninstall it from **Installed apps** in Windows settings.
+
+You can also install it with winget:
+
+```powershell
+winget install --exact --id ValveResourceFormat.Source2Viewer
+```
 
 Games update their files often, and the release can fall behind. If a file fails to open, switch to the [latest dev build](./reporting-issues.md#getting-the-latest-dev-build), which has the newest fixes. You can also download it from [s2v.app/dev](https://s2v.app/dev/).
 

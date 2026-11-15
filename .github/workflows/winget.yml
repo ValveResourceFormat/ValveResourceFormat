@@ -1,0 +1,42 @@
+name: Winget
+
+permissions: {}
+
+on:
+  release:
+    types: [released]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to submit
+        required: true
+
+jobs:
+  submit:
+    name: Submit to winget-pkgs
+    if: github.repository == 'ValveResourceFormat/ValveResourceFormat'
+    runs-on: windows-latest
+
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+
+    steps:
+    - name: Submit manifest update
+      shell: pwsh
+      env:
+        # Classic personal access token with the public_repo scope, of the account that opens the pull requests
+        WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $url = "https://github.com/${{ github.repository }}/releases/download/$env:TAG/Source2Viewer.exe"
+
+        # The package version is the version Add/Remove Programs shows, which is the exe file version
+        Invoke-WebRequest $url -OutFile Source2Viewer.exe
+        $version = (Get-Item Source2Viewer.exe).VersionInfo.FileVersion
+        if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Unexpected file version '$version'" }
+
+        Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+        $signature = Get-AuthenticodeSignature wingetcreate.exe
+        if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') { throw 'wingetcreate.exe is not signed by Microsoft' }
+        ./wingetcreate.exe update ValveResourceFormat.Source2Viewer --version $version --urls $url --submit --token $env:WINGET_TOKEN
+        if ($LASTEXITCODE -ne 0) { throw "wingetcreate failed with exit code $LASTEXITCODE" }
