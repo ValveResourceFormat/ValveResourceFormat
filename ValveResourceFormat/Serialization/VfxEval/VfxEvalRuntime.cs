@@ -565,7 +565,28 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     break;
                 }
 
-                // Rotation2d, Rotate2d and SinCos
+                case ExpressionFunction.SinCos:
+                {
+                    var (sin, cos) = MathF.SinCos(stack.Pop().X);
+                    stack.Push(new Vector4(sin, cos, -sin, -cos));
+                    break;
+                }
+
+                case ExpressionFunction.Rotation2d:
+                {
+                    var (sin, cos) = MathF.SinCos(stack.Pop().X);
+                    stack.Push(new Vector4(cos, -sin, sin, cos));
+                    break;
+                }
+
+                case ExpressionFunction.Rotate2d:
+                {
+                    var (sin, cos) = MathF.SinCos(stack.Pop().X);
+                    var v = stack.Pop();
+                    stack.Push(new Vector4(v.X * cos - v.Y * sin, v.X * sin + v.Y * cos, v.Z, v.W));
+                    break;
+                }
+
                 default:
                     return false;
             }
