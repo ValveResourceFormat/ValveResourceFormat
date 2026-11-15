@@ -184,7 +184,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
             [Function("time", 0)]       Time = 0x1B,
             [Function("min", 2)]        Min = 0x1C,
             [Function("max", 2)]        Max = 0x1D,
-
             [Function("SrgbLinearToGamma", 1)]      SrgbLinearToGamma = 0x1E,
             [Function("SrgbGammaToLinear", 1)]      SrgbGammaToLinear = 0x1F,
             [Function("random", 2)]                 Random = 0x20,
