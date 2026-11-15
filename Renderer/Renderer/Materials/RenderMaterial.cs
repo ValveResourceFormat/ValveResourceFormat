@@ -208,6 +208,10 @@ namespace ValveResourceFormat.Renderer.Materials
         private uint filledVersion;
         private float evaluatedTime;
         private bool expressionsConstant;
+        private uint evaluatedGlobalAttributes;
+
+        private IReadOnlyDictionary<string, byte[]>? attributesReadExpressions;
+        private HashSet<uint> attributesRead = [];
 
         private uint InputsVersion => unchecked(
             IntParams.Version + FloatParams.Version + VectorParams.Version + Matrices.Version + Textures.Version);
@@ -411,7 +415,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 return;
             }
 
-            var buffer = attributes?.Overrides(this, shader.GlobalsLayout) == true
+            var buffer = attributes?.Overrides(this, shader) == true
                 ? EnsureGlobals(shader, attributes)
                 : EnsureGlobals(shader);
 
@@ -429,11 +433,13 @@ namespace ValveResourceFormat.Renderer.Materials
                 filledLayout = layout;
                 filledVersion = InputsVersion;
                 evaluatedTime = expressionContext.Time;
+                evaluatedGlobalAttributes = GlobalAttributesVersion;
                 expressionsConstant = FillGlobals(shader, layout, globals, attributes: null);
             }
-            else if (ExpressionsOutdated(evaluatedTime, expressionsConstant))
+            else if (ExpressionsOutdated(evaluatedTime, expressionsConstant) || GlobalAttributesOutdated(shader, evaluatedGlobalAttributes))
             {
                 evaluatedTime = expressionContext.Time;
+                evaluatedGlobalAttributes = GlobalAttributesVersion;
 
                 globals.BeginUpdate();
                 expressionsConstant = EvaluateExpressions(shader, globals, attributes: null);
@@ -454,12 +460,13 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             if (baked.Layout != layout || baked.MaterialVersion != InputsVersion || baked.AttributesVersion != attributes.Version
-                || ExpressionsOutdated(baked.EvaluatedTime, baked.ExpressionsConstant))
+                || ExpressionsOutdated(baked.EvaluatedTime, baked.ExpressionsConstant) || GlobalAttributesOutdated(shader, baked.GlobalAttributesVersion))
             {
                 baked.Layout = layout;
                 baked.MaterialVersion = InputsVersion;
                 baked.AttributesVersion = attributes.Version;
                 baked.EvaluatedTime = expressionContext.Time;
+                baked.GlobalAttributesVersion = GlobalAttributesVersion;
                 baked.ExpressionsConstant = FillGlobals(shader, layout, baked.Buffer, attributes);
             }
 
@@ -468,6 +475,41 @@ namespace ValveResourceFormat.Renderer.Materials
 
         // Expressions that are not constant, such as ones reading time, are evaluated again once per frame
         private bool ExpressionsOutdated(float evaluatedAt, bool constant) => !constant && evaluatedAt != expressionContext.Time;
+
+        private uint GlobalAttributesVersion => Context?.GlobalRenderAttributes.Version ?? 0;
+
+        private bool GlobalAttributesOutdated(Shader shader, uint evaluatedVersion)
+            => evaluatedVersion != GlobalAttributesVersion && GetAttributesRead(shader).Count > 0;
+
+        /// <summary>Gets the tokens of the render attributes this material's expressions read when drawn with <paramref name="shader"/>.</summary>
+        internal HashSet<uint> GetAttributesRead(Shader shader)
+        {
+            // Every combo of a shader file shares its expressions
+            if (attributesReadExpressions == shader.Expressions)
+            {
+                return attributesRead;
+            }
+
+            attributesReadExpressions = shader.Expressions;
+            attributesRead = [];
+
+            foreach (var name in Material.RenderAttributesUsed)
+            {
+                attributesRead.Add(StringToken.Get(name));
+            }
+
+            foreach (var (_, expression) in GetShaderExpressions(shader))
+            {
+                VfxEvalRuntime.CollectAttributes(expression, attributesRead);
+            }
+
+            foreach (var expression in Material.DynamicParams.Values)
+            {
+                VfxEvalRuntime.CollectAttributes(expression, attributesRead);
+            }
+
+            return attributesRead;
+        }
 
         private string GetGlobalsName(Shader shader) => Material.Name.Length > 0 ? Material.Name : shader.Name;
 
@@ -531,24 +573,13 @@ namespace ValveResourceFormat.Renderer.Materials
         private bool EvaluateExpressions(Shader shader, Globals buffer, RenderAttributes? attributes)
         {
             var members = shader.GlobalsLayout.Members;
-            var variables = expressionContext.Variables;
 
             expressionContext.IsConstant = true;
             expressionContext.Attributes = attributes;
 
-            // Game shader files compile the same expressions, with constants folded per static combo
-            foreach (var (name, expression) in shader.Expressions)
+            foreach (var (name, expression) in GetShaderExpressions(shader))
             {
-                Evaluate(shader, buffer, members, name, variables.TryGetValue(name, out var variable) ? variable.CompiledExpression : expression);
-            }
-
-            // Other game expressions mostly convert a raw parameter our shaders already convert, matrices are final
-            foreach (var (name, variable) in variables)
-            {
-                if (variable.VfxType == VfxVariableType.Float4x4 && !shader.Expressions.ContainsKey(name))
-                {
-                    Evaluate(shader, buffer, members, name, variable.CompiledExpression);
-                }
+                Evaluate(shader, buffer, members, name, expression);
             }
 
             foreach (var (name, expression) in Material.DynamicParams)
@@ -560,6 +591,26 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             return expressionContext.IsConstant;
+        }
+
+        private IEnumerable<(string Name, byte[] Expression)> GetShaderExpressions(Shader shader)
+        {
+            var variables = expressionContext.Variables;
+
+            // Game shader files compile the same expressions, with constants folded per static combo
+            foreach (var (name, expression) in shader.Expressions)
+            {
+                yield return (name, variables.TryGetValue(name, out var variable) ? variable.CompiledExpression : expression);
+            }
+
+            // Other game expressions mostly convert a raw parameter our shaders already convert, matrices are final
+            foreach (var (name, variable) in variables)
+            {
+                if (variable.VfxType == VfxVariableType.Float4x4 && !shader.Expressions.ContainsKey(name))
+                {
+                    yield return (name, variable.CompiledExpression);
+                }
+            }
         }
 
         private void Evaluate(Shader shader, Globals buffer, IReadOnlyDictionary<string, GlobalsMember> members, string name, byte[] expression)

@@ -24,6 +24,7 @@ public sealed class RenderAttributes
         public uint MaterialVersion { get; set; }
         public uint AttributesVersion { get; set; }
         public float EvaluatedTime { get; set; }
+        public uint GlobalAttributesVersion { get; set; }
         public bool ExpressionsConstant { get; set; }
     }
 
@@ -39,25 +40,15 @@ public sealed class RenderAttributes
     /// <returns>Whether it was set.</returns>
     public bool Remove(string name) => Values.Remove(name);
 
-    /// <summary>Gets whether any attribute changes what <paramref name="material"/> draws with a shader of <paramref name="layout"/>.</summary>
-    internal bool Overrides(RenderMaterial material, GlobalsLayout layout)
+    /// <summary>Gets whether any attribute changes what <paramref name="material"/> draws with <paramref name="shader"/>.</summary>
+    internal bool Overrides(RenderMaterial material, Shader shader)
     {
+        var members = shader.GlobalsLayout.Members;
+        var attributesRead = material.GetAttributesRead(shader);
+
         foreach (var name in Values.Keys)
         {
-            if (layout.Members.ContainsKey(name) || ReadByExpressions(material, name))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool ReadByExpressions(RenderMaterial material, string name)
-    {
-        foreach (var used in material.Material.RenderAttributesUsed)
-        {
-            if (string.Equals(used, name, StringComparison.OrdinalIgnoreCase))
+            if (members.ContainsKey(name) || attributesRead.Contains(StringToken.Get(name)))
             {
                 return true;
             }
