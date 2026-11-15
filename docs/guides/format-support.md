@@ -281,15 +281,14 @@ All commonly shipped pixel formats decode.
 Compile-time transforms (YCoCg, hemi-octahedral normals, DXT5nm, normal Z-reconstruction)
 are reversed on export. LDR textures export as PNG and HDR as EXR, except textures that
 store a whole JPEG/PNG/WebP file, which are copied out byte-exact instead. Sprite sheets
-reconstruct a compilable `.mks` plus per-frame images; LDR cubemaps export one image per
-face, HDR cubemaps combine into a single equirectangular map, or one image per face with
-`ForceLDR`; arrays and volumes export per slice.
+reconstruct a compilable `.mks` plus per-frame images; LDR cubemaps export a 6:1 face strip per
+cube, HDR cubemaps combine into a single equirectangular map. 2D arrays and volumes export
+one image per slice. Every shape comes with a compilable `.vtex`.
 
 | What                                       | Why                   | Details                                                                                                                                                                                                                                                                                                                                             |
 | ------------------------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Original source images                     | Not in compiled files | Block compression (BC1-7, ETC2) is lossy at compile time; exports faithfully reflect the compiled data, not the artist's source.                                                                                                                                                                                                                    |
 | Mip chain                                  | Format limitation     | File extraction always uses the largest mip only; the texture viewer can save the mip, face, or slice it is currently showing, and per-mip access exists in the library API. HL:Alyx's per-mip roughness packing therefore has no single-file preserving export path. [#936](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/936) |
-| `.vtex` for LDR cubes, arrays, volumes     | Not implemented       | Only flat 2D textures, HDR cubemaps and HDR cubemap arrays get a reconstructed `.vtex` compile config; other shapes extract images only. [#856](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/856)                                                                                                                              |
 | Transform detection without edit info      | Not implemented       | Which compile-time transform to reverse is detected from the resource's edit info block; files stripped of it export still-encoded pixels without warning.                                                                                                                                                                                          |
 
 ## Animation

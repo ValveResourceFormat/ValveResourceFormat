@@ -117,6 +117,9 @@ public sealed class TextureExtract
     /// </summary>
     public string ImageOutputExtension => ExportExr ? ".exr" : ".png";
 
+    // Each cube is one image: an LDR face strip or an HDR latlong.
+    private bool IsCubeSingleImage => !ExportExr || LatLongCombineCubemap;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="TextureExtract"/> class.
     /// </summary>
@@ -152,17 +155,20 @@ public sealed class TextureExtract
 
             for (uint depth = 0; depth < texture.Depth; depth++)
             {
+                var currentDepth = depth;
                 var outTextureName = Path.GetFileNameWithoutExtension(fileName);
 
-                if (isArray)
+                if (isArray && isCubeMap)
                 {
-                    outTextureName += isCubeMap ? GetCubeArraySliceSuffix(depth) : $"_z{depth:D3}";
+                    outTextureName += GetCubeArraySliceSuffix(depth);
+                }
+                else if (isArray)
+                {
+                    outTextureName = GetSliceName(outTextureName, depth);
                 }
 
                 if (!isCubeMap)
                 {
-                    var currentDepth = depth;
-
                     contentFile.AddSubFile(outTextureName + ImageOutputExtension, () =>
                     {
                         using var bitmap = texture.GenerateBitmap(depth: currentDepth, decodeFlags: DecodeFlags);
@@ -172,9 +178,12 @@ public sealed class TextureExtract
                     continue;
                 }
 
-                if (LatLongCombineCubemap && ExportExr)
+                if (!ExportExr)
                 {
-                    var currentDepth = depth;
+                    contentFile.AddSubFile($"{outTextureName}{ImageOutputExtension}", () => ToCubeStripPngImage(currentDepth));
+                }
+                else if (LatLongCombineCubemap)
+                {
                     contentFile.AddSubFile($"{outTextureName}{ImageOutputExtension}", () =>
                     {
                         var bitmaps = new SKBitmap[6];
@@ -205,7 +214,6 @@ public sealed class TextureExtract
                 {
                     for (var face = 0; face < 6; face++)
                     {
-                        var currentDepth = depth;
                         var currentFace = face;
 
                         contentFile.AddSubFile($"{outTextureName}_{CubemapNames[face]}{ImageOutputExtension}", () =>
@@ -217,7 +225,9 @@ public sealed class TextureExtract
                 }
             }
 
-            if (isCubeMap && LatLongCombineCubemap && ExportExr && !IgnoreVtexFile)
+            var hasVtex = !isCubeMap || IsCubeSingleImage;
+
+            if (hasVtex && !IgnoreVtexFile)
             {
                 contentFile.Data = Encoding.UTF8.GetBytes(ToValveTexture());
             }
@@ -265,26 +275,12 @@ public sealed class TextureExtract
 
             var materialFileName = mapsToUnpack.FirstOrDefault().FileName;
 
-            if (isCubeMap && !isArray && !ExportExr && materialFileName != null)
-            {
-                var stripContent = new ContentFile()
-                {
-                    FileName = fileName,
-                };
-
-                stripContent.AddSubFile(Path.GetFileName(materialFileName), ToCubeStripPngImage);
-                return stripContent;
-            }
-
             var vtexContent = ToContentFile();
 
-            if (isCubeMap && LatLongCombineCubemap && ExportExr)
+            // use the file name set in material properties
+            if (isCubeMap && IsCubeSingleImage && materialFileName != null)
             {
-                // use the file name set in material properties
-                if (materialFileName != null)
-                {
-                    vtexContent.SubFiles[0].FileName = Path.GetFileName(materialFileName);
-                }
+                vtexContent.SubFiles[0].FileName = Path.GetFileName(materialFileName);
             }
 
             return vtexContent;
@@ -360,7 +356,7 @@ public sealed class TextureExtract
     /// <summary>
     /// Places the cube faces side by side in a 6:1 strip, in the face order the texture compiler splits it by.
     /// </summary>
-    private byte[] ToCubeStripPngImage()
+    private byte[] ToCubeStripPngImage(uint depth)
     {
         var faces = new SKBitmap[CubemapNames.Length];
 
@@ -368,7 +364,7 @@ public sealed class TextureExtract
         {
             for (var face = 0; face < faces.Length; face++)
             {
-                faces[face] = texture.GenerateBitmap(face: (Texture.CubemapFace)face, decodeFlags: DecodeFlags);
+                faces[face] = texture.GenerateBitmap(depth: depth, face: (Texture.CubemapFace)face, decodeFlags: DecodeFlags);
             }
 
             var faceWidth = faces[0].Width;
@@ -982,8 +978,13 @@ public sealed class TextureExtract
 
     private static string GetCubeArraySliceSuffix(uint depth) => $"_f{depth:D2}";
 
+    // The compiler finds each next slice by replacing the first "_z000" in the path.
+    // A "_z000" already in the name is renamed to keep it from matching.
+    private static string GetSliceName(string fileNameWithoutExtension, uint depth)
+        => $"{fileNameWithoutExtension.Replace("_z000", "-z000", StringComparison.Ordinal)}_z{depth:D3}";
+
     /// <summary>
-    /// The mip algorithm the texture was compiled with. For a reflection cube it blurs the mips by roughness.
+    /// The mip algorithm the texture was compiled with, <c>None</c> for a single mip. For a reflection cube it blurs the mips by roughness.
     /// </summary>
     private string GetMipAlgorithm()
     {
@@ -1005,18 +1006,30 @@ public sealed class TextureExtract
     private CDmeVtex CreateVtex()
     {
         var outputFormat = texture.Format.ToString();
+        var mipAlgorithm = GetMipAlgorithm();
 
         if (!isCubeMap)
         {
-            return CDmeVtex.CreateTexture2D([(GetInputFileNameForVtex(), "rgba", "Box")], outputFormat);
+            if (isArray)
+            {
+                var contentFileName = GetContentFileName();
+                var firstSliceName = GetSliceName(Path.GetFileNameWithoutExtension(contentFileName), 0) + ImageOutputExtension;
+                var firstSliceFileName = Path.Join(Path.GetDirectoryName(contentFileName), firstSliceName).Replace(Path.DirectorySeparatorChar, '/');
+
+                return texture.Flags.HasFlag(VTexFlags.VOLUME_TEXTURE)
+                    ? CDmeVtex.CreateVolume(firstSliceFileName, mipAlgorithm, outputFormat)
+                    : CDmeVtex.CreateTexture2DArray(firstSliceFileName, mipAlgorithm, outputFormat);
+            }
+
+            return CDmeVtex.CreateTexture2D([(GetInputFileNameForVtex(), "rgba", mipAlgorithm)], outputFormat);
         }
 
         if (texture.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY))
         {
-            return CDmeVtex.CreateCubeArray(GetCubeArrayInputFileNames(), GetMipAlgorithm(), outputFormat);
+            return CDmeVtex.CreateCubeArray(GetCubeArrayInputFileNames(), mipAlgorithm, outputFormat);
         }
 
-        return CDmeVtex.CreateCube([(GetInputFileNameForVtex(), "rgba", GetMipAlgorithm())], outputFormat);
+        return CDmeVtex.CreateCube([(GetInputFileNameForVtex(), "rgba", mipAlgorithm)], outputFormat);
     }
 
     /// <summary>
@@ -1026,7 +1039,9 @@ public sealed class TextureExtract
     public string ToValveTexture()
     {
         using var datamodel = new Datamodel.Datamodel("vtex", 1);
-        datamodel.Root = CreateVtex();
+        var vtex = CreateVtex();
+        vtex.NoLod = texture.Flags.HasFlag(VTexFlags.NO_LOD);
+        datamodel.Root = vtex;
 
         using var stream = new MemoryStream();
         datamodel.Save(stream, "keyvalues2_noids", 1);

@@ -54,7 +54,7 @@ public class CDmeVtex : DMElement
     public Vector3 Clamp { get; set; } = Vector3.Zero;
 
     /// <summary>
-    /// Disables mipmaps.
+    /// Sets the <c>NO_LOD</c> flag on the compiled texture; mips are still generated.
     /// </summary>
     public bool NoLod { get; set; }
 
@@ -68,17 +68,35 @@ public class CDmeVtex : DMElement
     /// Creates a 2D texture configuration from input images.
     /// </summary>
     public static CDmeVtex CreateTexture2D((string FileName, string Channels, string MipAlgorithm)[] images, string outputFormat = "DXT1")
+        => CreateTexture(images, outputFormat, "2D");
+
+    /// <summary>
+    /// Creates a 2D texture array configuration from the first slice image named <c>_z000</c>.
+    /// The compiler loads the following <c>_z001</c>, <c>_z002</c> slices next to it.
+    /// </summary>
+    public static CDmeVtex CreateTexture2DArray(string firstSliceFileName, string mipAlgorithm = "Box", string outputFormat = "DXT1")
+        => CreateTexture([(firstSliceFileName, "rgba", mipAlgorithm)], outputFormat, "2DARRAY");
+
+    /// <summary>
+    /// Creates a volume texture configuration from the first slice image named <c>_z000</c>.
+    /// The compiler loads the following <c>_z001</c>, <c>_z002</c> slices next to it.
+    /// </summary>
+    public static CDmeVtex CreateVolume(string firstSliceFileName, string mipAlgorithm = "Box", string outputFormat = "DXT1")
+        => CreateTexture([(firstSliceFileName, "rgba", mipAlgorithm)], outputFormat, "3D");
+
+    private static CDmeVtex CreateTexture((string FileName, string Channels, string MipAlgorithm)[] images, string outputFormat, string typeString)
     {
         var vtex = new CDmeVtex
         {
-            OutputFormat = outputFormat
+            OutputTypeString = typeString,
+            OutputFormat = outputFormat,
         };
 
         var i = 0;
         foreach (var image in images)
         {
             var inputImageId = "InputTexture" + i++;
-            var input = new CDmeInputTexture { Name = inputImageId, FileName = image.FileName };
+            var input = new CDmeInputTexture { Name = inputImageId, FileName = image.FileName, TypeString = typeString };
             input.ImageProcessorArray.Add(new CDmeImageProcessor()); // Empty
             vtex.InputTextureArray.Add(input);
 
@@ -100,18 +118,7 @@ public class CDmeVtex : DMElement
     /// Creates a cube texture configuration from input images, each holding the six faces in one layout.
     /// </summary>
     public static CDmeVtex CreateCube((string FileName, string Channels, string MipAlgorithm)[] images, string outputFormat = "DXT1")
-    {
-        var vtex = CreateTexture2D(images, outputFormat);
-        vtex.OutputTypeString = "CUBE";
-
-        foreach (var element in vtex.InputTextureArray)
-        {
-            var input = (CDmeInputTexture)element;
-            input.TypeString = "CUBE";
-        }
-
-        return vtex;
-    }
+        => CreateTexture(images, outputFormat, "CUBE");
 
     /// <summary>
     /// Creates a cube array texture configuration, with one input image for each cube of the array.
