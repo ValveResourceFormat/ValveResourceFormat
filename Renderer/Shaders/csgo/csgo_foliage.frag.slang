@@ -39,8 +39,8 @@ uniform float g_fTextureColorSaturation = 1.0;
 uniform float g_fTextureColorBrightness = 1.0;
 uniform vec3 g_vTextureColorCorrectionTint = vec3(1.0);
 
-g_mTextureColorAdjust = MatrixMultiply(MatrixColorTint2(g_vTextureColorCorrectionTint, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast, g_fTextureColorSaturation, g_fTextureColorBrightness), TextureAverageColor(g_tColor)));
-g_mTransmissiveTextureColorAdjust = MatrixMultiply(MatrixColorTint2(g_vTextureColorCorrectionTint, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast, g_fTextureColorSaturation, g_fTextureColorBrightness), TextureAverageColor(g_tTransmissiveColor)));
+g_mTextureColorAdjust = TextureColorAdjust(g_vTextureColorCorrectionTint, float3(g_fTextureColorContrast, g_fTextureColorSaturation, g_fTextureColorBrightness), g_tColor);
+g_mTransmissiveTextureColorAdjust = TextureColorAdjust(g_vTextureColorCorrectionTint, float3(g_fTextureColorContrast, g_fTextureColorSaturation, g_fTextureColorBrightness), g_tTransmissiveColor);
 */
 
 #if (F_ALPHA_TEST == 1)

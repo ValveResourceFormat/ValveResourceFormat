@@ -67,8 +67,8 @@ uniform float g_fTextureColorBrightness1 = 1.0;
 uniform vec3 g_vTextureColorTint1 = vec3(1.0);
 uniform float g_flTexCoordRotation1 = 0.0;
 
-g_mTextureColorAdjust1 = F_MATERIAL_REFERENCE ? MatrixMultiply(MatrixColorTint2(g_vTextureColorTint1, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), TextureAverageColor(g_tColor1))) : MatrixIdentity();
-g_mTextureAdjust1 = MatrixMultiply(MatrixColorTint2(float3(1, 1, 1), 1), MatrixColorCorrect2(float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), TextureAverageColor(g_tColor1)));
+g_mTextureColorAdjust1 = F_MATERIAL_REFERENCE ? TextureColorAdjust(g_vTextureColorTint1, float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), g_tColor1) : MatrixIdentity();
+g_mTextureAdjust1 = MatrixColorCorrect2(float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), TextureAverageColor(g_tColor1));
 
 g_vDetailNormalXform_1 = RotationMatrix2D(g_flDetailTexCoordRotation1);
 g_vNormalXform_1 = RotationMatrix2D(g_flTexCoordRotation1);

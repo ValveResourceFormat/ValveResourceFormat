@@ -273,6 +273,12 @@ float4 RotationMatrix2D(float rotation)
     float s = sin(r);
     return float4(c, -s, s, c);
 }
+
+// Tint after contrast, saturation and brightness about the texture's average color
+float4x4 TextureColorAdjust(float3 tint, float3 contrastSaturationBrightness, float4 texture)
+{
+    return MatrixMultiply(MatrixColorTint2(tint, 1), MatrixColorCorrect2(contrastSaturationBrightness, TextureAverageColor(texture)));
+}
 */
 
 vec2 RotateVector2D(vec2 vectorInput, float rotation, vec2 scale, vec2 offset)
