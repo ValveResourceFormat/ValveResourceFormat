@@ -123,12 +123,12 @@ namespace GUI.Types.GLViewers
             var exposureLabel = new Label();
             void UpdateExposureText(float exposure)
             {
-                exposureLabel.Text = string.Create(CultureInfo.InvariantCulture, $"Exposure: {exposure:0.00}");
+                exposureLabel.Text = Locale.World_ExposureValue(exposure.ToString("0.00", CultureInfo.InvariantCulture));
             }
 
             UiControl.AddControl(exposureLabel);
 
-            var exposureSlider = UiControl.AddTrackBar("Exposure", (exposureAmount) =>
+            var exposureSlider = UiControl.AddTrackBar(Locale.World_Exposure, (exposureAmount) =>
             {
                 var exposure = exposureAmount * 10;
                 UpdateExposureText(exposure);
@@ -281,7 +281,7 @@ namespace GUI.Types.GLViewers
                     cameraSet = true;
                 }
 
-                ReportLoadingStatus("Loading player model…");
+                ReportLoadingStatus(Locale.World_LoadingPlayerModel);
 
                 Input.TryLoadViewmodel(Scene, Renderer.EntitySystem);
 
@@ -310,7 +310,7 @@ namespace GUI.Types.GLViewers
 
             if (worldNode != null)
             {
-                ReportLoadingStatus("Loading world geometry…");
+                ReportLoadingStatus(Locale.World_LoadingWorldGeometry);
 
                 LoadedWorldNode = new WorldNodeLoader(Scene.RendererContext, worldNode, mapExternalReferences);
                 LoadedWorldNode.Load(Scene);
@@ -335,7 +335,7 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            using (UiControl.BeginGroup("Render"))
+            using (UiControl.BeginGroup(Locale.World_Render))
             {
                 AddRenderModeSelectionControl();
                 AddWireframeToggleControl();
@@ -345,7 +345,7 @@ namespace GUI.Types.GLViewers
             AddToolBrushGroupsControl();
             AddCollisionControl();
 
-            using (UiControl.BeginGroup("Camera"))
+            using (UiControl.BeginGroup(Locale.World_Camera))
             {
                 savedCameraPositionsControl = new SavedCameraPositionsControl();
                 savedCameraPositionsControl.SaveCameraRequest += OnSaveCameraRequest;
@@ -355,7 +355,7 @@ namespace GUI.Types.GLViewers
 
                 if (LoadedWorld != null && LoadedWorld.CameraMatrices.Count > 0)
                 {
-                    cameraComboBox = UiControl.AddSelection("Map Camera", (cameraName, index) =>
+                    cameraComboBox = UiControl.AddSelection(Locale.World_MapCamera, (cameraName, index) =>
                     {
                         if (index > 0)
                         {
@@ -364,7 +364,7 @@ namespace GUI.Types.GLViewers
                         }
                     });
                     using var _ = cameraComboBox.SuspendPainting();
-                    cameraComboBox.Items.Add("Set view to camera…");
+                    cameraComboBox.Items.Add(Locale.World_SetViewToCamera);
                     cameraComboBox.Items.AddRange([.. LoadedWorld.CameraNames]);
                     cameraComboBox.SelectedIndex = 0;
                 }
@@ -379,26 +379,26 @@ namespace GUI.Types.GLViewers
             {
                 AddSimulationToolbar();
 
-                using (UiControl.BeginGroup("World"))
+                using (UiControl.BeginGroup(Locale.World_Group))
                 {
                     if (Renderer.HasSky)
                     {
-                        UiControl.AddCheckBox("Show Skybox", Renderer.Settings.ShowSkybox, (v) => Renderer.Settings.ShowSkybox = v);
+                        UiControl.AddCheckBox(Locale.World_ShowSkybox, Renderer.Settings.ShowSkybox, (v) => Renderer.Settings.ShowSkybox = v);
                     }
 
-                    UiControl.AddCheckBox("Show Fog", Renderer.Settings.FogEnabled, v => Renderer.Settings.FogEnabled = v);
-                    UiControl.AddCheckBox("Show Volumetric Fog", Renderer.Settings.VolumetricFogEnabled, v => Renderer.Settings.VolumetricFogEnabled = v);
+                    UiControl.AddCheckBox(Locale.World_ShowFog, Renderer.Settings.FogEnabled, v => Renderer.Settings.FogEnabled = v);
+                    UiControl.AddCheckBox(Locale.World_ShowVolumetricFog, Renderer.Settings.VolumetricFogEnabled, v => Renderer.Settings.VolumetricFogEnabled = v);
 
-                    UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
+                    UiControl.AddCheckBox(Locale.World_ColorCorrection, Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
 
                     if (Scene.VoxelVisibility != null)
                     {
-                        UiControl.AddCheckBox("PVS Culling", Renderer.Settings.EnablePvsCulling, v => Renderer.Settings.EnablePvsCulling = v);
+                        UiControl.AddCheckBox(Locale.World_PvsCulling, Renderer.Settings.EnablePvsCulling, v => Renderer.Settings.EnablePvsCulling = v);
                     }
 
                     if (Renderer.Scenes.Any(static scene => scene.VisibilityBoxes.Count > 0))
                     {
-                        UiControl.AddCheckBox("Visibility Boxes", Renderer.Settings.EnableVisBoxCulling, v => Renderer.Settings.EnableVisBoxCulling = v);
+                        UiControl.AddCheckBox(Locale.World_VisibilityBoxes, Renderer.Settings.EnableVisBoxCulling, v => Renderer.Settings.EnableVisBoxCulling = v);
                     }
 
                     CheckBox? occlusionCullingCheckBox = null;
@@ -408,21 +408,21 @@ namespace GUI.Types.GLViewers
                         Renderer.Settings.EnableIndirectDraws = false;
                     }
 
-                    UiControl.AddCheckBox("GPU Culling", Renderer.Settings.EnableIndirectDraws, v =>
+                    UiControl.AddCheckBox(Locale.World_GpuCulling, Renderer.Settings.EnableIndirectDraws, v =>
                     {
                         Renderer.Settings.EnableIndirectDraws = v;
 
                         occlusionCullingCheckBox?.Enabled = v;
                     });
 
-                    occlusionCullingCheckBox = UiControl.AddCheckBox("GPU Occlusion Culling", Renderer.Settings.EnableOcclusionCulling, (v) => Renderer.Settings.EnableOcclusionCulling = v);
+                    occlusionCullingCheckBox = UiControl.AddCheckBox(Locale.World_GpuOcclusionCulling, Renderer.Settings.EnableOcclusionCulling, (v) => Renderer.Settings.EnableOcclusionCulling = v);
                     occlusionCullingCheckBox.Enabled = Renderer.Settings.EnableIndirectDraws;
 
-                    UiControl.AddCheckBox("Depth Prepass", Renderer.Settings.EnableDepthPrepass, (v) => Renderer.Settings.EnableDepthPrepass = v);
-                    UiControl.AddCheckBox("Ambient Occlusion", Renderer.Settings.EnableScreenSpaceAo, (v) => Renderer.Settings.EnableScreenSpaceAo = v);
+                    UiControl.AddCheckBox(Locale.World_DepthPrepass, Renderer.Settings.EnableDepthPrepass, (v) => Renderer.Settings.EnableDepthPrepass = v);
+                    UiControl.AddCheckBox(Locale.World_AmbientOcclusion, Renderer.Settings.EnableScreenSpaceAo, (v) => Renderer.Settings.EnableScreenSpaceAo = v);
 
-                    UiControl.AddCheckBox("Barn Lights", Renderer.Settings.EnableBarnLights, v => Renderer.Settings.EnableBarnLights = v);
-                    UiControl.AddCheckBox("Tiled Light Culling", Renderer.Settings.EnableTiledLightCulling, v => Renderer.Settings.EnableTiledLightCulling = v);
+                    UiControl.AddCheckBox(Locale.World_BarnLights, Renderer.Settings.EnableBarnLights, v => Renderer.Settings.EnableBarnLights = v);
+                    UiControl.AddCheckBox(Locale.World_TiledLightCulling, Renderer.Settings.EnableTiledLightCulling, v => Renderer.Settings.EnableTiledLightCulling = v);
 
                     AddSceneExposureSlider();
                 }
@@ -450,7 +450,7 @@ namespace GUI.Types.GLViewers
 
             var groupBox = new ThemedGroupBox
             {
-                Text = "Depth Of Field",
+                Text = Locale.World_DepthOfField,
                 Dock = DockStyle.Fill,
                 Padding = new(4, 8, 4, 4),
             };
@@ -474,40 +474,40 @@ namespace GUI.Types.GLViewers
 
             dofCheckBoxAction(Renderer.Postprocess.DOF.Enabled);
 
-            var checkBox = RendererControl.CreateCheckBox("Enabled", Renderer.Postprocess.DOF.Enabled, dofCheckBoxAction);
+            var checkBox = RendererControl.CreateCheckBox(Locale.World_DofEnabled, Renderer.Postprocess.DOF.Enabled, dofCheckBoxAction);
             checkBox.Dock = DockStyle.Top;
 
-            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Far blurry", val =>
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput(Locale.World_DofFarBlurry, val =>
             {
                 Renderer.Postprocess.DOF.FarBlurry = val;
             }, Renderer.Postprocess.DOF.FarBlurry, 0, 10000));
 
-            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Far crisp", val =>
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput(Locale.World_DofFarCrisp, val =>
             {
                 Renderer.Postprocess.DOF.FarCrisp = val;
             }, Renderer.Postprocess.DOF.FarCrisp, 0, 10000));
 
-            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Near blurry", val =>
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput(Locale.World_DofNearBlurry, val =>
             {
                 Renderer.Postprocess.DOF.NearBlurry = -val;
             }, -Renderer.Postprocess.DOF.NearBlurry, 0, 100));
 
-            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Near crisp", val =>
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput(Locale.World_DofNearCrisp, val =>
             {
                 Renderer.Postprocess.DOF.NearCrisp = val;
             }, Renderer.Postprocess.DOF.NearCrisp, 0, 1000));
 
-            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Max Blur Size", val =>
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput(Locale.World_DofMaxBlurSize, val =>
             {
                 Renderer.Postprocess.DOF.MaxBlurSize = val;
             }, Renderer.Postprocess.DOF.MaxBlurSize, 0, 100));
 
-            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Radius Scale", val =>
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput(Locale.World_DofRadiusScale, val =>
             {
                 Renderer.Postprocess.DOF.RadScale = val;
             }, Renderer.Postprocess.DOF.RadScale, 0, 1));
 
-            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Focal Distance", val =>
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput(Locale.World_DofFocalDistance, val =>
             {
                 Renderer.Postprocess.DOF.FocalDistance = val;
             }, Renderer.Postprocess.DOF.FocalDistance, 0, 10000));
@@ -678,29 +678,29 @@ namespace GUI.Types.GLViewers
             if (sceneNode is SceneAggregate.Fragment sceneFragment)
             {
                 var material = sceneFragment.DrawCall.Material.Material;
-                info.AddProperty("Shader", material.ShaderName);
-                info.AddProperty("Material", material.Name, new LinkedFile(material.Name));
-                info.AddProperty("Aggregate Model", sceneFragment.Name!, new LinkedFile(sceneFragment.Name!));
+                info.AddProperty(Locale.World_Shader, material.ShaderName);
+                info.AddProperty(Locale.World_Material, material.Name, new LinkedFile(material.Name));
+                info.AddProperty(Locale.World_AggregateModel, sceneFragment.Name!, new LinkedFile(sceneFragment.Name!));
 
                 var tris = sceneFragment.DrawCall.IndexCount / 3;
                 if (sceneFragment.DrawCall.NumMeshlets > 0)
                 {
                     var clusters = sceneFragment.DrawCall.NumMeshlets;
                     var trisPerCluster = tris / clusters;
-                    info.AddProperty("Triangles / Clusters / Per Cluster", $"{tris} / {clusters} / {trisPerCluster}");
+                    info.AddProperty(Locale.World_TrianglesClustersPerCluster, $"{tris} / {clusters} / {trisPerCluster}");
                 }
                 else
                 {
-                    info.AddProperty("Triangles", $"{tris}");
+                    info.AddProperty(Locale.World_Triangles, $"{tris}");
                 }
 
-                info.AddProperty("Model Tint", ToRenderColor(sceneFragment.DrawCall.TintColor));
-                info.AddProperty("Model Alpha", $"{sceneFragment.DrawCall.TintColor.W:F6}");
+                info.AddProperty(Locale.World_ModelTint, ToRenderColor(sceneFragment.DrawCall.TintColor));
+                info.AddProperty(Locale.World_ModelAlpha, $"{sceneFragment.DrawCall.TintColor.W:F6}");
 
                 if (sceneFragment.TintAlpha != Vector4.One)
                 {
-                    info.AddProperty("Instance Tint", ToRenderColor(sceneFragment.TintAlpha));
-                    info.AddProperty("Final Tint", ToRenderColor(sceneFragment.DrawCall.TintColor * sceneFragment.TintAlpha));
+                    info.AddProperty(Locale.World_InstanceTint, ToRenderColor(sceneFragment.TintAlpha));
+                    info.AddProperty(Locale.World_FinalTint, ToRenderColor(sceneFragment.DrawCall.TintColor * sceneFragment.TintAlpha));
                 }
             }
             else if (sceneNode is SceneClutter clutter)
@@ -708,31 +708,31 @@ namespace GUI.Types.GLViewers
                 var drawCalls = clutter.RenderMesh.DrawCallsOpaque;
                 var tris = drawCalls.Sum(static drawCall => drawCall.IndexCount / 3);
 
-                info.AddProperty("Clutter Model", clutter.Name!, new LinkedFile(clutter.Name!));
+                info.AddProperty(Locale.World_ClutterModel, clutter.Name!, new LinkedFile(clutter.Name!));
 
                 foreach (var drawCall in drawCalls)
                 {
                     var material = drawCall.Material.Material;
-                    info.AddProperty("Shader", material.ShaderName);
-                    info.AddProperty("Material", material.Name, new LinkedFile(material.Name));
+                    info.AddProperty(Locale.World_Shader, material.ShaderName);
+                    info.AddProperty(Locale.World_Material, material.Name, new LinkedFile(material.Name));
                 }
 
-                info.AddProperty("Instances", $"{clutter.InstanceTransforms.Count}");
-                info.AddProperty("Triangles", $"{(long)tris * clutter.InstanceTransforms.Count}");
-                info.AddProperty("Triangles Per Instance", $"{tris}");
-                info.AddProperty("Instance Tint", ToRenderColor(clutter.TintAlpha));
-                info.AddProperty("Begin Cull Size", $"{clutter.BeginCullSize:G6}");
-                info.AddProperty("End Cull Size", $"{clutter.EndCullSize:G6}");
+                info.AddProperty(Locale.World_Instances, $"{clutter.InstanceTransforms.Count}");
+                info.AddProperty(Locale.World_Triangles, $"{(long)tris * clutter.InstanceTransforms.Count}");
+                info.AddProperty(Locale.World_TrianglesPerInstance, $"{tris}");
+                info.AddProperty(Locale.World_InstanceTint, ToRenderColor(clutter.TintAlpha));
+                info.AddProperty(Locale.World_BeginCullSize, $"{clutter.BeginCullSize:G6}");
+                info.AddProperty(Locale.World_EndCullSize, $"{clutter.EndCullSize:G6}");
             }
             else if (sceneNode is ModelSceneNode modelSceneNode)
             {
-                info.AddProperty("Model", modelSceneNode.Name!, new LinkedFile(modelSceneNode.Name!));
-                info.AddProperty("Model Tint", ToRenderColor(modelSceneNode.TintAlpha));
-                info.AddProperty("Model Alpha", $"{modelSceneNode.Alpha:F6}");
+                info.AddProperty(Locale.World_Model, modelSceneNode.Name!, new LinkedFile(modelSceneNode.Name!));
+                info.AddProperty(Locale.World_ModelTint, ToRenderColor(modelSceneNode.TintAlpha));
+                info.AddProperty(Locale.World_ModelAlpha, $"{modelSceneNode.Alpha:F6}");
 
                 if (modelSceneNode.LightingOrigin.HasValue)
                 {
-                    info.AddProperty("Custom Lighting Origin", FormatVector(modelSceneNode.LightingOrigin.Value));
+                    info.AddProperty(Locale.World_CustomLightingOrigin, FormatVector(modelSceneNode.LightingOrigin.Value));
                 }
             }
             else if (sceneNode is PhysSceneNode collision)
@@ -744,20 +744,20 @@ namespace GUI.Types.GLViewers
 
             if (handshakes.HasCubeMap)
             {
-                info.AddProperty("Cubemap Handshake", $"{handshakes.CubeMap}");
+                info.AddProperty(Locale.World_CubemapHandshake, $"{handshakes.CubeMap}");
             }
 
             if (handshakes.HasLightProbeVolume)
             {
-                info.AddProperty("Light Probe Handshake", $"{handshakes.LightProbeVolume}");
+                info.AddProperty(Locale.World_LightProbeHandshake, $"{handshakes.LightProbeVolume}");
             }
 
-            info.AddProperty("Flags", sceneNode.Flags.ToString());
-            info.AddProperty("Layers", string.Join(", ", sceneNode.Layers.Select(static layer => layer.Name)));
+            info.AddProperty(Locale.World_Flags, sceneNode.Flags.ToString());
+            info.AddProperty(Locale.World_Layers, string.Join(", ", sceneNode.Layers.Select(static layer => layer.Name)));
 
             if (OwnSceneSpawnGroups.FirstOrDefault(group => group.Scene == sceneNode.Scene) is { } spawnGroup)
             {
-                form.Text += SpawnGroupSuffix(spawnGroup);
+                form.Text = SpawnGroupTitle(form.Text, spawnGroup);
             }
 
             info.ShowPopulatedTabs();
@@ -778,14 +778,8 @@ namespace GUI.Types.GLViewers
 
             var classname = entity.GetStringProperty("classname");
             var targetName = entity.FriendlyTargetName;
-            form.Text = string.IsNullOrEmpty(targetName)
-                ? $"Entity: {classname}"
-                : $"Entity: {classname} ({targetName})";
-
-            if (OwnSceneSpawnGroups.FirstOrDefault(group => group.Entities.Contains(entity)) is { } spawnGroup)
-            {
-                form.Text += SpawnGroupSuffix(spawnGroup);
-            }
+            var entitySpawnGroup = OwnSceneSpawnGroups.FirstOrDefault(group => group.Entities.Contains(entity));
+            form.Text = EntityTitle(classname, targetName, entitySpawnGroup);
 
             form.EntityInfoControl.ShowPopulatedTabs();
         }
@@ -794,8 +788,29 @@ namespace GUI.Types.GLViewers
         internal IEnumerable<SpawnGroup> OwnSceneSpawnGroups
             => Renderer.EntitySystem.SpawnGroupManager.Groups.Where(static group => group.HasOwnScene);
 
-        private static string SpawnGroupSuffix(SpawnGroup spawnGroup)
-            => spawnGroup.WorldGroup != null ? " (in 3D skybox)" : $" (in {spawnGroup.MapName})";
+        private static string EntityTitle(string classname, string? targetName, SpawnGroup? spawnGroup)
+        {
+            if (spawnGroup == null)
+            {
+                return string.IsNullOrEmpty(targetName)
+                    ? Locale.World_EntityTitle(classname)
+                    : Locale.World_EntityTitleNamed(classname, targetName);
+            }
+
+            if (spawnGroup.WorldGroup != null)
+            {
+                return string.IsNullOrEmpty(targetName)
+                    ? Locale.World_EntityTitleInSkybox(classname)
+                    : Locale.World_EntityTitleNamedInSkybox(classname, targetName);
+            }
+
+            return string.IsNullOrEmpty(targetName)
+                ? Locale.World_EntityTitleInMap(classname, spawnGroup.MapName)
+                : Locale.World_EntityTitleNamedInMap(classname, targetName, spawnGroup.MapName);
+        }
+
+        private static string SpawnGroupTitle(string title, SpawnGroup spawnGroup)
+            => spawnGroup.WorldGroup != null ? Locale.World_InSkybox(title) : Locale.World_InMap(title, spawnGroup.MapName);
 
         /// <summary>
         /// Opens the details window if it is not open yet, and empties it for <paramref name="entity"/>,
@@ -1049,7 +1064,7 @@ namespace GUI.Types.GLViewers
             // A world node shows every layer, as it has no default ones
             var enabledLayers = LoadedWorld?.DefaultEnabledLayers;
 
-            worldLayersTree = AddLayersTree("World Layers", listedLayers, layer => enabledLayers?.Contains(layer) ?? true, foldGroups: true);
+            worldLayersTree = AddLayersTree(Locale.World_WorldLayers, listedLayers, layer => enabledLayers?.Contains(layer) ?? true, foldGroups: true);
         }
 
         // Hammer's Auto Vis Groups of tools materials. The groups the loaded map uses are nested under their parent groups,
@@ -1110,7 +1125,7 @@ namespace GUI.Types.GLViewers
 
             paths.Sort(StringComparer.Ordinal);
 
-            var tree = UiControl.AddTreeSelection("Auto Vis Groups", paths, shown => Tools.HiddenToolBrushGroups = items
+            var tree = UiControl.AddTreeSelection(Locale.World_AutoVisGroups, paths, shown => Tools.HiddenToolBrushGroups = items
                 .ExceptBy(shown, static item => item.Key)
                 .Select(static item => item.Value)
                 .ToFrozenSet(), foldGroups: true);
@@ -1130,7 +1145,7 @@ namespace GUI.Types.GLViewers
 
             if (labels.Length > 0)
             {
-                collisionTree = UiControl.AddTreeSelection("Collision", labels, shown =>
+                collisionTree = UiControl.AddTreeSelection(Locale.World_Collision, labels, shown =>
                 {
                     Tools.ShownCollision = shown.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
                     RequestVisibilityUpdate();
@@ -1141,7 +1156,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            UiControl.AddCheckBox("Opaque Collision", Tools.OpaqueCollision, v =>
+            UiControl.AddCheckBox(Locale.World_OpaqueCollision, Tools.OpaqueCollision, v =>
             {
                 Tools.OpaqueCollision = v;
                 RequestVisibilityUpdate();
@@ -1180,7 +1195,7 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            toolsButton = UiControl.AddToolbarToggle("Show Tools", Tools.ShowTools, v =>
+            toolsButton = UiControl.AddToolbarToggle(Locale.World_ShowTools, Tools.ShowTools, v =>
             {
                 Tools.ShowTools = v;
                 RequestVisibilityUpdate();
@@ -1199,8 +1214,8 @@ namespace GUI.Types.GLViewers
             pauseImage = AppIcons.ImageList.Images[AppIcons.Icons["RendererPause"]];
             stopImage = AppIcons.ImageList.Images[AppIcons.Icons["RendererStop"]];
 
-            playPauseButton = UiControl.AddToolbarButton(playImage, "Play", () => RequestSimulation(SimulationRequest.PlayOrPause), centered: true);
-            stopButton = UiControl.AddToolbarButton(stopImage, "Stop", () => RequestSimulation(SimulationRequest.Stop), centered: true);
+            playPauseButton = UiControl.AddToolbarButton(playImage, Locale.World_Play, () => RequestSimulation(SimulationRequest.PlayOrPause), centered: true);
+            stopButton = UiControl.AddToolbarButton(stopImage, Locale.World_Stop, () => RequestSimulation(SimulationRequest.Stop), centered: true);
 
             UpdateSimulationButtons(simulationState);
         }
@@ -1233,14 +1248,14 @@ namespace GUI.Types.GLViewers
             toolsButton?.Checked = Tools.ShowTools;
 
             playPauseButton?.Image = playing ? pauseImage : playImage;
-            playPauseButton?.AccessibleName = playing ? "Pause" : "Play";
+            playPauseButton?.AccessibleName = playing ? Locale.World_Pause : Locale.World_Play;
             stopButton?.Enabled = state != SimulationState.Stopped;
         }
 
         protected override (string Text, Color32 Color)? ModeLabel => simulationState switch
         {
-            SimulationState.Playing => ("PLAY MODE", new Color32(90, 220, 90)),
-            SimulationState.Paused => ("PLAY MODE (PAUSED)", new Color32(90, 220, 90)),
+            SimulationState.Playing => (Locale.World_PlayMode, new Color32(90, 220, 90)),
+            SimulationState.Paused => (Locale.World_PlayModePaused, new Color32(90, 220, 90)),
             _ => null,
         };
 

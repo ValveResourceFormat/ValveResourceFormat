@@ -10,12 +10,50 @@ namespace GUI.Controls
     {
         private static readonly int[] AntiAliasingSampleOptions = [0, 2, 4, 8, 16];
         private static readonly int[] ShadowQualityResolutions = [512, 1024, 2048, 4096];
-        private static readonly string[] ShadowQualityNames = ["Low", "Medium", "High", "Very High"];
+
+        private static string[] ShadowQualityNames => [Locale.Settings_ShadowLow, Locale.Settings_ShadowMedium, Locale.Settings_ShadowHigh, Locale.Settings_ShadowVeryHigh];
 
         public SettingsControl()
         {
             InitializeComponent();
+            ApplyTranslations();
         }
+
+        private void ApplyTranslations()
+        {
+            vsyncCheckBox.Text = Locale.Settings_VerticalSync;
+            gamePathsAdd.Text = Locale.Settings_AddGamePath;
+            gamePathsRemove.Text = Locale.Settings_Remove;
+            gamePathsAddFolder.Text = Locale.Settings_AddFolder;
+            maxTextureSizeLabel.Text = Locale.Settings_MaxTextureSize;
+            mouseSensitivityLabel.Text = Locale.Settings_MouseSensitivity;
+            fovLabel.Text = Locale.Settings_CameraFov;
+            viewmodelFovLabel.Text = Locale.Settings_ViewmodelFov;
+            antiAliasingLabel.Text = Locale.Settings_AntiAliasing;
+            installButton.Text = Locale.Menu_InstallApp;
+            displayFpsCheckBox.Text = Locale.Settings_DisplayFps;
+            groupBox1.Text = Locale.Settings_GamePaths_Group;
+            groupBox2.Text = Locale.Settings_Video_Group;
+            smoothCamCheckbox.Text = Locale.Settings_SmoothCamera;
+            shadowResolutionLabel.Text = Locale.Settings_ShadowQuality;
+            groupBox3.Text = Locale.Settings_Explorer_Group;
+            textViewerFontSizeLabel.Text = Locale.Settings_TextViewerFontSize;
+            openExplorerOnStartCheckbox.Text = Locale.Settings_OpenExplorerOnStart;
+            themeLabel.Text = Locale.Settings_Theme;
+            groupBox4.Text = Locale.Settings_QuickPreview_Group;
+            quickPreviewCheckbox.Text = Locale.Settings_PreviewAfterSelecting;
+            quickPreviewSoundsCheckbox.Text = Locale.Settings_AutoPlaySounds;
+            groupBoxAudio.Text = Locale.Settings_Audio_Group;
+            volumeLabel.Text = Locale.Settings_Volume;
+            footerLabel.Text = Locale.Settings_Footer;
+        }
+
+        private static string GetThemeName(Themer.AppTheme theme) => theme switch
+        {
+            Themer.AppTheme.Light => Locale.Theme_Light,
+            Themer.AppTheme.Dark => Locale.Theme_Dark,
+            _ => Locale.Theme_System,
+        };
 
         private void SettingsControl_Load(object sender, EventArgs e)
         {
@@ -54,7 +92,11 @@ namespace GUI.Controls
             openExplorerOnStartCheckbox.Checked = Settings.Config.OpenExplorerOnStart != 0;
             textViewerFontSize.Value = Settings.Config.TextViewerFontSize;
 
-            themeComboBox.Items.AddRange(Enum.GetNames<Themer.AppTheme>());
+            foreach (var theme in Enum.GetValues<Themer.AppTheme>())
+            {
+                themeComboBox.Items.Add(GetThemeName(theme));
+            }
+
             themeComboBox.SelectedIndex = Math.Clamp(Settings.Config.Theme, 0, themeComboBox.Items.Count - 1);
 
             var quickPreviewFlags = (Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview;
@@ -98,7 +140,7 @@ namespace GUI.Controls
 
         private void GamePathAdd(object sender, EventArgs e)
         {
-            var fileName = AppFileDialogs.OpenFile(null, "Valve Pak (*.vpk) or gameinfo.gi|*.vpk;gameinfo.gi|All files (*.*)|*.*", updateRemembered: false);
+            var fileName = AppFileDialogs.OpenFile(null, Locale.Settings_GamePathFileFilter, updateRemembered: false);
 
             if (fileName == null)
             {

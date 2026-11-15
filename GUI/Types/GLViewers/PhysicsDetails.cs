@@ -17,17 +17,17 @@ namespace GUI.Types.GLViewers
         {
             if (node.Name != null)
             {
-                info.AddProperty("Physics File", node.Name, new LinkedFile(node.Name));
+                info.AddProperty(Locale.Physics_File, node.Name, new LinkedFile(node.Name));
             }
 
-            info.AddProperty("Collision", string.Join(", ", node.CollisionLabels));
+            info.AddProperty(Locale.Physics_Collision, string.Join(", ", node.CollisionLabels));
 
             AddGroup(info, node.Physics, node.CollisionAttributeIndex);
         }
 
         public static void AddEntityDetails(EntityInfoControl info, BaseModelEntity entity, PhysAggregateData physics)
         {
-            info.AddProperty("Solid Type", entity.Solid.ToString());
+            info.AddProperty(Locale.Physics_SolidType, entity.Solid.ToString());
 
             var mass = 0f;
 
@@ -38,12 +38,12 @@ namespace GUI.Types.GLViewers
 
             if (mass > 0f)
             {
-                info.AddProperty("Physics Mass", mass.ToString("G6", CultureInfo.InvariantCulture));
+                info.AddProperty(Locale.Physics_Mass, mass.ToString("G6", CultureInfo.InvariantCulture));
             }
 
             if (physics.Joints.Length > 0)
             {
-                info.AddProperty("Physics Joints", physics.Joints.Length.ToString(CultureInfo.InvariantCulture));
+                info.AddProperty(Locale.Physics_Joints, physics.Joints.Length.ToString(CultureInfo.InvariantCulture));
             }
 
             for (var i = 0; i < physics.CollisionAttributes.Count; i++)
@@ -56,10 +56,10 @@ namespace GUI.Types.GLViewers
         {
             var attributes = physics.CollisionAttributes[attributeIndex];
 
-            info.AddProperty("Collision Group", attributes.GetStringProperty("m_CollisionGroupString") ?? string.Empty);
-            AddTags(info, "Interact As", PhysAggregateData.GetInteractAsTags(attributes));
-            AddTags(info, "Interact With", attributes.GetArray<string>("m_InteractWithStrings") ?? []);
-            AddTags(info, "Interact Exclude", attributes.GetArray<string>("m_InteractExcludeStrings") ?? []);
+            info.AddProperty(Locale.Physics_CollisionGroup, attributes.GetStringProperty("m_CollisionGroupString") ?? string.Empty);
+            AddTags(info, Locale.Physics_InteractAs, PhysAggregateData.GetInteractAsTags(attributes));
+            AddTags(info, Locale.Physics_InteractWith, attributes.GetArray<string>("m_InteractWithStrings") ?? []);
+            AddTags(info, Locale.Physics_InteractExclude, attributes.GetArray<string>("m_InteractExcludeStrings") ?? []);
 
             var surfaceProperties = new HashSet<uint>();
             var surfaceHashes = physics.SurfacePropertyHashes;
@@ -125,22 +125,40 @@ namespace GUI.Types.GLViewers
             }
 
             var shapes = new List<string>();
-            AddShapeCount(shapes, spheres, "sphere", "spheres");
-            AddShapeCount(shapes, capsules, "capsule", "capsules");
-            AddShapeCount(shapes, hulls, "hull", "hulls");
+            if (spheres > 0)
+            {
+                shapes.Add(Locale.Physics_Spheres(spheres));
+            }
 
-            AddShapeCount(shapes, meshes, "mesh", "meshes");
-            AddShapeCount(shapes, meshTriangles, "mesh triangle", "mesh triangles");
+            if (capsules > 0)
+            {
+                shapes.Add(Locale.Physics_Capsules(capsules));
+            }
+
+            if (hulls > 0)
+            {
+                shapes.Add(Locale.Physics_Hulls(hulls));
+            }
+
+            if (meshes > 0)
+            {
+                shapes.Add(Locale.Physics_Meshes(meshes));
+            }
+
+            if (meshTriangles > 0)
+            {
+                shapes.Add(Locale.Physics_MeshTriangles(meshTriangles));
+            }
 
             if (shapes.Count > 0)
             {
-                info.AddProperty("Shapes", string.Join(", ", shapes));
+                info.AddProperty(Locale.Physics_Shapes, string.Join(", ", shapes));
             }
 
             if (surfaceProperties.Count > 0)
             {
                 var names = surfaceProperties.Select(StringToken.GetKnownString).Order();
-                info.AddProperty("Surface Properties", string.Join(", ", names));
+                info.AddProperty(Locale.Physics_SurfaceProperties, string.Join(", ", names));
             }
         }
 
@@ -150,17 +168,6 @@ namespace GUI.Types.GLViewers
             {
                 info.AddProperty(name, string.Join(", ", tags));
             }
-        }
-
-        private static void AddShapeCount(List<string> shapes, int count, string singular, string plural)
-        {
-            if (count == 0)
-            {
-                return;
-            }
-
-            var name = count == 1 ? singular : plural;
-            shapes.Add(string.Create(CultureInfo.InvariantCulture, $"{count} {name}"));
         }
     }
 }

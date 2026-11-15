@@ -95,7 +95,7 @@ namespace GUI.Types.GLViewers
 
             if (subtitles.Count > 1)
             {
-                var filterList = UiControl.AddMultiSelection<string>("Filter", listBox =>
+                var filterList = UiControl.AddMultiSelection<string>(Locale.Graph_Filter, listBox =>
                 {
                     foreach (var subtitle in subtitles)
                     {
@@ -129,7 +129,7 @@ namespace GUI.Types.GLViewers
 
             var resetButton = new ThemedButton
             {
-                Text = "Reset view",
+                Text = Locale.Graph_ResetView,
                 Dock = DockStyle.Fill,
             };
             resetButton.Click += (_, _) => ResetGraph();
@@ -152,7 +152,7 @@ namespace GUI.Types.GLViewers
 
             searchBox = new ThemedTextBox
             {
-                PlaceholderText = "Name search (Enter = next)",
+                PlaceholderText = Locale.Graph_NameSearchPlaceholder,
                 BorderStyle = BorderStyle.None,
                 Dock = DockStyle.Fill,
             };
@@ -175,7 +175,7 @@ namespace GUI.Types.GLViewers
             };
             searchContent.Controls.Add(searchOutline);
 
-            var section = new GLViewerGroupedSectionControl("Search");
+            var section = new GLViewerGroupedSectionControl(Locale.Graph_Search);
             section.AddRow(searchContent);
             UiControl.AddControl(section);
         }
@@ -191,10 +191,10 @@ namespace GUI.Types.GLViewers
 
             openingStraightWires = View.StraightWires;
 
-            var section = new GLViewerGroupedSectionControl("View");
+            var section = new GLViewerGroupedSectionControl(Locale.Graph_View);
 
             suppressWireChange = true;
-            var wireSelection = CreateSelection("Wires", index =>
+            var wireSelection = CreateSelection(Locale.Graph_Wires, index =>
             {
                 if (suppressWireChange || index < 0)
                 {
@@ -206,14 +206,14 @@ namespace GUI.Types.GLViewers
                 InvalidateRender();
             });
             wireCombo = wireSelection.ComboBox;
-            wireCombo.Items.AddRange(["Curved", "Straight"]);
+            wireCombo.Items.AddRange([Locale.Graph_WiresCurved, Locale.Graph_WiresStraight]);
             wireCombo.SelectedIndex = View.StraightWires ? 1 : 0;
             suppressWireChange = false;
             section.AddRow(wireSelection);
 
             if (HasStateMachineToggle)
             {
-                var checkbox = RendererControl.CreateCheckBox("Draw state machines", false, draw =>
+                var checkbox = RendererControl.CreateCheckBox(Locale.Graph_DrawStateMachines, false, draw =>
                 {
                     SetDrawStateMachines(draw);
                     RefreshLegend();
@@ -224,7 +224,7 @@ namespace GUI.Types.GLViewers
 
             if (HasParameterWireToggle)
             {
-                var checkbox = RendererControl.CreateCheckBox("Draw parameter wires", false, draw =>
+                var checkbox = RendererControl.CreateCheckBox(Locale.Graph_DrawParameterWires, false, draw =>
                 {
                     SetDrawParameterWires(draw);
                     RefreshLegend();
@@ -235,7 +235,7 @@ namespace GUI.Types.GLViewers
 
             var reduceCaption = new Label
             {
-                Text = "Wires are untangled for up to four seconds when the graph opens.",
+                Text = Locale.Graph_ReduceCaption,
                 AutoSize = true,
                 Margin = new Padding(0, UiControl.AdjustForDPI(6), 0, UiControl.AdjustForDPI(2)),
             };
@@ -243,7 +243,7 @@ namespace GUI.Types.GLViewers
 
             var reduceButton = new ThemedButton
             {
-                Text = "Reduce Visual Graph Complexity",
+                Text = Locale.Graph_ReduceComplexity,
                 MinimumSize = new System.Drawing.Size(0, UiControl.AdjustForDPI(30)),
             };
 
@@ -256,7 +256,7 @@ namespace GUI.Types.GLViewers
 
                 reduceButton.Enabled = false;
                 var previous = reduceButton.Text;
-                reduceButton.Text = "Working…";
+                reduceButton.Text = Locale.Graph_Working;
 
                 // Repaints the caption without pumping the message queue.
                 reduceButton.Update();
@@ -338,20 +338,17 @@ namespace GUI.Types.GLViewers
 
         protected virtual string BuildStatsText(int islandCount)
         {
-            var islandSuffix = islandCount == 1 ? "island" : "islands";
-            var nodeSuffix = View.NodeCount == 1 ? "node" : "nodes";
-            var wireSuffix = View.WireCount == 1 ? "connection" : "connections";
-            var text = $"{View.NodeCount} {nodeSuffix}\n{View.WireCount} {wireSuffix}\n{islandCount} {islandSuffix}";
+            var text = $"{Locale.Graph_StatNodes(View.NodeCount)}\n{Locale.Graph_StatConnections(View.WireCount)}\n{Locale.Graph_StatIslands(islandCount)}";
             var (selfLoops, orphans) = View.CountSelfLoopsAndOrphans();
 
             if (selfLoops > 0)
             {
-                text += $"\n{selfLoops} self-loop{(selfLoops == 1 ? "" : "s")}";
+                text += $"\n{Locale.Graph_StatSelfLoops(selfLoops)}";
             }
 
             if (orphans > 0)
             {
-                text += $"\n{orphans} unconnected node{(orphans == 1 ? "" : "s")}";
+                text += $"\n{Locale.Graph_StatUnconnected(orphans)}";
             }
 
             return text;
@@ -461,12 +458,12 @@ namespace GUI.Types.GLViewers
 
             if (lineEntries.Count > 0)
             {
-                sections.Add(("Line types", lineEntries));
+                sections.Add((Locale.Graph_LineTypes, lineEntries));
             }
 
             if (nodeEntries.Count > 0)
             {
-                sections.Add(("Node types", nodeEntries));
+                sections.Add((Locale.Graph_NodeTypes, nodeEntries));
             }
 
             return sections;
@@ -483,7 +480,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            legendSection = new GLViewerGroupedSectionControl("Legend");
+            legendSection = new GLViewerGroupedSectionControl(Locale.Graph_Legend);
             PopulateLegendRows();
             UiControl.AddControl(legendSection);
         }
@@ -720,7 +717,7 @@ namespace GUI.Types.GLViewers
 
         private void AddShowEverything(ThemedContextMenuStrip menu)
         {
-            var showAllItem = new ToolStripMenuItem("Show everything");
+            var showAllItem = new ToolStripMenuItem(Locale.Graph_ShowEverything);
             showAllItem.Click += (_, _) => ShowAllIslands();
             menu.Items.Add(showAllItem);
         }
@@ -729,7 +726,7 @@ namespace GUI.Types.GLViewers
         /// Adds a node filtering action twice: keeping the surviving nodes where they are,
         /// and a re-layout variant that lays out just the survivors.
         /// </summary>
-        private void AddFilterAction(ThemedContextMenuStrip menu, string label, Action filter)
+        private void AddFilterAction(ThemedContextMenuStrip menu, string label, string relayoutLabel, Action filter)
         {
             var keepItem = new ToolStripMenuItem(label);
             keepItem.Click += (_, _) =>
@@ -739,7 +736,7 @@ namespace GUI.Types.GLViewers
             };
             menu.Items.Add(keepItem);
 
-            var relayoutItem = new ToolStripMenuItem($"{label} (re-layout)");
+            var relayoutItem = new ToolStripMenuItem(relayoutLabel);
             relayoutItem.Click += (_, _) =>
             {
                 filter();
@@ -792,14 +789,14 @@ namespace GUI.Types.GLViewers
 
                 if (node.ExternalResourceName != null)
                 {
-                    var openItem = new ToolStripMenuItem($"Open {node.ExternalResourceName}");
+                    var openItem = new ToolStripMenuItem(Locale.Graph_OpenResource(node.ExternalResourceName));
                     openItem.Click += (_, _) => OpenExternalResource(node);
                     contextMenu.Items.Add(openItem);
                 }
 
                 if (HasMultipleIslands)
                 {
-                    var focusItem = new ToolStripMenuItem("Focus on this island");
+                    var focusItem = new ToolStripMenuItem(Locale.Graph_FocusIsland);
                     focusItem.Click += (_, _) => FocusIslandOf(node);
                     contextMenu.Items.Add(focusItem);
                 }
@@ -807,14 +804,18 @@ namespace GUI.Types.GLViewers
                 AddShowEverything(contextMenu);
                 contextMenu.Items.Add(new ToolStripSeparator());
 
-                AddFilterAction(contextMenu, "Isolate chain", () => View.Isolate(node, GraphIsolateMode.Chain));
-                AddFilterAction(contextMenu, "Isolate upstream", () => View.Isolate(node, GraphIsolateMode.Upstream));
-                AddFilterAction(contextMenu, "Isolate downstream", () => View.Isolate(node, GraphIsolateMode.Downstream));
+                AddFilterAction(contextMenu, Locale.Graph_IsolateChain, Locale.Graph_IsolateChainRelayout,
+                    () => View.Isolate(node, GraphIsolateMode.Chain));
+                AddFilterAction(contextMenu, Locale.Graph_IsolateUpstream, Locale.Graph_IsolateUpstreamRelayout,
+                    () => View.Isolate(node, GraphIsolateMode.Upstream));
+                AddFilterAction(contextMenu, Locale.Graph_IsolateDownstream, Locale.Graph_IsolateDownstreamRelayout,
+                    () => View.Isolate(node, GraphIsolateMode.Downstream));
 
                 if (node.GroupPath != null)
                 {
                     var groupName = node.GroupPath[(node.GroupPath.LastIndexOf('/', StringComparison.Ordinal) + 1)..];
-                    AddFilterAction(contextMenu, $"Isolate group '{groupName}'", () => View.Isolate(node, GraphIsolateMode.Group));
+                    AddFilterAction(contextMenu, Locale.Graph_IsolateGroup(groupName), Locale.Graph_IsolateGroupRelayout(groupName),
+                        () => View.Isolate(node, GraphIsolateMode.Group));
                 }
             }
             else

@@ -120,7 +120,7 @@ namespace GUI.Types.Exporter
         {
             if (filesToExtract.Count == 0)
             {
-                _ = AppMessageDialogs.ShowMessageAsync("There are no files to extract.", "Failed to extract", MessageIcon.Warning);
+                _ = AppMessageDialogs.ShowMessageAsync(Locale.Export_NoFiles_Message, Locale.Export_FailedToExtract_Title, MessageIcon.Warning);
                 return;
             }
 
@@ -129,7 +129,7 @@ namespace GUI.Types.Exporter
                 return;
             }
 
-            var selectedPath = AppFileDialogs.PickFolder("Choose which folder to extract files to", AppFileDialogs.RememberIn.SaveDirectory);
+            var selectedPath = AppFileDialogs.PickFolder(Locale.Export_PickFolder_Title, AppFileDialogs.RememberIn.SaveDirectory);
 
             if (selectedPath == null)
             {
@@ -175,15 +175,16 @@ namespace GUI.Types.Exporter
             {
                 await work(cancellationToken).ConfigureAwait(false);
 
-                var completedText = $"Export completed in {GenericProgressForm.FormatTime(dialog.Elapsed)}";
+                var elapsedText = GenericProgressForm.FormatTime(dialog.Elapsed);
+                var completedText = filesFailedToExport > 0
+                    ? Locale.Export_CompletedWithFailures(elapsedText, filesFailedToExport)
+                    : Locale.Export_Completed(elapsedText);
 
-                if (filesFailedToExport > 0)
-                {
-                    var noun = filesFailedToExport == 1 ? "file" : "files";
-                    completedText += string.Create(CultureInfo.InvariantCulture, $", {filesFailedToExport} {noun} failed");
-                }
+                var logText = filesFailedToExport > 0
+                    ? string.Create(CultureInfo.InvariantCulture, $"Export completed in {elapsedText}, {filesFailedToExport} failed")
+                    : $"Export completed in {elapsedText}";
 
-                Log.Info(nameof(PackageExporter), completedText);
+                Log.Info(nameof(PackageExporter), logText);
                 dialog.SetProgress(completedText);
             };
 
@@ -217,25 +218,13 @@ namespace GUI.Types.Exporter
         {
             Debug.Assert(firstFailure != null && firstFailedFile != null);
 
-            var noun = filesFailedToExport == 1 ? "file" : "files";
-            var text = new StringBuilder();
-            text.AppendLine(CultureInfo.InvariantCulture, $"{filesFailedToExport} {noun} failed to export, the first one was:");
-            text.AppendLine(firstFailedFile);
-            text.AppendLine(firstFailure.Message);
-
-            if (filesFailedToExport > 1)
-            {
-                var others = filesFailedToExport == 2 ? "failure is" : "failures are";
-                text.AppendLine();
-                text.AppendLine(CultureInfo.InvariantCulture, $"The other {others} listed in the console.");
-            }
-
+            var text = Locale.Export_Failure_Message(filesFailedToExport, firstFailedFile, firstFailure.Message, filesFailedToExport - 1);
             var context = exportData.VrfGuiContext.GetEntryDisplayPath(firstFailedFile);
 
             var report = new StringBuilder();
             ErrorReport.AppendExceptionWithVersion(report, firstFailure, context);
 
-            ErrorReport.ShowDialog("Some files failed to export", text.ToString().TrimEnd(), report.ToString());
+            ErrorReport.ShowDialog(Locale.Export_Failure_Title, text, report.ToString());
         }
 
         private DialogResult ShowTypesDialog()
@@ -254,7 +243,7 @@ namespace GUI.Types.Exporter
 
                 var outputTypes = new List<string>()
                 {
-                    "* Do not export *",
+                    Locale.Export_DoNotExport,
                     firstType,
                 };
 

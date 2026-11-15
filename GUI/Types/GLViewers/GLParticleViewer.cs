@@ -124,7 +124,7 @@ namespace GUI.Types.GLViewers
 
             AddRenderModeSelectionControl();
 
-            var detailLevelComboBox = UiControl.AddSelection("Detail Level", (_, i) =>
+            var detailLevelComboBox = UiControl.AddSelection(Locale.Particle_DetailLevel, (_, i) =>
             {
                 if (i < 0)
                 {
@@ -135,14 +135,14 @@ namespace GUI.Types.GLViewers
                 particleSceneNode?.SetDetailLevel((ParticleDetailLevel)i);
                 particleSceneNode?.Restart();
             }, horizontal: true, fill: true);
-            detailLevelComboBox.Items.AddRange(["Low", "Medium", "High", "Ultra"]);
+            detailLevelComboBox.Items.AddRange([Locale.Particle_DetailLow, Locale.Particle_DetailMedium, Locale.Particle_DetailHigh, Locale.Particle_DetailUltra]);
             detailLevelComboBox.SelectedIndex = (int)ParticleDetailLevel.PARTICLEDETAIL_ULTRA;
 
             AddBaseGridControl();
 
             restartButton = new ThemedButton
             {
-                Text = "Restart",
+                Text = Locale.Particle_Restart,
                 AutoSize = true,
             };
             restartButton.Click += (_, _) =>
@@ -153,7 +153,7 @@ namespace GUI.Types.GLViewers
 
             pauseButton = new ThemedButton
             {
-                Text = "Pause",
+                Text = Locale.Particle_Pause,
                 AutoSize = true,
             };
             pauseButton.Click += (_, _) =>
@@ -164,12 +164,12 @@ namespace GUI.Types.GLViewers
                 }
 
                 particleSceneNode.IsPaused = !particleSceneNode.IsPaused;
-                pauseButton.Text = particleSceneNode.IsPaused ? "Resume" : "Pause";
+                pauseButton.Text = particleSceneNode.IsPaused ? Locale.Particle_Resume : Locale.Particle_Pause;
             };
 
             endCapButton = new ThemedButton
             {
-                Text = "Play Endcap",
+                Text = Locale.Particle_PlayEndcap,
                 AutoSize = true,
             };
             endCapButton.Click += (_, _) =>
@@ -178,9 +178,9 @@ namespace GUI.Types.GLViewers
                 particleSceneNode?.PlayEndCap();
             };
 
-            using (UiControl.BeginGroup("Playback"))
+            using (UiControl.BeginGroup(Locale.Particle_Playback))
             {
-                var playbackModeComboBox = UiControl.AddSelection("Mode", (_, i) =>
+                var playbackModeComboBox = UiControl.AddSelection(Locale.Particle_Mode, (_, i) =>
                 {
                     if (i < 0 || particleSceneNode == null)
                     {
@@ -191,10 +191,10 @@ namespace GUI.Types.GLViewers
                     particleSceneNode.PlaybackMode = (ParticlePlaybackMode)i;
                     particleSceneNode.Restart();
                 }, horizontal: true, fill: true);
-                playbackModeComboBox.Items.AddRange(["Normal", "Normal + Endcap", "Endcap Only"]);
+                playbackModeComboBox.Items.AddRange([Locale.Particle_ModeNormal, Locale.Particle_ModeNormalEndcap, Locale.Particle_ModeEndcapOnly]);
                 playbackModeComboBox.SelectedIndex = (int)ParticlePlaybackMode.Normal;
 
-                UiControl.AddCheckBox("Loop", true, value =>
+                UiControl.AddCheckBox(Locale.Particle_Loop, true, value =>
                 {
                     if (particleSceneNode == null)
                     {
@@ -206,7 +206,7 @@ namespace GUI.Types.GLViewers
                     particleSceneNode.Restart();
                 });
 
-                UiControl.AddCheckBox("Collide With Floor", false, value =>
+                UiControl.AddCheckBox(Locale.Particle_CollideWithFloor, false, value =>
                 {
                     Renderer.EntitySystem.PhysicsWorld.GroundPlane = value ? 0f : null;
 
@@ -218,20 +218,20 @@ namespace GUI.Types.GLViewers
                 UiControl.AddControl(pauseButton);
                 UiControl.AddControl(endCapButton);
 
-                slowmodeTrackBar = UiControl.AddTrackBar("Speed", value =>
+                slowmodeTrackBar = UiControl.AddTrackBar(Locale.Particle_Speed, value =>
                 {
                     particleSceneNode?.FrametimeMultiplier = value;
                 }, particleSceneNode?.FrametimeMultiplier ?? 1f);
             }
 
-            using (UiControl.BeginGroup("Display"))
+            using (UiControl.BeginGroup(Locale.Particle_Display))
             {
-                UiControl.AddCheckBox("Show Render Bounds", false, value => Selection.Select(value ? particleSceneNode : null));
+                UiControl.AddCheckBox(Locale.Particle_ShowRenderBounds, false, value => Selection.Select(value ? particleSceneNode : null));
 
                 // Only when the snapshot stores no radius, in which case the preview invents a size.
                 if (particleSnapshot != null && SnapshotParticleSystem.UsesConstantScreenSize(particleSnapshot))
                 {
-                    UiControl.AddControl(RendererControl.CreateFloatInput("Point Size", value =>
+                    UiControl.AddControl(RendererControl.CreateFloatInput(Locale.Particle_PointSize, value =>
                     {
                         screenSize = value / 100f;
                         ApplyScreenSize();
@@ -250,13 +250,25 @@ namespace GUI.Types.GLViewers
 
             var lists = functionLists ?? particleSystem.GetUpgradeTrace();
 
-            foreach (var (title, listName, isSupported) in FunctionGroups)
+            foreach (var (_, listName, isSupported) in FunctionGroups)
             {
-                AddFunctionGroup(title, lists[listName], isSupported);
+                AddFunctionGroup(GetFunctionGroupTitle(listName), lists[listName], isSupported);
             }
 
             AddChildList();
         }
+
+        private static string GetFunctionGroupTitle(string listName) => listName switch
+        {
+            "m_PreEmissionOperators" => Locale.Particle_PreEmissionOperators,
+            "m_Emitters" => Locale.Particle_Emitters,
+            "m_Initializers" => Locale.Particle_Initializers,
+            "m_Operators" => Locale.Particle_Operators,
+            "m_ForceGenerators" => Locale.Particle_ForceGenerators,
+            "m_Constraints" => Locale.Particle_Constraints,
+            "m_Renderers" => Locale.Particle_Renderers,
+            _ => listName,
+        };
 
         private void AddChildList()
         {
@@ -276,7 +288,7 @@ namespace GUI.Types.GLViewers
 
                 var disabled = !particleSystem.IsChildEnabled(childInfo);
                 var shortName = Path.GetFileNameWithoutExtension(childRef);
-                children.Add(new ChildSystemItem(disabled ? $"{shortName} (disabled)" : shortName, childRef, disabled));
+                children.Add(new ChildSystemItem(disabled ? Locale.Particle_ChildDisabled(shortName) : shortName, childRef, disabled));
             }
 
             if (children.Count == 0)
@@ -340,7 +352,7 @@ namespace GUI.Types.GLViewers
 
             listBox.Height = listBox.ItemHeight * children.Count + 2;
 
-            using (UiControl.BeginGroup("Children"))
+            using (UiControl.BeginGroup(Locale.Particle_Children))
             {
                 UiControl.AddControl(listBox);
             }
@@ -379,11 +391,11 @@ namespace GUI.Types.GLViewers
 
                 if (support == FunctionSupport.Removed)
                 {
-                    displayName = $"{displayName} (removed by upgrade)";
+                    displayName = Locale.Particle_FunctionRemoved(displayName);
                 }
                 else if (function.OriginalClass != null)
                 {
-                    displayName = $"{displayName} (was {StripClassPrefix(function.OriginalClass)})";
+                    displayName = Locale.Particle_FunctionWas(displayName, StripClassPrefix(function.OriginalClass));
                 }
 
                 listBox.Items.Add(new ParticleFunctionItem(displayName, support));

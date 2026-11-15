@@ -56,10 +56,10 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
         View.Legend.AddRange(
         [
-            new("Output", EntityIOGraphBuilder.OutputHue, GraphLegendKind.Wire),
-            new("Input", EntityIOGraphBuilder.InputHue, GraphLegendKind.Wire),
+            new(Locale.Graph_LegendOutput, EntityIOGraphBuilder.OutputHue, GraphLegendKind.Wire),
+            new(Locale.Graph_LegendInput, EntityIOGraphBuilder.InputHue, GraphLegendKind.Wire),
             // Last of the wire entries. The classname entries below start with the point_template hue when it is present.
-            new("Template spawn", EntityIOGraphBuilder.TemplateSpawnHue, GraphLegendKind.DashedWire),
+            new(Locale.Graph_LegendTemplateSpawn, EntityIOGraphBuilder.TemplateSpawnHue, GraphLegendKind.DashedWire),
         ]);
 
         // One entry per hue of the classnames in this graph, named by those classnames and coloured by EntityClassHues.
@@ -68,8 +68,8 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
         View.Legend.AddRange(
         [
-            new("Special target", EntityIOGraphBuilder.SpecialTargetHue),
-            new("Unresolved target", EntityIOGraphBuilder.UnresolvedTargetHue),
+            new(Locale.Graph_LegendSpecialTarget, EntityIOGraphBuilder.SpecialTargetHue),
+            new(Locale.Graph_LegendUnresolvedTarget, EntityIOGraphBuilder.UnresolvedTargetHue),
         ]);
 
         islands = View.GetComponents();
@@ -272,7 +272,7 @@ internal class EntityIOGraphViewer : GLGraphViewer
     {
         if (showInMap != null && node.Tag is EntityLump.Entity entity)
         {
-            var item = new ToolStripMenuItem("Show in map viewer");
+            var item = new ToolStripMenuItem(Locale.Graph_ShowInMapViewer);
             item.Click += (_, _) => showInMap(nodeMembers.GetValueOrDefault(node) ?? [entity]);
             menu.Items.Add(item);
         }
@@ -280,8 +280,9 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
     protected override string BuildStatsText(int islandCount)
     {
-        var entitySuffix = entityCount == 1 ? "entity" : "entities";
-        return $"{entityCount} {entitySuffix}\n{base.BuildStatsText(islandCount)}\nIsland: {focusedIslandName ?? "(all)"}";
+        var islandText = focusedIslandName == null ? Locale.Graph_StatIslandAll : Locale.Graph_StatIslandFocused(focusedIslandName);
+
+        return $"{Locale.Graph_StatEntities(entityCount)}\n{base.BuildStatsText(islandCount)}\n{islandText}";
     }
 
     public override void Dispose()
@@ -323,8 +324,6 @@ internal class EntityIOGraphViewer : GLGraphViewer
     {
         var best = island.MaxBy(node => node.Inputs.Count + node.Outputs.Count);
 
-        var nodeSuffix = island.Count == 1 ? "node" : "nodes";
-
-        return $"{best!.Title} ({island.Count} {nodeSuffix})";
+        return Locale.Graph_IslandName(best!.Title, island.Count);
     }
 }

@@ -67,8 +67,8 @@ public static class AppMessageDialogs
 
     public static ReplaceFilesChoice AskToReplaceFiles(string heading, string message, string title)
     {
-        var replaceButton = new TaskDialogButton("Replace");
-        var skipButton = new TaskDialogButton("Skip");
+        var replaceButton = new TaskDialogButton(Locale.Dialog_Replace);
+        var skipButton = new TaskDialogButton(Locale.Dialog_Skip);
         var page = new TaskDialogPage
         {
             Caption = title,

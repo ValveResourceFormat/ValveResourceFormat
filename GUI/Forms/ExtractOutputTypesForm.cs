@@ -10,6 +10,17 @@ namespace GUI.Forms
         public ExtractOutputTypesForm()
         {
             InitializeComponent();
+            ApplyTranslations();
+        }
+
+        private void ApplyTranslations()
+        {
+            Text = Locale.Extract_Title;
+            label1.Text = Locale.Extract_Description;
+            label2.Text = Locale.Extract_Input;
+            label3.Text = Locale.Extract_Output;
+            label4.Text = Locale.Extract_Count;
+            button1.Text = Locale.Extract_Continue;
         }
 
         public void AddTypeToTable(string type, int count, List<string> outputTypes, int defaultType)
@@ -37,7 +48,7 @@ namespace GUI.Forms
 
             typesTable.Controls.Add(new Label()
             {
-                Text = $"{count} file{(count == 1 ? "" : "s")}",
+                Text = Locale.Extract_FileCount(count),
             }, 2, row);
         }
     }

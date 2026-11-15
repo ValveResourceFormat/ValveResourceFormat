@@ -101,7 +101,7 @@ namespace GUI
         /// </summary>
         private void AddPackageEditorTab(PackageViewer viewer, Control contents, string toolTip, int index)
         {
-            var title = viewer.FileOnDisk is { } path ? $"Editing {Path.GetFileName(path)}" : "New VPK";
+            var title = viewer.FileOnDisk is { } path ? Locale.VpkEdit_TabEditing(Path.GetFileName(path)) : Locale.VpkEdit_TabNew;
 #pragma warning disable CA2000 // Disposed if adding it fails, the tab control owns it after
             var tab = new ThemedTabPage(title)
             {
@@ -162,7 +162,7 @@ namespace GUI
             if (IsSavingPackage)
             {
                 context.Dispose();
-                await AppMessageDialogs.ShowMessageAsync("A VPK is being saved, open it again once that is done.", "Failed to open VPK", MessageIcon.Warning).ConfigureAwait(true);
+                await AppMessageDialogs.ShowMessageAsync(Locale.VpkEdit_BeingSaved_Message, Locale.VpkEdit_OpenFailed_Title, MessageIcon.Warning).ConfigureAwait(true);
                 return;
             }
 
@@ -178,8 +178,8 @@ namespace GUI
             var contents = viewer.CreateEditor(context.CurrentPackage!);
 
             if (viewer.IsSigned && !await AppMessageDialogs.ConfirmAsync(
-                "This VPK is signed. Saving it writes it without the signature, so games that check signatures will not load it.",
-                "Signed VPK",
+                Locale.VpkEdit_Signed_Message,
+                Locale.VpkEdit_Signed_Title,
                 MessageIcon.Warning).ConfigureAwait(true))
             {
                 contents.Dispose();
@@ -212,7 +212,7 @@ namespace GUI
 
         private async void CreateVpkFromFolderToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var inputFolder = AppFileDialogs.PickFolder("Choose which folder to pack into a VPK", AppFileDialogs.RememberIn.OpenDirectory);
+            var inputFolder = AppFileDialogs.PickFolder(Locale.VpkEdit_PackFolder_Title, AppFileDialogs.RememberIn.OpenDirectory);
 
             if (inputFolder != null)
             {
@@ -237,7 +237,7 @@ namespace GUI
                 var contents = viewer.CreateEmpty();
                 context = null;
 
-                AddPackageEditorTab(viewer, contents, inputFolder ?? "New VPK", mainTabs.SelectedIndex + 1);
+                AddPackageEditorTab(viewer, contents, inputFolder ?? Locale.VpkEdit_TabNew, mainTabs.SelectedIndex + 1);
 
                 if (inputFolder != null)
                 {
@@ -252,7 +252,7 @@ namespace GUI
 
         private async void EditVpkToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var path = AppFileDialogs.OpenFile("Choose a VPK to edit", "Valve Pak (*.vpk)|*.vpk");
+            var path = AppFileDialogs.OpenFile(Locale.VpkEdit_ChooseVpk_Title, Locale.VpkEdit_OpenFileFilter);
 
             if (path != null)
             {
@@ -302,7 +302,7 @@ namespace GUI
 
             if (saveAs || target == null)
             {
-                target = AppFileDialogs.SaveFile("Save VPK package", Path.GetFileName(viewer.GuiContext.FileName), "vpk", "Valve Pak|*.vpk|Valve Pak split into chunk files|*_dir.vpk",
+                target = AppFileDialogs.SaveFile(Locale.VpkEdit_Save_Title, Path.GetFileName(viewer.GuiContext.FileName), "vpk", Locale.VpkEdit_SaveFileFilter,
                     out var selectedFilter, filterIndex: splitIntoChunks ? 2 : 1);
 
                 if (target == null)
@@ -314,19 +314,19 @@ namespace GUI
                 splitIntoChunks = selectedFilter == 2;
 
                 var error = editedPackage.HasChunkFiles && !splitIntoChunks
-                    ? "A VPK with chunk files can only be saved split into chunk files."
+                    ? Locale.VpkEdit_ChunksMustSplit_Message
                     : PackageFileNames.GetPackageFileNameError(target, splitIntoChunks);
 
                 if (error != null)
                 {
-                    _ = AppMessageDialogs.ShowMessageAsync(error, "Failed to save VPK", MessageIcon.Warning);
+                    _ = AppMessageDialogs.ShowMessageAsync(error, Locale.VpkEdit_SaveFailed_Title, MessageIcon.Warning);
                     return null;
                 }
             }
 
             var requiresRepack = editedPackage.RequiresRepack(target);
 
-            if (requiresRepack && !AppMessageDialogs.Confirm("Saving to another file copies all chunk files of this VPK.", "Save VPK", MessageIcon.Warning))
+            if (requiresRepack && !AppMessageDialogs.Confirm(Locale.VpkEdit_SaveRepack_Message, Locale.VpkEdit_SaveRepack_Title, MessageIcon.Warning))
             {
                 return null;
             }
@@ -335,7 +335,7 @@ namespace GUI
             {
                 if (PackageViewer.FromTab(otherTab) is { HasUnsavedChanges: true } otherViewer && otherViewer != viewer && otherViewer.FileOnDisk is { } otherFile && otherFile.Equals(target, StringComparison.OrdinalIgnoreCase))
                 {
-                    _ = AppMessageDialogs.ShowMessageAsync($"\"{Path.GetFileName(target)}\" has unsaved changes in another tab, save or close it first.", "Failed to save VPK", MessageIcon.Warning);
+                    _ = AppMessageDialogs.ShowMessageAsync(Locale.VpkEdit_UnsavedInOtherTab_Message(Path.GetFileName(target)), Locale.VpkEdit_SaveFailed_Title, MessageIcon.Warning);
                     return null;
                 }
             }
@@ -373,11 +373,11 @@ namespace GUI
 
                 if (writeError is IOException or UnauthorizedAccessException)
                 {
-                    _ = AppMessageDialogs.ShowMessageAsync($"{writeError.Message}\n\nIt may be open in another tab, be a game search path in Settings, or be used by another program.", "Failed to save VPK", MessageIcon.Error);
+                    _ = AppMessageDialogs.ShowMessageAsync(Locale.VpkEdit_WriteFailedIo_Message(writeError.Message), Locale.VpkEdit_SaveFailed_Title, MessageIcon.Error);
                 }
                 else if (writeError is InvalidOperationException)
                 {
-                    _ = AppMessageDialogs.ShowMessageAsync(writeError.Message, "Failed to save VPK", MessageIcon.Error);
+                    _ = AppMessageDialogs.ShowMessageAsync(writeError.Message, Locale.VpkEdit_SaveFailed_Title, MessageIcon.Error);
                 }
                 else
                 {
@@ -416,12 +416,12 @@ namespace GUI
 
             using var progressDialog = new GenericProgressForm
             {
-                Text = "Saving VPK…",
+                Text = Locale.VpkEdit_Saving_Title,
                 CanCancel = false,
             };
             progressDialog.OnProcess = async cancellationToken =>
             {
-                progressDialog.SetProgress(repack ? $"Copying the files of the VPK to \"{Path.GetFileName(target)}\"…" : $"Saving \"{Path.GetFileName(target)}\"…");
+                progressDialog.SetProgress(repack ? Locale.VpkEdit_Copying_Progress(Path.GetFileName(target)) : Locale.VpkEdit_Saving_Progress(Path.GetFileName(target)));
 
                 try
                 {
@@ -431,12 +431,12 @@ namespace GUI
                 }
                 catch (Exception e)
                 {
-                    error = e is TimeoutException ? new InvalidOperationException($"Tabs that were closed to save \"{Path.GetFileName(target)}\" are still reading it, save again in a moment.") : e;
+                    error = e is TimeoutException ? new InvalidOperationException(Locale.VpkEdit_ReleaseTimeout_Message(Path.GetFileName(target))) : e;
                 }
             };
             progressDialog.ShowDialog();
 
-            return written ? null : error ?? new InvalidOperationException($"\"{Path.GetFileName(target)}\" was not saved.");
+            return written ? null : error ?? new InvalidOperationException(Locale.VpkEdit_NotSaved_Message(Path.GetFileName(target)));
         }
 
         /// <summary>
@@ -461,9 +461,11 @@ namespace GUI
 
         private static SaveChangesChoice AskToSavePackage(PackageViewer viewer)
         {
-            var name = viewer.FileOnDisk is { } path ? Path.GetFileName(path) : "the new VPK";
+            var message = viewer.FileOnDisk is { } path
+                ? Locale.VpkEdit_SaveChanges_Message(Path.GetFileName(path))
+                : Locale.VpkEdit_SaveChangesNew_Message;
 
-            return AppMessageDialogs.AskToSaveChanges($"Save changes to {name}?", "Unsaved changes");
+            return AppMessageDialogs.AskToSaveChanges(message, Locale.VpkEdit_UnsavedChanges_Title);
         }
 
         /// <summary>
@@ -512,7 +514,7 @@ namespace GUI
 
         private void OnVpkCreateFolderToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            using var dialog = new PromptForm("New folder name");
+            using var dialog = new PromptForm(Locale.VpkEdit_NewFolder_Title, Locale.VpkEdit_NewFolder_Label);
 
             if (dialog.ShowDialog() != DialogResult.OK || dialog.ResultText.Length < 1)
             {
@@ -527,7 +529,7 @@ namespace GUI
 
         private void OnVpkAddNewFolderToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var folders = AppFileDialogs.PickFolders("Choose which folders to add to the VPK", AppFileDialogs.RememberIn.OpenDirectory);
+            var folders = AppFileDialogs.PickFolders(Locale.VpkEdit_AddFolders_Title, AppFileDialogs.RememberIn.OpenDirectory);
 
             if (folders != null && mainTabs.SelectedTab is { } tab && PackageViewer.FromTab(tab) is { } viewer)
             {
@@ -537,7 +539,7 @@ namespace GUI
 
         private void OnVpkAddNewFileToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var files = AppFileDialogs.OpenFiles("Choose which files to add to the VPK", null);
+            var files = AppFileDialogs.OpenFiles(Locale.VpkEdit_AddFiles_Title, null);
 
             if (files != null && mainTabs.SelectedTab is { } tab && PackageViewer.FromTab(tab) is { } viewer)
             {
@@ -556,7 +558,7 @@ namespace GUI
             }
 
             var currentName = item.PackageEntry?.GetFileName() ?? item.PkgNode?.Name ?? string.Empty;
-            using var dialog = new PromptForm("New name", currentName);
+            using var dialog = new PromptForm(Locale.VpkEdit_Rename_Title, Locale.VpkEdit_Rename_Label, currentName);
 
             if (dialog.ShowDialog() != DialogResult.OK || dialog.ResultText.Length < 1 || dialog.ResultText == currentName)
             {

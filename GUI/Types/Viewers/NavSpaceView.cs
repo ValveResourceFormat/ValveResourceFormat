@@ -54,11 +54,11 @@ namespace GUI.Types.Viewers
             };
             tabOuterPage.Controls.Add(tabControl);
 
-            var navSpacePage = new ThemedTabPage("NAV SPACE");
+            var navSpacePage = new ThemedTabPage(Locale.Resource_TabNavSpace);
             navSpacePage.Controls.Add(glViewer!.InitializeUiControls());
             tabControl.Controls.Add(navSpacePage);
 
-            var infoPage = new ThemedTabPage("NAV SPACE INFO");
+            var infoPage = new ThemedTabPage(Locale.Resource_TabNavSpaceInfo);
             var infoTextControl = CodeTextBox.Create(navSpaceFile.ToString(), HighlightLanguage.None);
             infoPage.Controls.Add(infoTextControl);
             tabControl.Controls.Add(infoPage);

@@ -15,9 +15,6 @@ static class ErrorReport
 {
     private const string ReportUrl = "https://s2v.app/ValveResourceFormat/guides/reporting-issues";
 
-    private const string NewerFormatHeading = "This file may use a format that this version of S2V does not support";
-    private const string GenericHeading = "An error occurred";
-
     /// <summary>
     /// Logs the exception and shows an error dialog. Can be called from any thread, and before the main window exists.
     /// </summary>
@@ -93,7 +90,7 @@ static class ErrorReport
         // These are mostly thrown for versions and types the parsers do not know yet, which a game update can introduce
         var mayBeNewerFormat = exception is UnexpectedMagicException or NotImplementedException or NotSupportedException;
 
-        return mayBeNewerFormat ? NewerFormatHeading : GenericHeading;
+        return mayBeNewerFormat ? Locale.Error_NewerFormat : Locale.Error_Generic;
     }
 
     /// <summary>
@@ -133,13 +130,13 @@ static class ErrorReport
         var hasMainForm = mainForm is { IsHandleCreated: true, IsDisposed: false };
         var statusSuggestsUpdate = status is UpdateChecker.UpdateStatus.Unknown or UpdateChecker.UpdateStatus.NewerStable or UpdateChecker.UpdateStatus.NewerDev;
 
-        var checkForUpdatesButton = new TaskDialogButton("Check for updates");
-        var reportButton = new TaskDialogButton("Report");
-        var copyButton = new TaskDialogButton("Copy to clipboard");
+        var checkForUpdatesButton = new TaskDialogButton(Locale.Error_CheckForUpdates);
+        var reportButton = new TaskDialogButton(Locale.Error_Report);
+        var copyButton = new TaskDialogButton(Locale.Error_CopyToClipboard);
 
         var page = new TaskDialogPage
         {
-            Caption = "Source 2 Viewer",
+            Caption = Locale.Error_Caption,
             Heading = heading,
             Text = body.ToString(),
             Icon = TaskDialogIcon.Error,
@@ -153,7 +150,7 @@ static class ErrorReport
             },
             Footnote = new TaskDialogFootnote
             {
-                Text = $"S2V {Program.DisplayVersion}",
+                Text = Locale.Error_Footnote(Program.DisplayVersion),
                 Icon = TaskDialogIcon.Information,
             },
         };
@@ -209,22 +206,23 @@ static class ErrorReport
         {
             return status switch
             {
-                UpdateChecker.UpdateStatus.UpToDate => "You are on the latest build. Report this error with your exact steps.",
-                UpdateChecker.UpdateStatus.Unknown => "Check for updates in the About window and try the latest dev build before reporting this error.",
+                UpdateChecker.UpdateStatus.UpToDate => Locale.Error_AdviceUpToDate,
+                UpdateChecker.UpdateStatus.Unknown => Locale.Error_AdviceUnknown,
                 _ => string.Empty,
             };
         }
 
-        var buildText = newerBuild.Channel == Settings.UpdateChannel.Stable ? $"version {newerBuild.Text}" : newerBuild.Text;
-
-        var where = "from the About window";
-
-        if (newerBuild.Channel == Settings.UpdateChannel.Dev && Settings.Config.Update.Channel == Settings.UpdateChannel.Stable)
+        if (newerBuild.Channel == Settings.UpdateChannel.Stable)
         {
-            where = "by switching to the Dev update channel in the About window";
+            return Locale.Error_AdviceNewerStable(newerBuild.Tag);
         }
 
-        return $"A newer build ({buildText}) is available {where}. Try it before reporting this error.";
+        if (Settings.Config.Update.Channel == Settings.UpdateChannel.Stable)
+        {
+            return Locale.Error_AdviceNewerDevChannel(newerBuild.BuildNumberText);
+        }
+
+        return Locale.Error_AdviceNewerDev(newerBuild.BuildNumberText);
     }
 
     private static void CopyToClipboard(string text)

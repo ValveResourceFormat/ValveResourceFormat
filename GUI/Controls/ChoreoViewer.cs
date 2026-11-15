@@ -36,11 +36,11 @@ namespace GUI.Controls
             fileListView.ItemSelectionChanged += FileListView_ItemSelectionChanged;
 
             // The first column stretches to fill the list
-            fileListView.Columns.Add("Name");
-            fileListView.Columns.Add("Version");
-            fileListView.Columns.Add("Duration (s)");
-            fileListView.Columns.Add("Sound duration (s)");
-            fileListView.Columns.Add("Has sounds");
+            fileListView.Columns.Add(Locale.Resource_ColumnName);
+            fileListView.Columns.Add(Locale.Choreo_Version);
+            fileListView.Columns.Add(Locale.Choreo_Duration);
+            fileListView.Columns.Add(Locale.Choreo_SoundDuration);
+            fileListView.Columns.Add(Locale.Choreo_HasSounds);
 
             AddListItem(null, fileName, choreoDataList.Version, null);
             for (var i = 0; i < choreoDataList.Scenes.Length; i++)
@@ -66,7 +66,7 @@ namespace GUI.Controls
 
             item.SubItems.Add(scene == null ? string.Empty : FormatMilliseconds(scene.Duration));
             item.SubItems.Add(scene == null ? string.Empty : FormatMilliseconds(scene.SoundDuration));
-            item.SubItems.Add(scene == null ? string.Empty : (scene.HasSounds ? "Yes" : "No"));
+            item.SubItems.Add(scene == null ? string.Empty : (scene.HasSounds ? Locale.Choreo_Yes : Locale.Choreo_No));
 
             item.Tag = index;
         }

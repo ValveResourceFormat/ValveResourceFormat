@@ -1,0 +1,53 @@
+Menu_File,&Файл
+Menu_Open,&Открыть
+Menu_InstallApp,Установить приложение
+Menu_CreateVpk,Создать VPK
+Menu_CreateVpkFromFolder,Создать VPK из папки
+Menu_EditVpk,Изменить VPK
+Menu_OpenWelcomeScreen,Открыть экран приветствия
+Menu_Explorer,Проводник
+Menu_Find,&Поиск
+Menu_Settings,Настройки
+Menu_About,О программе
+Menu_Website,Сайт
+Menu_RecoverDeletedFiles,Восстановить удалённые файлы
+Menu_EditThisVpk,Изменить этот VPK
+Menu_CopyUrl,Копировать URL
+Menu_CopyName,Копировать имя
+Menu_ExportAsIs,Экспортировать как есть
+Menu_DecompileExport,Декомпилировать && экспортировать
+Menu_AddToBookmarks,Добавить в закладки
+Menu_SearchInFolder,Искать в папке
+Menu_OpenWithoutViewer,Открыть без просмотрщика
+Menu_OpenWithDefaultApp,Открыть в приложении по умолчанию
+Menu_ViewAssetInfo,Показать сведения о ресурсе
+Menu_VerifyPackageContents,Проверить содержимое пакета
+Menu_ValidateShaders,Проверить шейдеры
+Menu_ReplaceInstalledVersion,Заменить установленную версию ({version})
+Menu_ValidateShaders_Progress,Компиляция шейдеров…
+
+Tab_Console,Консоль
+Tab_Explorer,Проводник
+Tab_Settings,Настройки
+Tab_Welcome,Приветствие
+Tab_Close,&Закрыть вкладку
+Tab_CloseOthers,Закрыть &остальные вкладки
+Tab_CloseAll,Закрыть &все вкладки
+Tab_CloseToRight,Закрыть вкладки &справа
+Tab_CloseToLeft,Закрыть вкладки с&лева
+Tab_Mute,Отключить зв&ук вкладки
+Tab_Unmute,Включить зв&ук вкладки
+Tab_ClearConsole,Очистить консоль
+
+Open_FileFilter,"Valve Resource Format (*.*_c, *.vpk)|*.*_c;*.vpk;*.vcs|Все файлы (*.*)|*.*"
+Open_ManyFiles_Title,Попытка открыть много файлов в приложении по умолчанию
+Open_ManyFiles_Message,"Вы пытаетесь открыть {count, plural, one {# файл} few {# файла} many {# файлов} other {# файла}} в приложении по умолчанию для каждого из них, вы уверены, что хотите продолжить?"
+
+VpkEdit_CreateFolder,Создать папку
+VpkEdit_AddExistingFolder,&Добавить существующую папку
+VpkEdit_AddExistingFiles,Добавить существующие &файлы
+VpkEdit_Rename,&Переименовать
+VpkEdit_RemoveFolder,&Удалить эту папку
+VpkEdit_RemoveFile,&Удалить этот файл
+VpkEdit_Save,&Сохранить
+VpkEdit_SaveAs,Сохранить &как

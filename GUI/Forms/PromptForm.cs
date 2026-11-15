@@ -4,12 +4,15 @@ namespace GUI.Forms
     {
         public string ResultText => inputTextBox.Text;
 
-        public PromptForm(string title, string initialText = "")
+        public PromptForm(string title, string label, string initialText = "")
         {
             InitializeComponent();
 
+            cancelButton.Text = Locale.Dialog_Cancel;
+            submitButton.Text = Locale.Prompt_Submit;
+
             Text = title;
-            textLabel.Text = string.Concat(title, ":");
+            textLabel.Text = label;
             inputTextBox.Text = initialText;
         }
 

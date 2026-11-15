@@ -34,7 +34,7 @@ namespace GUI.Types.Viewers
 
             if (!string.IsNullOrEmpty(text))
             {
-                tabs.Add(new("Text", new ViewerContent.Text(text), Select: true));
+                tabs.Add(new(Locale.Resource_TabText, new ViewerContent.Text(text), Select: true));
                 text = null;
             }
 

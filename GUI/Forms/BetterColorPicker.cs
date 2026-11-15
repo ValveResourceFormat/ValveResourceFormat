@@ -38,6 +38,7 @@ namespace GUI.Forms
         public BetterColorPicker(Color startColor, Action<Color> colorChanged)
         {
             InitializeComponent();
+            ApplyTranslations();
 
             ColorToHSV(startColor, out H, out S, out V);
 
@@ -62,6 +63,15 @@ namespace GUI.Forms
             UpdateAllControls();
             UpdateTextBoxes();
             ColorChanged = colorChanged;
+        }
+
+        private void ApplyTranslations()
+        {
+            Text = Locale.ColorPicker_Title;
+            OK.Text = Locale.ColorPicker_OK;
+            Cancel.Text = Locale.Dialog_Cancel;
+            label2.Text = Locale.ColorPicker_New;
+            label1.Text = Locale.ColorPicker_Old;
         }
 
         protected override void OnHandleCreated(EventArgs e)

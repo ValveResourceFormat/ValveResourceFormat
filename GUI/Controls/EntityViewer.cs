@@ -99,6 +99,7 @@ namespace GUI.Types.Viewers
         {
             Dock = DockStyle.Fill;
             InitializeComponent();
+            ApplyTranslations();
 
             GuiContext = guiContext;
             Entities = entities;
@@ -395,29 +396,57 @@ namespace GUI.Types.Viewers
             }
         }
 
+        private void ApplyTranslations()
+        {
+            groupBox5.Text = Locale.Entity_List;
+            ListHeaderClass.Text = Locale.Entity_Class;
+            ListHeaderName.Text = Locale.Entity_Name;
+            groupBox3.Text = Locale.Entity_KeyValue;
+            KeyValue_MatchWholeValue.Text = Locale.Entity_MatchWholeValue;
+            label1.Text = Locale.Entity_Key;
+            label3.Text = Locale.Entity_Value;
+            groupBox2.Text = Locale.Entity_ObjectsToInclude;
+            ObjectsToInclude_Everything.Text = Locale.Entity_Everything;
+            ObjectsToInclude_MeshEntities.Text = Locale.Entity_MeshEntities;
+            ObjectsToInclude_PointEntities.Text = Locale.Entity_PointEntities;
+            label2.Text = Locale.Entity_Classname;
+            EntityPropertiesGroup.Text = Locale.Entity_Properties;
+        }
+
         private void ShowEntityProperties(Entity entity)
         {
             EntityInfo.Clear();
             EntityInfo.PopulateFromEntity(Entities, entity);
             EntityInfo.ShowPopulatedTabs();
 
-            var groupBoxName = "Entity Properties";
-
             var targetname = entity.GetStringProperty("targetname", string.Empty);
             var classname = entity.GetStringProperty("classname", string.Empty);
 
-            if (!string.IsNullOrEmpty(targetname))
+            var name = targetname;
+
+            if (string.IsNullOrEmpty(name))
             {
-                groupBoxName += $" - {targetname}";
-            }
-            else if (!string.IsNullOrEmpty(classname))
-            {
-                groupBoxName += $" - {classname}";
+                name = classname;
             }
 
-            if (entity.ParentLump.Resource is { } parentResource)
+            var lumpFileName = entity.ParentLump.Resource?.FileName;
+            string groupBoxName;
+
+            if (!string.IsNullOrEmpty(name) && lumpFileName is not null)
             {
-                groupBoxName += $" - Entity Lump: {parentResource.FileName}";
+                groupBoxName = Locale.Entity_PropertiesNamedInLump(name, lumpFileName);
+            }
+            else if (!string.IsNullOrEmpty(name))
+            {
+                groupBoxName = Locale.Entity_PropertiesNamed(name);
+            }
+            else if (lumpFileName is not null)
+            {
+                groupBoxName = Locale.Entity_PropertiesInLump(lumpFileName);
+            }
+            else
+            {
+                groupBoxName = Locale.Entity_Properties;
             }
 
             EntityPropertiesGroup.Text = groupBoxName;

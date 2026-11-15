@@ -38,6 +38,16 @@ static class UpdateInstaller
     /// <summary>The version that has been installed and takes effect on the next start, or null.</summary>
     public static string? InstalledVersionText { get; private set; }
 
+    /// <summary>The build behind <see cref="InstalledVersionText"/>, or null.</summary>
+    public static UpdateChecker.UpdateBuild? InstalledBuild { get; private set; }
+
+    private static string GetDownloadingText(UpdateChecker.UpdateBuild build)
+    {
+        return build.Channel == Settings.UpdateChannel.Stable
+            ? Locale.Update_DownloadingStable(build.Tag)
+            : Locale.Update_DownloadingDev(build.BuildNumberText);
+    }
+
     /// <summary>Whether an update is being downloaded or installed.</summary>
     public static bool IsInstalling { get; private set; }
 
@@ -83,7 +93,7 @@ static class UpdateInstaller
         var downloadPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         var downloaded = false;
 
-        using (var dialog = new GenericProgressForm { Text = $"Downloading {build.Text}" })
+        using (var dialog = new GenericProgressForm { Text = GetDownloadingText(build) })
         {
             dialog.OnProcess = async cancellationToken =>
             {
@@ -103,7 +113,7 @@ static class UpdateInstaller
                     catch (HttpRequestException e) when (e.StatusCode == HttpStatusCode.NotFound)
                     {
                         // Older dev builds are removed once newer ones are published, the manifest names the one to get instead
-                        dialog.SetProgress("Checking for a newer build…");
+                        dialog.SetProgress(Locale.Update_CheckingForNewerBuild);
                         // The manifest request is shared with other checks, so cancelling only stops waiting for it
                         await UpdateChecker.RecheckForUpdates().WaitAsync(cancellationToken).ConfigureAwait(false);
 
@@ -144,8 +154,8 @@ static class UpdateInstaller
         {
             // Nothing to swap for a non bundled build, leave the verified file for inspection
             await AppMessageDialogs.ShowMessageAsync(
-                $"The update was downloaded and verified, but this build cannot replace itself.{Environment.NewLine}{Environment.NewLine}{downloadPath}",
-                "Update downloaded").ConfigureAwait(true);
+                Locale.Update_Downloaded_Message(downloadPath),
+                Locale.Update_Downloaded_Title).ConfigureAwait(true);
 
             return;
         }
@@ -182,15 +192,18 @@ static class UpdateInstaller
         }
 
         InstalledVersionText = build.Text;
+        InstalledBuild = build;
 
-        var restartButton = new TaskDialogButton("Restart now");
+        var restartButton = new TaskDialogButton(Locale.Update_RestartNow);
         var page = new TaskDialogPage
         {
-            Caption = "Update installed",
-            Heading = $"Source 2 Viewer {InstalledVersionText} has been installed",
-            Text = "It will be used the next time the viewer starts.",
+            Caption = Locale.Update_Installed_Title,
+            Heading = build.Channel == Settings.UpdateChannel.Stable
+                ? Locale.Update_Installed_HeadingStable(build.Tag)
+                : Locale.Update_Installed_HeadingDev(build.BuildNumberText),
+            Text = Locale.Update_Installed_Text,
             Icon = TaskDialogIcon.ShieldSuccessGreenBar,
-            Buttons = { restartButton, new TaskDialogButton("Later") },
+            Buttons = { restartButton, new TaskDialogButton(Locale.Update_Later) },
             DefaultButton = restartButton,
         };
 
@@ -211,7 +224,7 @@ static class UpdateInstaller
         {
             var (size, hash) = await DownloadAsync(httpClient, download, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
 
-            dialog.SetProgress("Verifying…");
+            dialog.SetProgress(Locale.Update_Verifying);
             Verify(build, download, downloadPath, size, hash);
         }
         catch
@@ -222,7 +235,7 @@ static class UpdateInstaller
             throw;
         }
 
-        dialog.SetProgress("Verifying build provenance…");
+        dialog.SetProgress(Locale.Update_VerifyingProvenance);
         await provenance.ConfigureAwait(false);
     }
 
@@ -232,7 +245,7 @@ static class UpdateInstaller
         response.EnsureSuccessStatusCode();
 
         var totalBytes = response.Content.Headers.ContentLength ?? download.Size ?? 0;
-        var totalMegabytes = totalBytes / 1024f / 1024f;
+        var totalMegabytes = (totalBytes / 1024f / 1024f).ToString("F1", CultureInfo.InvariantCulture);
 
         if (totalBytes > 0)
         {
@@ -241,14 +254,16 @@ static class UpdateInstaller
 
         void ReportProgress(long written)
         {
+            var writtenMegabytes = (written / 1024f / 1024f).ToString("F1", CultureInfo.InvariantCulture);
+
             if (totalBytes > 0)
             {
                 dialog.SetBarValue((int)(written * 1000 / totalBytes));
-                dialog.SetProgress(string.Create(CultureInfo.InvariantCulture, $"{written / 1024f / 1024f:F1} MB of {totalMegabytes:F1} MB"));
+                dialog.SetProgress(Locale.Update_ProgressOf(writtenMegabytes, totalMegabytes));
             }
             else
             {
-                dialog.SetProgress(string.Create(CultureInfo.InvariantCulture, $"{written / 1024f / 1024f:F1} MB"));
+                dialog.SetProgress(Locale.Update_Progress(writtenMegabytes));
             }
         }
 

@@ -13,6 +13,7 @@ namespace GUI.Controls
         public LoadingFile(string? fileName = null)
         {
             InitializeComponent();
+            label1.Text = Locale.Main_LoadingFile;
             Themer.ThemeControl(this);
 
             // Show the wait cursor for the whole time the file is loading, but only when hovering this panel

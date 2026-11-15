@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -43,7 +44,7 @@ namespace GUI.Types.Viewers
         private RendererContext? rendererContext;
         private readonly List<(Func<GLGraphViewer> Create, string TabName)> preparedGraphViewers = [];
         private readonly List<GLGraphViewer> loadedGraphViewers = [];
-        private const string EntityIOGraphTabName = "ENTITY I/O GRAPH";
+        private static string EntityIOGraphTabName => Locale.Resource_TabEntityIOGraph;
         public GLBaseControl? GLViewer { get; private set; }
         private CodeTextBox? GLViewerError;
         private string? GLViewerTabName;
@@ -104,14 +105,14 @@ namespace GUI.Types.Viewers
                 case ResourceType.Texture:
                 case ResourceType.PanoramaVectorGraphic:
                     GLViewer = new GLTextureViewer(vrfGuiContext, rendererContext, resource);
-                    GLViewerTabName = "TEXTURE";
+                    GLViewerTabName = Locale.Resource_TabTexture;
                     break;
 
                 case ResourceType.Particle:
                     if (resource.DataBlock is ParticleSystem particleData)
                     {
                         GLViewer = new GLParticleViewer(vrfGuiContext, rendererContext, particleData);
-                        GLViewerTabName = "PARTICLE";
+                        GLViewerTabName = Locale.Resource_TabParticle;
                     }
                     break;
 
@@ -119,7 +120,7 @@ namespace GUI.Types.Viewers
                     if (resource.GetBlockByType(BlockType.SNAP) is ParticleSnapshot snapshot && SnapshotParticleSystem.CanPreview(snapshot))
                     {
                         GLViewer = new GLParticleViewer(vrfGuiContext, rendererContext, SnapshotParticleSystem.Create(snapshot), snapshot);
-                        GLViewerTabName = "SNAPSHOT";
+                        GLViewerTabName = Locale.Resource_TabSnapshot;
                     }
                     break;
 
@@ -131,7 +132,7 @@ namespace GUI.Types.Viewers
                     if (worldResource != null && worldResource.DataBlock is World mapWorldData)
                     {
                         GLViewer = new GLWorldViewer(vrfGuiContext, rendererContext, mapWorldData, mapExternalReferences);
-                        GLViewerTabName = "MAP";
+                        GLViewerTabName = Locale.Resource_TabMap;
                     }
                     else
                     {
@@ -144,7 +145,7 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is World worldData)
                     {
                         GLViewer = new GLWorldViewer(vrfGuiContext, rendererContext, worldData);
-                        GLViewerTabName = "MAP";
+                        GLViewerTabName = Locale.Resource_TabMap;
                     }
                     break;
 
@@ -152,7 +153,7 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is WorldNode worldNodeData)
                     {
                         GLViewer = new GLWorldViewer(vrfGuiContext, rendererContext, worldNodeData, resource.ExternalReferences);
-                        GLViewerTabName = "WORLD NODE";
+                        GLViewerTabName = Locale.Resource_TabWorldNode;
                     }
                     break;
 
@@ -160,7 +161,7 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is Model modelData)
                     {
                         GLViewer = new GLModelViewer(vrfGuiContext, rendererContext, modelData);
-                        GLViewerTabName = "MODEL";
+                        GLViewerTabName = Locale.Resource_TabModel;
                     }
                     break;
 
@@ -168,7 +169,7 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is Mesh meshData)
                     {
                         GLViewer = new GLMeshViewer(vrfGuiContext, rendererContext, meshData);
-                        GLViewerTabName = "MESH";
+                        GLViewerTabName = Locale.Resource_TabMesh;
                     }
                     break;
 
@@ -176,7 +177,7 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is SmartProp smartPropData)
                     {
                         GLViewer = new GLSmartPropViewer(vrfGuiContext, rendererContext, smartPropData);
-                        GLViewerTabName = "SMART PROP";
+                        GLViewerTabName = Locale.Resource_TabSmartProp;
                     }
                     break;
 
@@ -184,25 +185,25 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is AnimGraph animGraphData)
                     {
                         GLViewer = new AG1GraphViewer(vrfGuiContext, rendererContext, animGraphData.Data);
-                        GLViewerTabName = "AG1 ANIMATION GRAPH";
+                        GLViewerTabName = Locale.Resource_TabAnimGraph1;
                     }
                     break;
 
                 case ResourceType.NmClip:
                     GLViewer = new GLAnimationViewer(vrfGuiContext, rendererContext, resource);
-                    GLViewerTabName = "ANIMATION CLIP";
+                    GLViewerTabName = Locale.Resource_TabAnimationClip;
                     break;
 
                 case ResourceType.NmSkeleton:
                     GLViewer = new GLAnimationViewer(vrfGuiContext, rendererContext, resource);
-                    GLViewerTabName = "SKELETON";
+                    GLViewerTabName = Locale.Resource_TabSkeleton;
                     break;
 
                 case ResourceType.NmGraph:
                     if (resource.DataBlock is BinaryKV3 binaryKV3)
                     {
                         GLViewer = new AG2GraphViewer(vrfGuiContext, rendererContext, binaryKV3.Data);
-                        GLViewerTabName = "AG2 ANIMATION GRAPH";
+                        GLViewerTabName = Locale.Resource_TabAnimGraph2;
                     }
                     break;
 
@@ -210,7 +211,7 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is BinaryKV3 graphDefKV3)
                     {
                         GLViewer = new PulseGraphViewer(vrfGuiContext, rendererContext, graphDefKV3.Data);
-                        GLViewerTabName = "PULSE GRAPH";
+                        GLViewerTabName = Locale.Resource_TabPulseGraph;
                     }
                     break;
 
@@ -219,12 +220,12 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is Material { ShaderName: "sky.vfx" })
                     {
                         GLViewer = new GLSkyboxViewer(vrfGuiContext, rendererContext, resource);
-                        GLViewerTabName = "SKYBOX";
+                        GLViewerTabName = Locale.Resource_TabSkybox;
                     }
                     else
                     {
                         GLViewer = new GLMaterialViewer(vrfGuiContext, rendererContext, resource);
-                        GLViewerTabName = "MATERIAL";
+                        GLViewerTabName = Locale.Resource_TabMaterial;
                     }
                     break;
                 }
@@ -233,7 +234,7 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is PhysAggregateData physAggregateData)
                     {
                         GLViewer = new GLModelViewer(vrfGuiContext, rendererContext, physAggregateData);
-                        GLViewerTabName = "PHYSICS";
+                        GLViewerTabName = Locale.Resource_TabPhysics;
                     }
                     break;
 
@@ -241,7 +242,7 @@ namespace GUI.Types.Viewers
                     if (VoxelVisibility.GetWorldVisibility(resource) is { } vxvs)
                     {
                         GLViewer = new GLVoxelVisibilityViewer(vrfGuiContext, rendererContext, vxvs);
-                        GLViewerTabName = "VISIBILITY";
+                        GLViewerTabName = Locale.Resource_TabVisibility;
                     }
                     break;
 
@@ -249,7 +250,7 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is PostProcessing postProcessing && postProcessing.Data.ContainsKey("m_colorCorrectionVolumeData"))
                     {
                         GLViewer = new GLTextureViewer(vrfGuiContext, rendererContext, resource);
-                        GLViewerTabName = "LUT";
+                        GLViewerTabName = Locale.Resource_TabLut;
                     }
                     break;
 
@@ -257,7 +258,7 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is BombDamage bombDamage)
                     {
                         GLViewer = new GLBombDamageViewer(vrfGuiContext, rendererContext, bombDamage);
-                        GLViewerTabName = "BOMB DAMAGE";
+                        GLViewerTabName = Locale.Resource_TabBombDamage;
                     }
                     break;
             }
@@ -316,7 +317,7 @@ namespace GUI.Types.Viewers
                     GLViewer?.Dispose();
                     GLViewer = null;
                     DisposeExtraGraphViewers();
-                    var errorTab = new ThemedTabPage("Viewer Error");
+                    var errorTab = new ThemedTabPage(Locale.Resource_TabViewerError);
                     errorTab.Controls.Add(GLViewerError);
                     resTabs.TabPages.Add(errorTab);
                 }
@@ -362,7 +363,7 @@ namespace GUI.Types.Viewers
             {
                 var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
 
-                var tabEx = new ThemedTabPage("Decompile Error");
+                var tabEx = new ThemedTabPage(Locale.Resource_TabDecompileError);
                 tabEx.Controls.Add(control);
                 resTabs.TabPages.Add(tabEx);
             }
@@ -395,7 +396,7 @@ namespace GUI.Types.Viewers
                 {
                     if (blocksOfType[0].Index == blockIndex)
                     {
-                        var listTab = new ThemedTabPage($"{block.Type} ({blocksOfType.Count})");
+                        var listTab = new ThemedTabPage(Locale.Resource_TabBlockCount(block.Type.ToString(), blocksOfType.Count.ToString(CultureInfo.InvariantCulture)));
                         resTabs.TabPages.Add(listTab);
 
                         PopulateWhenShown(listTab, () =>
@@ -411,7 +412,7 @@ namespace GUI.Types.Viewers
                 {
                     var externalRefsTree = BuildExternalRefTree(vrfGuiContext, externalReferences.ResourceRefInfoList);
 
-                    var externalRefsTab = new ThemedTabPage("References");
+                    var externalRefsTab = new ThemedTabPage(Locale.Resource_TabReferences);
                     externalRefsTab.Controls.Add(externalRefsTree);
                     resTabs.TabPages.Add(externalRefsTab);
 
@@ -441,7 +442,7 @@ namespace GUI.Types.Viewers
             {
                 var structsGrid = CreateReadOnlyGrid(new BindingList<ResourceIntrospectionManifest.ResourceDiskStruct>(manifest.ReferencedStructs));
 
-                var structsTab = new ThemedTabPage("Introspection Manifest: Structs");
+                var structsTab = new ThemedTabPage(Locale.Resource_TabManifestStructs);
                 structsTab.Controls.Add(structsGrid);
                 resTabs.TabPages.Add(structsTab);
             }
@@ -450,7 +451,7 @@ namespace GUI.Types.Viewers
             {
                 var enumsGrid = CreateReadOnlyGrid(new BindingList<ResourceIntrospectionManifest.ResourceDiskEnum>(manifest.ReferencedEnums));
 
-                var enumsTab = new ThemedTabPage("Introspection Manifest: Enums");
+                var enumsTab = new ThemedTabPage(Locale.Resource_TabManifestEnums);
                 enumsTab.Controls.Add(enumsGrid);
                 resTabs.TabPages.Add(enumsTab);
             }
@@ -516,19 +517,19 @@ namespace GUI.Types.Viewers
         {
             if (resourceType == ResourceType.Map)
             {
-                var worldTabPage = new ThemedTabPage("World Data");
+                var worldTabPage = new ThemedTabPage(Locale.Resource_TabWorldData);
                 resTabs.TabPages.Add(worldTabPage);
                 PopulateWhenShown(worldTabPage, () => AddTextViewControl(ResourceType.WorldNode, loadedWorld.World, worldTabPage));
             }
 
             if (loadedWorld.MainWorldNode != null)
             {
-                var worldNodeTabPage = new ThemedTabPage("Node Data");
+                var worldNodeTabPage = new ThemedTabPage(Locale.Resource_TabNodeData);
                 resTabs.TabPages.Add(worldNodeTabPage);
                 PopulateWhenShown(worldNodeTabPage, () => AddTextViewControl(ResourceType.WorldNode, loadedWorld.MainWorldNode, worldNodeTabPage));
             }
 
-            var entitiesTabPage = new ThemedTabPage("Entity List");
+            var entitiesTabPage = new ThemedTabPage(Locale.Entity_List);
             resTabs.TabPages.Add(entitiesTabPage);
             PopulateWhenShown(entitiesTabPage, () =>
             {
@@ -697,7 +698,7 @@ namespace GUI.Types.Viewers
             {
                 if (rendererContext.FileLoader.LoadFileCompiled(script)?.DataBlock is BinaryKV3 pulseData)
                 {
-                    var tabName = scripts.Count > 1 ? $"PULSE GRAPH ({Path.GetFileNameWithoutExtension(script)})" : "PULSE GRAPH";
+                    var tabName = scripts.Count > 1 ? Locale.Resource_TabPulseGraphNamed(Path.GetFileNameWithoutExtension(script)) : Locale.Resource_TabPulseGraph;
                     preparedGraphViewers.Add((() => new PulseGraphViewer(vrfGuiContext, vrfGuiContext.CreateRendererContext(), pulseData.Data), tabName));
                 }
             }
@@ -740,23 +741,24 @@ namespace GUI.Types.Viewers
             foreach (var path in graphPaths)
             {
                 Func<GLGraphViewer> create;
-                string baseName;
+                string tabName;
+                var graphName = Path.GetFileNameWithoutExtension(path);
+                var hasMultipleGraphs = graphPaths.Count > 1;
 
                 switch (rendererContext.FileLoader.LoadFileCompiled(path)?.DataBlock)
                 {
                     case AnimGraph ag1Data:
                         create = () => new AG1GraphViewer(vrfGuiContext, vrfGuiContext.CreateRendererContext(), ag1Data.Data);
-                        baseName = "AG1 ANIMATION GRAPH";
+                        tabName = hasMultipleGraphs ? Locale.Resource_TabAnimGraph1Named(graphName) : Locale.Resource_TabAnimGraph1;
                         break;
                     case BinaryKV3 nmGraphData:
                         create = () => new AG2GraphViewer(vrfGuiContext, vrfGuiContext.CreateRendererContext(), nmGraphData.Data);
-                        baseName = "AG2 ANIMATION GRAPH";
+                        tabName = hasMultipleGraphs ? Locale.Resource_TabAnimGraph2Named(graphName) : Locale.Resource_TabAnimGraph2;
                         break;
                     default:
                         continue;
                 }
 
-                var tabName = graphPaths.Count > 1 ? $"{baseName} ({Path.GetFileNameWithoutExtension(path)})" : baseName;
                 preparedGraphViewers.Add((create, tabName));
             }
         }
@@ -769,7 +771,7 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is Panorama { Images.Count: > 0 })
                     {
                         var nameControl = CreateReadOnlyGrid(new BindingList<Panorama.ImageEntry>(((Panorama)resource.DataBlock).Images));
-                        var specialTabPage = new ThemedTabPage("PANORAMA IMAGES");
+                        var specialTabPage = new ThemedTabPage(Locale.Resource_TabPanoramaImages);
                         specialTabPage.Controls.Add(nameControl);
                         resTabs.TabPages.Add(specialTabPage);
                     }
@@ -778,7 +780,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.Sound:
                     if (resource.DataBlock is Sound { StreamingDataSize: > 0 } soundData)
                     {
-                        var specialTabPage = new ThemedTabPage("SOUND");
+                        var specialTabPage = new ThemedTabPage(Locale.Resource_TabSound);
 
                         specialTabPage.Controls.Add(CreateSoundInfoLabel(soundData));
                         AddAudioPlayback(specialTabPage, resource, isPreview);
@@ -791,7 +793,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.EntityLump:
                     if (resource.DataBlock is EntityLump entityLumpData)
                     {
-                        var specialTabPage = new ThemedTabPage("Entity List");
+                        var specialTabPage = new ThemedTabPage(Locale.Entity_List);
                         specialTabPage.Controls.Add(new EntityViewer(vrfGuiContext, entityLumpData.GetEntities()));
                         resTabs.TabPages.Add(specialTabPage);
 
@@ -817,7 +819,7 @@ namespace GUI.Types.Viewers
                     var compiledShaderViewer = new CompiledShader(vrfGuiContext);
                     try
                     {
-                        var specialTabPage = new ThemedTabPage("SHADER");
+                        var specialTabPage = new ThemedTabPage(Locale.Resource_TabShader);
                         resTabs.TabPages.Add(specialTabPage);
                         compiledShaderViewer.Create(specialTabPage);
                         compiledShaderViewer = null;
@@ -1137,12 +1139,12 @@ namespace GUI.Types.Viewers
         private static void AddTooLargeForTextControl(Block block, KVDocument document, Control blockTab)
         {
             var message = CodeTextBox.Create(
-                $"The {block.Type} block is {block.Size:N0} bytes, which is too large to display as text.{Environment.NewLine}Save it as a text file instead.",
+                Locale.Resource_BlockTooLarge_Message(block.Type.ToString(), block.Size.ToString("N0", CultureInfo.InvariantCulture)),
                 HighlightLanguage.None);
 
             var saveButton = new ThemedButton
             {
-                Text = "Save as text…",
+                Text = Locale.Resource_SaveAsText,
                 Dock = DockStyle.Top,
                 Height = 32,
             };
@@ -1154,7 +1156,7 @@ namespace GUI.Types.Viewers
             async void OnSaveClick(object? sender, EventArgs e)
             {
                 var defaultName = $"{Path.GetFileNameWithoutExtension(block.Resource.FileName)}_{block.Type}.kv3";
-                var fileName = AppFileDialogs.SaveFile("Save block as text", defaultName, "kv3", "KeyValues3 (*.kv3)|*.kv3|All files (*.*)|*.*");
+                var fileName = AppFileDialogs.SaveFile(Locale.Resource_SaveBlockAsText, defaultName, "kv3", Locale.Resource_Kv3FileFilter);
 
                 if (fileName == null)
                 {
@@ -1294,18 +1296,18 @@ namespace GUI.Types.Viewers
             switch (resource.ResourceType)
             {
                 case ResourceType.Sound when resource.DataBlock is Sound { Sentence: { } sentence }:
-                    ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed phonemes", new ViewerContent.Text(sentence.ToValveSentence()));
+                    ViewerContentPresenter.AddContentTab(resTabs, Locale.Resource_Reconstructed("phonemes"), new ViewerContent.Text(sentence.ToValveSentence()));
                     break;
 
                 case ResourceType.Material:
-                    ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vmat", new ViewerContent.LazyText(new MaterialExtract(resource, vrfGuiContext.FileLoaderNoCache).ToValveMaterial));
+                    ViewerContentPresenter.AddContentTab(resTabs, Locale.Resource_Reconstructed("vmat"), new ViewerContent.LazyText(new MaterialExtract(resource, vrfGuiContext.FileLoaderNoCache).ToValveMaterial));
                     break;
 
                 case ResourceType.EntityLump:
                     if (resource.DataBlock is EntityLump entityLump)
                     {
                         ViewerContentPresenter.AddContentTab(resTabs, "FGD", new ViewerContent.Text(entityLump.ToForgeGameData()));
-                        ViewerContentPresenter.AddContentTab(resTabs, "Entities-Text", new ViewerContent.Text(entityLump.ToEntityDumpString()), select: true);
+                        ViewerContentPresenter.AddContentTab(resTabs, Locale.Resource_EntitiesText, new ViewerContent.Text(entityLump.ToEntityDumpString()), select: true);
                         // force select the new entities tab for now
                         resTabs.SelectedTab = resTabs.TabPages[0];
                     }
@@ -1314,7 +1316,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.PostProcessing:
                     if (resource.DataBlock is PostProcessing postProcessingData)
                     {
-                        ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vpost", new ViewerContent.Text(postProcessingData.ToValvePostProcessing()));
+                        ViewerContentPresenter.AddContentTab(resTabs, Locale.Resource_Reconstructed("vpost"), new ViewerContent.Text(postProcessingData.ToValvePostProcessing()));
                     }
                     break;
 
@@ -1326,11 +1328,11 @@ namespace GUI.Types.Viewers
                     }
 
                     var textureExtract = new TextureExtract(resource);
-                    ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vtex", new ViewerContent.Text(textureExtract.ToValveTexture()));
+                    ViewerContentPresenter.AddContentTab(resTabs, Locale.Resource_Reconstructed("vtex"), new ViewerContent.Text(textureExtract.ToValveTexture()));
 
                     if (textureExtract.TryGetMksData(out var _, out var mks))
                     {
-                        ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed mks", new ViewerContent.Text(mks));
+                        ViewerContentPresenter.AddContentTab(resTabs, Locale.Resource_Reconstructed("mks"), new ViewerContent.Text(mks));
                     }
 
                     break;
@@ -1340,7 +1342,7 @@ namespace GUI.Types.Viewers
                 {
                     if (!FileExtract.IsChildResource(resource))
                     {
-                        ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vsnap", new ViewerContent.Text(new SnapshotExtract(resource).ToValveSnap()));
+                        ViewerContentPresenter.AddContentTab(resTabs, Locale.Resource_Reconstructed("vsnap"), new ViewerContent.Text(new SnapshotExtract(resource).ToValveSnap()));
                     }
 
                     break;

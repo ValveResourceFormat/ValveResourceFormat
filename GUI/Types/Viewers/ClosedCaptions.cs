@@ -34,8 +34,8 @@ namespace GUI.Types.Viewers
 
             return new ViewerContent.Tabs(
             [
-                new("Captions", new ViewerContent.Grid(captions.Captions)),
-                new("Text", new ViewerContent.Text(captions.ToString())),
+                new(Locale.Resource_TabCaptions, new ViewerContent.Grid(captions.Captions)),
+                new(Locale.Resource_TabText, new ViewerContent.Text(captions.ToString())),
             ]);
         }
 

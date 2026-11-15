@@ -109,12 +109,15 @@ namespace GUI.Types.GLViewers
 
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
+        // Characters of the speed overlay, room for translations longer than English
+        private const int SpeedTextCapacity = 64;
+
         private readonly float[] frameTimes = new float[30];
         private int frameTimeNextId;
         private int frameTimeCount;
 
         private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer fpsText = new("FPS: 10000  CPU: 10000.0ms  GPU: 10000.0ms");
-        private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer speedText = new("Speed: 100000.0 u/s");
+        private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer speedText = new(SpeedTextCapacity);
         private int frametimeQuery1;
         private int frametimeQuery2;
 
@@ -186,9 +189,9 @@ namespace GUI.Types.GLViewers
 
             UpdateMoveSpeedLabel();
 
-            using (UiControl.BeginGroup("Debug"))
+            using (UiControl.BeginGroup(Locale.Scene_Debug))
             {
-                UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
+                UiControl.AddCheckBox(Locale.Scene_LockCullFrustum, false, (v) =>
                 {
                     Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
                     Renderer.LockedCullPosition = v ? Renderer.Camera.Location : null;
@@ -196,12 +199,12 @@ namespace GUI.Types.GLViewers
 
                 if (!HasToolsVisibilityControls)
                 {
-                    UiControl.AddCheckBox("Show Tools", Tools.ShowTools, (v) => Tools.ShowTools = v);
+                    UiControl.AddCheckBox(Locale.Scene_ShowTools, Tools.ShowTools, (v) => Tools.ShowTools = v);
                 }
 
                 if (Renderer.Scenes.Any(static scene => scene.LightingInfo.LightProbes.Count > 0))
                 {
-                    var lightProbeGridComboBox = UiControl.AddSelection("Light Probe Grid", (_, i) =>
+                    var lightProbeGridComboBox = UiControl.AddSelection(Locale.Scene_LightProbeGrid, (_, i) =>
                     {
                         foreach (var scene in Renderer.Scenes)
                         {
@@ -209,11 +212,11 @@ namespace GUI.Types.GLViewers
                         }
                     });
 
-                    lightProbeGridComboBox.Items.AddRange(["Off", "Closest", "Closest and keep", "All"]);
+                    lightProbeGridComboBox.Items.AddRange([Locale.Scene_Off, Locale.Scene_LightProbeGridClosest, Locale.Scene_LightProbeGridClosestAndKeep, Locale.Scene_LightProbeGridAll]);
                     lightProbeGridComboBox.SelectedIndex = (int)Scene.LightingDebug.LightProbeGrid;
 
                     // Mirror samples show the cubemaps reaching into each volume
-                    var lightProbeGridSurfaceComboBox = UiControl.AddSelection("Light Probe Grid Surface", (_, i) =>
+                    var lightProbeGridSurfaceComboBox = UiControl.AddSelection(Locale.Scene_LightProbeGridSurface, (_, i) =>
                     {
                         var mirror = i == 1;
 
@@ -225,39 +228,39 @@ namespace GUI.Types.GLViewers
                         }
                     });
 
-                    lightProbeGridSurfaceComboBox.Items.AddRange(["Diffuse", "Mirror"]);
+                    lightProbeGridSurfaceComboBox.Items.AddRange([Locale.Scene_LightProbeGridSurfaceDiffuse, Locale.Scene_LightProbeGridSurfaceMirror]);
                     lightProbeGridSurfaceComboBox.SelectedIndex = 0;
                 }
 
                 if (Renderer.Scenes.Any(static scene => scene.LightingInfo.EnvMaps.Exists(static envMap => envMap.EntityData != null)))
                 {
-                    cubemapColorsComboBox = UiControl.AddSelection("Cubemap Debug Colors", (_, _) => ApplyCubemapColors());
-                    cubemapColorsComboBox.Items.AddRange(["Off", "Reflections and markers", "Markers only"]);
+                    cubemapColorsComboBox = UiControl.AddSelection(Locale.Scene_CubemapDebugColors, (_, _) => ApplyCubemapColors());
+                    cubemapColorsComboBox.Items.AddRange([Locale.Scene_Off, Locale.Scene_CubemapDebugColorsReflectionsAndMarkers, Locale.Scene_CubemapDebugColorsMarkersOnly]);
                     cubemapColorsComboBox.SelectedIndex = 0;
                     cubemapColorsComboBox.Parent!.Visible = isCubemapsRenderMode;
                 }
 
                 if (this is GLWorldViewer)
                 {
-                    UiControl.AddCheckBox("Show Occluded Bounds", Renderer.Settings.OcclusionDebugEnabled, (v) => Renderer.Settings.OcclusionDebugEnabled = v);
+                    UiControl.AddCheckBox(Locale.Scene_ShowOccludedBounds, Renderer.Settings.OcclusionDebugEnabled, (v) => Renderer.Settings.OcclusionDebugEnabled = v);
 
                     if (Scene.VoxelVisibility != null)
                     {
-                        UiControl.AddCheckBox("Show Vis Debug", showVisDebug, v => showVisDebug = v);
+                        UiControl.AddCheckBox(Locale.Scene_ShowVisDebug, showVisDebug, v => showVisDebug = v);
                     }
                 }
 
                 if (!Renderer.EntitySystem.PhysicsWorld.IsEmpty)
                 {
-                    UiControl.AddCheckBox("Debug Physics Traces", showPhysicsTraces, v => showPhysicsTraces = v);
+                    UiControl.AddCheckBox(Locale.Scene_DebugPhysicsTraces, showPhysicsTraces, v => showPhysicsTraces = v);
                 }
 
-                UiControl.AddCheckBox("Debug Sound Sources", Renderer.ShowSoundDebug, v => Renderer.ShowSoundDebug = v);
+                UiControl.AddCheckBox(Locale.Scene_DebugSoundSources, Renderer.ShowSoundDebug, v => Renderer.ShowSoundDebug = v);
 
-                UiControl.AddCheckBox("Disable threaded sim", !Renderer.ParallelSimulation, v => Renderer.ParallelSimulation = !v);
+                UiControl.AddCheckBox(Locale.Scene_DisableThreadedSim, !Renderer.ParallelSimulation, v => Renderer.ParallelSimulation = !v);
 
-                perfDisplayComboBox = UiControl.AddSelection("Debug Performance", (_, i) => perfDisplay = (PerfDisplay)i);
-                perfDisplayComboBox.Items.AddRange([nameof(PerfDisplay.Off), nameof(PerfDisplay.Stats), nameof(PerfDisplay.Timings), nameof(PerfDisplay.Allocations)]);
+                perfDisplayComboBox = UiControl.AddSelection(Locale.Scene_DebugPerformance, (_, i) => perfDisplay = (PerfDisplay)i);
+                perfDisplayComboBox.Items.AddRange([Locale.Scene_Off, Locale.Scene_DebugPerformanceStats, Locale.Scene_DebugPerformanceTimings, Locale.Scene_DebugPerformanceAllocations]);
                 perfDisplayComboBox.SelectedIndex = (int)perfDisplay;
             }
 
@@ -368,7 +371,7 @@ namespace GUI.Types.GLViewers
         }
 
         private void UpdateMoveSpeedLabel()
-            => SetMoveSpeedOrZoomLabel(string.Create(CultureInfo.InvariantCulture, $"Move speed: {Input.MoveSpeed:0} u/s (scroll to change)"));
+            => SetMoveSpeedOrZoomLabel(Locale.Scene_MoveSpeed(Input.MoveSpeed.ToString("0", CultureInfo.InvariantCulture)));
 
         /// <summary>Handles a resolved pick, with the GL context current. Viewers that do nothing with picks leave this empty.</summary>
         protected virtual void OnPicked(PickResult result)
@@ -457,7 +460,7 @@ namespace GUI.Types.GLViewers
 
             if (Input.OrbitMode)
             {
-                SetMoveSpeedOrZoomLabel(string.Create(CultureInfo.InvariantCulture, $"Orbit distance: {Input.OrbitDistance:0.0} (scroll to change)"));
+                SetMoveSpeedOrZoomLabel(Locale.Scene_OrbitDistance(Input.OrbitDistance.ToString("0.0", CultureInfo.InvariantCulture)));
             }
             else
             {
@@ -530,7 +533,7 @@ namespace GUI.Types.GLViewers
         {
             base.OnGLLoad();
 
-            ReportLoadingStatus("Preparing renderer…");
+            ReportLoadingStatus(Locale.Scene_PreparingRenderer);
 
             frametimeQuery1 = GraphicsDevice.CreateQuery(QueryTarget.TimeElapsed, "Frame Time Query");
             frametimeQuery2 = GraphicsDevice.CreateQuery(QueryTarget.TimeElapsed, "Frame Time Query");
@@ -568,14 +571,14 @@ namespace GUI.Types.GLViewers
             Log.Debug(GetType().Name, $"Loading scene time: {timer.Elapsed}, shader variants: {Scene.RendererContext.ShaderLoader.ShaderCount}, materials: {Scene.RendererContext.MaterialLoader.MaterialCount}");
 
             Scene.RendererContext.CancellationToken.ThrowIfCancellationRequested();
-            ReportLoadingStatus("Initializing scene…");
+            ReportLoadingStatus(Locale.Scene_InitializingScene);
 
             PostSceneLoad();
 
             GuiContext.GLPostLoadAction?.Invoke(this);
             GuiContext.GLPostLoadAction = null;
 
-            ReportLoadingStatus("Compiling shaders…");
+            ReportLoadingStatus(Locale.Menu_ValidateShaders_Progress);
             Scene.RendererContext.ShaderLoader.LinkLoadedShaders();
         }
 
@@ -630,7 +633,7 @@ namespace GUI.Types.GLViewers
 
         protected override void PrewarmRenderer()
         {
-            ReportLoadingStatus("Compiling shaders…");
+            ReportLoadingStatus(Locale.Menu_ValidateShaders_Progress);
 
             var start = Stopwatch.GetTimestamp();
 
@@ -966,7 +969,7 @@ namespace GUI.Types.GLViewers
 
             if (Paused)
             {
-                DrawLowerCornerText("Paused", new(255, 100, 0));
+                DrawLowerCornerText(Locale.Scene_Paused, new(255, 100, 0));
             }
             else if (Settings.Config.DisplayFps != 0)
             {
@@ -1030,13 +1033,18 @@ namespace GUI.Types.GLViewers
 
             if (GrabbedMouse && ShowSpeed)
             {
+                Span<char> speed = stackalloc char[16];
+                Span<char> line = stackalloc char[SpeedTextCapacity];
+                Input.Velocity.AsVector2().Length().TryFormat(speed, out var speedLength, "0.0", CultureInfo.InvariantCulture);
+                Locale.Scene_Speed(line, out var lineLength, speed[..speedLength]);
+
                 TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
                 {
                     X = 0.5f,
                     Y = 0.85f,
                     Scale = 12f,
                     Color = Color32.Yellow,
-                    Text = speedText.Format($"Speed: {Input.Velocity.AsVector2().Length():0.0} u/s"),
+                    Text = speedText.Format($"{line[..lineLength]}"),
                     CenterHorizontal = true,
                 }, Renderer.Camera);
             }
@@ -1061,7 +1069,7 @@ namespace GUI.Types.GLViewers
                 }
 
                 AddLine(
-                    cluster < 0 ? "No PVS at this position" : $"PVS cluster {cluster}",
+                    cluster < 0 ? Locale.Scene_PvsNone : Locale.Scene_PvsCluster(cluster.ToString(CultureInfo.InvariantCulture)),
                     cluster < 0 ? new Color32(255, 0, 0) : Color32.White
                 );
 
@@ -1076,7 +1084,7 @@ namespace GUI.Types.GLViewers
                         visCount += BitOperations.PopCount(b);
                     }
 
-                    AddLine($"PVS visible: {visCount}/{Scene.VoxelVisibility.ClusterCount} clusters", Color32.White);
+                    AddLine(Locale.Scene_PvsVisible(Scene.VoxelVisibility.ClusterCount, visCount.ToString(CultureInfo.InvariantCulture)), Color32.White);
                 }
             }
 
@@ -1103,9 +1111,9 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            using var _ = UiControl.BeginGroup("Display");
+            using var _ = UiControl.BeginGroup(Locale.Scene_Display);
 
-            var lightBackgroundCheckbox = UiControl.AddCheckBox("Light Background", ShowLightBackground, (v) =>
+            var lightBackgroundCheckbox = UiControl.AddCheckBox(Locale.Scene_LightBackground, ShowLightBackground, (v) =>
             {
                 ShowLightBackground = v;
                 Renderer.BaseBackground!.SetLightBackground(ShowLightBackground);
@@ -1113,7 +1121,7 @@ namespace GUI.Types.GLViewers
 
             lightBackgroundCheckbox.Checked = Themer.CurrentTheme == Themer.AppTheme.Light;
 
-            UiControl.AddCheckBox("Solid Background", ShowSolidBackground, (v) =>
+            UiControl.AddCheckBox(Locale.Scene_SolidBackground, ShowSolidBackground, (v) =>
             {
                 ShowSolidBackground = v;
                 Renderer.BaseBackground!.SetSolidBackground(ShowSolidBackground);
@@ -1122,7 +1130,7 @@ namespace GUI.Types.GLViewers
             if (this is not GLMaterialViewer)
             {
                 ShowBaseGrid = true;
-                UiControl.AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
+                UiControl.AddCheckBox(Locale.Scene_ShowGrid, ShowBaseGrid, (v) => ShowBaseGrid = v);
             }
         }
 
@@ -1135,7 +1143,7 @@ namespace GUI.Types.GLViewers
 
             Debug.Assert(UiControl != null);
 
-            UiControl.AddCheckBox("Show Wireframe", Renderer.IsWireframe, (v) => Renderer.IsWireframe = v);
+            UiControl.AddCheckBox(Locale.Scene_ShowWireframe, Renderer.IsWireframe, (v) => Renderer.IsWireframe = v);
         }
 
         /// <summary>Adds the render mode dropdown on the right of the toolbar above the viewport.</summary>
@@ -1148,7 +1156,7 @@ namespace GUI.Types.GLViewers
 
             Debug.Assert(UiControl != null);
 
-            renderModeComboBox = UiControl.AddToolbarSelection(OnRenderModeSelected, "Render mode");
+            renderModeComboBox = UiControl.AddToolbarSelection(OnRenderModeSelected, Locale.Scene_RenderMode);
 
             // The dropdown took keyboard focus. Return it to the viewport
             renderModeComboBox.DropDownClosed += (_, _) => GLControl?.Focus();

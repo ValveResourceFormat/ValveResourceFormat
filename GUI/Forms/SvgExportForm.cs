@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Globalization;
 using System.Windows.Forms;
 using GUI.Controls;
 
@@ -51,7 +52,7 @@ namespace GUI.Forms
             this.sourceWidth = sourceWidth;
             this.sourceHeight = sourceHeight;
 
-            Text = "Export image";
+            Text = Locale.SvgExport_Title;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
             MaximizeBox = false;
@@ -81,7 +82,7 @@ namespace GUI.Forms
 
             presetComboBox = MakeComboBox();
             itemLongEdges.Add(0);
-            presetComboBox.Items.Add($"Original  ({(int)sourceWidth} × {(int)sourceHeight})");
+            presetComboBox.Items.Add(Locale.SvgExport_Original(((int)sourceWidth).ToString(CultureInfo.InvariantCulture), ((int)sourceHeight).ToString(CultureInfo.InvariantCulture)));
 
             foreach (var preset in PresetLongEdges)
             {
@@ -89,12 +90,12 @@ namespace GUI.Forms
                 {
                     itemLongEdges.Add(preset);
                     var (width, height) = DimensionsForLongEdge(preset);
-                    presetComboBox.Items.Add($"{width} × {height}");
+                    presetComboBox.Items.Add(Locale.SvgExport_Size(width.ToString(CultureInfo.InvariantCulture), height.ToString(CultureInfo.InvariantCulture)));
                 }
             }
 
             itemLongEdges.Add(-1);
-            presetComboBox.Items.Add("Custom…");
+            presetComboBox.Items.Add(Locale.SvgExport_Custom);
             presetComboBox.SelectedIndex = 0;
 
             customNumeric = new ThemedIntNumeric
@@ -116,9 +117,9 @@ namespace GUI.Forms
                 Margin = Padding.Empty,
             };
             customRow.Controls.Add(customNumeric);
-            customRow.Controls.Add(MakeFieldLabel("px (long edge)"));
+            customRow.Controls.Add(MakeFieldLabel(Locale.SvgExport_LongEdgeUnit));
 
-            resolutionLabel = MakeFieldLabel("Resolution:");
+            resolutionLabel = MakeFieldLabel(Locale.SvgExport_Resolution);
             outputLabel = MakeFieldLabel(string.Empty);
             outputLabel.Margin = new Padding(0, 10, 0, 0);
 
@@ -137,7 +138,7 @@ namespace GUI.Forms
                 layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             }
 
-            layout.Controls.Add(MakeFieldLabel("Format:"), 0, 0);
+            layout.Controls.Add(MakeFieldLabel(Locale.SvgExport_Format), 0, 0);
             layout.Controls.Add(formatComboBox, 1, 0);
             layout.Controls.Add(resolutionLabel, 0, 1);
             layout.Controls.Add(presetComboBox, 1, 1);
@@ -154,8 +155,8 @@ namespace GUI.Forms
                 Anchor = AnchorStyles.Right,
                 Margin = new Padding(0, 18, 0, 0),
             };
-            var saveButton = MakeButton("Save", DialogResult.OK);
-            var cancelButton = MakeButton("Cancel", DialogResult.Cancel);
+            var saveButton = MakeButton(Locale.Dialog_Save, DialogResult.OK);
+            var cancelButton = MakeButton(Locale.Dialog_Cancel, DialogResult.Cancel);
             buttonRow.Controls.Add(saveButton);
             buttonRow.Controls.Add(cancelButton);
 
@@ -178,7 +179,7 @@ namespace GUI.Forms
 
         private static (SvgExportFormat Format, string Label)[] BuildFormats(bool canExportSvg)
             => canExportSvg
-                ? [(SvgExportFormat.Svg, "SVG (vector)"), (SvgExportFormat.Png, "PNG"), (SvgExportFormat.Jpg, "JPG")]
+                ? [(SvgExportFormat.Svg, Locale.SvgExport_FormatSvg), (SvgExportFormat.Png, "PNG"), (SvgExportFormat.Jpg, "JPG")]
                 : [(SvgExportFormat.Png, "PNG"), (SvgExportFormat.Jpg, "JPG")];
 
         private static ThemedComboBox MakeComboBox() => new()
@@ -227,7 +228,7 @@ namespace GUI.Forms
         private void UpdateOutputLabel()
         {
             var (width, height) = DimensionsForLongEdge(ChosenLongEdge);
-            outputLabel.Text = $"Output: {width} × {height} px";
+            outputLabel.Text = Locale.SvgExport_Output(width.ToString(CultureInfo.InvariantCulture), height.ToString(CultureInfo.InvariantCulture));
         }
 
         // Output dimensions when the svg is scaled so its long edge becomes longEdge, preserving aspect ratio.

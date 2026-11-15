@@ -31,7 +31,7 @@ namespace GUI.Forms
         {
             ShowInGraphButton = new ThemedButton
             {
-                Text = "Show in I/O graph",
+                Text = Locale.Entity_ShowInIoGraph,
                 Dock = DockStyle.Bottom,
                 Height = 32,
             };

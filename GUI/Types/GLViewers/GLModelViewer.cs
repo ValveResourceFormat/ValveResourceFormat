@@ -128,7 +128,7 @@ namespace GUI.Types.GLViewers
             Debug.Assert(UiControl != null);
             Debug.Assert(animationController != null);
 
-            animationComboBox = UiControl.AddSelection("Animation", (animation, i) =>
+            animationComboBox = UiControl.AddSelection(Locale.Anim_Animation, (animation, i) =>
             {
                 // Initialize on first call
                 if (animationComboBoxCurrentIndex < -1)
@@ -188,7 +188,7 @@ namespace GUI.Types.GLViewers
             Debug.Assert(UiControl != null);
             Debug.Assert(animationController != null);
 
-            using var _ = UiControl.BeginGroup("Animation");
+            using var _ = UiControl.BeginGroup(Locale.Anim_Animation);
 
             if (includeAnimationList)
             {
@@ -201,11 +201,11 @@ namespace GUI.Types.GLViewers
             };
             UiControl.AddControl(animationTimeLabel);
 
-            animationPlayPause = UiControl.AddCheckBox("Autoplay", true, isChecked =>
+            animationPlayPause = UiControl.AddCheckBox(Locale.Anim_Autoplay, true, isChecked =>
             {
                 animationController?.IsPaused = !isChecked;
             });
-            animationTrackBar = UiControl.AddTrackBar("Animation Frame", frame =>
+            animationTrackBar = UiControl.AddTrackBar(Locale.Anim_Frame, frame =>
             {
                 if (animationController?.ActiveAnimation is { CycleFrames: > 0 } animation)
                 {
@@ -213,7 +213,7 @@ namespace GUI.Types.GLViewers
                 }
             });
 
-            slowmodeTrackBar = UiControl.AddTrackBar("Animation Speed", value =>
+            slowmodeTrackBar = UiControl.AddTrackBar(Locale.Anim_Speed, value =>
             {
                 animationController.FrametimeMultiplier = value;
             }, animationController.FrametimeMultiplier);
@@ -234,7 +234,7 @@ namespace GUI.Types.GLViewers
                 animationController.IsPaused = previousPaused;
             };
 
-            rootMotionCheckBox = UiControl.AddCheckBox("Show Root Motion", enableRootMotion, (isChecked) =>
+            rootMotionCheckBox = UiControl.AddCheckBox(Locale.Anim_ShowRootMotion, enableRootMotion, (isChecked) =>
             {
                 enableRootMotion = isChecked;
                 rootMotionResetPending = true;
@@ -243,7 +243,7 @@ namespace GUI.Types.GLViewers
             rootMotionCheckBox.Checked = false;
             rootMotionCheckBox.Enabled = false;
 
-            additiveCheckBox = UiControl.AddCheckBox("Additive (over bind pose)", false, isChecked =>
+            additiveCheckBox = UiControl.AddCheckBox(Locale.Anim_Additive, false, isChecked =>
             {
                 animationController.ApplyAdditive = isChecked;
             });
@@ -452,7 +452,7 @@ namespace GUI.Types.GLViewers
             for (var i = 0; i < bodyGroup.Choices.Count; i++)
             {
                 var choiceName = bodyGroup.Choices[i].Name;
-                comboBox.Items.Add(string.IsNullOrEmpty(choiceName) ? string.Create(CultureInfo.InvariantCulture, $"Model {i}") : choiceName);
+                comboBox.Items.Add(string.IsNullOrEmpty(choiceName) ? Locale.Model_BodyChoice(i.ToString(CultureInfo.InvariantCulture)) : choiceName);
             }
 
             bodyGroupSelections.Add((bodyGroup, comboBox));
@@ -480,7 +480,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            using var _ = UiControl.BeginGroup("Flex Controllers");
+            using var _ = UiControl.BeginGroup(Locale.Model_FlexControllers);
 
             for (var i = 0; i < controllers.Length; i++)
             {
@@ -610,9 +610,9 @@ namespace GUI.Types.GLViewers
 
                 if (model.Skeleton.Bones.Length > 0)
                 {
-                    using var _ = UiControl.BeginGroup("Model");
+                    using var _ = UiControl.BeginGroup(Locale.Model_Model);
 
-                    showSkeletonCheckbox = UiControl.AddCheckBox("Show skeleton", false, isChecked =>
+                    showSkeletonCheckbox = UiControl.AddCheckBox(Locale.Model_ShowSkeleton, false, isChecked =>
                     {
                         using var lockedGl = MakeCurrent();
                         skeletonSceneNode?.ShowBones = isChecked;
@@ -621,9 +621,9 @@ namespace GUI.Types.GLViewers
 
                 if (model.Attachments.Count > 0)
                 {
-                    using var _ = UiControl.BeginGroup("Model");
+                    using var _ = UiControl.BeginGroup(Locale.Model_Model);
 
-                    showAttachmentsCheckbox = UiControl.AddCheckBox("Show attachments", false, isChecked =>
+                    showAttachmentsCheckbox = UiControl.AddCheckBox(Locale.Model_ShowAttachments, false, isChecked =>
                     {
                         attachmentList?.Visible = isChecked;
 
@@ -632,7 +632,7 @@ namespace GUI.Types.GLViewers
                         skeletonSceneNode?.ShowAttachments = isChecked;
                     });
 
-                    attachmentList = UiControl.AddMultiSelectionControl<string>("Attachments", listBox =>
+                    attachmentList = UiControl.AddMultiSelectionControl<string>(Locale.Model_Attachments, listBox =>
                     {
                         listBox.Items.AddRange([.. model.Attachments.Keys]);
                         for (var i = 0; i < listBox.Items.Count; i++)
@@ -656,9 +656,9 @@ namespace GUI.Types.GLViewers
 
                 if (modelParticleNodes.Count > 0)
                 {
-                    using var _ = UiControl.BeginGroup("Model");
+                    using var _ = UiControl.BeginGroup(Locale.Model_Model);
 
-                    showParticlesCheckbox = UiControl.AddCheckBox("Show particles", true, isChecked =>
+                    showParticlesCheckbox = UiControl.AddCheckBox(Locale.Model_ShowParticles, true, isChecked =>
                     {
                         using var lockedGl = MakeCurrent();
 
@@ -673,10 +673,10 @@ namespace GUI.Types.GLViewers
                 {
                     Debug.Assert(hitboxSetSceneNode != null);
 
-                    using var _ = UiControl.BeginGroup("Model");
+                    using var _ = UiControl.BeginGroup(Locale.Model_Model);
 
                     var hitboxSets = model.HitboxSets;
-                    hitboxComboBox = UiControl.AddSelection("Hitbox Set", (hitboxSet, i) =>
+                    hitboxComboBox = UiControl.AddSelection(Locale.Model_HitboxSet, (hitboxSet, i) =>
                     {
                         if (i == 0)
                         {
@@ -698,9 +698,9 @@ namespace GUI.Types.GLViewers
                 {
                     hasSelectableLods = true;
 
-                    using var _ = UiControl.BeginGroup("Model");
+                    using var _ = UiControl.BeginGroup(Locale.Model_Model);
 
-                    lodComboBox = UiControl.AddSelection("Level of Detail", (_, i) =>
+                    lodComboBox = UiControl.AddSelection(Locale.Model_LevelOfDetail, (_, i) =>
                     {
                         if (i < 0)
                         {
@@ -712,7 +712,7 @@ namespace GUI.Types.GLViewers
                         modelSceneNode?.SetOverrideLod(i == 0 ? null : i - 1);
                     });
 
-                    lodComboBox.Items.Add("Auto");
+                    lodComboBox.Items.Add(Locale.Model_LodAuto);
 
                     for (var level = 0; level < lodCount; level++)
                     {
@@ -733,7 +733,7 @@ namespace GUI.Types.GLViewers
 
                 if (bodyGroups.Length > 0 || meshGroups.Length > 1)
                 {
-                    using var _ = UiControl.BeginGroup("Model");
+                    using var _ = UiControl.BeginGroup(Locale.Model_Model);
 
                     foreach (var bodyGroup in bodyGroups)
                     {
@@ -742,7 +742,7 @@ namespace GUI.Types.GLViewers
 
                     if (meshGroups.Length > 1)
                     {
-                        meshGroupListBox = UiControl.AddMultiSelection<string>("Mesh Group", listBox =>
+                        meshGroupListBox = UiControl.AddMultiSelection<string>(Locale.Model_MeshGroup, listBox =>
                         {
                             listBox.Items.AddRange(meshGroups);
 
@@ -759,9 +759,9 @@ namespace GUI.Types.GLViewers
 
                 if (materialGroupNames.Length > 1)
                 {
-                    using var _ = UiControl.BeginGroup("Model");
+                    using var _ = UiControl.BeginGroup(Locale.Model_Model);
 
-                    materialGroupListBox = UiControl.AddSelection("Material Group", (selectedGroup, _) =>
+                    materialGroupListBox = UiControl.AddSelection(Locale.Model_MaterialGroup, (selectedGroup, _) =>
                     {
                         using var lockedGl = MakeCurrent();
                         modelSceneNode?.SetMaterialGroup(selectedGroup);
@@ -781,7 +781,7 @@ namespace GUI.Types.GLViewers
 
                 if (collisionLabels.Length > 0)
                 {
-                    collisionTree = UiControl.AddTreeSelection("Collision", collisionLabels, SetShownCollision, initiallyChecked: Tools.ShownCollision.Count > 0, foldGroups: true);
+                    collisionTree = UiControl.AddTreeSelection(Locale.Model_Collision, collisionLabels, SetShownCollision, initiallyChecked: Tools.ShownCollision.Count > 0, foldGroups: true);
                 }
             }
 
@@ -932,8 +932,12 @@ namespace GUI.Types.GLViewers
                 var time = animationController.Time - cycle * totalTime;
                 var frameNumber = animationController.Frame + 1;
 
-                animationTimeLabel.Text = string.Create(CultureInfo.InvariantCulture,
-                    $"Frame: {frameNumber,4} / {frameCount}\nTime: {time:F2} / {totalTime:F2}\nFPS: {fps:F2}\n");
+                animationTimeLabel.Text = Locale.Anim_FrameInfo(
+                    frameNumber.ToString(CultureInfo.InvariantCulture).PadLeft(4),
+                    frameCount.ToString(CultureInfo.InvariantCulture),
+                    time.ToString("F2", CultureInfo.InvariantCulture),
+                    totalTime.ToString("F2", CultureInfo.InvariantCulture),
+                    fps.ToString("F2", CultureInfo.InvariantCulture));
             }
 
             void UpdateUiAnimationState(AnimationBase? animation, int frame)
@@ -961,7 +965,7 @@ namespace GUI.Types.GLViewers
                 sb.AppendLine(GetActiveLodText());
             }
 
-            sb.AppendLine(CultureInfo.InvariantCulture, $"Mesh Count: {modelSceneNode.RenderableMeshes.Count}");
+            sb.AppendLine(Locale.Model_MeshCount(modelSceneNode.RenderableMeshes.Count.ToString(CultureInfo.InvariantCulture)));
 
             foreach (var mesh in modelSceneNode.RenderableMeshes)
             {
@@ -993,31 +997,39 @@ namespace GUI.Types.GLViewers
                 var moreThanSixEllipsis = coloredMaterialNames.Count > 6 ? "..." : string.Empty;
                 var allColoredMaterials = string.Join("\\#FFFFFFFF, ", coloredMaterialNames.Take(6)) + "\\#FFFFFFFF" + moreThanSixEllipsis;
 
-                sb.Append(CultureInfo.InvariantCulture,
-                    $"""
-
-                    Mesh '{meshName}':
-                        Vertices  : {vertexTotal:N0} | {HumanReadableByteSizeFormatter.Format(vertexBufferSize)}
-                        Triangles : {triangleTotal:N0} | {HumanReadableByteSizeFormatter.Format(indexBufferSize)}
-
-                    """
-                );
+                sb.AppendLine();
+                sb.AppendLine(Locale.Model_MeshName(meshName));
+                sb.Append("    ").AppendLine(Locale.Model_MeshVertices(
+                    vertexTotal.ToString("N0", CultureInfo.InvariantCulture),
+                    HumanReadableByteSizeFormatter.Format(vertexBufferSize)));
+                sb.Append("    ").AppendLine(Locale.Model_MeshTriangles(
+                    triangleTotal.ToString("N0", CultureInfo.InvariantCulture),
+                    HumanReadableByteSizeFormatter.Format(indexBufferSize)));
 
                 if (mesh.Meshlets.Count > 0)
                 {
                     var trianglesPerMeshlet = mesh.Meshlets[0].TriangleCount == 0
                         ? (uint)triangleTotal / mesh.Meshlets.Count
                         : mesh.Meshlets[0].TriangleCount;
-                    sb.AppendLine(CultureInfo.InvariantCulture, $"    Meshlets  : {mesh.Meshlets.Count:N0} | {trianglesPerMeshlet:N0} triangles each");
+                    sb.Append("    ").AppendLine(Locale.Model_MeshMeshlets(
+                        mesh.Meshlets.Count.ToString("N0", CultureInfo.InvariantCulture),
+                        trianglesPerMeshlet.ToString("N0", CultureInfo.InvariantCulture)));
                 }
 
                 if (mesh.MeshBoneCount > 0)
                 {
-                    sb.AppendLine(CultureInfo.InvariantCulture, $"    Skinning  : {mesh.MeshBoneCount} bones, {mesh.BoneWeightCount} per vertex");
+                    sb.Append("    ").AppendLine(Locale.Model_MeshSkinning(
+                        mesh.MeshBoneCount.ToString(CultureInfo.InvariantCulture),
+                        mesh.BoneWeightCount.ToString(CultureInfo.InvariantCulture)));
                 }
 
-                sb.AppendLine(CultureInfo.InvariantCulture, $"    Drawcalls : {coloredMaterialNames.Count} ({allColoredMaterials})");
-                sb.AppendLine(CultureInfo.InvariantCulture, $"    Size      : X: {size.X:0.##} | Y: {size.Y:0.##} | Z: {size.Z:0.##}");
+                sb.Append("    ").AppendLine(Locale.Model_MeshDrawcalls(
+                    coloredMaterialNames.Count.ToString(CultureInfo.InvariantCulture),
+                    allColoredMaterials));
+                sb.Append("    ").AppendLine(Locale.Model_MeshSize(
+                    size.X.ToString("0.##", CultureInfo.InvariantCulture),
+                    size.Y.ToString("0.##", CultureInfo.InvariantCulture),
+                    size.Z.ToString("0.##", CultureInfo.InvariantCulture)));
                 sb.AppendLine();
             }
 
@@ -1053,22 +1065,24 @@ namespace GUI.Types.GLViewers
         /// </summary>
         private static string FormatLodEntry(ModelLodInfo lodInfo, int level)
         {
+            var levelText = level.ToString(CultureInfo.InvariantCulture);
+
             if (!lodInfo.AvailableLevels.Contains(level))
             {
-                return $"LOD {level} (Empty)";
+                return Locale.Model_LodEmpty(levelText);
             }
 
             if (lodInfo.SwitchDistances.Count <= 1 || level >= lodInfo.SwitchDistances.Count)
             {
-                return $"LOD {level}";
+                return Locale.Model_Lod(levelText);
             }
 
             var (min, max) = lodInfo.GetMetricRange(level);
             var minText = min.ToString("0.#", CultureInfo.InvariantCulture);
 
             return max is float upper
-                ? $"LOD {level} ({minText}-{upper.ToString("0.#", CultureInfo.InvariantCulture)})"
-                : $"LOD {level} ({minText}+)";
+                ? Locale.Model_LodRange(levelText, minText, upper.ToString("0.#", CultureInfo.InvariantCulture))
+                : Locale.Model_LodRangeOpen(levelText, minText);
         }
 
         /// <summary>
@@ -1243,9 +1257,11 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(modelSceneNode != null);
 
+            var activeLod = modelSceneNode.ActiveLod.ToString(CultureInfo.InvariantCulture);
+
             return modelSceneNode.IsAutoLod
-                ? $"LOD: Auto ({modelSceneNode.ActiveLod})"
-                : $"LOD: {modelSceneNode.ActiveLod}";
+                ? Locale.Model_ActiveLodAuto(activeLod)
+                : Locale.Model_ActiveLod(activeLod);
         }
 
         protected override void OnPicked(PickResult result)
@@ -1304,15 +1320,14 @@ namespace GUI.Types.GLViewers
             if (animations.Length > 0 || graphSessions.Length > 0)
             {
                 animationComboBox.Enabled = true;
-                var animationSuffix = animations.Length == 1 ? "animation" : "animations";
-                animationComboBox.Items.Add(animations.Length > 0 ? $"({animations.Length} {animationSuffix} available)" : "(bind pose)");
+                animationComboBox.Items.Add(animations.Length > 0 ? Locale.Anim_Available(animations.Length) : Locale.Anim_BindPose);
                 animationIndexMap.Add(default);
 
                 if (graphSessions.Length > 0)
                 {
                     animationComboBox.Items.Add(new ThemedComboBoxItem
                     {
-                        Text = "Animation Graphs",
+                        Text = Locale.Anim_Graphs,
                         IsHeader = true
                     });
                     animationIndexMap.Add(default);
@@ -1377,7 +1392,7 @@ namespace GUI.Types.GLViewers
                     {
                         animationComboBox.Items.Add(new ThemedComboBoxItem
                         {
-                            Text = "Ungrouped",
+                            Text = Locale.Anim_Ungrouped,
                             IsHeader = true
                         });
                         animationIndexMap.Add(default);
@@ -1405,7 +1420,7 @@ namespace GUI.Types.GLViewers
             }
             else
             {
-                animationComboBox.Items.Add("(no animations available)");
+                animationComboBox.Items.Add(Locale.Anim_NoneAvailable);
                 animationComboBox.SelectedIndex = 0;
                 animationComboBox.Enabled = false;
             }

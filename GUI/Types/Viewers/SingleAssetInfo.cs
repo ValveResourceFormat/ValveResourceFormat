@@ -71,12 +71,12 @@ namespace GUI.Types.Viewers
 
             var fileInfo = new StringBuilder();
 
-            fileInfo.AppendLine(CultureInfo.InvariantCulture, $"Name: {filePath}");
-            fileInfo.AppendLine(CultureInfo.InvariantCulture, $"CRC: {entry.CRC32:X2}");
-            fileInfo.AppendLine(CultureInfo.InvariantCulture, $"Archive: {entry.ArchiveIndex}");
-            fileInfo.AppendLine(CultureInfo.InvariantCulture, $"Offset: {entry.Offset}");
-            fileInfo.AppendLine(CultureInfo.InvariantCulture, $"Size: {entry.Length} ({HumanReadableByteSizeFormatter.Format(entry.Length)})");
-            fileInfo.AppendLine(CultureInfo.InvariantCulture, $"Preloaded bytes: {entry.SmallData.Length}");
+            fileInfo.AppendLine(Locale.Asset_Name(filePath));
+            fileInfo.AppendLine(Locale.Asset_Crc(entry.CRC32.ToString("X2", CultureInfo.InvariantCulture)));
+            fileInfo.AppendLine(Locale.Asset_Archive(entry.ArchiveIndex.ToString(CultureInfo.InvariantCulture)));
+            fileInfo.AppendLine(Locale.Asset_Offset(entry.Offset.ToString(CultureInfo.InvariantCulture)));
+            fileInfo.AppendLine(Locale.Asset_Size(entry.Length.ToString(CultureInfo.InvariantCulture), HumanReadableByteSizeFormatter.Format(entry.Length)));
+            fileInfo.AppendLine(Locale.Asset_PreloadedBytes(entry.SmallData.Length.ToString(CultureInfo.InvariantCulture)));
 
             var fileControl = new CodeTextBox(fileInfo.ToString());
 

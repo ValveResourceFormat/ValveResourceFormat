@@ -1,0 +1,851 @@
+Menu_File,F&ile
+Menu_Open,&Open
+Menu_InstallApp,Install app
+Menu_CreateVpk,Create VPK
+Menu_CreateVpkFromFolder,Create VPK from folder
+Menu_EditVpk,Edit VPK
+Menu_OpenWelcomeScreen,Open welcome screen
+Menu_Explorer,Explorer
+Menu_Find,&Find
+Menu_Settings,Settings
+Menu_About,About
+Menu_Website,Website
+Menu_RecoverDeletedFiles,Recover deleted files
+Menu_EditThisVpk,Edit this VPK
+Menu_CopyUrl,Copy URL
+Menu_CopyName,Copy name
+Menu_ExportAsIs,Export as is
+Menu_DecompileExport,Decompile && export
+Menu_AddToBookmarks,Add to bookmarks
+Menu_SearchInFolder,Search in folder
+Menu_OpenWithoutViewer,Open without viewer
+Menu_OpenWithDefaultApp,Open with default app
+Menu_ViewAssetInfo,View asset info
+Menu_VerifyPackageContents,Verify package contents
+Menu_ValidateShaders,Validate shaders
+Menu_ValidateShaders_Progress,Compiling shaders…
+Menu_ReplaceInstalledVersion,Replace installed version ({version})
+
+Tab_Console,Console
+Tab_Explorer,Explorer
+Tab_Settings,Settings
+Tab_Welcome,Welcome
+Tab_Close,Close &tab
+Tab_CloseOthers,Close all &other tabs
+Tab_CloseAll,Close &all tabs
+Tab_CloseToRight,Close all tabs to &right
+Tab_CloseToLeft,Close all tabs to &left
+Tab_Mute,&Mute tab
+Tab_Unmute,&Unmute tab
+Tab_ClearConsole,Clear console
+
+Main_LoadingFile,"Loading file, please wait…"
+Main_UpdateAvailable,Update available
+Main_NewerDevBuild,Newer dev build available
+
+Open_FileFilter,"Valve Resource Format (*.*_c, *.vpk)|*.*_c;*.vpk;*.vcs|All files (*.*)|*.*"
+Open_ManyFiles_Title,Trying to open many files in the default app
+Open_ManyFiles_Message,"You are trying to open {count, plural, one {# file} other {# files}} in the default app for each of these files, are you sure you want to continue?"
+
+Explorer_Filter,Filter…
+Explorer_Bookmarks,Bookmarks
+Explorer_RecentFiles,Recent files
+Explorer_ScanningGameFolders,Scanning game folders…
+Explorer_WorkshopItem,[Workshop {id}]
+Explorer_ScanFailed,"Failed to scan game folders, see the console for details."
+Explorer_RevealInFileExplorer,R&eveal in File Explorer
+Explorer_AddToBookmarks,Add to &Bookmarks
+Explorer_RemoveFromBookmarks,Remove from &Bookmarks
+Explorer_RemoveFromRecent,&Remove from Recent
+Explorer_ClearRecentFiles,&Clear recent files
+
+Welcome_Explorer,Explorer
+Welcome_Explorer_Text,"Your installed Steam games, recent files and bookmarks are in the Explorer on the right. Right-click a file to bookmark it."
+Welcome_Updates,Updates
+Welcome_Updates_Text,Updates are checked daily. Change this in the About menu.
+Welcome_Install,Install
+Welcome_Install_Text,Adds a Start menu shortcut and opens .vpk files and vpk: links in Source 2 Viewer.
+Welcome_Help,Having issues?
+Welcome_Help_Text,Ask the community or report a bug.
+Welcome_JoinDiscord,Join Discord
+Welcome_ReportOnGitHub,Report on GitHub
+
+Settings_VerticalSync,Vertical sync
+Settings_AddGamePath,Add .vpk or gameinfo.gi
+Settings_Remove,Remove
+Settings_AddFolder,Add folder
+Settings_MaxTextureSize,Max texture size:
+Settings_MouseSensitivity,Mouse sensitivity:
+Settings_CameraFov,Camera FOV:
+Settings_ViewmodelFov,Viewmodel FOV:
+Settings_AntiAliasing,Anti-aliasing:
+Settings_DisplayFps,Display FPS
+Settings_GamePaths_Group,Game content search paths
+Settings_Video_Group,Video settings
+Settings_SmoothCamera,Smooth camera
+Settings_ShadowQuality,Shadow quality:
+Settings_ShadowLow,Low
+Settings_ShadowMedium,Medium
+Settings_ShadowHigh,High
+Settings_ShadowVeryHigh,Very high
+Settings_Explorer_Group,Explorer
+Settings_TextViewerFontSize,Text viewer font size:
+Settings_OpenExplorerOnStart,Open explorer on start
+Settings_Theme,Theme (requires restart):
+Settings_QuickPreview_Group,Quick file preview
+Settings_PreviewAfterSelecting,Preview files after selecting
+Settings_AutoPlaySounds,Autoplay sounds
+Settings_Audio_Group,Audio
+Settings_Volume,Volume:
+Settings_Footer,"No regrets, Mr. Freeman"
+Settings_GamePathFileFilter,Valve Pak (*.vpk) or gameinfo.gi|*.vpk;gameinfo.gi|All files (*.*)|*.*
+
+Theme_System,System
+Theme_Light,Light
+Theme_Dark,Dark
+
+Keys_Find,Find
+Keys_Open,Open
+Keys_CloseTab,Close tab
+Keys_CloseAllTabs,Close all tabs
+Keys_CloseTabsRight,Close tabs right
+Keys_Pan,Pan
+Keys_PanHorizontal,Pan H
+Keys_PanVertical,Pan V
+Keys_Zoom,Zoom
+Keys_ResetZoom,Reset zoom
+Keys_Copy,Copy
+Keys_Save,Save
+Keys_Fullscreen,Fullscreen
+Keys_Mouselook,Mouselook
+Keys_Orbit,Orbit
+Keys_AdjustSun,Adjust sun
+Keys_Screenshot,Screenshot
+Keys_UpDown,Up/Down
+Keys_Walk,Walk
+Keys_Select,Select
+Keys_Details,Details
+Keys_Move,Move
+Keys_MultiSelect,Multi-select
+Keys_MoveConnected,Move connected
+Keys_Menu,Menu
+Keys_Fit,Fit
+Keys_PlayPause,Play/Pause
+Keys_Seek,Seek ±5s
+Keys_Volume,Volume
+Keys_Jump,Jump
+Keys_Loop,Loop
+
+About_Website,&Website
+About_GitHub,&GitHub
+About_Discord,&Discord
+About_Licenses,&Licenses
+About_CopyVersion,Copy &version
+About_Copied,Copied!
+About_Disclaimer,"This is open-source software under the MIT license.
+This project is not affiliated with Valve Software.
+Source 2 is a trademark and/or registered trademark of Valve Corporation."
+About_CheckAutomatically,Automatically check for updates daily
+About_UpdateChannel,Update channel:
+About_ChannelStable,Stable
+About_ChannelDev,Dev
+About_DownloadNewVersion,Download new version
+About_ViewReleaseNotes,View release notes
+About_ViewReleaseNotesFor,View release notes for {version}
+About_NewVersion,"New version: "
+About_CurrentVersion,"Current version: "
+About_Title,Source 2 Viewer
+About_Version,Version
+About_CheckingForUpdates,Checking for updates…
+About_CheckFailed,Failed to check for updates: {message}
+About_NotAvailable,Not available
+About_UpToDate,Up to date
+About_DownloadStable,Download {version}
+About_DownloadDev,Download dev build {number}
+About_SwitchToStable,Switch to stable {version}
+About_SwitchToDev,Switch to dev build {number}
+About_ThirdPartyLicenses,Third-party licenses
+
+Update_RestartToUpdate,Restart to update
+Update_InstalledStable,{version} (installed)
+Update_InstalledDev,dev build {number} (installed)
+Update_DevBuild,Dev build {number}
+Update_DownloadingStable,Downloading {version}
+Update_DownloadingDev,Downloading dev build {number}
+Update_CheckingForNewerBuild,Checking for a newer build…
+Update_Verifying,Verifying download…
+Update_VerifyingProvenance,Verifying build provenance…
+Update_ProgressOf,{written} MB of {total} MB
+Update_Progress,{written} MB
+Update_Downloaded_Title,Update downloaded
+Update_Downloaded_Message,"The update was downloaded and verified, but this build cannot replace itself.
+
+{path}"
+Update_Installed_Title,Update installed
+Update_Installed_HeadingStable,Source 2 Viewer {version} has been installed
+Update_Installed_HeadingDev,Source 2 Viewer dev build {number} has been installed
+Update_Installed_Text,It will be used the next time the viewer starts.
+Update_RestartNow,Restart now
+Update_Later,Later
+
+Install_FileAssociation_Title,File association registered
+Install_FileAssociation_Message,"Registered the .vpk file association and ""vpk:"" protocol link handling."
+
+Error_Caption,Source 2 Viewer
+Error_NewerFormat,This file may use a format that this version of S2V does not support
+Error_Generic,An error occurred
+Error_Footnote,S2V {version}
+Error_CheckForUpdates,Check for updates
+Error_Report,Report
+Error_CopyToClipboard,Copy to clipboard
+Error_AdviceUpToDate,You are on the latest build. Report this error and describe the exact steps that caused it.
+Error_AdviceUnknown,Check for updates in the About window and try the latest dev build before reporting this error.
+Error_AdviceNewerStable,A newer version ({version}) is available from the About window. Try it before reporting this error.
+Error_AdviceNewerDev,A newer dev build ({number}) is available from the About window. Try it before reporting this error.
+Error_AdviceNewerDevChannel,A newer dev build ({number}) is available by switching to the Dev update channel in the About window. Try it before reporting this error.
+
+Dialog_Cancel,Cancel
+Dialog_Save,Save
+Dialog_Replace,Replace
+Dialog_Skip,Skip
+Dialog_AllFilesFileFilter,All files (*.*)|*.*
+
+ColorPicker_Title,Color picker
+ColorPicker_OK,OK
+ColorPicker_New,New
+ColorPicker_Old,Old
+
+Search_Title,Find
+Search_Find,Find
+Search_AssetInfoFilter,Asset info filter:
+Search_MatchCase,Match case
+Search_WholeWord,Whole word
+Search_Regex,Regex
+Search_Extension,Extension:
+Search_OnlyInFolder,Search only in: {folder}/
+Search_OnlyInFolderNone,Search only in: no folder selected
+Search_TypeFileName,File name
+Search_TypeFullPath,Full path
+Search_TypeFileContents,File contents
+Search_TypeFileContentsHex,File contents hex bytes
+Search_AnyExtension,Any extension
+Search_LoadingAssetInfo,Loading asset info…
+Search_NoFilter,(No filter)
+Search_NoAssetInfo,No asset info
+Search_AnyValue,(Any value)
+
+SvgExport_Title,Export image
+SvgExport_Original,Original  ({width} × {height})
+SvgExport_Size,{width} × {height}
+SvgExport_Custom,Custom…
+SvgExport_LongEdgeUnit,px (long edge)
+SvgExport_Resolution,Resolution:
+SvgExport_Format,Format:
+SvgExport_FormatSvg,SVG (vector)
+SvgExport_Output,Output: {width} × {height} px
+
+Extract_Description,Select which output types you would like each compiled file to export as.
+Extract_Input,Input
+Extract_Output,Output
+Extract_Count,Count
+Extract_Continue,Continue
+Extract_Title,Select output file types
+Extract_FileCount,"{count, plural, one {# file} other {# files}}"
+
+Progress_Calculating,Calculating…
+Progress_Title,Extracting files…
+Progress_Close,Close
+Progress_Cancelling,Cancelling…
+Progress_Completed,{title} (completed in {elapsed})
+Progress_Elapsed,{title} ({elapsed} elapsed)
+Progress_Percent,"{title} {percent}% ({elapsed} elapsed, ~{remaining} left)"
+
+Prompt_Submit,Submit
+
+VpkEdit_CreateFolder,Create folder
+VpkEdit_AddExistingFolder,&Add existing folder
+VpkEdit_AddExistingFiles,Add existing &files
+VpkEdit_Rename,Re&name
+VpkEdit_RemoveFolder,&Remove this folder
+VpkEdit_RemoveFile,&Remove this file
+VpkEdit_Save,&Save
+VpkEdit_SaveAs,Save &as
+VpkEdit_TabEditing,Editing {name}
+VpkEdit_TabNew,New VPK
+VpkEdit_OpenFailed_Title,Failed to open VPK
+VpkEdit_BeingSaved_Message,"A VPK is being saved, open it again once that is done."
+VpkEdit_Signed_Title,Signed VPK
+VpkEdit_Signed_Message,"This VPK is signed. Saving it writes it without the signature, so games that check signatures will not load it."
+VpkEdit_PackFolder_Title,Choose which folder to pack into a VPK
+VpkEdit_ChooseVpk_Title,Choose a VPK to edit
+VpkEdit_OpenFileFilter,Valve Pak (*.vpk)|*.vpk
+VpkEdit_Save_Title,Save VPK package
+VpkEdit_SaveFileFilter,Valve Pak|*.vpk|Valve Pak split into chunk files|*_dir.vpk
+VpkEdit_ChunksMustSplit_Message,A VPK with chunk files can only be saved split into chunk files.
+VpkEdit_SaveFailed_Title,Failed to save VPK
+VpkEdit_SaveRepack_Title,Save VPK
+VpkEdit_SaveRepack_Message,Saving to another file copies all chunk files of this VPK.
+VpkEdit_UnsavedInOtherTab_Message,"""{name}"" has unsaved changes in another tab, save or close it first."
+VpkEdit_WriteFailedIo_Message,"{error}
+
+It may be open in another tab, be a game search path in Settings, or be used by another program."
+VpkEdit_Saving_Title,Saving VPK…
+VpkEdit_Copying_Progress,"Copying the files of the VPK to ""{name}""…"
+VpkEdit_Saving_Progress,"Saving ""{name}""…"
+VpkEdit_ReleaseTimeout_Message,"Tabs that were closed to save ""{name}"" are still reading it, save again in a moment."
+VpkEdit_NotSaved_Message,"""{name}"" was not saved."
+VpkEdit_UnsavedChanges_Title,Unsaved changes
+VpkEdit_SaveChanges_Message,Save changes to {name}?
+VpkEdit_SaveChangesNew_Message,Save changes to the new VPK?
+VpkEdit_NewFolder_Title,New folder
+VpkEdit_NewFolder_Label,Folder name:
+VpkEdit_Rename_Title,Rename
+VpkEdit_Rename_Label,New name:
+VpkEdit_AddFolders_Title,Choose which folders to add to the VPK
+VpkEdit_AddFiles_Title,Choose which files to add to the VPK
+
+Package_SearchPlaceholder,Search…
+Package_Back,Back
+Package_Forward,Forward
+Package_Grid,Grid
+Package_List,List
+Package_ColumnName,Name
+Package_ColumnSize,Size
+Package_ColumnType,Type
+Package_ColumnFolder,Folder
+Package_FailedToCreateFolder_Title,Failed to create folder
+Package_InvalidFolderName,"""{directory}"" is not a valid folder name."
+Package_NoFilesAdded_Title,No files added
+Package_NoFilesAdded_Message,"Nothing was added, there are no files to add."
+Package_FailedToAddFiles_Title,Failed to add files
+Package_InvalidEntryPath,"{pathOnDisk}: ""{entryPath}"" is not a valid path in a VPK."
+Package_DuplicateEntryPath,"{pathOnDisk}: ""{normalizedPath}"" is also the path of {otherPath}."
+Package_NothingAdded,"Nothing was added:
+{files}"
+Package_ReplaceExistingFiles_Title,Files already exist
+Package_ReplaceExistingFiles_Message,"Replace {count, plural, one {# existing file} other {# existing files}}?"
+Package_ListAndMore,"{lines}
+and {count} more"
+Package_FilesDoNotFit,"These files do not fit into a VPK that is not split into chunk files, which holds at most 2 GiB. Save it with Save As and the ""Valve Pak split into chunk files"" type first."
+Package_FilesDoNotFitSkippingFits,"These files do not fit into a VPK that is not split into chunk files, which holds at most 2 GiB. Save it with Save As and the ""Valve Pak split into chunk files"" type first.
+
+Skipping the existing files would fit."
+Package_FilesDoNotFitReplacingFits,"These files do not fit into a VPK that is not split into chunk files, which holds at most 2 GiB. Save it with Save As and the ""Valve Pak split into chunk files"" type first.
+
+Replacing the existing files would fit."
+Package_AddingFiles,Adding files…
+Package_FailedToAddCount,"Failed to add {count, plural, one {# file} other {# files}}:
+{files}"
+Package_FailedToDelete_Title,Failed to delete
+Package_FolderNotNormalizedDelete,"""{folderPath}"" cannot be deleted because its stored name is not normalized, such as having upper case letters."
+Package_FolderNotNormalizedRename,"""{folderPath}"" cannot be renamed because its stored name is not normalized, such as having upper case letters."
+Package_InvalidName,"""{name}"" is not a valid name."
+Package_InvalidFolder,"""{folderPath}"" is not a valid folder."
+Package_AlreadyExists,"""{path}"" already exists."
+Package_MoveToSamePath,"""{file}"" and another file in the folder would both be moved to ""{newPath}""."
+Package_MergeFolders,"""{name}"" already exists. Merge the folders?"
+Package_RenameFolder,Rename folder
+Package_FailedToRename_Title,Failed to rename
+Package_FoundFilesSoFar,"Found {count, plural, one {# file} other {# files}} ({size}) so far…"
+Package_SearchAllFiles,All files
+Package_SearchFileName,"File name ""{text}"""
+Package_SearchFullPath,"Full path ""{text}"""
+Package_SearchFileContents,"File contents ""{text}"""
+Package_SearchFileContentsHex,"File contents hex bytes ""{text}"""
+Package_SearchFolder,Folder: {folder}
+Package_SearchExtension,Extension: {extension}
+Package_SearchFilter,{key} = {value}
+Package_SearchFilterAnyValue,{key} = any value
+Package_SearchFound,"{count, plural, one {# found} other {# found}}"
+Package_SearchNotSearched,"{count, plural, one {# not searched} other {# not searched}}"
+Package_SearchCancelled,Cancelled
+Package_SearchingContents,Searching file contents…
+Package_SearchingFiles,Searching {count} files…
+Package_ScanningDeleted,Scanning for deleted files…
+Package_ScanningDeletedSlow,"Scanning for deleted files. This may take a while…"
+Package_NoDeletedFiles,No deleted files found
+Package_DeletedFilesRoot,"Deleted files ({count, plural, one {# file} other {# files}} found, names are guessed)"
+Package_Verifying,Verifying package…
+Package_Verified_Title,Verified package contents
+Package_VerifiedSigned_Message,Successfully verified package contents.
+Package_VerifiedNotSigned_Message,Successfully verified package contents. This package is not signed.
+
+Export_NotSupported_Message,"Exporting ""{fileName}"" is not supported."
+Export_FailedToExport_Title,Failed to export
+Export_FileFilter,{extension} file|*.{extension}
+Export_GltfFileFilter,{extension} file|*.{extension}|glTF|*.gltf|glTF Binary|*.glb
+Export_SaveFile_Title,Choose where to save the file
+Export_Extracting,"Extracting {fileName} to ""{outputName}"""
+Export_DecompileWarning_Title,Decompile warning
+Export_DecompileWarning_Message,"Decompiling Source 2 maps is a difficult process, as such the output will be messy and imperfect, and will not resemble how
+real .vmap files are made!
+
+- Models will be merged by material across the map.
+- Parts of the skybox mesh might be missing.
+- The collision of the map will be merged into one mesh using special materials.
+- The map will lack lightmap resolution volumes.
+- Hammer meshes will be triangulated.
+
+It is NOT ADVISED to work on decompiled maps as your first map if you are new to mapping!"
+Export_NoFiles_Message,There are no files to extract.
+Export_FailedToExtract_Title,Failed to extract
+Export_PickFolder_Title,Choose which folder to extract files to
+Export_Completed,Export completed in {time}
+Export_CompletedWithFailures,"Export completed in {time}, {count, plural, one {# file} other {# files}} failed"
+Export_Failure_Title,Some files failed to export
+Export_Failure_Message,"{count, plural, one {# file} other {# files}} failed to export, the first one was:
+{file}
+{message}{others, plural, =0 {} one {
+
+The other failure is listed in the console.} other {
+
+The other failures are listed in the console.}}"
+Export_DoNotExport,* Do not export *
+
+Resource_TabText,Text
+Resource_TabCaptions,Captions
+Resource_TabGridNav,GRID NAV
+Resource_TabNavMesh,NAV MESH
+Resource_TabNavInfo,NAV INFO
+Resource_TabNavCustomData,NAV CUSTOM DATA
+Resource_TabNavMovableMeshSettings,NAV MOVABLE MESH SETTINGS
+Resource_TabNavGameData,NAV GAME DATA
+Resource_TabNavExtraGenParams,NAV EXTRA GEN PARAMS
+Resource_TabNavSpace,NAV SPACE
+Resource_TabNavSpaceInfo,NAV SPACE INFO
+Resource_ColumnName,Name
+Resource_ColumnBlock,Block
+Resource_ColumnSize,Size
+Resource_TabEntityIOGraph,ENTITY I/O GRAPH
+Resource_TabTexture,TEXTURE
+Resource_TabParticle,PARTICLE
+Resource_TabSnapshot,SNAPSHOT
+Resource_TabMap,MAP
+Resource_TabWorldNode,WORLD NODE
+Resource_TabModel,MODEL
+Resource_TabMesh,MESH
+Resource_TabSmartProp,SMART PROP
+Resource_TabAnimGraph1,AG1 ANIMATION GRAPH
+Resource_TabAnimGraph1Named,AG1 ANIMATION GRAPH ({name})
+Resource_TabAnimationClip,ANIMATION CLIP
+Resource_TabSkeleton,SKELETON
+Resource_TabAnimGraph2,AG2 ANIMATION GRAPH
+Resource_TabAnimGraph2Named,AG2 ANIMATION GRAPH ({name})
+Resource_TabPulseGraph,PULSE GRAPH
+Resource_TabPulseGraphNamed,PULSE GRAPH ({name})
+Resource_TabSkybox,SKYBOX
+Resource_TabMaterial,MATERIAL
+Resource_TabPhysics,PHYSICS
+Resource_TabVisibility,VISIBILITY
+Resource_TabLut,LUT
+Resource_TabBombDamage,BOMB DAMAGE
+Resource_TabPanoramaImages,PANORAMA IMAGES
+Resource_TabSound,SOUND
+Resource_TabShader,SHADER
+Resource_TabBlockCount,{type} ({count})
+Resource_TabViewerError,Viewer error
+Resource_TabDecompileError,Decompile error
+Resource_TabReferences,References
+Resource_TabManifestStructs,Introspection manifest: structs
+Resource_TabManifestEnums,Introspection manifest: enums
+Resource_TabWorldData,World data
+Resource_TabNodeData,Node data
+Resource_Reconstructed,Reconstructed {format}
+Resource_EntitiesText,Entities as text
+Resource_SaveAsText,Save as text…
+Resource_SaveBlockAsText,Save block as text
+Resource_Kv3FileFilter,KeyValues3 (*.kv3)|*.kv3|All files (*.*)|*.*
+Resource_BlockTooLarge_Message,"The {type} block is {size} bytes, which is too large to display as text.
+Save it as a text file instead."
+
+Shader_ExportBytecode,Export bytecode
+Shader_Material,Material {programType}{variants}
+Shader_Source,Source
+Shader_BytecodeFileFilter,{sourceType} bytecode (*.{extension})|*.{extension}|All files (*.*)|*.*
+
+Asset_Name,Name: {name}
+Asset_Crc,CRC: {crc}
+Asset_Archive,Archive: {archive}
+Asset_Offset,Offset: {offset}
+Asset_Size,Size: {bytes} ({formatted})
+Asset_PreloadedBytes,Preloaded bytes: {bytes}
+
+Choreo_Version,Version
+Choreo_Duration,Duration (s)
+Choreo_SoundDuration,Sound duration (s)
+Choreo_HasSounds,Has sounds
+Choreo_Yes,Yes
+Choreo_No,No
+
+Viewer_CopyingImage_Title,Source 2 Viewer - Copying image to clipboard…
+Viewer_Fullscreen_Title,Source 2 Viewer Fullscreen
+
+World_Render,Render
+World_Camera,Camera
+World_MapCamera,Map camera
+World_SetViewToCamera,Set view to camera…
+World_Group,World
+World_ShowSkybox,Show skybox
+World_ShowFog,Show fog
+World_ShowVolumetricFog,Show volumetric fog
+World_ColorCorrection,Color correction
+World_PvsCulling,PVS culling
+World_VisibilityBoxes,Visibility boxes
+World_GpuCulling,GPU culling
+World_GpuOcclusionCulling,GPU occlusion culling
+World_DepthPrepass,Depth prepass
+World_AmbientOcclusion,Ambient occlusion
+World_BarnLights,Barn lights
+World_TiledLightCulling,Tiled light culling
+World_Exposure,Exposure
+World_ExposureValue,Exposure: {exposure}
+World_DepthOfField,Depth of field
+World_DofEnabled,Enabled
+World_DofFarBlurry,Far blurry
+World_DofFarCrisp,Far crisp
+World_DofNearBlurry,Near blurry
+World_DofNearCrisp,Near crisp
+World_DofMaxBlurSize,Max blur size
+World_DofRadiusScale,Radius scale
+World_DofFocalDistance,Focal distance
+World_WorldLayers,World layers
+World_AutoVisGroups,Auto vis groups
+World_Collision,Collision
+World_OpaqueCollision,Opaque collision
+World_ShowTools,Show tools
+World_Play,Play
+World_Pause,Pause
+World_Stop,Stop
+World_PlayMode,PLAY MODE
+World_PlayModePaused,PLAY MODE (PAUSED)
+World_LoadingPlayerModel,Loading player model…
+World_LoadingWorldGeometry,Loading world geometry…
+World_EntityTitle,Entity: {classname}
+World_EntityTitleNamed,Entity: {classname} ({targetName})
+World_EntityTitleInSkybox,Entity: {classname} (in 3D skybox)
+World_EntityTitleNamedInSkybox,Entity: {classname} ({targetName}) (in 3D skybox)
+World_EntityTitleInMap,Entity: {classname} (in {mapName})
+World_EntityTitleNamedInMap,Entity: {classname} ({targetName}) (in {mapName})
+World_InSkybox,{title} (in 3D skybox)
+World_InMap,{title} (in {mapName})
+World_Shader,Shader
+World_Material,Material
+World_AggregateModel,Aggregate model
+World_TrianglesClustersPerCluster,Triangles / clusters / per cluster
+World_Triangles,Triangles
+World_ModelTint,Model tint
+World_ModelAlpha,Model alpha
+World_InstanceTint,Instance tint
+World_FinalTint,Final tint
+World_ClutterModel,Clutter model
+World_Instances,Instances
+World_TrianglesPerInstance,Triangles per instance
+World_BeginCullSize,Begin cull size
+World_EndCullSize,End cull size
+World_Model,Model
+World_CustomLightingOrigin,Custom lighting origin
+World_CubemapHandshake,Cubemap handshake
+World_LightProbeHandshake,Light probe handshake
+World_Flags,Flags
+World_Layers,Layers
+
+Scene_Off,Off
+Scene_Debug,Debug
+Scene_LockCullFrustum,Lock cull frustum
+Scene_ShowTools,Show tools
+Scene_LightProbeGrid,Light probe grid
+Scene_LightProbeGridClosest,Closest
+Scene_LightProbeGridClosestAndKeep,Closest and keep
+Scene_LightProbeGridAll,All
+Scene_LightProbeGridSurface,Light probe grid surface
+Scene_LightProbeGridSurfaceDiffuse,Diffuse
+Scene_LightProbeGridSurfaceMirror,Mirror
+Scene_CubemapDebugColors,Cubemap debug colors
+Scene_CubemapDebugColorsReflectionsAndMarkers,Reflections and markers
+Scene_CubemapDebugColorsMarkersOnly,Markers only
+Scene_ShowOccludedBounds,Show occluded bounds
+Scene_ShowVisDebug,Show vis debug
+Scene_DebugPhysicsTraces,Debug physics traces
+Scene_DebugSoundSources,Debug sound sources
+Scene_DisableThreadedSim,Disable threaded sim
+Scene_DebugPerformance,Debug performance
+Scene_DebugPerformanceStats,Stats
+Scene_DebugPerformanceTimings,Timings
+Scene_DebugPerformanceAllocations,Allocations
+Scene_MoveSpeed,Move speed: {speed} u/s (scroll to change)
+Scene_OrbitDistance,Orbit distance: {distance} (scroll to change)
+Scene_PreparingRenderer,Preparing renderer…
+Scene_InitializingScene,Initializing scene…
+Scene_Paused,Paused
+Scene_Speed,Speed: {speed} u/s
+Scene_PvsNone,No PVS at this position
+Scene_PvsCluster,PVS cluster {cluster}
+Scene_PvsVisible,"{total, plural, one {PVS visible: {visible}/# cluster} other {PVS visible: {visible}/# clusters}}"
+Scene_Display,Display
+Scene_LightBackground,Light background
+Scene_SolidBackground,Solid background
+Scene_ShowGrid,Show grid
+Scene_ShowWireframe,Show wireframe
+Scene_RenderMode,Render mode
+
+Camera_Clipboard,Clipboard:
+Camera_Delete,Delete
+Camera_Restore,Restore
+Camera_NoSaved,(No saved cameras)
+
+Physics_File,Physics file
+Physics_Collision,Collision
+Physics_SolidType,Solid type
+Physics_Mass,Physics mass
+Physics_Joints,Physics joints
+Physics_CollisionGroup,Collision group
+Physics_InteractAs,Interact as
+Physics_InteractWith,Interact with
+Physics_InteractExclude,Interact exclude
+Physics_Shapes,Shapes
+Physics_SurfaceProperties,Surface properties
+Physics_Spheres,"{count, plural, one {# sphere} other {# spheres}}"
+Physics_Capsules,"{count, plural, one {# capsule} other {# capsules}}"
+Physics_Hulls,"{count, plural, one {# hull} other {# hulls}}"
+Physics_Meshes,"{count, plural, one {# mesh} other {# meshes}}"
+Physics_MeshTriangles,"{count, plural, one {# mesh triangle} other {# mesh triangles}}"
+
+Anim_Animation,Animation
+Anim_Autoplay,Autoplay
+Anim_Frame,Animation frame
+Anim_Speed,Animation speed
+Anim_ShowRootMotion,Show root motion
+Anim_Additive,Additive (over bind pose)
+Anim_FrameInfo,"Frame: {frameNumber} / {frameCount}
+Time: {time} / {totalTime}
+FPS: {fps}
+"
+Anim_Available,"({count, plural, one {# animation} other {# animations}} available)"
+Anim_BindPose,(bind pose)
+Anim_NoneAvailable,(no animations available)
+Anim_Graphs,Animation graphs
+Anim_Ungrouped,Ungrouped
+Anim_Secondary,Secondary
+Anim_GraphSystem,System
+Anim_GraphEvents,Events
+Anim_GraphNoEvents,No events
+Anim_GraphUnsetId,(none)
+Anim_GraphValues,Values
+Anim_GraphIdentifiers,Identifiers
+Anim_GraphFlags,Flags
+Anim_GraphVectors,Vectors
+Anim_GraphTargets,Targets
+Anim_GraphSignal,Signal
+Anim_GraphGizmo,Gizmo
+Anim_GraphReset,Reset
+
+Model_Model,Model
+Model_BodyChoice,Model {index}
+Model_FlexControllers,Flex controllers
+Model_ShowSkeleton,Show skeleton
+Model_ShowAttachments,Show attachments
+Model_Attachments,Attachments
+Model_ShowParticles,Show particles
+Model_HitboxSet,Hitbox set
+Model_LevelOfDetail,Level of detail
+Model_LodAuto,Auto
+Model_MeshGroup,Mesh group
+Model_MaterialGroup,Material group
+Model_Collision,Collision
+Model_LodEmpty,LOD {level} (empty)
+Model_Lod,LOD {level}
+Model_LodRange,LOD {level} ({min}-{max})
+Model_LodRangeOpen,LOD {level} ({min}+)
+Model_ActiveLodAuto,LOD: Auto ({lod})
+Model_ActiveLod,LOD: {lod}
+Model_MeshCount,Mesh count: {count}
+Model_MeshName,Mesh ''{name}'':
+Model_MeshVertices,Vertices  : {vertices} | {size}
+Model_MeshTriangles,Triangles : {triangles} | {size}
+Model_MeshMeshlets,Meshlets  : {count} | {triangles} triangles each
+Model_MeshSkinning,"Skinning  : {bones} bones, {weights} per vertex"
+Model_MeshDrawcalls,Drawcalls : {count} ({materials})
+Model_MeshSize,Size      : X: {x} | Y: {y} | Z: {z}
+
+Particle_PreEmissionOperators,Pre-emission operators
+Particle_Emitters,Emitters
+Particle_Initializers,Initializers
+Particle_Operators,Operators
+Particle_ForceGenerators,Force generators
+Particle_Constraints,Constraints
+Particle_Renderers,Renderers
+Particle_ChildDisabled,{name} (disabled)
+Particle_Children,Children
+Particle_FunctionRemoved,{name} (removed by upgrade)
+Particle_FunctionWas,{name} (was {original})
+Particle_DetailLevel,Detail level
+Particle_DetailLow,Low
+Particle_DetailMedium,Medium
+Particle_DetailHigh,High
+Particle_DetailUltra,Ultra
+Particle_Restart,Restart
+Particle_Pause,Pause
+Particle_Resume,Resume
+Particle_PlayEndcap,Play endcap
+Particle_Playback,Playback
+Particle_Mode,Mode
+Particle_ModeNormal,Normal
+Particle_ModeNormalEndcap,Normal + endcap
+Particle_ModeEndcapOnly,Endcap only
+Particle_Loop,Loop
+Particle_CollideWithFloor,Collide with floor
+Particle_Speed,Speed
+Particle_Display,Display
+Particle_ShowRenderBounds,Show render bounds
+Particle_PointSize,Point size
+
+Material_OpenShader,Open shader
+Material_RenderColor,Render color
+Material_RenderMesh,Render mesh
+Material_PreviewQuad,Quad
+Material_PreviewSphere,Sphere
+Material_PreviewCustomModel,Custom model
+Material_PreviewCable,Cable
+
+BombDamage_Bombsites,Bombsites
+
+Nav_Layers,Navigation layers
+
+Texture_ResetZoom,Reset zoom
+Texture_SaveToDisk,Save to disk…
+Texture_CopyHint,or press Ctrl+C to copy
+Texture_ColorCorrectionYes,Color correction: Yes
+Texture_ColorCorrectionNo,Color correction: No
+Texture_Resolution,Resolution: {resolution}
+Texture_Depth,Depth
+Texture_Section,Texture
+Texture_Size,Size: {width}x{height}
+Texture_Format,Format: {format}
+Texture_MipLevel,Mip level
+Texture_ProjectionType,Projection type
+Texture_CubeFace,Cube face
+Texture_Conversion,Texture conversion
+Texture_View,View
+Texture_SoftwareDecode,Software decode
+Texture_ShowUvTiling,Show UV tiling
+Texture_SpriteSheet,Sprite sheet
+Texture_Sequence,Sequence
+Texture_Display,Display
+Texture_Autoplay,Autoplay
+Texture_Loop,Loop
+Texture_SpriteFrame,Sprite frame
+Texture_AnimateInFps,Animate in FPS
+Texture_SpriteSpeed,Sprite speed
+Texture_SequenceNamed,"#{id} {name} ({count, plural, one {# frame} other {# frames}})"
+Texture_SequenceUnnamed,"#{id} ({count, plural, one {# frame} other {# frames}})"
+Texture_SpriteStatusFps,Frame: {frame} / {count}    Rate: {rate} frames/s
+Texture_SpriteStatusPasses,Frame: {frame} / {count}    Rate: {rate} passes/s
+Texture_SheetFull,Full sheet
+Texture_SheetOutline,Outline current frame
+Texture_SheetCrop,Crop to current frame
+Texture_Channels,Channels
+Texture_ChannelRed,Red
+Texture_ChannelGreen,Green
+Texture_ChannelBlue,Blue
+Texture_ChannelRgb,RGB (Opaque)
+Texture_ChannelRgba,RGBA (Transparent)
+Texture_ChannelAlpha,Alpha
+Texture_ChannelRgbSplitAlpha,RGB | A (Separate channels)
+Texture_ChannelSplitAll,R | G | B | A (Separate channels)
+Texture_Sampling,Sampling
+Texture_SamplingPoint,Point
+Texture_SamplingLinear,Linear
+Texture_ProjectionNone,None
+Texture_ProjectionEquirectangular,Equirectangular
+Texture_ProjectionCubic,Cubic
+Texture_FacePositiveX,Positive X
+Texture_FaceNegativeX,Negative X
+Texture_FacePositiveY,Positive Y
+Texture_FaceNegativeY,Negative Y
+Texture_FacePositiveZ,Positive Z
+Texture_FaceNegativeZ,Negative Z
+Texture_SaveImage_Title,Save an image file
+Texture_ImagesFileFilter,PNG image|*.png|JPG image|*.jpg
+Texture_ImagesHdrFileFilter,EXR image|*.exr|PNG image|*.png|JPG image|*.jpg
+Texture_PngFileFilter,PNG image|*.png
+Texture_JpgFileFilter,JPG image|*.jpg
+Texture_SvgFileFilter,SVG (Scalable Vector Graphics)|*.svg
+Texture_Zoom,Zoom: {zoom}% (scroll to change)
+
+Graph_Filter,Filter
+Graph_ResetView,Reset view
+Graph_NameSearchPlaceholder,Search by name (Enter for next)
+Graph_Search,Search
+Graph_View,View
+Graph_Wires,Wires
+Graph_WiresCurved,Curved
+Graph_WiresStraight,Straight
+Graph_DrawStateMachines,Draw state machines
+Graph_DrawParameterWires,Draw parameter wires
+Graph_ReduceCaption,Wires are untangled for up to four seconds when the graph opens.
+Graph_ReduceComplexity,Reduce visual graph complexity
+Graph_Working,Working…
+Graph_StatNodes,"{count, plural, one {# node} other {# nodes}}"
+Graph_StatConnections,"{count, plural, one {# connection} other {# connections}}"
+Graph_StatIslands,"{count, plural, one {# island} other {# islands}}"
+Graph_StatSelfLoops,"{count, plural, one {# self-loop} other {# self-loops}}"
+Graph_StatUnconnected,"{count, plural, one {# unconnected node} other {# unconnected nodes}}"
+Graph_StatEntities,"{count, plural, one {# entity} other {# entities}}"
+Graph_StatIslandAll,Island: (all)
+Graph_StatIslandFocused,Island: {name}
+Graph_IslandName,"{title} ({count, plural, one {# node} other {# nodes}})"
+Graph_LineTypes,Line types
+Graph_NodeTypes,Node types
+Graph_Legend,Legend
+Graph_ShowEverything,Show everything
+Graph_OpenResource,Open {name}
+Graph_FocusIsland,Focus on this island
+Graph_IsolateChain,Isolate chain
+Graph_IsolateChainRelayout,Isolate chain (re-layout)
+Graph_IsolateUpstream,Isolate upstream
+Graph_IsolateUpstreamRelayout,Isolate upstream (re-layout)
+Graph_IsolateDownstream,Isolate downstream
+Graph_IsolateDownstreamRelayout,Isolate downstream (re-layout)
+Graph_IsolateGroup,Isolate group ''{name}''
+Graph_IsolateGroupRelayout,Isolate group ''{name}'' (re-layout)
+Graph_ShowInMapViewer,Show in map viewer
+Graph_LegendOutput,Output
+Graph_LegendInput,Input
+Graph_LegendTemplateSpawn,Template spawn
+Graph_LegendSpecialTarget,Special target
+Graph_LegendUnresolvedTarget,Unresolved target
+
+Entity_ShowInIoGraph,Show in I/O graph
+Entity_List,Entity list
+Entity_Class,Class
+Entity_Name,Name
+Entity_KeyValue,Key / Value
+Entity_MatchWholeValue,Match whole value
+Entity_Key,Key
+Entity_Value,Value
+Entity_ObjectsToInclude,Objects to include
+Entity_Everything,Everything
+Entity_MeshEntities,Mesh entities
+Entity_PointEntities,Point entities
+Entity_Classname,Classname:
+Entity_Properties,Entity properties
+Entity_PropertiesNamed,Entity properties - {name}
+Entity_PropertiesInLump,Entity properties - entity lump: {lump}
+Entity_PropertiesNamedInLump,Entity properties - {name} - entity lump: {lump}
+Entity_PropertiesTab,Properties
+Entity_Outputs,Outputs
+Entity_Inputs,Inputs
+Entity_References,References
+Entity_Output,Output
+Entity_Source,Source
+Entity_TargetEntity,Target entity
+Entity_TargetInput,Target input
+Entity_Parameter,Parameter
+Entity_Property,Property
+Entity_Delay,Delay
+Entity_TimesToFire,Times to fire
+Entity_Fire,Fire
+Entity_OnlyOnce,Only once
+Entity_OnlyTimes,"{count, plural, one {Only # time} other {Only # times}}"
+Entity_Infinite,Infinite
+Entity_MoreEvents,"{count, plural, one {+# more} other {+# more}}"

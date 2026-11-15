@@ -33,9 +33,9 @@ namespace GUI.Controls
             blockListView.ItemSelectionChanged += OnItemSelectionChanged;
 
             // The first column stretches to fill the list
-            blockListView.Columns.Add("Name");
-            blockListView.Columns.Add("Block");
-            blockListView.Columns.Add("Size");
+            blockListView.Columns.Add(Locale.Resource_ColumnName);
+            blockListView.Columns.Add(Locale.Resource_ColumnBlock);
+            blockListView.Columns.Add(Locale.Resource_ColumnSize);
 
             using (blockListView.SuspendPainting())
             {

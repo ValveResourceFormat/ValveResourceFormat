@@ -36,7 +36,7 @@ namespace GUI.Types.Viewers
 
             var content = new ViewerContent.Tabs(
             [
-                new("GRID NAV", new ViewerContent.Text(infoText, HighlightLanguage.None)),
+                new(Locale.Resource_TabGridNav, new ViewerContent.Text(infoText, HighlightLanguage.None)),
             ]);
 
             infoText = null;

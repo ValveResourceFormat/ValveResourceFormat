@@ -59,8 +59,16 @@ namespace GUI.Forms
         public GenericProgressForm()
         {
             InitializeComponent();
+            ApplyTranslations();
 
             updateTimer.Tick += (_, _) => ApplyPendingUpdate();
+        }
+
+        private void ApplyTranslations()
+        {
+            Text = Locale.Progress_Title;
+            extractStatusLabel.Text = Locale.Progress_Calculating;
+            cancelButton.Text = Locale.Dialog_Cancel;
         }
 
         public void Report(string value) => SetProgress(value);
@@ -152,7 +160,7 @@ namespace GUI.Forms
 
             if (completed)
             {
-                Text = $"{baseTitle} (completed in {FormatTime(elapsed)})";
+                Text = Locale.Progress_Completed(baseTitle, FormatTime(elapsed));
                 return;
             }
 
@@ -161,12 +169,13 @@ namespace GUI.Forms
 
             if (extractProgressBar.Style != ProgressBarStyle.Blocks || value <= 0 || max <= 0)
             {
-                Text = $"{baseTitle} ({FormatTime(elapsed)} elapsed)";
+                Text = Locale.Progress_Elapsed(baseTitle, FormatTime(elapsed));
                 return;
             }
 
             var remaining = elapsed * (max - value) / value;
-            Text = $"{baseTitle} {value * 100 / max}% ({FormatTime(elapsed)} elapsed, ~{FormatTime(remaining)} left)";
+            var percent = (value * 100 / max).ToString(CultureInfo.InvariantCulture);
+            Text = Locale.Progress_Percent(baseTitle, percent, FormatTime(elapsed), FormatTime(remaining));
         }
 
         internal static string FormatTime(TimeSpan time)
@@ -267,7 +276,7 @@ namespace GUI.Forms
 
             ShowDeterminateBar();
             extractProgressBar.Value = extractProgressBar.Maximum;
-            cancelButton.Text = "Close";
+            cancelButton.Text = Locale.Progress_Close;
 
             // Let Escape close the dialog once the work is done
             CancelButton = cancelButton;
@@ -283,7 +292,7 @@ namespace GUI.Forms
                 {
                     cancellationTokenSource.Cancel();
                     cancelButton.Enabled = false;
-                    SetProgress("Cancelling…");
+                    SetProgress(Locale.Progress_Cancelling);
                 }
 
                 return;

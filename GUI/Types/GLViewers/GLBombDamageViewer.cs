@@ -15,7 +15,7 @@ namespace GUI.Types.GLViewers
             this.bombDamageData = bombDamageData;
         }
 
-        protected override string LayersControlName => "Bombsites";
+        protected override string LayersControlName => Locale.BombDamage_Bombsites;
 
         // Only enable the first bombsite by default to avoid overlapping visualizations
         protected override bool IsLayerEnabledByDefault(int index) => index == 0;

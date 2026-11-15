@@ -115,8 +115,14 @@ static partial class UpdateChecker
 
         private bool IsStable => Channel == Settings.UpdateChannel.Stable;
 
-        /// <summary>The build as shown to the user, e.g. "20.0" or "dev build 7125".</summary>
+        /// <summary><see cref="BuildNumber"/> as an argument of a translated message.</summary>
+        public string BuildNumberText => BuildNumber.ToString(CultureInfo.InvariantCulture);
+
+        /// <summary>The build in English for logs and exceptions, e.g. "20.0" or "dev build 7125".</summary>
         public string Text => IsStable ? Tag : string.Create(CultureInfo.InvariantCulture, $"dev build {BuildNumber}");
+
+        /// <summary>The build as a translated label, e.g. "20.0" or "dev build 7125".</summary>
+        public string DisplayText => IsStable ? Tag : Locale.Update_DevBuild(BuildNumberText);
 
         /// <summary>The git ref the build is attested on.</summary>
         public string GitRef => IsStable ? $"refs/tags/{Tag}" : "refs/heads/master";

@@ -332,7 +332,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         if (keyData == (Keys.Control | Keys.C))
         {
             var title = Program.MainForm.Text;
-            Program.MainForm.Text = "Source 2 Viewer - Copying image to clipboard…";
+            Program.MainForm.Text = Locale.Viewer_CopyingImage_Title;
             Application.DoEvents(); // Force the updated text to show up
 
             using var bitmap = ReadPixelsToBitmap();
@@ -363,7 +363,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
             FullScreenForm = new Form
             {
-                Text = "Source 2 Viewer Fullscreen",
+                Text = Locale.Viewer_Fullscreen_Title,
                 Icon = Program.MainForm.Icon,
                 ControlBox = false,
                 FormBorderStyle = FormBorderStyle.None,

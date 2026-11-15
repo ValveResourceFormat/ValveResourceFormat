@@ -56,12 +56,12 @@ namespace GUI.Types.Viewers
             };
             tabOuterPage.Controls.Add(tabControl);
 
-            var navMeshPage = new ThemedTabPage("NAV MESH");
+            var navMeshPage = new ThemedTabPage(Locale.Resource_TabNavMesh);
             navMeshPage.Controls.Add(glViewer!.InitializeUiControls());
 
             tabControl.Controls.Add(navMeshPage);
 
-            var infoPage = new ThemedTabPage("NAV INFO");
+            var infoPage = new ThemedTabPage(Locale.Resource_TabNavInfo);
             var infoText = navMeshFile.ToString();
             var infoTextControl = CodeTextBox.Create(infoText, HighlightLanguage.None);
             infoPage.Controls.Add(infoTextControl);
@@ -69,25 +69,25 @@ namespace GUI.Types.Viewers
 
             if (navMeshFile.CustomData != null)
             {
-                var page = CreateKVTab("NAV CUSTOM DATA", navMeshFile.CustomData);
+                var page = CreateKVTab(Locale.Resource_TabNavCustomData, navMeshFile.CustomData);
                 tabControl.Controls.Add(page);
             }
 
             if (navMeshFile.MovableMeshSettings != null)
             {
-                var page = CreateKVTab("NAV MOVABLE MESH SETTINGS", navMeshFile.MovableMeshSettings);
+                var page = CreateKVTab(Locale.Resource_TabNavMovableMeshSettings, navMeshFile.MovableMeshSettings);
                 tabControl.Controls.Add(page);
             }
 
             if (navMeshFile.GameData != null)
             {
-                var page = CreateKVTab("NAV GAME DATA", navMeshFile.GameData);
+                var page = CreateKVTab(Locale.Resource_TabNavGameData, navMeshFile.GameData);
                 tabControl.Controls.Add(page);
             }
 
             if (navMeshFile.ExtraGenerationParams != null)
             {
-                var page = CreateKVTab("NAV EXTRA GEN PARAMS", navMeshFile.ExtraGenerationParams);
+                var page = CreateKVTab(Locale.Resource_TabNavExtraGenParams, navMeshFile.ExtraGenerationParams);
                 tabControl.Controls.Add(page);
             }
         }

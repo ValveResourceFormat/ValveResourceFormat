@@ -29,10 +29,10 @@ namespace GUI.Controls
             SuspendLayout();
 
             comboBox.AccessibleName = name;
+            selectionNameLabel.Text = name;
 
             if (horizontal)
             {
-                selectionNameLabel.Text = name;
                 Controls.Clear();
 
                 layoutPanel = new TableLayoutPanel
@@ -64,10 +64,6 @@ namespace GUI.Controls
                 Controls.Add(layoutPanel);
                 MinimumSize = new Size(selectionNameLabel.Width, comboBox.Height + layoutPanel.Padding.Vertical);
                 Size = new Size(Size.Width, MinimumSize.Height);
-            }
-            else
-            {
-                selectionNameLabel.Text = $"{name}:";
             }
 
             ResumeLayout();

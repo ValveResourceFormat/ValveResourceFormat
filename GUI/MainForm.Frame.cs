@@ -270,17 +270,17 @@ partial class MainForm
 
         PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_SEPARATOR, 0, null);
 
-        fixed (char* p = "Website")
+        fixed (char* p = Locale.Menu_Website)
         {
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, SC_WEBSITE, p);
         }
 
-        fixed (char* p = "Settings")
+        fixed (char* p = Locale.Menu_Settings)
         {
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, SC_SETTINGS, p);
         }
 
-        fixed (char* p = "About")
+        fixed (char* p = Locale.Menu_About)
         {
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, SC_ABOUT, p);
         }

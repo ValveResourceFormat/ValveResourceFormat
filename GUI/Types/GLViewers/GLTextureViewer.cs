@@ -51,7 +51,7 @@ namespace GUI.Types.GLViewers
             CropToFrame,
         }
 
-        static readonly string[] SpriteSheetDisplayNames = ["Full sheet", "Outline current frame", "Crop to current frame"];
+        static string[] SpriteSheetDisplayNames => [Locale.Texture_SheetFull, Locale.Texture_SheetOutline, Locale.Texture_SheetCrop];
 
         /// <summary>
         /// Largest animation rate the speed slider reaches, in passes per second, or in frames per
@@ -154,16 +154,52 @@ namespace GUI.Types.GLViewers
         protected int LastRenderHash;
         protected bool RenderUpToDate;
 
-        static readonly (ChannelMapping Channels, ChannelSplitting ChannelSplitMode, string ChoiceString)[] ChannelsComboBoxOrder = [
-            (ChannelMapping.R, ChannelSplitting.None, "Red"),
-            (ChannelMapping.G, ChannelSplitting.None, "Green"),
-            (ChannelMapping.B, ChannelSplitting.None, "Blue"),
-            (ChannelMapping.RGB, ChannelSplitting.None, "RGB (Opaque)"),
-            (ChannelMapping.RGBA, ChannelSplitting.None, "RGBA (Transparent)"),
-            (ChannelMapping.A, ChannelSplitting.None, "Alpha"),
-            (ChannelMapping.RGBA, ChannelSplitting.Alpha, "RGB | A (Separate channels)"),
-            (ChannelMapping.RGBA, ChannelSplitting.FourChannels, "R | G | B | A (Separate channels)"),
+        static readonly (ChannelMapping Channels, ChannelSplitting ChannelSplitMode)[] ChannelsComboBoxOrder = [
+            (ChannelMapping.R, ChannelSplitting.None),
+            (ChannelMapping.G, ChannelSplitting.None),
+            (ChannelMapping.B, ChannelSplitting.None),
+            (ChannelMapping.RGB, ChannelSplitting.None),
+            (ChannelMapping.RGBA, ChannelSplitting.None),
+            (ChannelMapping.A, ChannelSplitting.None),
+            (ChannelMapping.RGBA, ChannelSplitting.Alpha),
+            (ChannelMapping.RGBA, ChannelSplitting.FourChannels),
         ];
+
+        // Display name of the ChannelsComboBoxOrder entry at the same index
+        private static string GetChannelChoiceName(int index) => index switch
+        {
+            0 => Locale.Texture_ChannelRed,
+            1 => Locale.Texture_ChannelGreen,
+            2 => Locale.Texture_ChannelBlue,
+            3 => Locale.Texture_ChannelRgb,
+            4 => Locale.Texture_ChannelRgba,
+            5 => Locale.Texture_ChannelAlpha,
+            6 => Locale.Texture_ChannelRgbSplitAlpha,
+            _ => Locale.Texture_ChannelSplitAll,
+        };
+
+        private static string GetCubemapProjectionName(CubemapProjection projection) => projection switch
+        {
+            CubemapProjection.None => Locale.Texture_ProjectionNone,
+            CubemapProjection.Equirectangular => Locale.Texture_ProjectionEquirectangular,
+            _ => Locale.Texture_ProjectionCubic,
+        };
+
+        private static string GetCubemapFaceName(CubemapFace face) => face switch
+        {
+            CubemapFace.PositiveX => Locale.Texture_FacePositiveX,
+            CubemapFace.NegativeX => Locale.Texture_FaceNegativeX,
+            CubemapFace.PositiveY => Locale.Texture_FacePositiveY,
+            CubemapFace.NegativeY => Locale.Texture_FaceNegativeY,
+            CubemapFace.PositiveZ => Locale.Texture_FacePositiveZ,
+            _ => Locale.Texture_FaceNegativeZ,
+        };
+
+        private static string GetFilteringName(Filtering filtering) => filtering switch
+        {
+            Filtering.Point => Locale.Texture_SamplingPoint,
+            _ => Locale.Texture_SamplingLinear,
+        };
 
         private GLTextureViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(rendererContext)
         {
@@ -191,7 +227,7 @@ namespace GUI.Types.GLViewers
             {
                 var resetButton = new ThemedButton
                 {
-                    Text = "Reset zoom",
+                    Text = Locale.Texture_ResetZoom,
                     AutoSize = true,
                 };
 
@@ -227,14 +263,14 @@ namespace GUI.Types.GLViewers
 
             var saveButton = new ThemedButton
             {
-                Text = "Save to disk…",
+                Text = Locale.Texture_SaveToDisk,
                 AutoSize = true,
                 Dock = DockStyle.Fill
             };
             saveButton.Click += OnSaveButtonClick;
             var copyLabel = new Label
             {
-                Text = "or Ctrl-C to copy",
+                Text = Locale.Texture_CopyHint,
                 Dock = DockStyle.Fill,
                 TextAlign = System.Drawing.ContentAlignment.MiddleLeft
             };
@@ -272,17 +308,17 @@ namespace GUI.Types.GLViewers
 
                 UiControl.AddControl(new Label
                 {
-                    Text = $"Color correction: {(postProcessingData.HasColorCorrection() ? "Yes" : "No")}",
+                    Text = postProcessingData.HasColorCorrection() ? Locale.Texture_ColorCorrectionYes : Locale.Texture_ColorCorrectionNo,
                     Width = 200,
                 });
                 UiControl.AddControl(new Label
                 {
-                    Text = $"Resolution: {resolution}",
+                    Text = Locale.Texture_Resolution(resolution.ToString(CultureInfo.InvariantCulture)),
                     Width = 200,
                 });
 
                 // TODO: Kind of crappy.
-                var depthComboBox2 = UiControl.AddSelection("Depth", (name, index) =>
+                var depthComboBox2 = UiControl.AddSelection(Locale.Texture_Depth, (name, index) =>
                 {
                     SelectedDepth = index;
                 });
@@ -302,16 +338,18 @@ namespace GUI.Types.GLViewers
             CheckBox? softwareDecodeCheckBox = null;
             ComboBox? depthComboBox = null;
 
-            using (UiControl.BeginGroup("Texture"))
+            using (UiControl.BeginGroup(Locale.Texture_Section))
             {
                 UiControl.AddControl(new Label
                 {
-                    Text = $"Size: {textureData.Width}x{textureData.Height}",
+                    Text = Locale.Texture_Size(
+                        textureData.Width.ToString(CultureInfo.InvariantCulture),
+                        textureData.Height.ToString(CultureInfo.InvariantCulture)),
                     Width = 200,
                 });
                 UiControl.AddControl(new Label
                 {
-                    Text = $"Format: {textureData.Format}",
+                    Text = Locale.Texture_Format(textureData.Format.ToString()),
                     Width = 200,
                 });
 
@@ -331,7 +369,7 @@ namespace GUI.Types.GLViewers
                         return $"(#{mipLevel}) {mipWidth}x{mipHeight}";
                     }
 
-                    var mipComboBox = UiControl.AddSelection("Mip level", (name, index) =>
+                    var mipComboBox = UiControl.AddSelection(Locale.Texture_MipLevel, (name, index) =>
                     {
                         SelectedMip = index;
 
@@ -360,7 +398,7 @@ namespace GUI.Types.GLViewers
 
                 if (textureData.Depth > 1)
                 {
-                    depthComboBox = UiControl.AddSelection("Depth", (name, index) =>
+                    depthComboBox = UiControl.AddSelection(Locale.Texture_Depth, (name, index) =>
                     {
                         SelectedDepth = index;
 
@@ -378,7 +416,7 @@ namespace GUI.Types.GLViewers
                 {
                     ComboBox? cubeFaceComboBox = null;
 
-                    cubemapProjectionComboBox = UiControl.AddSelection("Projection type", (name, index) =>
+                    cubemapProjectionComboBox = UiControl.AddSelection(Locale.Texture_ProjectionType, (name, index) =>
                     {
                         cubeFaceComboBox!.Enabled = index == 0;
 
@@ -397,7 +435,7 @@ namespace GUI.Types.GLViewers
                         CenterPosition();
                     });
 
-                    cubeFaceComboBox = UiControl.AddSelection("Cube face", (name, index) =>
+                    cubeFaceComboBox = UiControl.AddSelection(Locale.Texture_CubeFace, (name, index) =>
                     {
                         SelectedCubeFace = index;
 
@@ -407,10 +445,10 @@ namespace GUI.Types.GLViewers
                         }
                     });
 
-                    cubeFaceComboBox.Items.AddRange(Enum.GetNames<CubemapFace>());
+                    cubeFaceComboBox.Items.AddRange([.. Enum.GetValues<CubemapFace>().Select(GetCubemapFaceName)]);
                     cubeFaceComboBox.SelectedIndex = 0;
 
-                    cubemapProjectionComboBox.Items.AddRange(Enum.GetNames<CubemapProjection>());
+                    cubemapProjectionComboBox.Items.AddRange([.. Enum.GetValues<CubemapProjection>().Select(GetCubemapProjectionName)]);
                     cubemapProjectionComboBox.SelectedIndex = (int)CubemapProjection.Equirectangular;
                     SelectedFiltering = Filtering.Linear;
                 }
@@ -418,7 +456,7 @@ namespace GUI.Types.GLViewers
                 decodeFlags = textureData.RetrieveCodecFromResourceEditInfo();
             }
 
-            decodeFlagsListBox = UiControl.AddMultiSelection<string>("Texture Conversion",
+            decodeFlagsListBox = UiControl.AddMultiSelection<string>(Locale.Texture_Conversion,
                 SetInitialDecodeFlagsState,
                 checkedItemNames =>
                 {
@@ -433,13 +471,13 @@ namespace GUI.Types.GLViewers
                 }
             );
 
-            using (UiControl.BeginGroup("View"))
+            using (UiControl.BeginGroup(Locale.Texture_View))
             {
                 AddChannelsComboBox();
 
                 var forceSoftwareDecode = textureData.IsRawAnyImage;
                 var projectionBeforeSoftwareDecode = (int)CubemapProjection.Equirectangular;
-                softwareDecodeCheckBox = UiControl.AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
+                softwareDecodeCheckBox = UiControl.AddCheckBox(Locale.Texture_SoftwareDecode, forceSoftwareDecode, (state) =>
                 {
                     if (cubemapProjectionComboBox != null)
                     {
@@ -460,7 +498,7 @@ namespace GUI.Types.GLViewers
                     SetupTextureFromUi(state);
                 });
 
-                UiControl.AddCheckBox("Show UV Tiling", false, (state) =>
+                UiControl.AddCheckBox(Locale.Texture_ShowUvTiling, false, (state) =>
                 {
                     var previousSize = ActualTextureSizeScaled;
 
@@ -493,13 +531,13 @@ namespace GUI.Types.GLViewers
 
             SpriteSheetData = spriteSheetData;
 
-            using var _ = UiControl.BeginGroup("Sprite Sheet");
+            using var _ = UiControl.BeginGroup(Locale.Texture_SpriteSheet);
 
             ComboBox? sequenceComboBox = null;
 
             if (spriteSheetData.Sequences.Length > 1)
             {
-                sequenceComboBox = UiControl.AddSelection("Sequence", (name, index) =>
+                sequenceComboBox = UiControl.AddSelection(Locale.Texture_Sequence, (name, index) =>
                 {
                     SelectedSequence = index;
                     SpriteCyclePosition = 0f;
@@ -520,7 +558,7 @@ namespace GUI.Types.GLViewers
 
             UiControl.AddControl(spriteFrameLabel);
 
-            var displayComboBox = UiControl.AddSelection("Display", (name, index) =>
+            var displayComboBox = UiControl.AddSelection(Locale.Texture_Display, (name, index) =>
             {
                 SpriteSheetDisplayMode = (SpriteSheetDisplay)index;
                 RecenterTexture();
@@ -528,10 +566,10 @@ namespace GUI.Types.GLViewers
 
             displayComboBox.Items.AddRange(SpriteSheetDisplayNames);
 
-            UiControl.AddCheckBox("Autoplay", IsSpritePlaying, isChecked => IsSpritePlaying = isChecked);
-            UiControl.AddCheckBox("Loop", SpriteLoop, isChecked => SpriteLoop = isChecked);
+            UiControl.AddCheckBox(Locale.Texture_Autoplay, IsSpritePlaying, isChecked => IsSpritePlaying = isChecked);
+            UiControl.AddCheckBox(Locale.Texture_Loop, SpriteLoop, isChecked => SpriteLoop = isChecked);
 
-            spriteFrameTrackBar = UiControl.AddTrackBar("Sprite Frame", value =>
+            spriteFrameTrackBar = UiControl.AddTrackBar(Locale.Texture_SpriteFrame, value =>
             {
                 var sequence = spriteSheetData.Sequences[SelectedSequence];
                 var frameCount = sequence.Frames.Length;
@@ -547,13 +585,13 @@ namespace GUI.Types.GLViewers
                 SetSpriteFrame(sequence, frame);
             });
 
-            UiControl.AddCheckBox("Animate in FPS", SpriteAnimateInFps, isChecked =>
+            UiControl.AddCheckBox(Locale.Texture_AnimateInFps, SpriteAnimateInFps, isChecked =>
             {
                 SpriteAnimateInFps = isChecked;
                 UpdateSpriteAnimationRate();
             });
 
-            spriteSpeedTrackBar = UiControl.AddTrackBar("Sprite Speed", value =>
+            spriteSpeedTrackBar = UiControl.AddTrackBar(Locale.Texture_SpriteSpeed, value =>
             {
                 spriteRateSliderValue = value;
                 UpdateSpriteAnimationRate();
@@ -574,11 +612,12 @@ namespace GUI.Types.GLViewers
         {
             var isDescriptive = sequence.IsNamed && !uint.TryParse(sequence.Name, out _);
 
-            var frameSuffix = sequence.Frames.Length == 1 ? "frame" : "frames";
+            var id = sequence.Id.ToString(CultureInfo.InvariantCulture);
+            var frameCount = sequence.Frames.Length;
 
             return isDescriptive
-                ? $"#{sequence.Id} {sequence.Name} ({sequence.Frames.Length} {frameSuffix})"
-                : $"#{sequence.Id} ({sequence.Frames.Length} {frameSuffix})";
+                ? Locale.Texture_SequenceNamed(id, sequence.Name, frameCount)
+                : Locale.Texture_SequenceUnnamed(id, frameCount);
         }
 
         private void UpdateSpriteAnimationRate()
@@ -602,8 +641,13 @@ namespace GUI.Types.GLViewers
         {
             if (spriteFrameLabel != null)
             {
-                var unit = SpriteAnimateInFps ? "frames/s" : "passes/s";
-                spriteFrameLabel.Text = string.Create(CultureInfo.InvariantCulture, $"Frame: {frame + 1} / {sequence.Frames.Length}    Rate: {SpriteAnimationRate:0.##} {unit}");
+                var frameNumber = (frame + 1).ToString(CultureInfo.InvariantCulture);
+                var frameCount = sequence.Frames.Length.ToString(CultureInfo.InvariantCulture);
+                var rate = SpriteAnimationRate.ToString("0.##", CultureInfo.InvariantCulture);
+
+                spriteFrameLabel.Text = SpriteAnimateInFps
+                    ? Locale.Texture_SpriteStatusFps(frameNumber, frameCount, rate)
+                    : Locale.Texture_SpriteStatusPasses(frameNumber, frameCount, rate);
             }
         }
 
@@ -644,7 +688,7 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            var channelsComboBox = UiControl.AddSelection("Channels", (name, index) =>
+            var channelsComboBox = UiControl.AddSelection(Locale.Texture_Channels, (name, index) =>
             {
                 SelectedChannels = ChannelsComboBoxOrder[index].Channels;
                 var splitMode = ChannelsComboBoxOrder[index].ChannelSplitMode;
@@ -664,7 +708,7 @@ namespace GUI.Types.GLViewers
                 }
             });
 
-            channelsComboBox.Items.AddRange([.. ChannelsComboBoxOrder.Select(c => (object)c.ChoiceString)]);
+            channelsComboBox.Items.AddRange([.. ChannelsComboBoxOrder.Select((_, index) => (object)GetChannelChoiceName(index))]);
 
             var isParticleTexture = Resource?.FileName?.Replace('\\', '/')
                 .Contains("materials/particle/", StringComparison.OrdinalIgnoreCase) == true;
@@ -673,13 +717,13 @@ namespace GUI.Types.GLViewers
                 ? Array.FindIndex(ChannelsComboBoxOrder, channel => channel.Channels == ChannelMapping.RGBA)
                 : Array.FindIndex(ChannelsComboBoxOrder, channel => channel.Channels == ChannelMapping.RGB);
 
-            var samplingComboBox = UiControl.AddSelection("Sampling", (name, index) =>
+            var samplingComboBox = UiControl.AddSelection(Locale.Texture_Sampling, (name, index) =>
             {
                 SelectedFiltering = (Filtering)index;
                 SetTextureFilteringFromUi();
             });
 
-            samplingComboBox.Items.AddRange(Enum.GetNames<Filtering>());
+            samplingComboBox.Items.AddRange([.. Enum.GetValues<Filtering>().Select(GetFilteringName)]);
             samplingComboBox.SelectedIndex = (int)SelectedFiltering;
         }
 
@@ -817,18 +861,18 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var filter = "PNG Image|*.png|JPG Image|*.jpg";
+            var filter = Locale.Texture_ImagesFileFilter;
             var alternativeImageFormatIndex = 2;
 
             var isHdrTexture = Resource?.DataBlock is Texture textureData && textureData.IsHighDynamicRange;
 
             if (isHdrTexture)
             {
-                filter = "EXR Image|*.exr|" + filter;
+                filter = Locale.Texture_ImagesHdrFileFilter;
                 alternativeImageFormatIndex++;
             }
 
-            var savePath = AppFileDialogs.SaveFile("Save an Image File", fileName, null, filter, out var selectedFilterIndex);
+            var savePath = AppFileDialogs.SaveFile(Locale.Texture_SaveImage_Title, fileName, null, filter, out var selectedFilterIndex);
 
             if (savePath == null)
             {
@@ -878,12 +922,12 @@ namespace GUI.Types.GLViewers
 
             var (filter, extension) = exportForm.SelectedFormat switch
             {
-                SvgExportFormat.Svg => ("SVG (Scalable Vector Graphics)|*.svg", "svg"),
-                SvgExportFormat.Jpg => ("JPG Image|*.jpg", "jpg"),
-                _ => ("PNG Image|*.png", "png"),
+                SvgExportFormat.Svg => (Locale.Texture_SvgFileFilter, "svg"),
+                SvgExportFormat.Jpg => (Locale.Texture_JpgFileFilter, "jpg"),
+                _ => (Locale.Texture_PngFileFilter, "png"),
             };
 
-            var savePath = AppFileDialogs.SaveFile("Save an Image File", $"{fileName}.{extension}", null, filter);
+            var savePath = AppFileDialogs.SaveFile(Locale.Texture_SaveImage_Title, $"{fileName}.{extension}", null, filter);
 
             if (savePath == null)
             {
@@ -1033,7 +1077,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected void UpdateZoomLabel() => SetMoveSpeedOrZoomLabel(string.Create(CultureInfo.InvariantCulture, $"Zoom: {TextureScale * 100:0.0}% (scroll to change)"));
+        protected void UpdateZoomLabel() => SetMoveSpeedOrZoomLabel(Locale.Texture_Zoom((TextureScale * 100).ToString("0.0", CultureInfo.InvariantCulture)));
 
         protected override void OnKeyDown(Keys keyData)
         {

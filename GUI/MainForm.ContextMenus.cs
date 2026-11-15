@@ -316,8 +316,8 @@ namespace GUI
             }
 
             if (selectedFiles.Count > 5 && !await AppMessageDialogs.ConfirmAsync(
-                $"You are trying to open {selectedFiles.Count} files in the default app for each of these files, are you sure you want to continue?",
-                "Trying to open many files in the default app",
+                Locale.Open_ManyFiles_Message(selectedFiles.Count),
+                Locale.Open_ManyFiles_Title,
                 buttons: ConfirmButtons.YesNo
             ).ConfigureAwait(true))
             {

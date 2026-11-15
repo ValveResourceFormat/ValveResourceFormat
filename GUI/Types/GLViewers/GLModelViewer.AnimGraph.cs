@@ -65,14 +65,14 @@ namespace GUI.Types.GLViewers
 
             graphEventList = new EventListControl(GraphEventListLines)
             {
-                EmptyText = "No events",
+                EmptyText = Locale.Anim_GraphNoEvents,
             };
 
             Control[] rows =
             [
-                RendererControl.CreateSectionHeader("System"),
+                RendererControl.CreateSectionHeader(Locale.Anim_GraphSystem),
                 playbackRow,
-                RendererControl.CreateSectionHeader("Events"),
+                RendererControl.CreateSectionHeader(Locale.Anim_GraphEvents),
                 graphEventList,
             ];
 
@@ -177,7 +177,7 @@ namespace GUI.Types.GLViewers
             sidebar?.ResumeLayout();
         }
 
-        private const string UnsetIdText = "(none)";
+        private static string UnsetIdText => Locale.Anim_GraphUnsetId;
 
         private static (Control Editor, Control[] Trailing) CreateFloatParameterEditor(AnimationGraph graph, string paramName)
         {
@@ -285,7 +285,7 @@ namespace GUI.Types.GLViewers
             static IOrderedEnumerable<string> Sorted<T>(Dictionary<string, T> parameters)
                 => parameters.Keys.Order(StringComparer.OrdinalIgnoreCase);
 
-            AddSection("Values", graph.FloatParameters.Count);
+            AddSection(Locale.Anim_GraphValues, graph.FloatParameters.Count);
 
             foreach (var paramName in Sorted(graph.FloatParameters))
             {
@@ -293,7 +293,7 @@ namespace GUI.Types.GLViewers
                 Add(RendererControl.CreatePropertyRow(paramName, editor, trailing));
             }
 
-            AddSection("Identifiers", graph.IdParameters.Count);
+            AddSection(Locale.Anim_GraphIdentifiers, graph.IdParameters.Count);
 
             foreach (var paramName in Sorted(graph.IdParameters))
             {
@@ -308,12 +308,12 @@ namespace GUI.Types.GLViewers
                     })));
             }
 
-            AddSection("Flags", graph.BoolParameters.Count);
+            AddSection(Locale.Anim_GraphFlags, graph.BoolParameters.Count);
 
             foreach (var paramName in Sorted(graph.BoolParameters))
             {
                 // A held value is already true, so a pulse could not change it
-                var signalButton = RendererControl.CreateRowButton("Signal", () => graph.SignalBoolParameter(paramName));
+                var signalButton = RendererControl.CreateRowButton(Locale.Anim_GraphSignal, () => graph.SignalBoolParameter(paramName));
                 signalButton.Enabled = !graph.BoolParameters[paramName];
 
                 var checkBox = RendererControl.CreateRowCheckBox(graph.BoolParameters[paramName], isChecked =>
@@ -325,7 +325,7 @@ namespace GUI.Types.GLViewers
                 Add(RendererControl.CreateCheckBoxRow(checkBox, signalButton));
             }
 
-            AddSection("Vectors", graph.VectorParameters.Count);
+            AddSection(Locale.Anim_GraphVectors, graph.VectorParameters.Count);
 
             foreach (var paramName in Sorted(graph.VectorParameters))
             {
@@ -334,8 +334,8 @@ namespace GUI.Types.GLViewers
 
                 // Only look-at targets report a hint, so only they show a gizmo
                 Add(RendererControl.CreatePropertyRow(paramName,
-                    RendererControl.CreateRowCheckBox(binding.Gizmo.Visible, visible => binding.Gizmo.Visible = visible, "Gizmo"),
-                    RendererControl.CreateRowButton("Reset", () => binding.ResetPending = true)));
+                    RendererControl.CreateRowCheckBox(binding.Gizmo.Visible, visible => binding.Gizmo.Visible = visible, Locale.Anim_GraphGizmo),
+                    RendererControl.CreateRowButton(Locale.Anim_GraphReset, () => binding.ResetPending = true)));
 
                 var (row, fields) = RendererControl.CreateVectorRow(value.AsVector3(), vector =>
                 {
@@ -348,7 +348,7 @@ namespace GUI.Types.GLViewers
                 gizmoBindings.Add(binding);
             }
 
-            AddSection("Targets", graph.TargetParameters.Count);
+            AddSection(Locale.Anim_GraphTargets, graph.TargetParameters.Count);
 
             foreach (var paramName in Sorted(graph.TargetParameters))
             {
@@ -356,8 +356,8 @@ namespace GUI.Types.GLViewers
 
                 // An unset target leaves the IK off and the gizmo on the animated bone
                 Add(RendererControl.CreatePropertyRow(paramName,
-                    RendererControl.CreateRowCheckBox(binding.Gizmo.Visible, visible => binding.Gizmo.Visible = visible, "Gizmo"),
-                    RendererControl.CreateRowButton("Reset", () => graph.TargetParameters[paramName] = null)));
+                    RendererControl.CreateRowCheckBox(binding.Gizmo.Visible, visible => binding.Gizmo.Visible = visible, Locale.Anim_GraphGizmo),
+                    RendererControl.CreateRowButton(Locale.Anim_GraphReset, () => graph.TargetParameters[paramName] = null)));
 
                 gizmoBindings.Add(binding);
             }

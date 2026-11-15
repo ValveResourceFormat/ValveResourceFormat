@@ -9,6 +9,7 @@ namespace GUI.Controls
         internal WelcomeControl(ExplorerControl explorerControl)
         {
             InitializeComponent();
+            ApplyTranslations();
 
             splitContainer.Panel2.Controls.Add(explorerControl);
 
@@ -19,6 +20,21 @@ namespace GUI.Controls
             var installText = AppInstaller.GetInstallButtonText();
             installLayout.Visible = installText != null;
             installButton.Text = installText;
+        }
+
+        private void ApplyTranslations()
+        {
+            explorerHeading.Text = Locale.Welcome_Explorer;
+            explorerLabel.Text = Locale.Welcome_Explorer_Text;
+            updatesHeading.Text = Locale.Welcome_Updates;
+            updatesLabel.Text = Locale.Welcome_Updates_Text;
+            installHeading.Text = Locale.Welcome_Install;
+            installLabel.Text = Locale.Welcome_Install_Text;
+            installButton.Text = Locale.Menu_InstallApp;
+            helpHeading.Text = Locale.Welcome_Help;
+            helpLabel.Text = Locale.Welcome_Help_Text;
+            discordLink.Text = Locale.Welcome_JoinDiscord;
+            issuesLink.Text = Locale.Welcome_ReportOnGitHub;
         }
 
         protected override void CreateHandle()

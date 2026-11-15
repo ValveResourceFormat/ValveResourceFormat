@@ -10,6 +10,7 @@ public partial class MainFormBottomPanel : Panel
     public MainFormBottomPanel()
     {
         InitializeComponent();
+        ApplyTranslations();
 
         if (!DesignMode)
         {
@@ -18,6 +19,11 @@ public partial class MainFormBottomPanel : Panel
         }
 
         ResizeRedraw = true;
+    }
+
+    private void ApplyTranslations()
+    {
+        newVersionAvailableToolStripMenuItem.Text = Locale.Main_UpdateAvailable;
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -61,12 +67,12 @@ public partial class MainFormBottomPanel : Panel
 
         if (UpdateInstaller.InstalledVersionText != null)
         {
-            newVersionAvailableToolStripMenuItem.Text = "Restart to update";
+            newVersionAvailableToolStripMenuItem.Text = Locale.Update_RestartToUpdate;
             newVersionAvailableToolStripMenuItem.Visible = true;
             return;
         }
 
-        newVersionAvailableToolStripMenuItem.Text = "Update Available";
+        newVersionAvailableToolStripMenuItem.Text = Locale.Main_UpdateAvailable;
         newVersionAvailableToolStripMenuItem.Visible = Settings.Config.Update.CheckAutomatically && UpdateChecker.IsUpdateAvailable;
     }
 
@@ -84,7 +90,7 @@ public partial class MainFormBottomPanel : Panel
         }
 
         // A stable channel user is not offered dev builds, but the fix is most likely there
-        newVersionAvailableToolStripMenuItem.Text = "Newer dev build available";
+        newVersionAvailableToolStripMenuItem.Text = Locale.Main_NewerDevBuild;
         newVersionAvailableToolStripMenuItem.Visible = true;
     }
 

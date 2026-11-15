@@ -111,7 +111,7 @@ namespace GUI.Types.GLViewers
 
                 if (clip.SecondaryAnimations.Length > 0)
                 {
-                    animationComboBox = UiControl.AddSelection("Secondary", (_, index) =>
+                    animationComboBox = UiControl.AddSelection(Locale.Anim_Secondary, (_, index) =>
                     {
                         var newClip = index == 0
                             ? clip

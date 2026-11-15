@@ -47,7 +47,7 @@ namespace GUI.Types.Viewers
             };
             var exportBytecodeMenuItem = new ThemedToolStripMenuItem
             {
-                Text = "Export bytecode",
+                Text = Locale.Shader_ExportBytecode,
                 SVGImageResourceName = "GUI.Icons.Export.svg",
             };
             exportBytecodeMenuItem.Click += OnExportBytecodeClick;
@@ -185,7 +185,7 @@ namespace GUI.Types.Viewers
                             if (shaderFile.Bytecode.Length > 0)
                             {
                                 var matImage = AppIcons.GetImageIndexForExtension("vmat");
-                                var matNode = new TreeNode($"Material {program.VcsProgramType}{variantsAbbrev}")
+                                var matNode = new TreeNode(Locale.Shader_Material(program.VcsProgramType.ToString(), variantsAbbrev))
                                 {
                                     ToolTipText = variantsTooltip,
                                     Tag = combo.ShaderFiles[0],
@@ -310,7 +310,7 @@ namespace GUI.Types.Viewers
                 };
 
                 // source
-                var sourceBvTab = new TabPage("Source");
+                var sourceBvTab = new TabPage(Locale.Shader_Source);
                 var sourceBv = new System.ComponentModel.Design.ByteViewer
                 {
                     Dock = DockStyle.Fill,
@@ -422,10 +422,10 @@ namespace GUI.Types.Viewers
             var extension = shaderFile.SourceType == "VULKAN" ? "spv" : shaderFile.SourceType.ToLowerInvariant();
 
             var fileName = AppFileDialogs.SaveFile(
-                "Export bytecode",
+                Locale.Shader_ExportBytecode,
                 $"{combo.ParentProgramData.ShaderName}_{combo.StaticComboId:x08}_{shaderFile.ShaderFileId:x02}",
                 extension,
-                $"{shaderFile.SourceType} bytecode (*.{extension})|*.{extension}|All files (*.*)|*.*");
+                Locale.Shader_BytecodeFileFilter(shaderFile.SourceType, extension));
 
             if (fileName == null)
             {

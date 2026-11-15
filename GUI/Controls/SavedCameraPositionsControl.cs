@@ -24,8 +24,17 @@ namespace GUI.Controls
         public SavedCameraPositionsControl()
         {
             InitializeComponent();
+            ApplyTranslations();
 
             Settings.RefreshCamerasOnSave += RefreshSavedPositions;
+        }
+
+        private void ApplyTranslations()
+        {
+            label2.Text = Locale.Camera_Clipboard;
+            btnSave.Text = Locale.Dialog_Save;
+            btnDelete.Text = Locale.Camera_Delete;
+            btnRestore.Text = Locale.Camera_Restore;
         }
 
         private void BtnSave_Click(object sender, EventArgs e)
@@ -77,7 +86,7 @@ namespace GUI.Controls
                 btnRestore.Enabled = false;
                 btnDelete.Enabled = false;
                 cmbPositions.Enabled = false;
-                cmbPositions.Items.Add("(no saved cameras)");
+                cmbPositions.Items.Add(Locale.Camera_NoSaved);
                 cmbPositions.SelectedIndex = 0;
             }
             else

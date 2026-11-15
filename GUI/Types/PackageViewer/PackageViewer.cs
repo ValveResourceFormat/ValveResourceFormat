@@ -178,7 +178,7 @@ namespace GUI.Types.PackageViewer
 
             if (folderPath.Length == 0)
             {
-                _ = AppMessageDialogs.ShowMessageAsync($"\"{directory}\" is not a valid folder name.", "Failed to create folder", MessageIcon.Warning);
+                _ = AppMessageDialogs.ShowMessageAsync(Locale.Package_InvalidFolderName(directory), Locale.Package_FailedToCreateFolder_Title, MessageIcon.Warning);
                 return;
             }
 
@@ -211,7 +211,7 @@ namespace GUI.Types.PackageViewer
 
             if (files.Count == 0)
             {
-                _ = AppMessageDialogs.ShowMessageAsync("Nothing was added, there are no files to add.", "No files added", MessageIcon.Info);
+                _ = AppMessageDialogs.ShowMessageAsync(Locale.Package_NoFilesAdded_Message, Locale.Package_NoFilesAdded_Title, MessageIcon.Info);
                 return;
             }
 
@@ -224,17 +224,17 @@ namespace GUI.Types.PackageViewer
             {
                 if (!Package.TryParseEntryPath(JoinPath(folderPath, entryPath), out var normalizedPath))
                 {
-                    invalidFiles.Add($"{pathOnDisk}: \"{entryPath}\" is not a valid path in a VPK.");
+                    invalidFiles.Add(Locale.Package_InvalidEntryPath(pathOnDisk, entryPath));
                 }
                 else if (!filesByPath.TryAdd(normalizedPath, pathOnDisk))
                 {
-                    invalidFiles.Add($"{pathOnDisk}: \"{normalizedPath}\" is also the path of {filesByPath[normalizedPath]}.");
+                    invalidFiles.Add(Locale.Package_DuplicateEntryPath(pathOnDisk, normalizedPath, filesByPath[normalizedPath]));
                 }
             }
 
             if (invalidFiles.Count > 0)
             {
-                _ = AppMessageDialogs.ShowMessageAsync($"Nothing was added:\n{ListLines(invalidFiles, 10)}", "Failed to add files", MessageIcon.Warning);
+                _ = AppMessageDialogs.ShowMessageAsync(Locale.Package_NothingAdded(ListLines(invalidFiles, 10)), Locale.Package_FailedToAddFiles_Title, MessageIcon.Warning);
                 return;
             }
 
@@ -250,9 +250,9 @@ namespace GUI.Types.PackageViewer
             }
 
             var choice = existingFiles.Count == 0 ? ReplaceFilesChoice.Replace : AppMessageDialogs.AskToReplaceFiles(
-                existingFiles.Count == 1 ? "Replace 1 existing file?" : string.Create(CultureInfo.InvariantCulture, $"Replace {existingFiles.Count} existing files?"),
+                Locale.Package_ReplaceExistingFiles_Message(existingFiles.Count),
                 ListLines(existingFiles, 5),
-                "Files already exist");
+                Locale.Package_ReplaceExistingFiles_Title);
 
             if (choice == ReplaceFilesChoice.Cancel)
             {
@@ -267,11 +267,23 @@ namespace GUI.Types.PackageViewer
 
                 if (!PackageFileNames.FitsIntoSingleFile(lengths, package, replace))
                 {
-                    var hint = existingFiles.Count > 0 && PackageFileNames.FitsIntoSingleFile(lengths, package, !replace)
-                        ? (replace ? "\n\nSkipping the existing files would fit." : "\n\nReplacing the existing files would fit.")
-                        : string.Empty;
+                    var otherChoiceFits = existingFiles.Count > 0 && PackageFileNames.FitsIntoSingleFile(lengths, package, !replace);
+                    string message;
 
-                    _ = AppMessageDialogs.ShowMessageAsync($"These files do not fit into a VPK that is not split into chunk files, which holds at most 2 GiB. Save it with Save As and the \"Valve Pak split into chunk files\" type first.{hint}", "Failed to add files", MessageIcon.Warning);
+                    if (!otherChoiceFits)
+                    {
+                        message = Locale.Package_FilesDoNotFit;
+                    }
+                    else if (replace)
+                    {
+                        message = Locale.Package_FilesDoNotFitSkippingFits;
+                    }
+                    else
+                    {
+                        message = Locale.Package_FilesDoNotFitReplacingFits;
+                    }
+
+                    _ = AppMessageDialogs.ShowMessageAsync(message, Locale.Package_FailedToAddFiles_Title, MessageIcon.Warning);
                     return;
                 }
             }
@@ -280,7 +292,7 @@ namespace GUI.Types.PackageViewer
             var addedFiles = new List<(PackageEntry Entry, PackageEntry? ReplacedEntry)>();
             var failedFiles = new List<string>();
 
-            using (var progressDialog = new GenericProgressForm { Text = "Adding files…", WaitForWorkToStop = true })
+            using (var progressDialog = new GenericProgressForm { Text = Locale.Package_AddingFiles, WaitForWorkToStop = true })
             {
                 progressDialog.OnProcess = cancellationToken =>
                 {
@@ -333,8 +345,7 @@ namespace GUI.Types.PackageViewer
 
             if (failedFiles.Count > 0)
             {
-                var failedSuffix = failedFiles.Count == 1 ? "file" : "files";
-                _ = AppMessageDialogs.ShowMessageAsync(string.Create(CultureInfo.InvariantCulture, $"Failed to add {failedFiles.Count} {failedSuffix}:\n{ListLines(failedFiles, 10)}"), "Failed to add files", MessageIcon.Error);
+                _ = AppMessageDialogs.ShowMessageAsync(Locale.Package_FailedToAddCount(failedFiles.Count, ListLines(failedFiles, 10)), Locale.Package_FailedToAddFiles_Title, MessageIcon.Error);
             }
 
             if (addedFiles.Count > 0)
@@ -345,7 +356,7 @@ namespace GUI.Types.PackageViewer
 
         private static string ListLines(List<string> lines, int maxLines)
             => lines.Count > maxLines
-                ? string.Create(CultureInfo.InvariantCulture, $"{string.Join('\n', lines.Take(maxLines))}\nand {lines.Count - maxLines} more")
+                ? Locale.Package_ListAndMore(string.Join('\n', lines.Take(maxLines)), (lines.Count - maxLines).ToString(CultureInfo.InvariantCulture))
                 : string.Join('\n', lines);
 
         /// <summary>
@@ -402,7 +413,7 @@ namespace GUI.Types.PackageViewer
 
             if (refusedFolders.Count > 0)
             {
-                _ = AppMessageDialogs.ShowMessageAsync(string.Join('\n', refusedFolders.Select(static path => GetNotNormalizedFolderMessage(path, "deleted"))), "Failed to delete", MessageIcon.Warning);
+                _ = AppMessageDialogs.ShowMessageAsync(string.Join('\n', refusedFolders.Select(static path => Locale.Package_FolderNotNormalizedDelete(path))), Locale.Package_FailedToDelete_Title, MessageIcon.Warning);
             }
         }
 
@@ -418,7 +429,7 @@ namespace GUI.Types.PackageViewer
 
             if (newName.Length == 0 || newName is "." or ".." || newName.IndexOfAny([Package.DirectorySeparatorChar, '\\']) >= 0)
             {
-                ShowRenameFailure($"\"{newName}\" is not a valid name.");
+                ShowRenameFailure(Locale.Package_InvalidName(newName));
                 return;
             }
 
@@ -462,7 +473,7 @@ namespace GUI.Types.PackageViewer
 
                 if (package.FindEntry(normalizedPath) is { } conflict && conflict != entry)
                 {
-                    ShowRenameFailure($"\"{conflict.GetFullPath()}\" already exists.");
+                    ShowRenameFailure(Locale.Package_AlreadyExists(conflict.GetFullPath()));
                     return;
                 }
             }
@@ -495,7 +506,7 @@ namespace GUI.Types.PackageViewer
 
             if (targetFolderPath.Length == 0)
             {
-                ShowRenameFailure($"\"{newFolderPath}\" is not a valid folder.");
+                ShowRenameFailure(Locale.Package_InvalidFolder(newFolderPath));
                 return;
             }
 
@@ -508,7 +519,7 @@ namespace GUI.Types.PackageViewer
 
             if (files.Count > 0 && !IsNormalizedFolderPath(oldFolderPath))
             {
-                ShowRenameFailure(GetNotNormalizedFolderMessage(oldFolderPath, "renamed"));
+                ShowRenameFailure(Locale.Package_FolderNotNormalizedRename(oldFolderPath));
                 return;
             }
 
@@ -527,19 +538,19 @@ namespace GUI.Types.PackageViewer
 
                 if (package.FindEntry(normalizedPath) is { } conflict && !files.Contains(conflict))
                 {
-                    ShowRenameFailure($"\"{conflict.GetFullPath()}\" already exists.");
+                    ShowRenameFailure(Locale.Package_AlreadyExists(conflict.GetFullPath()));
                     return;
                 }
 
                 if (!newPaths.Add(normalizedPath))
                 {
-                    ShowRenameFailure($"\"{file.GetFullPath()}\" and another file in the folder would both be moved to \"{normalizedPath}\".");
+                    ShowRenameFailure(Locale.Package_MoveToSamePath(file.GetFullPath(), normalizedPath));
                     return;
                 }
             }
 
             if (treeView.FindFolderNode(targetFolderPath) is { } existingFolder && existingFolder != folder
-                && !await AppMessageDialogs.ConfirmAsync($"\"{existingFolder.Name}\" already exists. Merge the folders?", "Rename folder", buttons: ConfirmButtons.YesNo).ConfigureAwait(true))
+                && !await AppMessageDialogs.ConfirmAsync(Locale.Package_MergeFolders(existingFolder.Name), Locale.Package_RenameFolder, buttons: ConfirmButtons.YesNo).ConfigureAwait(true))
             {
                 return;
             }
@@ -586,11 +597,8 @@ namespace GUI.Types.PackageViewer
         private static bool IsNormalizedFolderPath(string folderPath)
             => folderPath.Length > 0 && Package.NormalizeDirectoryPath(folderPath) == folderPath;
 
-        private static string GetNotNormalizedFolderMessage(string folderPath, string action)
-            => $"\"{folderPath}\" cannot be {action} because its stored name is not normalized, such as having upper case letters.";
-
         private static void ShowRenameFailure(string message)
-            => _ = AppMessageDialogs.ShowMessageAsync(message, "Failed to rename", MessageIcon.Warning);
+            => _ = AppMessageDialogs.ShowMessageAsync(message, Locale.Package_FailedToRename_Title, MessageIcon.Warning);
 
         /// <summary>
         /// Forgets the changes, so closing the package does not ask to save them.
@@ -752,8 +760,7 @@ namespace GUI.Types.PackageViewer
 
                         hiddenFiles.Add(newEntry);
 
-                        var hiddenSuffix = hiddenFiles.Count == 1 ? "file" : "files";
-                        progress.SetProgress($"Found {hiddenFiles.Count} {hiddenSuffix} ({HumanReadableByteSizeFormatter.Format(totalSlackSize)}) so far…");
+                        progress.SetProgress(Locale.Package_FoundFilesSoFar(hiddenFiles.Count, HumanReadableByteSizeFormatter.Format(totalSlackSize)));
                     }
                 }
 

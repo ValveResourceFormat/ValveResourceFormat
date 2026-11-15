@@ -17,8 +17,6 @@ namespace GUI.Forms
         internal static readonly StringComparer NumericComparer =
             StringComparer.Create(CultureInfo.InvariantCulture, CompareOptions.IgnoreCase | CompareOptions.NumericOrdering);
 
-        internal static readonly string[] SearchTypeNames = ["File name", "Full path", "File contents", "File contents hex bytes"];
-
         private record FilterKeyEntry(string Key, SortedSet<string> Values)
         {
             public override string ToString() => Key;
@@ -42,9 +40,16 @@ namespace GUI.Forms
         public SearchForm()
         {
             InitializeComponent();
+            ApplyTranslations();
             uiTaskScheduler = TaskScheduler.FromCurrentSynchronizationContext();
 
-            searchTypeComboBox.Items.AddRange(SearchTypeNames);
+            // Item order follows PackageSearchType
+            searchTypeComboBox.Items.AddRange([
+                Locale.Search_TypeFileName,
+                Locale.Search_TypeFullPath,
+                Locale.Search_TypeFileContents,
+                Locale.Search_TypeFileContentsHex,
+            ]);
             searchTypeComboBox.SelectedIndex = 0;
 
             filterKeyComboBox.SelectedIndexChanged += FilterKeyComboBox_SelectedIndexChanged;
@@ -57,6 +62,19 @@ namespace GUI.Forms
             regexCheckBox.CheckedChanged += (_, _) => UpdateState();
             onlyInFolderCheckBox.CheckedChanged += (_, _) => UpdateState();
             extensionComboBox.SelectedIndexChanged += (_, _) => UpdateState();
+        }
+
+        private void ApplyTranslations()
+        {
+            Text = Locale.Search_Title;
+            findButton.Text = Locale.Search_Find;
+            cancelButton.Text = Locale.Dialog_Cancel;
+            filterKeyLabel.Text = Locale.Search_AssetInfoFilter;
+            matchCaseCheckBox.Text = Locale.Search_MatchCase;
+            wholeWordCheckBox.Text = Locale.Search_WholeWord;
+            regexCheckBox.Text = Locale.Search_Regex;
+            onlyInFolderCheckBox.Text = Locale.Search_OnlyInFolderNone;
+            extensionLabel.Text = Locale.Search_Extension;
         }
 
         private void UpdateState()
@@ -87,13 +105,13 @@ namespace GUI.Forms
             folder = searchFolder;
             onlyInFolderCheckBox.Enabled = folder != null;
             onlyInFolderCheckBox.FlatStyle = folder != null ? FlatStyle.Standard : FlatStyle.System;
-            onlyInFolderCheckBox.Text = folder != null ? $"Search only in: {PackageViewer.GetFolderPath(folder)}/" : "Search only in: no folder selected";
+            onlyInFolderCheckBox.Text = folder != null ? Locale.Search_OnlyInFolder(PackageViewer.GetFolderPath(folder)) : Locale.Search_OnlyInFolderNone;
             onlyInFolderCheckBox.Checked |= onlyInFolder;
 
             var selected = extensionComboBox.Text;
             using var _ = extensionComboBox.SuspendPainting();
             extensionComboBox.Items.Clear();
-            extensionComboBox.Items.Add("Any extension");
+            extensionComboBox.Items.Add(Locale.Search_AnyExtension);
             extensionComboBox.Items.AddRange(package.Entries?.Keys.Order(NumericComparer).ToArray() ?? []);
             extensionComboBox.SelectedIndex = Math.Max(0, extensionComboBox.FindStringExact(selected));
 
@@ -127,7 +145,7 @@ namespace GUI.Forms
 
             using var _ = filterKeyComboBox.SuspendPainting();
             filterKeyComboBox.Items.Clear();
-            filterKeyComboBox.Items.Add("Loading asset info\u2026");
+            filterKeyComboBox.Items.Add(Locale.Search_LoadingAssetInfo);
             filterKeyComboBox.SelectedIndex = 0;
             filterKeyComboBox.Enabled = false;
 
@@ -159,14 +177,14 @@ namespace GUI.Forms
             {
                 var sorted = keys!.OrderBy(kv => kv.Key, NumericComparer).Select(kv => (object)new FilterKeyEntry(kv.Key, kv.Value)).ToArray();
 
-                filterKeyComboBox.Items.Add("(No filter)");
+                filterKeyComboBox.Items.Add(Locale.Search_NoFilter);
                 filterKeyComboBox.Items.AddRange(sorted);
                 filterKeyComboBox.SelectedIndex = 0;
                 filterKeyComboBox.Enabled = true;
             }
             else
             {
-                filterKeyComboBox.Items.Add("No asset info");
+                filterKeyComboBox.Items.Add(Locale.Search_NoAssetInfo);
                 filterKeyComboBox.SelectedIndex = 0;
                 filterKeyComboBox.Enabled = false;
             }
@@ -186,7 +204,7 @@ namespace GUI.Forms
                 return;
             }
 
-            filterValueComboBox.Items.Add("(Any value)");
+            filterValueComboBox.Items.Add(Locale.Search_AnyValue);
             filterValueComboBox.Items.AddRange([.. entry.Values]);
             filterValueComboBox.SelectedIndex = 0;
             filterValueComboBox.Visible = true;

@@ -36,7 +36,7 @@ namespace GUI.Types.GLViewers
 
             Debug.Assert(UiControl != null);
 
-            using (UiControl.BeginGroup("Render"))
+            using (UiControl.BeginGroup(Locale.World_Render))
             {
                 AddRenderModeSelectionControl();
                 AddWireframeToggleControl();

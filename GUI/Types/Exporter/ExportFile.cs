@@ -87,19 +87,13 @@ namespace GUI.Types.Exporter
 
                 if (extension == null)
                 {
-                    await AppMessageDialogs.ShowMessageAsync($"Exporting \"{fileName}\" is not supported.", "Failed to export", MessageIcon.Warning).ConfigureAwait(true);
+                    await AppMessageDialogs.ShowMessageAsync(Locale.Export_NotSupported_Message(fileName), Locale.Export_FailedToExport_Title, MessageIcon.Warning).ConfigureAwait(true);
                     return;
                 }
 
-                var filter = $"{extension} file|*.{extension}";
-
-                if (GltfModelExporter.CanExport(resource))
-                {
-                    const string gltfFilter = "glTF|*.gltf";
-                    const string glbFilter = "glTF Binary|*.glb";
-
-                    filter = $"{filter}|{gltfFilter}|{glbFilter}";
-                }
+                var filter = GltfModelExporter.CanExport(resource)
+                    ? Locale.Export_GltfFileFilter(extension)
+                    : Locale.Export_FileFilter(extension);
 
                 var fileNameForSave = Path.GetFileNameWithoutExtension(fileName);
 
@@ -110,7 +104,7 @@ namespace GUI.Types.Exporter
                     fileNameForSave += "_d";
                 }
 
-                var pickedFileName = AppFileDialogs.SaveFile("Choose where to save the file", fileNameForSave, extension, filter);
+                var pickedFileName = AppFileDialogs.SaveFile(Locale.Export_SaveFile_Title, fileNameForSave, extension, filter);
 
                 if (pickedFileName == null)
                 {
@@ -140,7 +134,7 @@ namespace GUI.Types.Exporter
 
                 // Cancelling closes the dialog while the extract is still winding down, so wait for it to
                 // stop before the finally pulls the resource out from under it
-                await exporter.ExecuteSingleFileExtractAsync(resource, fileName, filaNameToSave, $"Extracting {fileName} to \"{Path.GetFileName(filaNameToSave)}\"").ConfigureAwait(true);
+                await exporter.ExecuteSingleFileExtractAsync(resource, fileName, filaNameToSave, Locale.Export_Extracting(fileName, Path.GetFileName(filaNameToSave))).ConfigureAwait(true);
             }
             finally
             {
@@ -172,7 +166,7 @@ namespace GUI.Types.Exporter
                     stream = new MemoryStream(content.Data);
                 }
 
-                var saveFileName = AppFileDialogs.SaveFile("Choose where to save the file", Path.GetFileName(fileName), null, "All files (*.*)|*.*");
+                var saveFileName = AppFileDialogs.SaveFile(Locale.Export_SaveFile_Title, Path.GetFileName(fileName), null, Locale.Dialog_AllFilesFileFilter);
 
                 if (saveFileName == null)
                 {
@@ -238,19 +232,7 @@ namespace GUI.Types.Exporter
             {
                 case ".vmap_c":
 
-                    messageString =
-                    """
-                    Decompiling Source2 maps is a difficult process, as such the output will be messy and imperfect, and will not resemble how
-                    real .vmap files are made!
-
-                    - Models will be merged by material across the map.
-                    - Parts of the skybox mesh might be missing.
-                    - The collision of the map will be merged into one mesh using special materials.
-                    - The map will lack lightmap resolution volumes.
-                    - Hammer meshes will be triangulated.
-
-                    It is NOT ADVISED to work on decompiled maps as your first map if you are new to mapping!
-                    """;
+                    messageString = Locale.Export_DecompileWarning_Message;
                     break;
 
                 default:
@@ -259,7 +241,7 @@ namespace GUI.Types.Exporter
 
             if (!string.IsNullOrEmpty(messageString))
             {
-                return await AppMessageDialogs.ConfirmAsync(messageString, "Decompile warning", MessageIcon.Warning).ConfigureAwait(true);
+                return await AppMessageDialogs.ConfirmAsync(messageString, Locale.Export_DecompileWarning_Title, MessageIcon.Warning).ConfigureAwait(true);
             }
 
             return true;

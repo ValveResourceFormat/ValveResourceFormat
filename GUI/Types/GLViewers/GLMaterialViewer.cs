@@ -46,6 +46,9 @@ namespace GUI.Types.GLViewers
         private RenderMaterial? renderMat;
         private ComboBox? previewObjectComboBox;
 
+        // Preview object of each item in previewObjectComboBox, by item index
+        private readonly List<PreviewObjectType> previewObjectComboBoxTypes = [];
+
         private enum PreviewObjectType
         {
             Quad,
@@ -587,7 +590,7 @@ namespace GUI.Types.GLViewers
 
             openShaderButton = new ThemedButton
             {
-                Text = $"Open Shader",
+                Text = Locale.Material_OpenShader,
                 AutoSize = true,
             };
 
@@ -616,11 +619,20 @@ namespace GUI.Types.GLViewers
 
             if (Scene != null && previewObjectComboBox.SelectedIndex >= 0)
             {
-                currentPreviewObject = Enum.Parse<PreviewObjectType>(previewObjectComboBox.SelectedItem?.ToString() ?? string.Empty);
+                currentPreviewObject = previewObjectComboBoxTypes[previewObjectComboBox.SelectedIndex];
                 previewNode.Visible = true;
                 OnFirstPaint();
             }
         }
+
+        private static string GetPreviewObjectName(PreviewObjectType type) => type switch
+        {
+            PreviewObjectType.Quad => Locale.Material_PreviewQuad,
+            PreviewObjectType.Sphere => Locale.Material_PreviewSphere,
+            PreviewObjectType.CustomModel => Locale.Material_PreviewCustomModel,
+            PreviewObjectType.Cable => Locale.Material_PreviewCable,
+            _ => throw new UnreachableException(),
+        };
 
         static Vector4 ColorToVector4(Color c)
         {
@@ -652,8 +664,8 @@ namespace GUI.Types.GLViewers
 
             previewObjectComboBox.SelectedIndexChanged += RenderMeshPreview_SelectionChanged;
 
-            UiControl.AddControl(CreateParameterRow("Render Color", [colorButton]));
-            UiControl.AddControl(CreateParameterRow("Render Mesh", [previewObjectComboBox]));
+            UiControl.AddControl(CreateParameterRow(Locale.Material_RenderColor, [colorButton]));
+            UiControl.AddControl(CreateParameterRow(Locale.Material_RenderMesh, [previewObjectComboBox]));
 
             ParamsPanel = new Panel
             {
@@ -670,8 +682,16 @@ namespace GUI.Types.GLViewers
             {
                 openShaderButton?.Text = renderMat.Material.ShaderName;
 
-                previewObjectComboBox.Items.AddRange([.. Enum.GetValues<PreviewObjectType>().Where(previewObjects.ContainsKey).Select(type => type.ToString())]);
-                previewObjectComboBox.SelectedItem = currentPreviewObject.ToString();
+                foreach (var type in Enum.GetValues<PreviewObjectType>())
+                {
+                    if (previewObjects.ContainsKey(type))
+                    {
+                        previewObjectComboBoxTypes.Add(type);
+                        previewObjectComboBox.Items.Add(GetPreviewObjectName(type));
+                    }
+                }
+
+                previewObjectComboBox.SelectedIndex = previewObjectComboBoxTypes.IndexOf(currentPreviewObject);
 
                 CreateMaterialEditControls(renderMat);
             }

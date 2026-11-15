@@ -22,6 +22,7 @@ namespace GUI.Forms
         public EntityInfoControl()
         {
             InitializeComponent();
+            ApplyTranslations();
 
             components ??= new System.ComponentModel.Container();
             components.Add(tabPageOutputs);
@@ -34,6 +35,34 @@ namespace GUI.Forms
             dataGridReferences.CellDoubleClick += OnReferencesCellDoubleClick;
             dataGridOutputs.CellContentClick += OnOutputsCellContentClick;
             dataGridInputs.CellContentClick += OnInputsCellContentClick;
+        }
+
+        private void ApplyTranslations()
+        {
+            tabPageProperties.Text = Locale.Entity_PropertiesTab;
+            ColumnName.HeaderText = Locale.Entity_Name;
+            ColumnValue.HeaderText = Locale.Entity_Value;
+            tabPageOutputs.Text = Locale.Entity_Outputs;
+            OutputsOutput.HeaderText = Locale.Entity_Output;
+            OutputsTargetEntity.HeaderText = Locale.Entity_TargetEntity;
+            OutputsTargetInput.HeaderText = Locale.Entity_TargetInput;
+            OutputsParameter.HeaderText = Locale.Entity_Parameter;
+            OutputsDelay.HeaderText = Locale.Entity_Delay;
+            OutputsTimesToFire.HeaderText = Locale.Entity_TimesToFire;
+            OutputsFire.Text = Locale.Entity_Fire;
+            tabPageInputs.Text = Locale.Entity_Inputs;
+            InputsSource.HeaderText = Locale.Entity_Source;
+            InputsOutput.HeaderText = Locale.Entity_Output;
+            InputsTargetInput.HeaderText = Locale.Entity_TargetInput;
+            InputsParameter.HeaderText = Locale.Entity_Parameter;
+            InputsDelay.HeaderText = Locale.Entity_Delay;
+            InputsTimeToFire.HeaderText = Locale.Entity_TimesToFire;
+            InputsFire.Text = Locale.Entity_Fire;
+            tabPageReferences.Text = Locale.Entity_References;
+            ReferencesSource.HeaderText = Locale.Entity_Source;
+            ReferencesClass.HeaderText = Locale.Entity_Class;
+            ReferencesProperty.HeaderText = Locale.Entity_Property;
+            ReferencesValue.HeaderText = Locale.Entity_Value;
         }
 
         /// <summary>
@@ -234,9 +263,9 @@ namespace GUI.Forms
         {
             return timesToFire switch
             {
-                1 => "Only Once",
-                >= 2 => $"Only {timesToFire} Times",
-                _ => "Infinite",
+                1 => Locale.Entity_OnlyOnce,
+                >= 2 => Locale.Entity_OnlyTimes(timesToFire),
+                _ => Locale.Entity_Infinite,
             };
         }
 

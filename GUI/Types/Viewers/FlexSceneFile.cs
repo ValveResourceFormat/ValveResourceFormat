@@ -36,7 +36,7 @@ namespace GUI.Types.Viewers
 
             var content = new ViewerContent.Tabs(
             [
-                new("Text", new ViewerContent.Text(vfeText)),
+                new(Locale.Resource_TabText, new ViewerContent.Text(vfeText)),
             ]);
 
             vfeText = null;

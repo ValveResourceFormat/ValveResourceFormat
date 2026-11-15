@@ -34,6 +34,7 @@ namespace GUI.Controls
         public ExplorerControl()
         {
             InitializeComponent();
+            ApplyTranslations();
 
             foreach (Control control in Controls)
             {
@@ -47,6 +48,16 @@ namespace GUI.Controls
             Scan();
         }
 
+        private void ApplyTranslations()
+        {
+            filterTextBox.PlaceholderText = Locale.Explorer_Filter;
+            revealInFileExplorerToolStripMenuItem.Text = Locale.Explorer_RevealInFileExplorer;
+            addToFavoritesToolStripMenuItem.Text = Locale.Explorer_AddToBookmarks;
+            removeFromFavoritesToolStripMenuItem.Text = Locale.Explorer_RemoveFromBookmarks;
+            removeFromRecentToolStripMenuItem.Text = Locale.Explorer_RemoveFromRecent;
+            clearRecentFilesToolStripMenuItem.Text = Locale.Explorer_ClearRecentFiles;
+        }
+
         private void Scan()
         {
             var recentImage = AppIcons.Icons["History"];
@@ -54,7 +65,7 @@ namespace GUI.Controls
             // Bookmarks
             {
                 var bookmarkImage = AppIcons.Icons["Bookmarks"];
-                var bookmarkedFilesTreeNode = new TreeNode("Bookmarks")
+                var bookmarkedFilesTreeNode = new TreeNode(Locale.Explorer_Bookmarks)
                 {
                     ImageIndex = bookmarkImage,
                     SelectedImageIndex = bookmarkImage,
@@ -75,7 +86,7 @@ namespace GUI.Controls
 
             // Recent files
             {
-                var recentFilesTreeNode = new TreeNode("Recent files")
+                var recentFilesTreeNode = new TreeNode(Locale.Explorer_RecentFiles)
                 {
                     ImageIndex = recentImage,
                     SelectedImageIndex = recentImage,
@@ -99,7 +110,7 @@ namespace GUI.Controls
             DebugAddEmbeddedResourcesToTree();
 #endif
 
-            var scanningTreeNode = new TreeNode("Scanning game folders…")
+            var scanningTreeNode = new TreeNode(Locale.Explorer_ScanningGameFolders)
             {
                 ImageIndex = recentImage,
                 SelectedImageIndex = recentImage,
@@ -125,7 +136,7 @@ namespace GUI.Controls
                 await handleCreated.Task.ConfigureAwait(false);
                 await treeView.InvokeAsync(() =>
                 {
-                    scanningTreeNode.Text = "Failed to scan game folders, see the console for details.";
+                    scanningTreeNode.Text = Locale.Explorer_ScanFailed;
                 }).ConfigureAwait(false);
                 return;
             }
@@ -292,7 +303,7 @@ namespace GUI.Controls
                                 continue;
                             }
 
-                            var displayTitle = $"[Workshop {item.Key}]";
+                            var displayTitle = Locale.Explorer_WorkshopItem(item.Key);
 
                             try
                             {

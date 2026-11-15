@@ -58,8 +58,10 @@ namespace GUI
             Args = args;
 
             Settings.Load();
+            Translations.Load();
             Themer.InitializeTheme();
             InitializeComponent();
+            ApplyTranslations();
             LoadIcons();
 
             var installText = AppInstaller.GetInstallButtonText();
@@ -158,6 +160,55 @@ namespace GUI
 
             // Force refresh title due to OpenFile calls above, SelectedIndexChanged is not called in the same tick
             OnMainSelectedTabChanged(null, EventArgs.Empty);
+        }
+
+        private void ApplyTranslations()
+        {
+            fileToolStripMenuItem.Text = Locale.Menu_File;
+            openToolStripMenuItem.Text = Locale.Menu_Open;
+            createVpkToolStripMenuItem.Text = Locale.Menu_CreateVpk;
+            createVpkFromFolderToolStripMenuItem.Text = Locale.Menu_CreateVpkFromFolder;
+            editVpkToolStripMenuItem.Text = Locale.Menu_EditVpk;
+            openWelcomeScreenToolStripMenuItem.Text = Locale.Menu_OpenWelcomeScreen;
+            explorerToolStripMenuItem.Text = Locale.Menu_Explorer;
+            findToolStripButton.Text = Locale.Menu_Find;
+            settingsToolStripMenuItem.Text = Locale.Menu_Settings;
+            aboutToolStripMenuItem.Text = Locale.Menu_About;
+            recoverDeletedToolStripMenuItem.Text = Locale.Menu_RecoverDeletedFiles;
+            editThisVpkToolStripMenuItem.Text = Locale.Menu_EditThisVpk;
+            validateShadersToolStripMenuItem.Text = Locale.Menu_ValidateShaders;
+
+            closeToolStripMenuItem.Text = Locale.Tab_Close;
+            closeOtherTabsToolStripMenuItem.Text = Locale.Tab_CloseOthers;
+            closeToolStripMenuItems.Text = Locale.Tab_CloseAll;
+            closeToolStripMenuItemsToRight.Text = Locale.Tab_CloseToRight;
+            closeToolStripMenuItemsToLeft.Text = Locale.Tab_CloseToLeft;
+            copyTabUrlToolStripMenuItem.Text = Locale.Menu_CopyUrl;
+            exportAsIsToolStripMenuItem.Text = Locale.Menu_ExportAsIs;
+            decompileExportToolStripMenuItem.Text = Locale.Menu_DecompileExport;
+            clearConsoleToolStripMenuItem.Text = Locale.Tab_ClearConsole;
+
+            extractToolStripMenuItem.Text = Locale.Menu_ExportAsIs;
+            decompileToolStripMenuItem.Text = Locale.Menu_DecompileExport;
+            copyFileNameToolStripMenuItem.Text = Locale.Menu_CopyName;
+            copyFileNameOnDiskToolStripMenuItem.Text = Locale.Menu_CopyUrl;
+            addToBookmarksToolStripMenuItem.Text = Locale.Menu_AddToBookmarks;
+            searchInFolderToolStripMenuItem.Text = Locale.Menu_SearchInFolder;
+            openWithoutViewerToolStripMenuItem.Text = Locale.Menu_OpenWithoutViewer;
+            openWithDefaultAppToolStripMenuItem.Text = Locale.Menu_OpenWithDefaultApp;
+            viewAssetInfoToolStripMenuItem.Text = Locale.Menu_ViewAssetInfo;
+            verifyPackageContentsToolStripMenuItem.Text = Locale.Menu_VerifyPackageContents;
+
+            vpkEditCreateFolderToolStripMenuItem.Text = Locale.VpkEdit_CreateFolder;
+            vpkEditAddExistingFolderToolStripMenuItem.Text = Locale.VpkEdit_AddExistingFolder;
+            vpkEditAddExistingFilesToolStripMenuItem.Text = Locale.VpkEdit_AddExistingFiles;
+            vpkEditRenameToolStripMenuItem.Text = Locale.VpkEdit_Rename;
+            vpkEditRemoveThisFolderToolStripMenuItem.Text = Locale.VpkEdit_RemoveFolder;
+            vpkEditRemoveThisFileToolStripMenuItem.Text = Locale.VpkEdit_RemoveFile;
+            vpkEditExtractToolStripMenuItem.Text = Locale.Menu_ExportAsIs;
+            vpkEditDecompileToolStripMenuItem.Text = Locale.Menu_DecompileExport;
+            vpkEditSaveToDiskToolStripMenuItem.Text = Locale.VpkEdit_Save;
+            vpkEditSaveAsToolStripMenuItem.Text = Locale.VpkEdit_SaveAs;
         }
 
         private void LoadIcons()
@@ -713,7 +764,7 @@ namespace GUI
                 //Only tabs that got a sound player (world and model viewers) have anything to mute
                 var sceneViewer = GLBaseControl.FindHostedIn(thisTab) as GLSceneViewer;
                 muteTabToolStripMenuItem.Visible = sceneViewer?.HasSoundPlayer == true;
-                muteTabToolStripMenuItem.Text = sceneViewer?.Muted == true ? "&Unmute tab" : "&Mute tab";
+                muteTabToolStripMenuItem.Text = sceneViewer?.Muted == true ? Locale.Tab_Unmute : Locale.Tab_Mute;
 
                 var canExport = thisTab.Tag is ExportData exportData;
                 toolStripSeparator5.Visible = canExport || tabIndex == 0;
@@ -741,10 +792,10 @@ namespace GUI
                 return;
             }
 
-            var seettingsTab = new ThemedTabPage("Settings")
+            var seettingsTab = new ThemedTabPage(Locale.Tab_Settings)
             {
                 Name = "Settings",
-                ToolTipText = "Settings",
+                ToolTipText = Locale.Tab_Settings,
                 ImageIndex = AppIcons.Icons["Settings"],
             };
 
@@ -766,7 +817,7 @@ namespace GUI
 
         private void OpenToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var files = AppFileDialogs.OpenFiles(null, "Valve Resource Format (*.*_c, *.vpk)|*.*_c;*.vpk;*.vcs|All files (*.*)|*.*");
+            var files = AppFileDialogs.OpenFiles(null, Locale.Open_FileFilter);
 
             if (files == null)
             {
@@ -1313,10 +1364,10 @@ namespace GUI
                 return;
             }
 
-            var explorerTab = new ThemedTabPage("Explorer")
+            var explorerTab = new ThemedTabPage(Locale.Tab_Explorer)
             {
                 Name = "Explorer",
-                ToolTipText = "Explorer",
+                ToolTipText = Locale.Tab_Explorer,
                 ImageIndex = AppIcons.Icons["Explorer"],
             };
 
@@ -1340,10 +1391,10 @@ namespace GUI
                 return;
             }
 
-            var welcomeTab = new ThemedTabPage("Welcome")
+            var welcomeTab = new ThemedTabPage(Locale.Tab_Welcome)
             {
                 Name = "Welcome",
-                ToolTipText = "Welcome",
+                ToolTipText = Locale.Tab_Welcome,
                 ImageIndex = AppIcons.Icons["WelcomeScreen"],
             };
 
@@ -1397,7 +1448,7 @@ namespace GUI
         {
             using var progressDialog = new GenericProgressForm
             {
-                Text = "Compiling shaders…"
+                Text = Locale.Menu_ValidateShaders_Progress
             };
             progressDialog.OnProcess = _ =>
             {

@@ -65,12 +65,12 @@ static class AppInstaller
         // A debug build only registers itself in place
         if (!ExecutableSwap.IsSingleFileBundle(Environment.ProcessPath!))
         {
-            return "Install app";
+            return Locale.Menu_InstallApp;
         }
 
         var installedVersion = InstalledVersion;
 
-        return installedVersion == null ? "Install app" : $"Replace installed version ({installedVersion})";
+        return installedVersion == null ? Locale.Menu_InstallApp : Locale.Menu_ReplaceInstalledVersion(installedVersion);
     }
 
     /// <summary>
@@ -85,8 +85,8 @@ static class AppInstaller
         }
 
         await AppMessageDialogs.ShowMessageAsync(
-            "Registered .vpk file association as well as \"vpk:\" protocol link handling.",
-            "File association registered"
+            Locale.Install_FileAssociation_Message,
+            Locale.Install_FileAssociation_Title
         ).ConfigureAwait(true);
     }
 

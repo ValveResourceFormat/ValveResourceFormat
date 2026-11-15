@@ -68,7 +68,7 @@ internal sealed class EventListControl : Control
 
         if (shown < lines.Length)
         {
-            TextRenderer.DrawText(e.Graphics, $"+{lines.Length - shown} more", Font, new Rectangle(0, shown * lineHeight, Width, lineHeight), dimmed, Flags);
+            TextRenderer.DrawText(e.Graphics, Locale.Entity_MoreEvents(lines.Length - shown), Font, new Rectangle(0, shown * lineHeight, Width, lineHeight), dimmed, Flags);
         }
     }
 }

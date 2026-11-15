@@ -74,7 +74,9 @@ namespace GUI.Types.PackageViewer
         private readonly Thread ThumbnailRenderThread;
         private readonly TaskCompletionSource ThumbnailRenderStopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        private static readonly string[] Columns = ["Name", "Size", "Type"];
+        private const int ColumnCount = 3;
+
+        private static string[] Columns => [Locale.Package_ColumnName, Locale.Package_ColumnSize, Locale.Package_ColumnType];
 
         private static int SplitterWidth;
 
@@ -114,12 +116,22 @@ namespace GUI.Types.PackageViewer
         /// </summary>
         private VirtualPackageNode? DeletedFilesRoot;
 
+        private void ApplyTranslations()
+        {
+            searchTextBox.PlaceholderText = Locale.Package_SearchPlaceholder;
+            toolTip.SetToolTip(backButton, Locale.Package_Back);
+            toolTip.SetToolTip(forwardButton, Locale.Package_Forward);
+            gridRadioButton.Text = Locale.Package_Grid;
+            listRadioButton.Text = Locale.Package_List;
+        }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
         /// </summary>
         public TreeViewWithSearchResults(PackageViewer viewer)
         {
             InitializeComponent();
+            ApplyTranslations();
 
             foreach (Control control in Controls)
             {
@@ -402,26 +414,26 @@ namespace GUI.Types.PackageViewer
         {
             searchSummaryLabel.Text = null;
 
-            if (show == (mainListView.Columns.Count > Columns.Length))
+            if (show == (mainListView.Columns.Count > ColumnCount))
             {
                 return;
             }
 
             if (show)
             {
-                mainListView.Columns.Add("Folder");
+                mainListView.Columns.Add(Locale.Package_ColumnFolder);
             }
             else
             {
-                mainListView.Columns.RemoveAt(Columns.Length);
+                mainListView.Columns.RemoveAt(ColumnCount);
 
-                if (mainListView.ListViewItemSorter is ListViewColumnSorter sorter && sorter.SortColumn >= Columns.Length)
+                if (mainListView.ListViewItemSorter is ListViewColumnSorter sorter && sorter.SortColumn >= ColumnCount)
                 {
                     sorter.SortColumn = 0;
                 }
             }
 
-            mainListView.SecondFlexibleColumn = show ? Columns.Length : -1;
+            mainListView.SecondFlexibleColumn = show ? ColumnCount : -1;
             mainListView.AdjustColumnWidths();
         }
 
@@ -1339,11 +1351,11 @@ namespace GUI.Types.PackageViewer
 
             using var progressDialog = new GenericProgressForm
             {
-                Text = "Scanning for deleted files…"
+                Text = Locale.Package_ScanningDeleted
             };
             progressDialog.OnProcess = _ =>
             {
-                progressDialog.SetProgress("Scanning for deleted files. This may take a while…");
+                progressDialog.SetProgress(Locale.Package_ScanningDeletedSlow);
 
                 List<PackageEntry> foundFiles;
 
@@ -1363,7 +1375,7 @@ namespace GUI.Types.PackageViewer
 
                     if (foundFiles.Count == 0)
                     {
-                        var rootVirtualNone = new VirtualPackageNode("No deleted files found", 0, null);
+                        var rootVirtualNone = new VirtualPackageNode(Locale.Package_NoDeletedFiles, 0, null);
                         mainTreeView.Nodes.Add(new BetterTreeNode(rootVirtualNone.Name, rootVirtualNone)
                         {
                             Name = "root_deleted",
@@ -1375,8 +1387,7 @@ namespace GUI.Types.PackageViewer
 
                     using (mainTreeView.SuspendPainting())
                     {
-                        var fileSuffix = foundFiles.Count == 1 ? "file" : "files";
-                        var name = $"Deleted files ({foundFiles.Count} {fileSuffix} found, names are guessed)";
+                        var name = Locale.Package_DeletedFilesRoot(foundFiles.Count);
                         var rootVirtual = new VirtualPackageNode(name, 0, null);
                         DeletedFilesRoot = rootVirtual;
 
@@ -1415,19 +1426,19 @@ namespace GUI.Types.PackageViewer
 
             using var progressDialog = new GenericProgressForm
             {
-                Text = "Verifying package…"
+                Text = Locale.Package_Verifying
             };
             progressDialog.OnProcess = cancellationToken =>
             {
                 try
                 {
-                    progressDialog.SetProgress("Verifying package…");
+                    progressDialog.SetProgress(Locale.Package_Verifying);
 
                     package.Verify(new VerifyProgress(progressDialog), cancellationToken);
 
-                    var message = package.IsSigned ? "Successfully verified package contents." : "Successfully verified package contents. This package is not signed.";
+                    var message = package.IsSigned ? Locale.Package_VerifiedSigned_Message : Locale.Package_VerifiedNotSigned_Message;
 
-                    _ = AppMessageDialogs.ShowMessageAsync(message, "Verified package contents");
+                    _ = AppMessageDialogs.ShowMessageAsync(message, Locale.Package_Verified_Title);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -1488,31 +1499,56 @@ namespace GUI.Types.PackageViewer
             DisplayMainListView();
             MainListView_DisplayNodes(node, updatePath: false);
 
-            var summary = new StringBuilder(query.Text.Length > 0 ? $"{SearchForm.SearchTypeNames[(int)query.Type]} \"{query.Text}\"" : "All files");
+            List<string> summary = [GetSearchQuerySummary(query)];
 
             if (request.Folder != null)
             {
-                summary.Append(" in ").Append(PackageViewer.GetFolderPath(request.Folder));
+                summary.Add(Locale.Package_SearchFolder(PackageViewer.GetFolderPath(request.Folder)));
             }
 
             if (request.Extension != null)
             {
-                summary.Append(", ").Append(request.Extension);
+                summary.Add(Locale.Package_SearchExtension(request.Extension));
             }
 
             if (request.FilterKey != null)
             {
-                summary.Append(", ").Append(request.FilterKey).Append(" = ").Append(request.FilterValue ?? "any");
+                summary.Add(request.FilterValue != null
+                    ? Locale.Package_SearchFilter(request.FilterKey, request.FilterValue)
+                    : Locale.Package_SearchFilterAnyValue(request.FilterKey));
             }
 
-            summary.Append(CultureInfo.InvariantCulture, $": {results.Count:N0} found");
+            summary.Add(Locale.Package_SearchFound(results.Count));
 
             if (notSearched > 0)
             {
-                summary.Append(CultureInfo.InvariantCulture, $", {notSearched:N0} not searched");
+                summary.Add(Locale.Package_SearchNotSearched(notSearched));
             }
 
-            searchSummaryLabel.Text = cancelled ? summary.Append(", cancelled").ToString() : summary.ToString();
+            if (cancelled)
+            {
+                summary.Add(Locale.Package_SearchCancelled);
+            }
+
+            // Each part is a standalone phrase, so the separator does not depend on the language
+            searchSummaryLabel.Text = string.Join(" · ", summary);
+        }
+
+        private static string GetSearchQuerySummary(PackageSearchQuery query)
+        {
+            if (query.Text.Length == 0)
+            {
+                return Locale.Package_SearchAllFiles;
+            }
+
+            return query.Type switch
+            {
+                PackageSearchType.FileName => Locale.Package_SearchFileName(query.Text),
+                PackageSearchType.FullPath => Locale.Package_SearchFullPath(query.Text),
+                PackageSearchType.FileContents => Locale.Package_SearchFileContents(query.Text),
+                PackageSearchType.FileContentsHex => Locale.Package_SearchFileContentsHex(query.Text),
+                _ => throw new UnreachableException(),
+            };
         }
 
         private static (List<PackageEntry> Matches, int NotSearched, bool Cancelled) Find(Package package, List<PackageEntry> candidates, PackageSearchQuery query)
@@ -1527,12 +1563,12 @@ namespace GUI.Types.PackageViewer
 
             using var progressDialog = new GenericProgressForm
             {
-                Text = "Searching file contents\u2026",
+                Text = Locale.Package_SearchingContents,
                 WaitForWorkToStop = true,
             };
             progressDialog.OnProcess = cancellationToken =>
             {
-                progressDialog.SetProgress(string.Create(CultureInfo.InvariantCulture, $"Searching {candidates.Count:N0} files"));
+                progressDialog.SetProgress(Locale.Package_SearchingFiles(candidates.Count.ToString("N0", CultureInfo.InvariantCulture)));
                 progressDialog.SetBarMax(candidates.Count);
 
                 var (matches, notSearched) = PackageSearch.Find(package, candidates, query, progressDialog, cancellationToken);
@@ -1711,9 +1747,9 @@ namespace GUI.Types.PackageViewer
         /// <param name="e">Event data.</param>
         private void TreeViewWithSearchResults_Load(object sender, EventArgs e)
         {
-            for (var i = 0; i < Columns.Length; i++)
+            foreach (var column in Columns)
             {
-                mainListView.Columns.Add(Columns[i]);
+                mainListView.Columns.Add(column);
             }
 
             if (PendingInitialDisplayNode != null)

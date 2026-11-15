@@ -15,7 +15,7 @@ namespace GUI.Types.GLViewers
             this.navSpaceFile = navSpaceFile;
         }
 
-        protected override string LayersControlName => "Navigation Layers";
+        protected override string LayersControlName => Locale.Nav_Layers;
 
         protected override bool IsLayerEnabledByDefault(int index) => index == 0;
 

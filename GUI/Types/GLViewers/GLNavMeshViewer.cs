@@ -15,7 +15,7 @@ namespace GUI.Types.GLViewers
             this.navMeshFile = navMeshFile;
         }
 
-        protected override string LayersControlName => "Navigation Layers";
+        protected override string LayersControlName => Locale.Nav_Layers;
 
         protected override void LoadScene()
         {

@@ -175,7 +175,7 @@ namespace GUI.Utils
 
             const string CONSOLE = "Console";
 
-            var tab = new ThemedTabPage(CONSOLE)
+            var tab = new ThemedTabPage(Locale.Tab_Console)
             {
                 Name = CONSOLE,
                 BackColor = bgColor,

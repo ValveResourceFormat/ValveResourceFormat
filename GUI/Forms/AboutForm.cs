@@ -23,6 +23,7 @@ namespace GUI.Forms
         public AboutForm()
         {
             InitializeComponent();
+            ApplyTranslations();
 
             Icon = Program.MainForm.Icon;
 
@@ -44,7 +45,7 @@ namespace GUI.Forms
 
             checkForUpdatesCheckbox.Checked = Settings.Config.Update.CheckAutomatically;
 
-            updateChannelComboBox.Items.AddRange(Enum.GetNames<Settings.UpdateChannel>());
+            updateChannelComboBox.Items.AddRange([Locale.About_ChannelStable, Locale.About_ChannelDev]);
             updateChannelComboBox.SelectedIndex = (int)Settings.Config.Update.Channel;
 
             if (UpdateInstaller.InstalledVersionText != null)
@@ -65,10 +66,10 @@ namespace GUI.Forms
             }
             else
             {
-                newVersionLabel.Text = "Checking for updates…";
+                newVersionLabel.Text = Locale.About_CheckingForUpdates;
             }
 
-            downloadButton.Text = "Checking for updates…";
+            downloadButton.Text = Locale.About_CheckingForUpdates;
             downloadButton.Enabled = false;
 
             try
@@ -78,13 +79,12 @@ namespace GUI.Forms
             }
             catch (Exception ex)
             {
-                var message = $"Failed to check for updates: {ex.Message}";
-                Log.Error(nameof(AboutForm), message);
+                Log.Error(nameof(AboutForm), $"Failed to check for updates: {ex.Message}");
 
                 if (!IsDisposed)
                 {
-                    newVersionLabel.Text = message;
-                    downloadButton.Text = "Not available";
+                    newVersionLabel.Text = Locale.About_CheckFailed(ex.Message);
+                    downloadButton.Text = Locale.About_NotAvailable;
                 }
 
                 return;
@@ -101,32 +101,31 @@ namespace GUI.Forms
             var installed = UpdateInstaller.InstalledVersionText;
             var offer = UpdateChecker.Offer;
             var build = offer?.Build;
-            var newVersion = build?.Text ?? "Not available";
+            var newVersion = build?.DisplayText ?? Locale.About_NotAvailable;
 
             if (UpdateChecker.GetUpdateStatus() == UpdateChecker.UpdateStatus.LocalBuild)
             {
                 newVersionLabel.Text = ":)";
-                downloadButton.Text = "Up to date";
+                downloadButton.Text = Locale.About_UpToDate;
                 downloadButton.Enabled = false;
             }
             else if (installed != null)
             {
-                newVersionLabel.Text = $"{installed} (installed)";
-                downloadButton.Text = "Restart to update";
+                newVersionLabel.Text = GetInstalledText(UpdateInstaller.InstalledBuild);
+                downloadButton.Text = Locale.Update_RestartToUpdate;
                 downloadButton.Enabled = true;
             }
-            else if (offer != null && offer.IsNewVersionAvailable)
+            else if (offer != null && build != null && offer.IsNewVersionAvailable)
             {
                 newVersionLabel.Text = newVersion;
 
-                if (offer.IsNewer)
+                if (build.Channel == Settings.UpdateChannel.Stable)
                 {
-                    downloadButton.Text = $"Download {newVersion}";
+                    downloadButton.Text = offer.IsNewer ? Locale.About_DownloadStable(build.Tag) : Locale.About_SwitchToStable(build.Tag);
                 }
                 else
                 {
-                    var switchTarget = build?.Channel == Settings.UpdateChannel.Stable ? $"stable {newVersion}" : newVersion;
-                    downloadButton.Text = $"Switch to {switchTarget}";
+                    downloadButton.Text = offer.IsNewer ? Locale.About_DownloadDev(build.BuildNumberText) : Locale.About_SwitchToDev(build.BuildNumberText);
                 }
 
                 downloadButton.Enabled = true;
@@ -134,7 +133,7 @@ namespace GUI.Forms
             else
             {
                 newVersionLabel.Text = newVersion;
-                downloadButton.Text = build == null ? "Not available" : "Up to date";
+                downloadButton.Text = build == null ? Locale.About_NotAvailable : Locale.About_UpToDate;
                 downloadButton.Enabled = false;
             }
 
@@ -148,8 +147,38 @@ namespace GUI.Forms
 
             if (offer != null && !string.IsNullOrEmpty(offer.ReleaseNotesUrl))
             {
-                viewReleaseNotesButton.Text = $"View release notes for {offer.ReleaseNotesVersion}";
+                viewReleaseNotesButton.Text = Locale.About_ViewReleaseNotesFor(offer.ReleaseNotesVersion ?? string.Empty);
             }
+        }
+
+        private static string GetInstalledText(UpdateChecker.UpdateBuild? build)
+        {
+            if (build == null)
+            {
+                return string.Empty;
+            }
+
+            return build.Channel == Settings.UpdateChannel.Stable
+                ? Locale.Update_InstalledStable(build.Tag)
+                : Locale.Update_InstalledDev(build.BuildNumberText);
+        }
+
+        private void ApplyTranslations()
+        {
+            website.Text = Locale.About_Website;
+            github.Text = Locale.About_GitHub;
+            label3.Text = Locale.About_Disclaimer;
+            discord.Text = Locale.About_Discord;
+            licenses.Text = Locale.About_Licenses;
+            copyVersion.Text = Locale.About_CopyVersion;
+            checkForUpdatesCheckbox.Text = Locale.About_CheckAutomatically;
+            updateChannelLabel.Text = Locale.About_UpdateChannel;
+            downloadButton.Text = Locale.About_DownloadNewVersion;
+            viewReleaseNotesButton.Text = Locale.About_ViewReleaseNotes;
+            newVersionLabelText.Text = Locale.About_NewVersion;
+            currentVersionLabelText.Text = Locale.About_CurrentVersion;
+            groupBox1.Text = Locale.About_Title;
+            groupBox2.Text = Locale.About_Version;
         }
 
         public void OnWebsiteClick(object sender, EventArgs e)
@@ -175,7 +204,7 @@ namespace GUI.Forms
 
             using var form = new ThemedForm
             {
-                Text = "Third-party licenses",
+                Text = Locale.About_ThirdPartyLicenses,
                 Icon = Icon,
                 StartPosition = FormStartPosition.CenterParent,
                 ShowInTaskbar = false,
@@ -281,7 +310,7 @@ namespace GUI.Forms
 
             AppClipboard.SetText(output.ToString());
 
-            copyVersion.Text = "Copied!";
+            copyVersion.Text = Locale.About_Copied;
         }
     }
 }

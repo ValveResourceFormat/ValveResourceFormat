@@ -79,7 +79,7 @@ class TextKeyValues3(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
 
         rendererContext = vrfGuiContext.CreateRendererContext();
         graphViewer = new AG1GraphViewer(vrfGuiContext, rendererContext, root);
-        graphTabName = "AG1 ANIMATION GRAPH";
+        graphTabName = Locale.Resource_TabAnimGraph1;
     }
 
     public void Create(TabPage containerTabPage)
