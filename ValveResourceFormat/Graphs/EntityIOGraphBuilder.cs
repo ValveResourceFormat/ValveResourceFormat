@@ -182,7 +182,7 @@ internal static class EntityIOGraphBuilder
             }
 
             // Double click and the context menu jump to the asset the entity references.
-            node.ExternalResourceName ??= entity.GetStringProperty("model") ?? entity.GetStringProperty("effect_name");
+            node.ExternalResourceName ??= entity.GetNonEmptyStringProperty("model") ?? entity.GetNonEmptyStringProperty("effect_name");
 
             entityNodes[entity] = node;
             return node;

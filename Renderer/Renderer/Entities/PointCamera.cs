@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 public class PointCamera : BaseEntity
 {
     /// <summary>Gets the name the viewer lists this camera under.</summary>
-    public string CameraName => KeyValues.GetStringProperty("cameraname") ?? TargetName ?? Classname;
+    public string CameraName => KeyValues.GetNonEmptyStringProperty("cameraname") ?? TargetName ?? Classname;
 
     /// <summary>Initializes a camera from its keyvalues.</summary>
     public PointCamera(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)

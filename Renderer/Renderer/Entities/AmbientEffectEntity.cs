@@ -38,7 +38,7 @@ public sealed class AmbientEffectEntity : BaseModelEntity
             unitNode.SetAnimation(constantLayer);
         }
 
-        Effect = CreateEffect(KeyValues.GetStringProperty("ambientfx") ?? KeyValues.GetStringProperty("ambienteffect"));
+        Effect = CreateEffect(KeyValues.GetNonEmptyStringProperty("ambientfx") ?? KeyValues.GetNonEmptyStringProperty("ambienteffect"));
 
         if (Effect == null)
         {

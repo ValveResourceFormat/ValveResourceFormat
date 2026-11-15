@@ -772,21 +772,21 @@ public partial class PropDoorRotating : BaseToggle
 
     private void CalcDoorSounds()
     {
-        soundOpen = NonEmpty(KeyValues.GetStringProperty("soundopenoverride"));
-        soundClose = NonEmpty(KeyValues.GetStringProperty("soundcloseoverride"));
-        soundMove = NonEmpty(KeyValues.GetStringProperty("soundmoveoverride"));
-        soundLocked = NonEmpty(KeyValues.GetStringProperty("soundlockedoverride"));
-        soundUnlocked = NonEmpty(KeyValues.GetStringProperty("soundunlockedoverride"));
+        soundOpen = KeyValues.GetNonEmptyStringProperty("soundopenoverride");
+        soundClose = KeyValues.GetNonEmptyStringProperty("soundcloseoverride");
+        soundMove = KeyValues.GetNonEmptyStringProperty("soundmoveoverride");
+        soundLocked = KeyValues.GetNonEmptyStringProperty("soundlockedoverride");
+        soundUnlocked = KeyValues.GetNonEmptyStringProperty("soundunlockedoverride");
 
         // Unset sounds come from the model's door_sounds, else the metal door defaults. The door_options skin
         // and hardware blocks are consulted after the defaults, so they never supply any.
         if (LoadedModel?.KeyValues.GetSubCollection("door_sounds") is { ValueType: KVValueType.Collection } doorSounds)
         {
-            soundOpen ??= NonEmpty(doorSounds.GetStringProperty("opened"));
-            soundClose ??= NonEmpty(doorSounds.GetStringProperty("closed"));
-            soundMove ??= NonEmpty(doorSounds.GetStringProperty("move"));
-            soundLocked ??= NonEmpty(doorSounds.GetStringProperty("locked"));
-            soundUnlocked ??= NonEmpty(doorSounds.GetStringProperty("unlatch"));
+            soundOpen ??= doorSounds.GetNonEmptyStringProperty("opened");
+            soundClose ??= doorSounds.GetNonEmptyStringProperty("closed");
+            soundMove ??= doorSounds.GetNonEmptyStringProperty("move");
+            soundLocked ??= doorSounds.GetNonEmptyStringProperty("locked");
+            soundUnlocked ??= doorSounds.GetNonEmptyStringProperty("unlatch");
         }
         else
         {
@@ -821,8 +821,6 @@ public partial class PropDoorRotating : BaseToggle
         StartMoveSound();
         EntitySystem.TriggerOutput(this, State == DoorState.Closing ? "OnUnblockedClosing" : "OnUnblockedOpening", this);
     }
-
-    private static string? NonEmpty(string? value) => string.IsNullOrEmpty(value) ? null : value;
 
     private bool IsSilent => HasSpawnFlags(SpawnFlag.Silent);
 

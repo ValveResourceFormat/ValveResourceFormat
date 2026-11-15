@@ -59,6 +59,9 @@ public abstract partial class BaseModelEntity : BaseEntity
         Solid = KeyValues.ContainsKey("solid") ? KeyValues.GetEnumValue<SolidType>("solid") : SolidType.SOLID_NONE;
     }
 
+    /// <summary>Returns <paramref name="value"/>, or <see langword="null"/> when it is null or empty.</summary>
+    protected static string? NonEmpty(string? value) => string.IsNullOrEmpty(value) ? null : value;
+
     /// <summary>
     /// Loads the model and makes it this entity's own node. Brush entities carry their geometry
     /// this way, in a model compiled next to the map.
@@ -141,9 +144,9 @@ public abstract partial class BaseModelEntity : BaseEntity
             // Physics is baked in the model's posed frame, but the raw mesh can sit in modeldoc's
             // working frame (de_nuke's doors differ by 90 degrees). Props are always posed by a
             // sequence, so apply the authored animation or the modeldoc ref.
-            var animation = Data?.GetStringProperty("startinganim")
-                ?? Data?.GetStringProperty("defaultanim")
-                ?? Data?.GetStringProperty("idleanim");
+            var animation = Data?.GetNonEmptyStringProperty("startinganim")
+                ?? Data?.GetNonEmptyStringProperty("defaultanim")
+                ?? Data?.GetNonEmptyStringProperty("idleanim");
 
             if (animation != null && modelNode.SetAnimationForWorldPreview(animation))
             {

@@ -41,7 +41,7 @@ public sealed partial class PropDynamic : BaseModelEntity
         base.Spawn();
 
         // CS2 names the starting and idle animations apart; Source 1 maps have one default for both
-        IdleAnimation = NonEmpty(KeyValues.GetStringProperty("idleanim")) ?? NonEmpty(KeyValues.GetStringProperty("defaultanim"));
+        IdleAnimation = KeyValues.GetNonEmptyStringProperty("idleanim") ?? KeyValues.GetNonEmptyStringProperty("defaultanim");
         idleLooping = ReadLoopMode("idleanimationloopmode");
         HoldAnimation = KeyValues.GetBooleanProperty("holdanimation");
 
@@ -59,7 +59,7 @@ public sealed partial class PropDynamic : BaseModelEntity
 
         // Replayed over the pose BaseModelEntity applied. It does not know the loop mode and does not play a
         // held animation through before stopping on its last frame
-        if (NonEmpty(KeyValues.GetStringProperty("startinganim")) is { } startingAnimation)
+        if (KeyValues.GetNonEmptyStringProperty("startinganim") is { } startingAnimation)
         {
             PlayAnimation(startingAnimation, ReadLoopMode("startinganimationloopmode"), restart: true, forced: false);
         }
@@ -319,6 +319,4 @@ public sealed partial class PropDynamic : BaseModelEntity
         "ANIM_LOOP_MODE_NOT_LOOPING" => false,
         _ => null,
     };
-
-    private static string? NonEmpty(string? value) => string.IsNullOrEmpty(value) ? null : value;
 }

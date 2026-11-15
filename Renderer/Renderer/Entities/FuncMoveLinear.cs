@@ -102,8 +102,8 @@ public partial class FuncMoveLinear : BaseToggle
 
         MovesWithoutPushing = KeyValues.GetBooleanProperty("movewithoutpushingblockers");
 
-        soundStart = NonEmpty(KeyValues.GetStringProperty("startsound"));
-        soundStop = NonEmpty(KeyValues.GetStringProperty("stopsound"));
+        soundStart = KeyValues.GetNonEmptyStringProperty("startsound");
+        soundStop = KeyValues.GetNonEmptyStringProperty("stopsound");
 
         foreach (var sound in (string?[])[soundStart, soundStop])
         {
@@ -290,6 +290,4 @@ public partial class FuncMoveLinear : BaseToggle
         // Setting off again cancels the stop sound an arrival just scheduled
         SetNextThink(-1f);
     }
-
-    private static string? NonEmpty(string? value) => string.IsNullOrEmpty(value) ? null : value;
 }

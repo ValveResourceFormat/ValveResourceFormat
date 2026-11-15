@@ -529,7 +529,7 @@ public class ModelHelper : EntityHelper
             return;
         }
 
-        var name = IsEditorModel ? settings.DefaultAnimation : GetPreviewAnimation() ?? NonEmpty(GetStringKey("defaultanim"));
+        var name = IsEditorModel ? settings.DefaultAnimation : GetPreviewAnimation() ?? Owner.KeyValues.GetNonEmptyStringProperty("defaultanim");
         var animation = (name == null ? null : FindAnimation(node, name)) ?? settings.DefaultSequence switch
         {
             DefaultSequence.Search => FindDefaultSequence(node),
@@ -574,6 +574,4 @@ public class ModelHelper : EntityHelper
             ?? visible.Find(static sequence => sequence.Name.Contains("idle", StringComparison.OrdinalIgnoreCase))
             ?? sequences.FirstOrDefault();
     }
-
-    private static string? NonEmpty(string value) => value.Length > 0 ? value : null;
 }

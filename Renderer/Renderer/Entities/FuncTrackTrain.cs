@@ -166,10 +166,10 @@ public partial class FuncTrackTrain : BaseModelEntity
         MaxSpeed = KeyValues.GetFloatProperty("startspeed");
         bank = KeyValues.GetFloatProperty("bank");
         Speed = KeyValues.GetFloatProperty("speed");
-        soundMove = NonEmpty(KeyValues.GetStringProperty("movesound"));
-        soundMovePing = NonEmpty(KeyValues.GetStringProperty("movepingsound"));
-        soundStart = NonEmpty(KeyValues.GetStringProperty("startsound"));
-        soundStop = NonEmpty(KeyValues.GetStringProperty("stopsound"));
+        soundMove = KeyValues.GetNonEmptyStringProperty("movesound");
+        soundMovePing = KeyValues.GetNonEmptyStringProperty("movepingsound");
+        soundStart = KeyValues.GetNonEmptyStringProperty("startsound");
+        soundStop = KeyValues.GetNonEmptyStringProperty("stopsound");
         moveSoundMinDuration = KeyValues.GetFloatProperty("movesoundmintime");
         moveSoundMaxDuration = KeyValues.GetFloatProperty("movesoundmaxtime");
         velocityType = (VelocityType)KeyValues.GetInt32Property("velocitytype");
@@ -200,8 +200,6 @@ public partial class FuncTrackTrain : BaseModelEntity
             }
         }
     }
-
-    private static string? NonEmpty(string? value) => string.IsNullOrEmpty(value) ? null : value;
 
     /// <inheritdoc/>
     public override void Activate() => SetContextThink(ref findThinkTime, EntitySystem.CurrentTime);

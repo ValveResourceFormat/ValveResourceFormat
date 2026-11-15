@@ -67,6 +67,13 @@ namespace ValveResourceFormat.Serialization.KeyValues
         }
 
         /// <summary>
+        /// Gets a string property like <see cref="GetStringProperty"/>, treating an empty value as missing.
+        /// </summary>
+        /// <returns>The value, or <see langword="null"/> when the key is missing, empty or not a string.</returns>
+        public static string? GetNonEmptyStringProperty(this KVObject obj, string name)
+            => obj.GetStringProperty(name) is { Length: > 0 } value ? value : null;
+
+        /// <summary>
         /// Gets an Int32 property from the key-value object.
         /// </summary>
         public static int GetInt32Property(this KVObject obj, string name, int defaultValue = 0)
