@@ -8,10 +8,18 @@ uniform vec3 g_vColorTint = vec3(1.0); // SrgbRead(true)
 #include "../common/surface_model_tint_vs.slang"
 #include "../features/detail_texture_vs.slang"
 
+uniform vec4 g_vNormalTexCoordXform0 = vec4(1.0, 0.0, 0.0, 0.0);
+uniform vec4 g_vNormalTexCoordXform1 = vec4(0.0, 1.0, 0.0, 0.0);
+
+/* Expressions
 uniform vec2 g_vNormalTexCoordScale = vec2(1.0);
 uniform vec2 g_vNormalTexCoordOffset = vec2(0.0);
 uniform vec2 g_vNormalTexCoordCenter = vec2(0.5);
 uniform float g_flNormalTexCoordRotation = 0.0;
+
+g_vNormalTexCoordXform0 = SecondaryTexCoordXform0(g_flNormalTexCoordRotation, g_vNormalTexCoordScale, g_vNormalTexCoordCenter, g_vNormalTexCoordOffset);
+g_vNormalTexCoordXform1 = SecondaryTexCoordXform1(g_flNormalTexCoordRotation, g_vNormalTexCoordScale, g_vNormalTexCoordCenter, g_vNormalTexCoordOffset);
+*/
 
 out vec2 vMeshTexCoordOut;
 out vec2 vNormalTexCoordOut;
@@ -23,7 +31,7 @@ void main()
     // The texcoord transform only applies to the color and the masks:
     // the normal map, detail and occlusion are sampled from the mesh texcoords
     vMeshTexCoordOut = vTEXCOORD.xy;
-    vNormalTexCoordOut = TransformSecondaryTexCoord(vTEXCOORD.xy, g_flNormalTexCoordRotation, g_vNormalTexCoordScale, g_vNormalTexCoordOffset, g_vNormalTexCoordCenter);
+    vNormalTexCoordOut = ApplyTexCoordXform(vTEXCOORD.xy, g_vNormalTexCoordXform0, g_vNormalTexCoordXform1);
 
     bool forceUv2 = (F_FORCE_UV2 == 1);
     WriteDetailTexCoordsFromMesh(forceUv2);

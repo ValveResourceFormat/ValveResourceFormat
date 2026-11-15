@@ -46,7 +46,7 @@ uniform sampler2D g_tNormal1;
     uniform int g_nDetailUVSet1 = -1; // -1=Inherit, 0=Biplanar, 1=UV1, 2=UV2
     uniform vec2 g_vDetailTexCoordScale1 = vec2(1.0);
     uniform float g_fDetailTextureNormalContrast1 = 1.0; // -2 .. 2
-    uniform float g_flDetailTexCoordRotation1 = 0.0;
+    uniform vec4 g_vDetailNormalXform_1 = vec4(1.0, 0.0, 0.0, 1.0);
 #endif
 
 uniform bool g_bMetalness1 = true;
@@ -63,16 +63,12 @@ uniform vec3 g_vAmbientOcclusionLevels1 = vec3(0, 0.5, 1);
 uniform float g_flHeightMapScale1 = 1.0;
 uniform float g_flHeightMapZeroPoint1 = 0.5;
 
-uniform float g_fTextureColorContrast1 = 1.0;
-uniform float g_fTextureColorSaturation1 = 1.0;
-uniform float g_fTextureColorBrightness1 = 1.0;
-uniform vec3 g_vTextureColorTint1 = vec3(1.0);
-uniform mat4 g_mTextureColorAdjust1; // Expression(MatrixMultiply(MatrixColorTint2(g_vTextureColorTint1, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), TextureAverageColor(g_tColor1))))
-uniform mat4 g_mTextureAdjust1; // Expression(MatrixMultiply(MatrixColorTint2(float3(1, 1, 1), 1), MatrixColorCorrect2(float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), TextureAverageColor(g_tColor1))))
+uniform mat4 g_mTextureColorAdjust1;
+uniform mat4 g_mTextureAdjust1;
 
 uniform int g_nUVSet1 = 1; // 0=Biplanar, 1=UV1, 2=UV2
 uniform vec2 g_vTexCoordScale1 = vec2(1.0);
-uniform float g_flTexCoordRotation1 = 0.0;
+uniform vec4 g_vNormalXform_1 = vec4(1.0, 0.0, 0.0, 1.0);
 
 // Material 2
 uniform sampler2D g_tColor2; // SrgbRead(true)
@@ -84,7 +80,7 @@ uniform sampler2D g_tNormal2;
     uniform int g_nDetailUVSet2 = -1;
     uniform vec2 g_vDetailTexCoordScale2 = vec2(1.0);
     uniform float g_fDetailTextureNormalContrast2 = 1.0;
-    uniform float g_flDetailTexCoordRotation2 = 0.0;
+    uniform vec4 g_vDetailNormalXform_2 = vec4(1.0, 0.0, 0.0, 1.0);
 #endif
 
 #if (F_SHARED_COLOR_OVERLAY == 1)
@@ -136,17 +132,13 @@ uniform vec3 g_vAmbientOcclusionLevels2 = vec3(0, 0.5, 1);
 
 uniform int g_nUVSet2 = 1;
 uniform vec2 g_vTexCoordScale2 = vec2(1.0);
-uniform float g_flTexCoordRotation2 = 0.0;
+uniform vec4 g_vNormalXform_2 = vec4(1.0, 0.0, 0.0, 1.0);
 
 uniform float g_flHeightMapScale2 = 1.0;
 uniform float g_flHeightMapZeroPoint2 = 0.5;
 
-uniform float g_fTextureColorContrast2 = 1.0;
-uniform float g_fTextureColorSaturation2 = 1.0;
-uniform float g_fTextureColorBrightness2 = 1.0;
-uniform vec3 g_vTextureColorTint2 = vec3(1.0);
-uniform mat4 g_mTextureColorAdjust2; // Expression(MatrixMultiply(MatrixColorTint2(g_vTextureColorTint2, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast2, g_fTextureColorSaturation2, g_fTextureColorBrightness2), TextureAverageColor(g_tColor2))))
-uniform mat4 g_mTextureAdjust2; // Expression(MatrixMultiply(MatrixColorTint2(float3(1, 1, 1), 1), MatrixColorCorrect2(float3(g_fTextureColorContrast2, g_fTextureColorSaturation2, g_fTextureColorBrightness2), TextureAverageColor(g_tColor2))))
+uniform mat4 g_mTextureColorAdjust2;
+uniform mat4 g_mTextureAdjust2;
 
 #if (F_ENABLE_LAYER_3 == 1)
     uniform sampler2D g_tColor3; // SrgbRead(true)
@@ -158,7 +150,7 @@ uniform mat4 g_mTextureAdjust2; // Expression(MatrixMultiply(MatrixColorTint2(fl
         uniform int g_nDetailUVSet3 = -1;
         uniform vec2 g_vDetailTexCoordScale3 = vec2(1.0);
         uniform float g_fDetailTextureNormalContrast3 = 1.0;
-        uniform float g_flDetailTexCoordRotation3 = 0.0;
+        uniform vec4 g_vDetailNormalXform_3 = vec4(1.0, 0.0, 0.0, 1.0);
     #endif
 
     uniform bool g_bMetalness3 = true;
@@ -174,17 +166,13 @@ uniform mat4 g_mTextureAdjust2; // Expression(MatrixMultiply(MatrixColorTint2(fl
 
     uniform int g_nUVSet3 = 1;
     uniform vec2 g_vTexCoordScale3 = vec2(1.0);
-    uniform float g_flTexCoordRotation3 = 0.0;
+    uniform vec4 g_vNormalXform_3 = vec4(1.0, 0.0, 0.0, 1.0);
 
     uniform float g_flHeightMapScale3 = 1.0;
     uniform float g_flHeightMapZeroPoint3 = 0.5;
 
-    uniform float g_fTextureColorContrast3 = 1.0;
-    uniform float g_fTextureColorSaturation3 = 1.0;
-    uniform float g_fTextureColorBrightness3 = 1.0;
-    uniform vec3 g_vTextureColorTint3 = vec3(1.0);
-    uniform mat4 g_mTextureColorAdjust3; // Expression(MatrixMultiply(MatrixColorTint2(g_vTextureColorTint3, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast3, g_fTextureColorSaturation3, g_fTextureColorBrightness3), TextureAverageColor(g_tColor3))))
-    uniform mat4 g_mTextureAdjust3; // Expression(MatrixMultiply(MatrixColorTint2(float3(1, 1, 1), 1), MatrixColorCorrect2(float3(g_fTextureColorContrast3, g_fTextureColorSaturation3, g_fTextureColorBrightness3), TextureAverageColor(g_tColor3))))
+    uniform mat4 g_mTextureColorAdjust3;
+    uniform mat4 g_mTextureAdjust3;
 
     #if (F_BLEND_EFFECTS_3 == 1)
         uniform int F_BORDER_BLEND_MODE_3;
@@ -258,6 +246,41 @@ uniform float g_vFacingDirectionMaskSoftness2 = 0.1;
 
 // The dielectric reflectance the specular color is built from. Wetness pulls it toward water.
 uniform float g_flReflectance = 0.04;
+
+/* Expressions
+uniform float g_flDetailTexCoordRotation1 = 0.0;
+uniform float g_fTextureColorContrast1 = 1.0;
+uniform float g_fTextureColorSaturation1 = 1.0;
+uniform float g_fTextureColorBrightness1 = 1.0;
+uniform vec3 g_vTextureColorTint1 = vec3(1.0);
+uniform float g_flTexCoordRotation1 = 0.0;
+uniform float g_flDetailTexCoordRotation2 = 0.0;
+uniform float g_flTexCoordRotation2 = 0.0;
+uniform float g_fTextureColorContrast2 = 1.0;
+uniform float g_fTextureColorSaturation2 = 1.0;
+uniform float g_fTextureColorBrightness2 = 1.0;
+uniform vec3 g_vTextureColorTint2 = vec3(1.0);
+uniform float g_flDetailTexCoordRotation3 = 0.0;
+uniform float g_flTexCoordRotation3 = 0.0;
+uniform float g_fTextureColorContrast3 = 1.0;
+uniform float g_fTextureColorSaturation3 = 1.0;
+uniform float g_fTextureColorBrightness3 = 1.0;
+uniform vec3 g_vTextureColorTint3 = vec3(1.0);
+
+g_mTextureColorAdjust1 = MatrixMultiply(MatrixColorTint2(g_vTextureColorTint1, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), TextureAverageColor(g_tColor1)));
+g_mTextureAdjust1 = MatrixMultiply(MatrixColorTint2(float3(1, 1, 1), 1), MatrixColorCorrect2(float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), TextureAverageColor(g_tColor1)));
+g_mTextureColorAdjust2 = MatrixMultiply(MatrixColorTint2(g_vTextureColorTint2, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast2, g_fTextureColorSaturation2, g_fTextureColorBrightness2), TextureAverageColor(g_tColor2)));
+g_mTextureAdjust2 = MatrixMultiply(MatrixColorTint2(float3(1, 1, 1), 1), MatrixColorCorrect2(float3(g_fTextureColorContrast2, g_fTextureColorSaturation2, g_fTextureColorBrightness2), TextureAverageColor(g_tColor2)));
+g_mTextureColorAdjust3 = MatrixMultiply(MatrixColorTint2(g_vTextureColorTint3, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast3, g_fTextureColorSaturation3, g_fTextureColorBrightness3), TextureAverageColor(g_tColor3)));
+g_mTextureAdjust3 = MatrixMultiply(MatrixColorTint2(float3(1, 1, 1), 1), MatrixColorCorrect2(float3(g_fTextureColorContrast3, g_fTextureColorSaturation3, g_fTextureColorBrightness3), TextureAverageColor(g_tColor3)));
+
+g_vDetailNormalXform_1 = RotationMatrix2D(g_flDetailTexCoordRotation1);
+g_vNormalXform_1 = RotationMatrix2D(g_flTexCoordRotation1);
+g_vDetailNormalXform_2 = RotationMatrix2D(g_flDetailTexCoordRotation2);
+g_vNormalXform_2 = RotationMatrix2D(g_flTexCoordRotation2);
+g_vDetailNormalXform_3 = RotationMatrix2D(g_flDetailTexCoordRotation3);
+g_vNormalXform_3 = RotationMatrix2D(g_flTexCoordRotation3);
+*/
 
 // The layers composited so far
 struct LayerStack_t
@@ -354,14 +377,14 @@ vec2 DetailInheritedScale(int detailUvSet, vec2 layerScale)
 vec3 GetLayerNormal1(HeightLayer_t layer, BiplanarFrame_t biplanar, MaterialProperties_t mat)
 {
     vec3 normalTs = LayerNormal(layer.EncodedNormal, g_tNormal1, g_nUVSet1, g_vTexCoordScale1,
-        g_fTextureNormalContrast1, g_flTexCoordRotation1, biplanar, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
+        g_fTextureNormalContrast1, g_vNormalXform_1, biplanar, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
 
 #if (F_DETAIL_NORMAL == 1)
     vec2 inheritedScale1 = DetailInheritedScale(g_nDetailUVSet1, g_vTexCoordScale1);
 
     normalTs = ApplyDetailNormal(normalTs, g_tNormalDetail1, DetailUvSet(g_nDetailUVSet1, g_nUVSet1),
         vDetailTexCoords * inheritedScale1, g_vDetailTexCoordScale1 * inheritedScale1, g_fDetailTextureNormalContrast1,
-        g_flDetailTexCoordRotation1, biplanar,
+        g_vDetailNormalXform_1, biplanar,
         mat.GeometricNormal, mat.Tangent, mat.Bitangent);
 #endif
 
@@ -371,14 +394,14 @@ vec3 GetLayerNormal1(HeightLayer_t layer, BiplanarFrame_t biplanar, MaterialProp
 vec3 GetLayerNormal2(HeightLayer_t layer, BiplanarFrame_t biplanar, MaterialProperties_t mat)
 {
     vec3 normalTs = LayerNormal(layer.EncodedNormal, g_tNormal2, g_nUVSet2, g_vTexCoordScale2,
-        g_fTextureNormalContrast2, g_flTexCoordRotation2, biplanar, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
+        g_fTextureNormalContrast2, g_vNormalXform_2, biplanar, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
 
 #if (F_DETAIL_NORMAL == 1)
     vec2 inheritedScale2 = DetailInheritedScale(g_nDetailUVSet2, g_vTexCoordScale2);
 
     normalTs = ApplyDetailNormal(normalTs, g_tNormalDetail2, DetailUvSet(g_nDetailUVSet2, g_nUVSet2),
         vTexCoord2.zw * inheritedScale2, g_vDetailTexCoordScale2 * inheritedScale2, g_fDetailTextureNormalContrast2,
-        g_flDetailTexCoordRotation2, biplanar,
+        g_vDetailNormalXform_2, biplanar,
         mat.GeometricNormal, mat.Tangent, mat.Bitangent);
 #endif
 
@@ -389,14 +412,14 @@ vec3 GetLayerNormal2(HeightLayer_t layer, BiplanarFrame_t biplanar, MaterialProp
 vec3 GetLayerNormal3(HeightLayer_t layer, BiplanarFrame_t biplanar, MaterialProperties_t mat)
 {
     vec3 normalTs = LayerNormal(layer.EncodedNormal, g_tNormal3, g_nUVSet3, g_vTexCoordScale3,
-        g_fTextureNormalContrast3, g_flTexCoordRotation3, biplanar, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
+        g_fTextureNormalContrast3, g_vNormalXform_3, biplanar, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
 
 #if (F_DETAIL_NORMAL == 1)
     vec2 inheritedScale3 = DetailInheritedScale(g_nDetailUVSet3, g_vTexCoordScale3);
 
     normalTs = ApplyDetailNormal(normalTs, g_tNormalDetail3, DetailUvSet(g_nDetailUVSet3, g_nUVSet3),
         vTexCoord3.zw * inheritedScale3, g_vDetailTexCoordScale3 * inheritedScale3, g_fDetailTextureNormalContrast3,
-        g_flDetailTexCoordRotation3, biplanar,
+        g_vDetailNormalXform_3, biplanar,
         mat.GeometricNormal, mat.Tangent, mat.Bitangent);
 #endif
 

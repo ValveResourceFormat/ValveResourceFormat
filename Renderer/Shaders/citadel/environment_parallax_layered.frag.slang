@@ -19,8 +19,7 @@
 uniform sampler2D g_tColor; // SrgbRead(true) Sampler(UserConfig) RepresentativeTexture
 uniform sampler2D g_tNormalRoughness; // Sampler(UserConfig)
 uniform sampler2D g_tMask;
-uniform vec3 g_vAlbedoContrastSaturationBrightness1 = vec3(1.0);
-uniform mat4 g_mAlbedoColorCorrect = mat4(1.0); // Expression(MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness1, TextureAverageColor(g_tColor)))
+uniform mat4 g_mAlbedoColorCorrect = mat4(1.0);
 uniform float g_fVertexColorStrength1 = 1.0;
 
 // Layer 2
@@ -28,8 +27,7 @@ uniform sampler2D g_tColor2; // SrgbRead(true)
 uniform sampler2D g_tMask2;
 uniform sampler2D g_tNormalRoughness2;
 uniform sampler2D g_tReflectionOcclusionMask;
-uniform vec3 g_vAlbedoContrastSaturationBrightness2 = vec3(1.0);
-uniform mat4 g_mAlbedoColorCorrect2 = mat4(1.0); // Expression(MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness2, TextureAverageColor(g_tColor2)))
+uniform mat4 g_mAlbedoColorCorrect2 = mat4(1.0);
 uniform float g_fVertexColorStrength2 = 1.0;
 uniform float g_bLayer2ShadingBlendStrength = 1.0;
 uniform float g_flLayer2Offset = 0.0;
@@ -44,8 +42,7 @@ uniform bool g_bReflectionOcclusionUseSecondaryUV = false;
 
 // Layer 3
 uniform sampler2D g_tColor3; // SrgbRead(true)
-uniform vec3 g_vAlbedoContrastSaturationBrightness3 = vec3(1.0);
-uniform mat4 g_mAlbedoColorCorrect3 = mat4(1.0); // Expression(MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness3, TextureAverageColor(g_tColor3)))
+uniform mat4 g_mAlbedoColorCorrect3 = mat4(1.0);
 uniform float g_fVertexColorStrength3 = 1.0;
 uniform vec3 g_vEmissiveTint3 = vec3(1.0); // SrgbRead(true)
 uniform float g_flEmissiveLevel3 = 0.0;
@@ -83,6 +80,16 @@ uniform float g_flAlphaTestReference = 0.5;
 #if (F_OVERRIDE_BLOOM_AMOUNT == 1)
     uniform float g_flOverrideBloomAmount1 = 1.0;
 #endif
+
+/* Expressions
+uniform vec3 g_vAlbedoContrastSaturationBrightness1 = vec3(1.0);
+uniform vec3 g_vAlbedoContrastSaturationBrightness2 = vec3(1.0);
+uniform vec3 g_vAlbedoContrastSaturationBrightness3 = vec3(1.0);
+
+g_mAlbedoColorCorrect = MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness1, TextureAverageColor(g_tColor));
+g_mAlbedoColorCorrect2 = MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness2, TextureAverageColor(g_tColor2));
+g_mAlbedoColorCorrect3 = MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness3, TextureAverageColor(g_tColor3));
+*/
 
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 {

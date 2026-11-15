@@ -37,8 +37,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         // uniform sampler{dim} d; // Sampler(UserConfig)
         // layout(binding = n) uniform sampler{dim} e;
         // uniform layout(binding = n) sampler{dim} f;
-        // uniform mat4 g; // Expression(MatrixIdentity())
-        [GeneratedRegex("^(?:layout\\s*\\([^)]*\\)\\s*)?uniform (?:layout\\s*\\([^)]*\\)\\s*)?(?<Type>\\S+) (?<Name>[A-Za-z_][A-Za-z0-9_]*)(?<Array>\\[[^\\]]*\\])?(?:\\s*=\\s*(?<Default>[^;]+?))?\\s*;[ \t]*(?:// )?(?<SrgbRead>SrgbRead\\(true\\))?[ \t]*(?<SamplerUserConfig>Sampler\\(UserConfig\\))?[ \t]*(?<RepresentativeTexture>RepresentativeTexture)?[ \t]*(?:Expression\\((?<Expression>.*)\\))?")]
+        [GeneratedRegex("^(?:layout\\s*\\([^)]*\\)\\s*)?uniform (?:layout\\s*\\([^)]*\\)\\s*)?(?<Type>\\S+) (?<Name>[A-Za-z_][A-Za-z0-9_]*)(?<Array>\\[[^\\]]*\\])?(?:\\s*=\\s*(?<Default>[^;]+?))?\\s*;[ \t]*(?:// )?(?<SrgbRead>SrgbRead\\(true\\))?[ \t]*(?<SamplerUserConfig>Sampler\\(UserConfig\\))?[ \t]*(?<RepresentativeTexture>RepresentativeTexture)?")]
         private static partial Regex RegexUniform();
 
         [GeneratedRegex("^#extension .+$")]
@@ -61,6 +60,20 @@ namespace ValveResourceFormat.Renderer.Shaders
         // A declaration with an explicit location, which the allocation keeps instead of stamping
         [GeneratedRegex(@"^layout\s*\(\s*location\s*=\s*(?<Location>[0-9]+)\s*\)\s*in\s+[a-z0-9]+\s+(?<Name>[A-Za-z_][A-Za-z0-9_]*)\s*;", RegexOptions.Multiline)]
         private static partial Regex RegexLocatedVertexAttribute();
+
+        // [type] name = value, the statement of an expressions block
+        [GeneratedRegex(@"^\s*(?:[A-Za-z_][A-Za-z0-9_]*\s+)?(?<Name>[A-Za-z_][A-Za-z0-9_]*)\s*=(?!=)(?<Value>.*)$", RegexOptions.Singleline)]
+        private static partial Regex RegexExpressionStatement();
+
+        [GeneratedRegex("//[^\n]*")]
+        private static partial Regex RegexLineComment();
+
+        // type name(, the start of a function definition in an expressions block
+        [GeneratedRegex(@"\G\s*[A-Za-z_][A-Za-z0-9_]*\s+[A-Za-z_][A-Za-z0-9_]*\s*\(")]
+        private static partial Regex RegexExpressionFunction();
+
+        [GeneratedRegex(@"[A-Za-z_][A-Za-z0-9_]*")]
+        private static partial Regex RegexIdentifier();
 
         /// <summary>
         /// Writes each attribute's location into its declaration, once every declaration in the shader is
@@ -119,6 +132,8 @@ namespace ValveResourceFormat.Renderer.Shaders
                 public int LineNumber { get; set; } = 1;
                 public Match? GenericHeader { get; set; }
                 public List<string> GenericLines { get; } = [];
+                public StringBuilder? ExpressionBlock { get; set; }
+                public int ExpressionBlockLine { get; set; }
 #if DEBUG
                 public List<string> Lines { get; } = [];
 #endif
@@ -182,6 +197,11 @@ namespace ValveResourceFormat.Renderer.Shaders
                 {
                     throw new ShaderCompilerException($"Generic function '{file.GenericHeader.Groups["Head"].Value}' in '{shaderFileToLoad}' has no closing brace at the start of a line");
                 }
+
+                if (file.ExpressionBlock != null)
+                {
+                    throw new ShaderCompilerException($"Expressions block in '{shaderFileToLoad}' has no closing '{ExpressionBlockEnd}'");
+                }
             }
 
             private void ProcessLine(SourceFile file, string line)
@@ -220,6 +240,11 @@ namespace ValveResourceFormat.Renderer.Shaders
 #if DEBUG
                 file.Lines.Add(line);
 #endif
+
+                if (TryCollectExpressionBlock(file, line))
+                {
+                    return;
+                }
 
                 // Generic functions are held back until their closing brace, then written out per type
                 var genericMatch = RegexGenericFunction().Match(line);
@@ -284,6 +309,45 @@ namespace ValveResourceFormat.Renderer.Shaders
                     // Fix an issue where #include is inside of an #if, which messes up line numbers
                     AppendLineNumber(file.LineNumber, file.Number);
                 }
+            }
+
+            // Assignments of uniforms computed per material, after the declarations they read
+            private const string ExpressionBlockStart = "/* Expressions";
+            private const string ExpressionBlockEnd = "*/";
+
+            /// <summary>Collects the lines of an expressions block, and returns whether the line was part of one.</summary>
+            private bool TryCollectExpressionBlock(SourceFile file, string line)
+            {
+                var trimmed = line.AsSpan().Trim();
+
+                if (file.ExpressionBlock == null)
+                {
+                    if (!trimmed.SequenceEqual(ExpressionBlockStart))
+                    {
+                        return false;
+                    }
+
+                    file.ExpressionBlock = new StringBuilder(256);
+                    file.ExpressionBlockLine = file.LineNumber + 1;
+                }
+                else if (trimmed.SequenceEqual(ExpressionBlockEnd))
+                {
+                    // Both stages see a block in a shared include
+                    if (!parsedData.ExpressionBlocks.Exists(block => block.File == file.Name && block.Line == file.ExpressionBlockLine))
+                    {
+                        parsedData.ExpressionBlocks.Add(new(file.ExpressionBlock.ToString(), file.Name, file.ExpressionBlockLine));
+                    }
+
+                    file.ExpressionBlock = null;
+                }
+                else
+                {
+                    file.ExpressionBlock.Append(line).Append('\n');
+                }
+
+                // Blank lines keep the line numbers of the GLSL source
+                builder.Append('\n');
+                return true;
             }
 
             private void AppendGenericFunctionLine(SourceFile file, Match genericMatch, string line)
@@ -422,17 +486,6 @@ namespace ValveResourceFormat.Renderer.Shaders
                 {
                     parsedData.SrgbUniforms.Add(uniformName);
                 }
-                if (match.Groups["Expression"].Success)
-                {
-                    try
-                    {
-                        parsedData.Expressions[uniformName] = VfxEvalCompiler.Compile(match.Groups["Expression"].Value);
-                    }
-                    catch (InvalidDataException e)
-                    {
-                        throw new ShaderCompilerException($"Line {file.LineNumber} in '{file.Name}': {e.Message}");
-                    }
-                }
                 if (match.Groups["SamplerUserConfig"].Success)
                 {
                     parsedData.SamplerUserConfigUniforms.Add(uniformName);
@@ -464,6 +517,160 @@ namespace ValveResourceFormat.Renderer.Shaders
                 builder.Append('\n');
 
                 return true;
+            }
+        }
+
+        /// <summary>
+        /// Compiles the expressions blocks into <see cref="ParsedShaderData.Expressions"/>. A statement assigning a
+        /// declared uniform computes it from the statements before it, a <c>uniform</c> declaration declares an input
+        /// with its default into <see cref="ParsedShaderData.ExpressionInputs"/>, and any other statement assigns a local.
+        /// A function defined in any block of the shader can be called from all of them.
+        /// </summary>
+        /// <param name="parsedData">The parsed stages of the shader, with the uniforms they declare.</param>
+        public static void CompileExpressions(ParsedShaderData parsedData)
+        {
+            List<GlobalsDeclaration> inputs = [];
+            var functions = new StringBuilder();
+            var blocks = parsedData.ExpressionBlocks.ConvertAll(block => (block, Statements: ParseExpressionStatements(block, inputs, functions)));
+            var functionSource = functions.ToString();
+
+            foreach (var (block, statements) in blocks)
+            {
+                for (var i = 0; i < statements.Count; i++)
+                {
+                    var (name, value, line) = statements[i];
+
+                    if (!parsedData.Uniforms.Contains(name))
+                    {
+                        continue;
+                    }
+
+                    var source = string.Concat(functionSource, GetLocalsReadBy(statements, i, parsedData.Uniforms), value);
+
+                    try
+                    {
+                        if (!parsedData.Expressions.TryAdd(name, VfxEvalCompiler.Compile(source)))
+                        {
+                            throw new InvalidDataException($"'{name}' is assigned twice");
+                        }
+                    }
+                    catch (InvalidDataException e)
+                    {
+                        throw new ShaderCompilerException($"Line {line} in '{block.File}': {e.Message}");
+                    }
+                }
+            }
+
+            parsedData.ExpressionInputs = GlobalsLayout.Build(inputs);
+        }
+
+        private static List<(string Name, string Value, int Line)> ParseExpressionStatements(ExpressionBlock block, List<GlobalsDeclaration> inputs,
+            StringBuilder functions)
+        {
+            List<(string Name, string Value, int Line)> statements = [];
+
+            // Comments go, their line breaks stay
+            var source = RegexLineComment().Replace(block.Source, string.Empty);
+            var line = block.Line;
+            var start = 0;
+
+            while (start < source.Length)
+            {
+                // Definitions are compiled with every statement, the compiler inlines them where called
+                if (RegexExpressionFunction().IsMatch(source, start))
+                {
+                    var close = source.IndexOf('}', start, StringComparison.Ordinal);
+
+                    if (close < 0)
+                    {
+                        throw new ShaderCompilerException($"Line {line} in '{block.File}': Function has no closing brace");
+                    }
+
+                    functions.Append(source, start, close + 1 - start).Append('\n');
+                    line += source.AsSpan(start, close + 1 - start).Count('\n');
+                    start = close + 1;
+                    continue;
+                }
+
+                var end = source.IndexOf(';', start, StringComparison.Ordinal);
+                var text = end < 0 ? source[start..] : source[start..end];
+
+                var leading = text.Length - text.TrimStart().Length;
+                line += source.AsSpan(start, leading).Count('\n');
+
+                if (end < 0 && text.AsSpan().Trim().IsEmpty)
+                {
+                    break;
+                }
+
+                if (end < 0)
+                {
+                    throw new ShaderCompilerException($"Line {line} in '{block.File}': Expected ';'");
+                }
+
+                var trimmed = text.Trim();
+
+                if (trimmed.StartsWith("uniform ", StringComparison.Ordinal))
+                {
+                    var declaration = RegexUniform().Match(string.Concat(trimmed, ";"));
+
+                    if (!declaration.Success || !GlobalsLayout.TryGetType(declaration.Groups["Type"].Value, out var type))
+                    {
+                        throw new ShaderCompilerException($"Line {line} in '{block.File}': Expected 'uniform type name = default;'");
+                    }
+
+                    var initializer = declaration.Groups["Default"];
+                    inputs.Add(new GlobalsDeclaration(declaration.Groups["Name"].Value, type, initializer.Success ? initializer.Value : null, SrgbRead: false));
+                }
+                else
+                {
+                    var match = RegexExpressionStatement().Match(text);
+
+                    if (!match.Success)
+                    {
+                        throw new ShaderCompilerException($"Line {line} in '{block.File}': Expected 'name = expression;'");
+                    }
+
+                    statements.Add((match.Groups["Name"].Value, match.Groups["Value"].Value.Trim(), line));
+                }
+
+                line += text.AsSpan(leading).Count('\n');
+                start = end + 1;
+            }
+
+            return statements;
+        }
+
+        // The local statements before a uniform's that its value reads, directly or through other locals
+        private static string GetLocalsReadBy(List<(string Name, string Value, int Line)> statements, int index, HashSet<string> uniforms)
+        {
+            HashSet<string> read = [];
+            AddIdentifiers(read, statements[index].Value);
+
+            var locals = new List<string>();
+
+            for (var i = index - 1; i >= 0; i--)
+            {
+                var (name, value, _) = statements[i];
+
+                if (uniforms.Contains(name) || !read.Remove(name))
+                {
+                    continue;
+                }
+
+                AddIdentifiers(read, value);
+                locals.Add($"{name} = {value};\n");
+            }
+
+            locals.Reverse();
+            return string.Concat(locals);
+
+            static void AddIdentifiers(HashSet<string> set, string value)
+            {
+                foreach (Match identifier in RegexIdentifier().Matches(value))
+                {
+                    set.Add(identifier.Value);
+                }
             }
         }
 

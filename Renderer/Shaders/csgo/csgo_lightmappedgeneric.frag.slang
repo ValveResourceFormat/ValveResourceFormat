@@ -26,31 +26,21 @@ uniform float g_flOpacityScale = 1.0;
 #endif
 
 #if (F_TEXTURETRANSFORMS == 1)
-    uniform vec2 g_vLayer1TexCoordScale = vec2(1.0);
-    uniform vec2 g_vLayer1TexCoordOffset = vec2(0.0);
-    uniform vec2 g_vLayer1TexCoordCenter = vec2(0.5);
-    uniform float g_flLayer1TexCoordRotation = 0.0;
-    uniform vec2 g_vLayer1NormalTexCoordScale = vec2(1.0);
-    uniform vec2 g_vLayer1NormalTexCoordOffset = vec2(0.0);
-    uniform vec2 g_vLayer1NormalTexCoordCenter = vec2(0.5);
-    uniform float g_flLayer1NormalTexCoordRotation = 0.0;
+    uniform vec4 g_vLayer1TexCoordXform0 = vec4(1.0, 0.0, 0.0, 0.0);
+    uniform vec4 g_vLayer1TexCoordXform1 = vec4(0.0, 1.0, 0.0, 0.0);
+    uniform vec4 g_vLayer1NormalTexCoordXform0 = vec4(1.0, 0.0, 0.0, 0.0);
+    uniform vec4 g_vLayer1NormalTexCoordXform1 = vec4(0.0, 1.0, 0.0, 0.0);
 
     #if (F_LAYERS > 0)
-        uniform vec2 g_vLayer2TexCoordScale = vec2(1.0);
-        uniform vec2 g_vLayer2TexCoordOffset = vec2(0.0);
-        uniform vec2 g_vLayer2TexCoordCenter = vec2(0.5);
-        uniform float g_flLayer2TexCoordRotation = 0.0;
-        uniform vec2 g_vLayer2NormalTexCoordScale = vec2(1.0);
-        uniform vec2 g_vLayer2NormalTexCoordOffset = vec2(0.0);
-        uniform vec2 g_vLayer2NormalTexCoordCenter = vec2(0.5);
-        uniform float g_flLayer2NormalTexCoordRotation = 0.0;
+        uniform vec4 g_vLayer2TexCoordXform0 = vec4(1.0, 0.0, 0.0, 0.0);
+        uniform vec4 g_vLayer2TexCoordXform1 = vec4(0.0, 1.0, 0.0, 0.0);
+        uniform vec4 g_vLayer2NormalTexCoordXform0 = vec4(1.0, 0.0, 0.0, 0.0);
+        uniform vec4 g_vLayer2NormalTexCoordXform1 = vec4(0.0, 1.0, 0.0, 0.0);
     #endif
 
     #if (F_FANCY_BLENDING > 0)
-        uniform vec2 g_vBlendModulateTexCoordScale = vec2(1.0);
-        uniform vec2 g_vBlendModulateTexCoordOffset = vec2(0.0);
-        uniform vec2 g_vBlendModulateTexCoordCenter = vec2(0.5);
-        uniform float g_flBlendModulateTexCoordRotation = 0.0;
+        uniform vec4 g_vBlendModulateTexCoordXform0 = vec4(1.0, 0.0, 0.0, 0.0);
+        uniform vec4 g_vBlendModulateTexCoordXform1 = vec4(0.0, 1.0, 0.0, 0.0);
     #endif
 #endif
 
@@ -87,6 +77,40 @@ uniform float g_flOpacityScale = 1.0;
     uniform float g_flBevelBlendStrength = 0.0;
 #endif
 
+/* Expressions
+uniform vec2 g_vLayer1TexCoordScale = vec2(1.0);
+uniform vec2 g_vLayer1TexCoordOffset = vec2(0.0);
+uniform vec2 g_vLayer1TexCoordCenter = vec2(0.5);
+uniform float g_flLayer1TexCoordRotation = 0.0;
+uniform vec2 g_vLayer1NormalTexCoordScale = vec2(1.0);
+uniform vec2 g_vLayer1NormalTexCoordOffset = vec2(0.0);
+uniform vec2 g_vLayer1NormalTexCoordCenter = vec2(0.5);
+uniform float g_flLayer1NormalTexCoordRotation = 0.0;
+uniform vec2 g_vLayer2TexCoordScale = vec2(1.0);
+uniform vec2 g_vLayer2TexCoordOffset = vec2(0.0);
+uniform vec2 g_vLayer2TexCoordCenter = vec2(0.5);
+uniform float g_flLayer2TexCoordRotation = 0.0;
+uniform vec2 g_vLayer2NormalTexCoordScale = vec2(1.0);
+uniform vec2 g_vLayer2NormalTexCoordOffset = vec2(0.0);
+uniform vec2 g_vLayer2NormalTexCoordCenter = vec2(0.5);
+uniform float g_flLayer2NormalTexCoordRotation = 0.0;
+uniform vec2 g_vBlendModulateTexCoordScale = vec2(1.0);
+uniform vec2 g_vBlendModulateTexCoordOffset = vec2(0.0);
+uniform vec2 g_vBlendModulateTexCoordCenter = vec2(0.5);
+uniform float g_flBlendModulateTexCoordRotation = 0.0;
+
+g_vLayer1TexCoordXform0 = SecondaryTexCoordXform0(g_flLayer1TexCoordRotation, g_vLayer1TexCoordScale, g_vLayer1TexCoordCenter, g_vLayer1TexCoordOffset);
+g_vLayer1TexCoordXform1 = SecondaryTexCoordXform1(g_flLayer1TexCoordRotation, g_vLayer1TexCoordScale, g_vLayer1TexCoordCenter, g_vLayer1TexCoordOffset);
+g_vLayer1NormalTexCoordXform0 = SecondaryTexCoordXform0(g_flLayer1NormalTexCoordRotation, g_vLayer1NormalTexCoordScale, g_vLayer1NormalTexCoordCenter, g_vLayer1NormalTexCoordOffset);
+g_vLayer1NormalTexCoordXform1 = SecondaryTexCoordXform1(g_flLayer1NormalTexCoordRotation, g_vLayer1NormalTexCoordScale, g_vLayer1NormalTexCoordCenter, g_vLayer1NormalTexCoordOffset);
+g_vLayer2TexCoordXform0 = SecondaryTexCoordXform0(g_flLayer2TexCoordRotation, g_vLayer2TexCoordScale, g_vLayer2TexCoordCenter, g_vLayer2TexCoordOffset);
+g_vLayer2TexCoordXform1 = SecondaryTexCoordXform1(g_flLayer2TexCoordRotation, g_vLayer2TexCoordScale, g_vLayer2TexCoordCenter, g_vLayer2TexCoordOffset);
+g_vLayer2NormalTexCoordXform0 = SecondaryTexCoordXform0(g_flLayer2NormalTexCoordRotation, g_vLayer2NormalTexCoordScale, g_vLayer2NormalTexCoordCenter, g_vLayer2NormalTexCoordOffset);
+g_vLayer2NormalTexCoordXform1 = SecondaryTexCoordXform1(g_flLayer2NormalTexCoordRotation, g_vLayer2NormalTexCoordScale, g_vLayer2NormalTexCoordCenter, g_vLayer2NormalTexCoordOffset);
+g_vBlendModulateTexCoordXform0 = SecondaryTexCoordXform0(g_flBlendModulateTexCoordRotation, g_vBlendModulateTexCoordScale, g_vBlendModulateTexCoordCenter, g_vBlendModulateTexCoordOffset);
+g_vBlendModulateTexCoordXform1 = SecondaryTexCoordXform1(g_flBlendModulateTexCoordRotation, g_vBlendModulateTexCoordScale, g_vBlendModulateTexCoordCenter, g_vBlendModulateTexCoordOffset);
+*/
+
 #if (F_LAYERS > 0)
     in vec4 vColorBlendValues;
 
@@ -109,8 +133,8 @@ void GetLayer1TexCoords(vec2 texCoord, out vec2 layer1TexCoord, out vec2 layer1N
     layer1NormalTexCoord = texCoord;
 
 #if (F_TEXTURETRANSFORMS == 1)
-    layer1TexCoord = TransformSecondaryTexCoord(texCoord, g_flLayer1TexCoordRotation, g_vLayer1TexCoordScale, g_vLayer1TexCoordOffset, g_vLayer1TexCoordCenter);
-    layer1NormalTexCoord = TransformSecondaryTexCoord(layer1TexCoord, g_flLayer1NormalTexCoordRotation, g_vLayer1NormalTexCoordScale, g_vLayer1NormalTexCoordOffset, g_vLayer1NormalTexCoordCenter);
+    layer1TexCoord = ApplyTexCoordXform(texCoord, g_vLayer1TexCoordXform0, g_vLayer1TexCoordXform1);
+    layer1NormalTexCoord = ApplyTexCoordXform(layer1TexCoord, g_vLayer1NormalTexCoordXform0, g_vLayer1NormalTexCoordXform1);
 #endif
 }
 
@@ -122,11 +146,11 @@ void GetLayer2TexCoords(vec2 layer1TexCoord, out vec2 layer2TexCoord, out vec2 l
     blendModTexCoord = layer1TexCoord;
 
 #if (F_TEXTURETRANSFORMS == 1)
-    layer2TexCoord = TransformSecondaryTexCoord(layer1TexCoord, g_flLayer2TexCoordRotation, g_vLayer2TexCoordScale, g_vLayer2TexCoordOffset, g_vLayer2TexCoordCenter);
-    layer2NormalTexCoord = TransformSecondaryTexCoord(layer1TexCoord, g_flLayer2NormalTexCoordRotation, g_vLayer2NormalTexCoordScale, g_vLayer2NormalTexCoordOffset, g_vLayer2NormalTexCoordCenter);
+    layer2TexCoord = ApplyTexCoordXform(layer1TexCoord, g_vLayer2TexCoordXform0, g_vLayer2TexCoordXform1);
+    layer2NormalTexCoord = ApplyTexCoordXform(layer1TexCoord, g_vLayer2NormalTexCoordXform0, g_vLayer2NormalTexCoordXform1);
 
     #if (F_FANCY_BLENDING > 0)
-        blendModTexCoord = TransformSecondaryTexCoord(layer1TexCoord, g_flBlendModulateTexCoordRotation, g_vBlendModulateTexCoordScale, g_vBlendModulateTexCoordOffset, g_vBlendModulateTexCoordCenter);
+        blendModTexCoord = ApplyTexCoordXform(layer1TexCoord, g_vBlendModulateTexCoordXform0, g_vBlendModulateTexCoordXform1);
     #endif
 #endif
 }

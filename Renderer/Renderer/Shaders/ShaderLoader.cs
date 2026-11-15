@@ -65,6 +65,12 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         private readonly RendererContext RendererContext;
 
+        /// <summary>A <c>/* Expressions</c> block of uniform assignments in a shader file.</summary>
+        /// <param name="Source">The statements between the comment markers.</param>
+        /// <param name="File">The shader file the block is in.</param>
+        /// <param name="Line">The line of the first statement.</param>
+        public readonly record struct ExpressionBlock(string Source, string File, int Line);
+
         /// <summary>
         /// Preprocessed shader source with defines, uniforms, and compiled stage code.
         /// </summary>
@@ -103,8 +109,17 @@ namespace ValveResourceFormat.Renderer.Shaders
             /// <summary>Gets the set of uniform names annotated with <c>// SrgbRead(true)</c>.</summary>
             public HashSet<string> SrgbUniforms { get; } = [];
 
-            /// <summary>Gets the compiled expressions of uniforms annotated with <c>// Expression(...)</c>.</summary>
+            /// <summary>Gets the <c>/* Expressions</c> blocks of the shader files.</summary>
+            public List<ExpressionBlock> ExpressionBlocks { get; } = [];
+
+            /// <summary>Gets the compiled expressions of the uniforms the expressions blocks assign.</summary>
             public Dictionary<string, byte[]> Expressions { get; } = [];
+
+            /// <summary>
+            /// Gets or sets the inputs the expressions blocks declare, read only by expressions. Parsed like the globals
+            /// block for their defaults, but never bound.
+            /// </summary>
+            public GlobalsLayout ExpressionInputs { get; set; } = GlobalsLayout.Empty;
 
             /// <summary>Gets the set of sampler uniform names annotated with <c>// Sampler(UserConfig)</c>.</summary>
             public HashSet<string> SamplerUserConfigUniforms { get; } = [];
@@ -280,6 +295,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
 
             parsedData.GlobalsLayout = GlobalsLayout.Build(parsedData.GlobalsDeclarations);
+            ShaderParser.CompileExpressions(parsedData);
 
             return parsedData;
         }
@@ -331,6 +347,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                     SrgbUniforms = parsedData.SrgbUniforms,
                     SamplerUserConfigUniforms = parsedData.SamplerUserConfigUniforms,
                     Expressions = parsedData.Expressions,
+                    ExpressionInputs = parsedData.ExpressionInputs,
                     RepresentativeTexture = parsedData.RepresentativeTexture,
 
                     // Copied, because the parsed data is shared by every variant of this shader, and the
