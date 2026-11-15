@@ -18,6 +18,7 @@ namespace GUI.Forms
     partial class AboutForm : ThemedForm
     {
         public const string DiscordUrl = "https://discord.gg/s9QQ7Wg7r4";
+        public const string IssuesUrl = "https://github.com/ValveResourceFormat/ValveResourceFormat/issues";
 
         public AboutForm()
         {
