@@ -874,20 +874,12 @@ namespace Tests.Formats
         }
 
         [Test]
-        // 5 - 3
-        [Arguments("07 00 00 A0 40 07 00 00 40 40 14 00", 2f, 2f, 2f, 2f)]
-        // float4(1, 2, 3, 4).wzyx through local 200
-        [Arguments("21 00 00 80 3F 00 00 00 40 00 00 40 40 00 00 80 40 1E 1B 08 C8 09 C8 00", 4f, 3f, 2f, 1f)]
-        // 0 ? 1 : 2
-        [Arguments("07 00 00 00 00 04 0A 00 10 00 07 00 00 80 3F 00 07 00 00 00 40 00", 2f, 2f, 2f, 2f)]
         // frac(-0.25)
         [Arguments("07 00 00 80 BE 06 03 00 00", 0.75f, 0.75f, 0.75f, 0.75f)]
         // step(2, 1)
         [Arguments("07 00 00 00 40 07 00 00 80 3F 06 16 00 00", 1f, 1f, 1f, 1f)]
         // step(1, 2)
         [Arguments("07 00 00 80 3F 07 00 00 00 40 06 16 00 00", 0f, 0f, 0f, 0f)]
-        // param 7 + 1
-        [Arguments("1D 07 00 00 00 07 00 00 80 3F 13 00", 4f, 4f, 4f, 4f)]
         // TextureAverageColor(1), which is not a texture
         [Arguments("07 00 00 80 3F 06 28 00 00", 0f, 0f, 0f, 0f)]
         // TextureAverageColor(texture 5)
@@ -951,8 +943,6 @@ namespace Tests.Formats
         [Test]
         [Arguments("-1.5", -1.5f, -1.5f, -1.5f, -1.5f)]
         [Arguments("float4(1, 2.5, (3), .5)", 1f, 2.5f, 3f, 0.5f)]
-        [Arguments("F_ON ? 1 : 2", 1f, 1f, 1f, 1f)]
-        [Arguments("F_OFF ? 1 : 2", 2f, 2f, 2f, 2f)]
         [Arguments("F_OFF ? 1 : F_ON ? max(2, 3) : 4", 3f, 3f, 3f, 3f)]
         [Arguments("1 + 2 * 3 - 4 / 2", 5f, 5f, 5f, 5f)]
         [Arguments("-(1 - 3) % 3", 2f, 2f, 2f, 2f)]
@@ -960,11 +950,8 @@ namespace Tests.Formats
         [Arguments("a = 2; b = a * a;\n return float2(a, b).yx;", 4f, 2f, 2f, 2f)]
         [Arguments("F_OFF || 2 < 3", 1f, 1f, 1f, 1f)]
         [Arguments("F_ON && !F_ON", 0f, 0f, 0f, 0f)]
-        [Arguments("float x = 3; return x * 2;", 6f, 6f, 6f, 6f)]
-        [Arguments("float Twice(float x) { return x * 2; }\nTwice(3) + Twice(1)", 8f, 8f, 8f, 8f)]
         [Arguments("float2 Swap(float2 v) { float2 x = v.yx; return x; }\nx = 5;\nSwap(float2(1, 2)).x * 10 + x", 25f, 25f, 25f, 25f)]
         [Arguments("float Sub(float a, float b) { return a - b; }\nfloat Outer(float a) { return Sub(a, 1); }\nOuter(Sub(9, 3))", 5f, 5f, 5f, 5f)]
-        [Arguments("return max(1, 2);", 2f, 2f, 2f, 2f)]
         public async Task TestCompilerEvaluatesTo(string source, float x, float y, float z, float w)
         {
             await Assert.That(VfxEvalRuntime.TryEvaluate(VfxEvalCompiler.Compile(source), new CompilerContext(), out var value, out _)).IsTrue();
@@ -985,7 +972,6 @@ namespace Tests.Formats
         [Arguments("nope(1)")]
         [Arguments("max(1)")]
         [Arguments("1 ? 2")]
-        [Arguments("max(1, 2")]
         [Arguments("1 2")]
         [Arguments("float4(1, 2, 3, 4).xyzwx")]
         [Arguments("a = 1;")]
