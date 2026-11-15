@@ -2,7 +2,7 @@ using System.Buffers.Binary;
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
-using OPCODE = ValveResourceFormat.Serialization.VfxEval.VfxEval.OPCODE;
+using OpCode = ValveResourceFormat.Serialization.VfxEval.VfxEval.OpCode;
 
 namespace ValveResourceFormat.Serialization.VfxEval
 {
@@ -17,21 +17,21 @@ namespace ValveResourceFormat.Serialization.VfxEval
     public sealed class VfxEvalCompiler
     {
         // Binary operators by precedence, two-character symbols first; || and && compile to branches
-        private static readonly (string Symbol, OPCODE? Opcode, int Precedence)[] BinaryOperators =
+        private static readonly (string Symbol, OpCode? Opcode, int Precedence)[] BinaryOperators =
         [
             ("||", null, 1),
             ("&&", null, 2),
-            ("==", OPCODE.EQUALS, 3),
-            ("!=", OPCODE.NEQUALS, 3),
-            (">=", OPCODE.GTE, 4),
-            ("<=", OPCODE.LTE, 4),
-            (">", OPCODE.GT, 4),
-            ("<", OPCODE.LT, 4),
-            ("+", OPCODE.ADD, 5),
-            ("-", OPCODE.SUB, 5),
-            ("*", OPCODE.MUL, 6),
-            ("/", OPCODE.DIV, 6),
-            ("%", OPCODE.MODULO, 6),
+            ("==", OpCode.Equal, 3),
+            ("!=", OpCode.NotEqual, 3),
+            (">=", OpCode.GreaterOrEqual, 4),
+            ("<=", OpCode.LessOrEqual, 4),
+            (">", OpCode.Greater, 4),
+            ("<", OpCode.Less, 4),
+            ("+", OpCode.Add, 5),
+            ("-", OpCode.Subtract, 5),
+            ("*", OpCode.Multiply, 6),
+            ("/", OpCode.Divide, 6),
+            ("%", OpCode.Modulo, 6),
         ];
 
         // The parameter names and the offset of the body after its opening brace
@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 throw compiler.Error($"Unexpected '{compiler.Peek()}'");
             }
 
-            compiler.code.Add((byte)OPCODE.RETURN);
+            compiler.code.Add((byte)OpCode.Return);
             return [.. compiler.code];
         }
 
@@ -149,7 +149,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     locals.Add(name, slot);
                 }
 
-                code.Add((byte)OPCODE.STORE);
+                code.Add((byte)OpCode.Store);
                 code.Add(slot);
             }
 
@@ -179,7 +179,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // Writes a branch whose first block follows it, and returns the offset of the second block's target
         private int WriteBranch(bool trueBlockFirst)
         {
-            code.Add((byte)OPCODE.BRANCH);
+            code.Add((byte)OpCode.Branch);
             var whenTrue = code.Count;
             var whenFalse = whenTrue + 2;
             code.AddRange(new byte[4]);
@@ -190,7 +190,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // Writes a jump past the second block of a branch, and returns the offset of its target
         private int WriteJump()
         {
-            code.Add((byte)OPCODE.JUMP);
+            code.Add((byte)OpCode.Jump);
             var jump = code.Count;
             code.AddRange(new byte[2]);
             return jump;
@@ -198,7 +198,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
         private void WriteFloat(float value)
         {
-            code.Add((byte)OPCODE.FLOAT);
+            code.Add((byte)OpCode.Float);
             Write(BitConverter.SingleToUInt32Bits(value));
         }
 
@@ -230,7 +230,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             }
         }
 
-        private bool TryConsumeOperator(int minPrecedence, out string symbol, out OPCODE? opcode, out int precedence)
+        private bool TryConsumeOperator(int minPrecedence, out string symbol, out OpCode? opcode, out int precedence)
         {
             SkipWhitespace();
 
@@ -257,7 +257,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             if (TryConsume('-'))
             {
                 ParseUnary();
-                code.Add((byte)OPCODE.NEGATE);
+                code.Add((byte)OpCode.Negate);
                 return;
             }
 
@@ -265,7 +265,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             {
                 position++;
                 ParseUnary();
-                code.Add((byte)OPCODE.NOT);
+                code.Add((byte)OpCode.Not);
                 return;
             }
 
@@ -308,7 +308,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 throw Error("Expected a swizzle of at most four components");
             }
 
-            code.Add((byte)OPCODE.SWIZZLE);
+            code.Add((byte)OpCode.Swizzle);
             code.Add((byte)swizzle);
         }
 
@@ -393,14 +393,14 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
             if (locals.TryGetValue(name, out var slot))
             {
-                code.Add((byte)OPCODE.LOAD);
+                code.Add((byte)OpCode.Load);
                 code.Add(slot);
                 return;
             }
 
             if (!TryConsume('('))
             {
-                code.Add((byte)OPCODE.MATERIAL_PARAM);
+                code.Add((byte)OpCode.MaterialParam);
                 Write(StringToken.Store(name));
                 return;
             }
@@ -425,7 +425,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 throw Error(string.Create(CultureInfo.InvariantCulture, $"'{name}' takes {VfxEval.Functions[function].ArgumentCount} arguments, not {argumentCount}"));
             }
 
-            code.Add((byte)OPCODE.FUNC);
+            code.Add((byte)OpCode.Function);
             Write((ushort)function);
         }
 
@@ -469,7 +469,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             {
                 var slot = AllocateSlot();
                 scope[function.Parameters[i]] = slot;
-                code.Add((byte)OPCODE.STORE);
+                code.Add((byte)OpCode.Store);
                 code.Add(slot);
             }
 

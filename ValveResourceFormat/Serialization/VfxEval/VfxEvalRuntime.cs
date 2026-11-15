@@ -2,7 +2,7 @@ using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 using ValveResourceFormat.Utils;
 using ExpressionFunction = ValveResourceFormat.Serialization.VfxEval.VfxEval.ExpressionFunction;
-using OPCODE = ValveResourceFormat.Serialization.VfxEval.VfxEval.OPCODE;
+using OpCode = ValveResourceFormat.Serialization.VfxEval.VfxEval.OpCode;
 
 namespace ValveResourceFormat.Serialization.VfxEval
 {
@@ -122,21 +122,21 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
             while (offset < bytecode.Length && !stack.Failed)
             {
-                var opcode = (OPCODE)bytecode[offset++];
+                var opcode = (OpCode)bytecode[offset++];
 
                 switch (opcode)
                 {
-                    case OPCODE.RETURN:
+                    case OpCode.Return:
                         return !stack.Failed;
 
-                    case OPCODE.NOP:
+                    case OpCode.Nop:
                         break;
 
-                    case OPCODE.JUMP:
+                    case OpCode.Jump:
                         offset = BinaryPrimitives.ReadUInt16LittleEndian(bytecode[offset..]);
                         break;
 
-                    case OPCODE.CALL:
+                    case OpCode.Call:
                         if (callStackTop == callStack.Length)
                         {
                             return false;
@@ -146,7 +146,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         offset = BinaryPrimitives.ReadUInt16LittleEndian(bytecode[offset..]);
                         break;
 
-                    case OPCODE.RET:
+                    case OpCode.Ret:
                         if (callStackTop == 0)
                         {
                             return false;
@@ -155,7 +155,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         offset = callStack[--callStackTop];
                         break;
 
-                    case OPCODE.BRANCH:
+                    case OpCode.Branch:
                     {
                         var whenTrue = BinaryPrimitives.ReadUInt16LittleEndian(bytecode[offset..]);
                         var whenFalse = BinaryPrimitives.ReadUInt16LittleEndian(bytecode[(offset + 2)..]);
@@ -163,7 +163,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         break;
                     }
 
-                    case OPCODE.FUNC:
+                    case OpCode.Function:
                     {
                         var function = BinaryPrimitives.ReadUInt16LittleEndian(bytecode[offset..]);
                         offset += 2;
@@ -178,12 +178,12 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         break;
                     }
 
-                    case OPCODE.FLOAT:
+                    case OpCode.Float:
                         stack.Push(new Vector4(BinaryPrimitives.ReadSingleLittleEndian(bytecode[offset..])));
                         offset += 4;
                         break;
 
-                    case OPCODE.FLOAT4:
+                    case OpCode.Float4:
                         stack.Push(new Vector4(
                             BinaryPrimitives.ReadSingleLittleEndian(bytecode[offset..]),
                             BinaryPrimitives.ReadSingleLittleEndian(bytecode[(offset + 4)..]),
@@ -192,22 +192,22 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         offset += 16;
                         break;
 
-                    case OPCODE.STORE:
+                    case OpCode.Store:
                         locals[bytecode[offset++]] = stack.Pop();
                         break;
 
-                    case OPCODE.LOAD:
+                    case OpCode.Load:
                         stack.Push(locals[bytecode[offset++]]);
                         break;
 
-                    case OPCODE.OR:
-                    case OPCODE.AND:
-                    case OPCODE.EQUALS:
-                    case OPCODE.NEQUALS:
-                    case OPCODE.GT:
-                    case OPCODE.GTE:
-                    case OPCODE.LT:
-                    case OPCODE.LTE:
+                    case OpCode.Or:
+                    case OpCode.And:
+                    case OpCode.Equal:
+                    case OpCode.NotEqual:
+                    case OpCode.Greater:
+                    case OpCode.GreaterOrEqual:
+                    case OpCode.Less:
+                    case OpCode.LessOrEqual:
                     {
                         var b = stack.Pop();
                         var a = stack.Pop();
@@ -220,38 +220,38 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         break;
                     }
 
-                    case OPCODE.NOT:
+                    case OpCode.Not:
                     {
                         var a = stack.Pop();
                         stack.Push(new Vector4(a.X == 0f ? 1f : 0f, a.Y == 0f ? 1f : 0f, a.Z == 0f ? 1f : 0f, a.W == 0f ? 1f : 0f));
                         break;
                     }
 
-                    case OPCODE.ADD:
-                    case OPCODE.SUB:
-                    case OPCODE.MUL:
-                    case OPCODE.DIV:
-                    case OPCODE.MODULO:
+                    case OpCode.Add:
+                    case OpCode.Subtract:
+                    case OpCode.Multiply:
+                    case OpCode.Divide:
+                    case OpCode.Modulo:
                     {
                         var b = stack.Pop();
                         var a = stack.Pop();
 
                         stack.Push(opcode switch
                         {
-                            OPCODE.ADD => a + b,
-                            OPCODE.SUB => a - b,
-                            OPCODE.MUL => a * b,
-                            OPCODE.DIV => a / b,
+                            OpCode.Add => a + b,
+                            OpCode.Subtract => a - b,
+                            OpCode.Multiply => a * b,
+                            OpCode.Divide => a / b,
                             _ => new Vector4(a.X % b.X, a.Y % b.Y, a.Z % b.Z, a.W % b.W),
                         });
                         break;
                     }
 
-                    case OPCODE.NEGATE:
+                    case OpCode.Negate:
                         stack.Push(-stack.Pop());
                         break;
 
-                    case OPCODE.ATTRIBUTE:
+                    case OpCode.Attribute:
                     {
                         isConstant = false;
 
@@ -265,13 +265,13 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         break;
                     }
 
-                    case OPCODE.EXISTS:
+                    case OpCode.Exists:
                         isConstant = false;
                         stack.Push(context.TryGetAttribute(BinaryPrimitives.ReadUInt32LittleEndian(bytecode[offset..]), out _) ? Vector4.One : Vector4.Zero);
                         offset += 4;
                         break;
 
-                    case OPCODE.MATERIAL_PARAM:
+                    case OpCode.MaterialParam:
                     {
                         StringToken name = BinaryPrimitives.ReadUInt32LittleEndian(bytecode[offset..]);
                         offset += 4;
@@ -292,11 +292,11 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         break;
                     }
 
-                    case OPCODE.FEATURE:
+                    case OpCode.Feature:
                         stack.Push(new Vector4(context.GetFeature(bytecode[offset++])));
                         break;
 
-                    case OPCODE.SWIZZLE:
+                    case OpCode.Swizzle:
                     {
                         var swizzle = bytecode[offset++];
                         var value = stack.Pop();
@@ -304,7 +304,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         break;
                     }
 
-                    case OPCODE.SYSTEM_VALUE:
+                    case OpCode.SystemValue:
                         offset++;
                         stack.Push(Vector4.Zero);
                         break;
@@ -317,17 +317,17 @@ namespace ValveResourceFormat.Serialization.VfxEval
             return false;
         }
 
-        private static float Compare(OPCODE opcode, float a, float b)
+        private static float Compare(OpCode opcode, float a, float b)
         {
             var result = opcode switch
             {
-                OPCODE.OR => a != 0f || b != 0f,
-                OPCODE.AND => a != 0f && b != 0f,
-                OPCODE.EQUALS => a == b,
-                OPCODE.NEQUALS => a != b,
-                OPCODE.GT => a > b,
-                OPCODE.GTE => a >= b,
-                OPCODE.LT => a < b,
+                OpCode.Or => a != 0f || b != 0f,
+                OpCode.And => a != 0f && b != 0f,
+                OpCode.Equal => a == b,
+                OpCode.NotEqual => a != b,
+                OpCode.Greater => a > b,
+                OpCode.GreaterOrEqual => a >= b,
+                OpCode.Less => a < b,
                 _ => a <= b,
             };
 
