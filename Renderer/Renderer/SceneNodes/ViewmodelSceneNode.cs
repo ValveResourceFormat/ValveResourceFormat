@@ -1042,7 +1042,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             }
             else
             {
-                Legs.RenderAttributes.Remove("g_bFirstpersonLegsDistortion");
+                Legs.RenderAttributesOrNull?.Remove("g_bFirstpersonLegsDistortion");
             }
 
             Legs.UpdateHierarchy(context);

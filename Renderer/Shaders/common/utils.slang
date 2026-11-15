@@ -254,7 +254,7 @@ float4 TexCoordMatrix(float rotation, float2 scale)
     float r = radians(rotation);
     float c = cos(r);
     float s = sin(r);
-    return scale.xxy * float4(c, -s, s, c);
+    return scale.xxyy * float4(c, -s, s, c);
 }
 
 float2 TexCoordMatrixOffset(float rotation, float2 scale, float2 offset)

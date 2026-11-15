@@ -151,6 +151,8 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
         {
             throw new ArgumentException($"Shader of type {program.VcsProgramType} already exists in this collection.");
         }
+
+        variablesByToken = null;
     }
 
     /// <summary>

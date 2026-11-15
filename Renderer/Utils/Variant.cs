@@ -31,7 +31,7 @@ public readonly record struct Variant
     internal Vector4 Vector => vector;
 
     /// <summary>Gets the value as a vector, with scalars in every component.</summary>
-    internal Vector4 ToVector4() => type switch
+    public Vector4 ToVector4() => type switch
     {
         VariantType.Int => new Vector4(intValue),
         VariantType.Float => new Vector4(vector.X),
