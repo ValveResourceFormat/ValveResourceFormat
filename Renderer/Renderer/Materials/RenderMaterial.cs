@@ -207,6 +207,7 @@ namespace ValveResourceFormat.Renderer.Materials
         private GlobalsLayout? filledLayout;
         private uint filledVersion;
         private float evaluatedTime;
+        private bool expressionsConstant;
 
         private uint InputsVersion => unchecked(
             IntParams.Version + FloatParams.Version + VectorParams.Version + Matrices.Version + Textures.Version);
@@ -428,15 +429,14 @@ namespace ValveResourceFormat.Renderer.Materials
                 filledLayout = layout;
                 filledVersion = InputsVersion;
                 evaluatedTime = expressionContext.Time;
-
-                FillGlobals(shader, layout, globals, attributes: null);
+                expressionsConstant = FillGlobals(shader, layout, globals, attributes: null);
             }
-            else if (ExpressionsOutdated(evaluatedTime))
+            else if (ExpressionsOutdated(evaluatedTime, expressionsConstant))
             {
                 evaluatedTime = expressionContext.Time;
 
                 globals.BeginUpdate();
-                EvaluateExpressions(shader, globals, attributes: null);
+                expressionsConstant = EvaluateExpressions(shader, globals, attributes: null);
                 globals.EndFill();
             }
 
@@ -447,31 +447,33 @@ namespace ValveResourceFormat.Renderer.Materials
         {
             var layout = shader.GlobalsLayout;
 
-            if (!attributes.Baked.TryGetValue((this, layout), out var baked))
+            if (!attributes.Baked.TryGetValue(this, out var baked))
             {
                 baked = new RenderAttributes.BakedGlobals(new Globals(GetGlobalsName(shader)));
-                attributes.Baked.Add((this, layout), baked);
+                attributes.Baked.Add(this, baked);
             }
 
-            if (baked.MaterialVersion != InputsVersion || baked.AttributesVersion != attributes.Version || ExpressionsOutdated(baked.EvaluatedTime))
+            if (baked.Layout != layout || baked.MaterialVersion != InputsVersion || baked.AttributesVersion != attributes.Version
+                || ExpressionsOutdated(baked.EvaluatedTime, baked.ExpressionsConstant))
             {
+                baked.Layout = layout;
                 baked.MaterialVersion = InputsVersion;
                 baked.AttributesVersion = attributes.Version;
                 baked.EvaluatedTime = expressionContext.Time;
-
-                FillGlobals(shader, layout, baked.Buffer, attributes);
+                baked.ExpressionsConstant = FillGlobals(shader, layout, baked.Buffer, attributes);
             }
 
             return baked.Buffer;
         }
 
         // Expressions that are not constant, such as ones reading time, are evaluated again once per frame
-        private bool ExpressionsOutdated(float evaluatedAt) => !expressionContext.IsConstant && evaluatedAt != expressionContext.Time;
+        private bool ExpressionsOutdated(float evaluatedAt, bool constant) => !constant && evaluatedAt != expressionContext.Time;
 
         private string GetGlobalsName(Shader shader) => Material.Name.Length > 0 ? Material.Name : shader.Name;
 
         /// <summary>Fills <paramref name="buffer"/> with material values, then render attributes last so they beat derived constants.</summary>
-        private void FillGlobals(Shader shader, GlobalsLayout layout, Globals buffer, RenderAttributes? attributes)
+        /// <returns>Whether the expressions only depend on the material.</returns>
+        private bool FillGlobals(Shader shader, GlobalsLayout layout, Globals buffer, RenderAttributes? attributes)
         {
             buffer.BeginFill(layout);
 
@@ -509,7 +511,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 }
             }
 
-            EvaluateExpressions(shader, buffer, attributes);
+            var expressionsAreConstant = EvaluateExpressions(shader, buffer, attributes);
 
             if (attributes != null)
             {
@@ -523,9 +525,10 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             buffer.EndFill();
+            return expressionsAreConstant;
         }
 
-        private void EvaluateExpressions(Shader shader, Globals buffer, RenderAttributes? attributes)
+        private bool EvaluateExpressions(Shader shader, Globals buffer, RenderAttributes? attributes)
         {
             var members = shader.GlobalsLayout.Members;
             var variables = expressionContext.Variables;
@@ -555,6 +558,8 @@ namespace ValveResourceFormat.Renderer.Materials
                     SetEvaluated(shader, buffer, constant, name, value);
                 }
             }
+
+            return expressionContext.IsConstant;
         }
 
         private void Evaluate(Shader shader, Globals buffer, IReadOnlyDictionary<string, GlobalsMember> members, string name, byte[] expression)

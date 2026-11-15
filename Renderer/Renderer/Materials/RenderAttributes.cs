@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Renderer.Materials;
 
 /// <summary>Per-node values by name, overriding what materials draw with. Materials stay shared.</summary>
 /// <remarks>
-/// Each material and shader variant they touch gets a constant buffer baked with them, rebaked when either changes.
+/// Each material they touch gets a constant buffer baked with them, rebaked when either or the shader layout changes.
 /// </remarks>
 public sealed class RenderAttributes
 {
@@ -15,14 +15,16 @@ public sealed class RenderAttributes
     internal uint Version => Values.Version;
 
     // Filled by the material, freed with the node
-    internal Dictionary<(RenderMaterial Material, GlobalsLayout Layout), BakedGlobals> Baked { get; } = [];
+    internal Dictionary<RenderMaterial, BakedGlobals> Baked { get; } = [];
 
     internal sealed class BakedGlobals(Globals buffer)
     {
         public Globals Buffer { get; } = buffer;
+        public GlobalsLayout? Layout { get; set; }
         public uint MaterialVersion { get; set; }
         public uint AttributesVersion { get; set; }
         public float EvaluatedTime { get; set; }
+        public bool ExpressionsConstant { get; set; }
     }
 
     /// <summary>Gets or sets an attribute.</summary>
