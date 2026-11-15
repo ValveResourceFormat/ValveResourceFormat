@@ -25,6 +25,20 @@ namespace ValveResourceFormat.Serialization.VfxEval
             return max == 0f ? 0f : (max - min) / max;
         }
 
+        /// <summary>Builds two unit vectors perpendicular to a unit <paramref name="normal"/> and to each other.</summary>
+        /// <returns>The vectors, with <c>Right</c> taking the place of +X when the normal is +Z and <c>Forward</c> of +Y.</returns>
+        public static (Vector3 Right, Vector3 Forward) OrthonormalBasis(Vector3 normal)
+        {
+            // Duff et al. 2017, "Building an Orthonormal Basis, Revisited"
+            var sign = normal.Z >= 0f ? 1f : -1f;
+            var a = -1f / (sign + normal.Z);
+            var b = normal.X * normal.Y * a;
+
+            return (
+                new Vector3(1f + sign * normal.X * normal.X * a, sign * b, -sign * normal.X),
+                new Vector3(b, sign + normal.Y * normal.Y * a, -normal.Y));
+        }
+
         /// <summary>
         /// Builds a 4x4 color correction matrix that applies contrast, saturation, and brightness adjustments.
         /// </summary>
