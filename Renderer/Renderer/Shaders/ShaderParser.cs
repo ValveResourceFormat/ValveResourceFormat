@@ -520,12 +520,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-        /// <summary>
-        /// Compiles the expressions blocks into <see cref="ParsedShaderData.Expressions"/>. A statement assigning a
-        /// declared uniform computes it from the statements before it, a <c>uniform</c> declaration declares an input
-        /// with its default into <see cref="ParsedShaderData.ExpressionInputs"/>, and any other statement assigns a local.
-        /// A function defined in any block of the shader can be called from all of them.
-        /// </summary>
+        /// <summary>Compiles the expressions blocks into <see cref="ParsedShaderData.Expressions"/> and <see cref="ParsedShaderData.ExpressionInputs"/>.</summary>
         /// <param name="parsedData">The parsed stages of the shader, with the uniforms they declare.</param>
         public static void CompileExpressions(ParsedShaderData parsedData)
         {

@@ -115,10 +115,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             /// <summary>Gets the compiled expressions of the uniforms the expressions blocks assign.</summary>
             public Dictionary<string, byte[]> Expressions { get; } = [];
 
-            /// <summary>
-            /// Gets or sets the inputs the expressions blocks declare, read only by expressions. Parsed like the globals
-            /// block for their defaults, but never bound.
-            /// </summary>
+            /// <summary>Gets or sets the inputs the expressions blocks declare, never bound.</summary>
             public GlobalsLayout ExpressionInputs { get; set; } = GlobalsLayout.Empty;
 
             /// <summary>Gets the set of sampler uniform names annotated with <c>// Sampler(UserConfig)</c>.</summary>

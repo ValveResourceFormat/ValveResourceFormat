@@ -643,7 +643,7 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Binds textures, sets material uniforms, and applies blend/depth render state for this material.</summary>
         /// <param name="shader">The shader to use for this draw call, or <see langword="null"/> to use <see cref="Shader"/>.</param>
         /// <param name="depthPass">Whether the draw only lays down depth. A shared depth shader still gets the render state of this material.</param>
-        /// <param name="attributes">Node render attributes. Ignored by shaders without material data.</param>
+        /// <param name="attributes">Node render attributes.</param>
         public void Render(Shader? shader = default, bool depthPass = false, RenderAttributes? attributes = null)
         {
             textureUnit = TextureUnitStart;

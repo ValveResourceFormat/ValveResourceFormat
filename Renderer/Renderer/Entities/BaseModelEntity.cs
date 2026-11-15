@@ -335,7 +335,7 @@ public abstract partial class BaseModelEntity : BaseEntity
         node.RenderAttributes[name] = value;
     }
 
-    /// <summary>Removes a render attribute from the model, so its materials draw with their own value again.</summary>
+    /// <summary>Removes a render attribute from the model.</summary>
     [EntityInput("ClearRenderAttribute")]
     protected void InputClearRenderAttribute(EntityInputData data)
     {

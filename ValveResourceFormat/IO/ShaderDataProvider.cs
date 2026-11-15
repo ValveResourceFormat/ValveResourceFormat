@@ -59,9 +59,7 @@ namespace ValveResourceFormat.IO
         /// <param name="combos">Overrides for the integer parameters of the material.</param>
         public IReadOnlyDictionary<string, long> GetIntAttributes(Material material, IReadOnlyDictionary<string, long>? combos = null);
 
-        /// <summary>
-        /// Gets the variables with compiled expressions in the shader variant of a material, or null without shader files.
-        /// </summary>
+        /// <summary>Gets the variables with compiled expressions in the shader variant of a material, or null without shader files.</summary>
         public ShaderExpressions? GetExpressions(Material material, IReadOnlyDictionary<string, long>? combos = null) => null;
     }
 

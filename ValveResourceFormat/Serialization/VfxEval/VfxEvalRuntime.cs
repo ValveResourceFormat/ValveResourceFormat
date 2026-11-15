@@ -6,9 +6,7 @@ using OpCode = ValveResourceFormat.Serialization.VfxEval.VfxEval.OpCode;
 
 namespace ValveResourceFormat.Serialization.VfxEval
 {
-    /// <summary>
-    /// Supplies the values a compiled dynamic expression reads.
-    /// </summary>
+    /// <summary>Supplies the values a compiled dynamic expression reads.</summary>
     public interface IVfxEvalContext
     {
         /// <summary>Gets the seconds the <c>time</c> function returns.</summary>
@@ -40,7 +38,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
     /// <summary>Runs compiled dynamic expressions.</summary>
     public static class VfxEvalRuntime
     {
-        /// <summary>Runs an expression that results in a vector or scalar, failing on an unset attribute, an unknown parameter or an unsupported operation.</summary>
+        /// <summary>Runs an expression that results in a vector or scalar.</summary>
         [SkipLocalsInit]
         public static bool TryEvaluate(ReadOnlySpan<byte> bytecode, IVfxEvalContext context, out Vector4 value, out bool isConstant)
         {
@@ -56,7 +54,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             return false;
         }
 
-        /// <summary>Runs an expression that results in a 4x4 matrix, failing on an unset attribute, an unknown parameter or an unsupported operation.</summary>
+        /// <summary>Runs an expression that results in a 4x4 matrix.</summary>
         [SkipLocalsInit]
         public static bool TryEvaluateMatrix(ReadOnlySpan<byte> bytecode, IVfxEvalContext context, out Matrix4x4 value, out bool isConstant)
         {
