@@ -267,12 +267,12 @@ uniform float g_fTextureColorSaturation3 = 1.0;
 uniform float g_fTextureColorBrightness3 = 1.0;
 uniform vec3 g_vTextureColorTint3 = vec3(1.0);
 
-g_mTextureColorAdjust1 = MatrixMultiply(MatrixColorTint2(g_vTextureColorTint1, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), TextureAverageColor(g_tColor1)));
-g_mTextureAdjust1 = MatrixMultiply(MatrixColorTint2(float3(1, 1, 1), 1), MatrixColorCorrect2(float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), TextureAverageColor(g_tColor1)));
-g_mTextureColorAdjust2 = MatrixMultiply(MatrixColorTint2(g_vTextureColorTint2, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast2, g_fTextureColorSaturation2, g_fTextureColorBrightness2), TextureAverageColor(g_tColor2)));
-g_mTextureAdjust2 = MatrixMultiply(MatrixColorTint2(float3(1, 1, 1), 1), MatrixColorCorrect2(float3(g_fTextureColorContrast2, g_fTextureColorSaturation2, g_fTextureColorBrightness2), TextureAverageColor(g_tColor2)));
-g_mTextureColorAdjust3 = MatrixMultiply(MatrixColorTint2(g_vTextureColorTint3, 1), MatrixColorCorrect2(float3(g_fTextureColorContrast3, g_fTextureColorSaturation3, g_fTextureColorBrightness3), TextureAverageColor(g_tColor3)));
-g_mTextureAdjust3 = MatrixMultiply(MatrixColorTint2(float3(1, 1, 1), 1), MatrixColorCorrect2(float3(g_fTextureColorContrast3, g_fTextureColorSaturation3, g_fTextureColorBrightness3), TextureAverageColor(g_tColor3)));
+g_mTextureColorAdjust1 = TextureColorAdjust(g_vTextureColorTint1, float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), g_tColor1);
+g_mTextureAdjust1 = MatrixColorCorrect2(float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), TextureAverageColor(g_tColor1));
+g_mTextureColorAdjust2 = TextureColorAdjust(g_vTextureColorTint2, float3(g_fTextureColorContrast2, g_fTextureColorSaturation2, g_fTextureColorBrightness2), g_tColor2);
+g_mTextureAdjust2 = MatrixColorCorrect2(float3(g_fTextureColorContrast2, g_fTextureColorSaturation2, g_fTextureColorBrightness2), TextureAverageColor(g_tColor2));
+g_mTextureColorAdjust3 = TextureColorAdjust(g_vTextureColorTint3, float3(g_fTextureColorContrast3, g_fTextureColorSaturation3, g_fTextureColorBrightness3), g_tColor3);
+g_mTextureAdjust3 = MatrixColorCorrect2(float3(g_fTextureColorContrast3, g_fTextureColorSaturation3, g_fTextureColorBrightness3), TextureAverageColor(g_tColor3));
 
 g_vDetailNormalXform_1 = RotationMatrix2D(g_flDetailTexCoordRotation1);
 g_vNormalXform_1 = RotationMatrix2D(g_flTexCoordRotation1);

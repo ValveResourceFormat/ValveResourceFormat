@@ -46,6 +46,9 @@ uniform vec2 g_vTexCoordScale1 = vec2(1.0);
     uniform vec4 g_vDetailTexCoordXform1_1 = vec4(0.0, 1.0, 0.0, 0.0);
     uniform vec2 g_vDetailTexCoordScale1 = vec2(1.0);
 
+    out vec2 vDetailTexCoords;
+#endif
+
 /* Expressions
 uniform float g_flTexCoordRotation1 = 0.0;
 uniform vec2 g_vTexCoordCenter1 = vec2(0.5);
@@ -59,9 +62,6 @@ g_vTexCoordXform1_1 = TexCoordXform1(g_flTexCoordRotation1, g_vTexCoordScale1, g
 g_vDetailTexCoordXform0_1 = TexCoordXform0(g_flDetailTexCoordRotation1, g_vDetailTexCoordScale1, g_vDetailTexCoordCenter1, g_vDetailTexCoordOffset1);
 g_vDetailTexCoordXform1_1 = TexCoordXform1(g_flDetailTexCoordRotation1, g_vDetailTexCoordScale1, g_vDetailTexCoordCenter1, g_vDetailTexCoordOffset1);
 */
-
-    out vec2 vDetailTexCoords;
-#endif
 
 // The coordinates of a layer: the first or second UV set, turned and scaled around the center
 vec2 GetLayerTexCoord(int uvSet, vec4 baseUvs, vec4 xform0, vec4 xform1)
