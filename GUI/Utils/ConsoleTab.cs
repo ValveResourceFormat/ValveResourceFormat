@@ -177,6 +177,7 @@ namespace GUI.Utils
 
             var tab = new ThemedTabPage(CONSOLE)
             {
+                Name = CONSOLE,
                 BackColor = bgColor,
             };
             tab.Controls.Add(control);

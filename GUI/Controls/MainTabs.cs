@@ -40,11 +40,11 @@ internal class MainTabs : ThemedTabControl
         tooltipTimer.Tick += TooltipTimer_Tick;
     }
 
-    public bool OpenTab(string tabName)
+    public bool OpenTab(string name)
     {
         foreach (TabPage tabPage in TabPages)
         {
-            if (tabPage.Text == tabName)
+            if (tabPage.Name == name)
             {
                 SelectTab(tabPage);
                 return true;

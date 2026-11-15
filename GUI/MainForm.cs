@@ -736,17 +736,14 @@ namespace GUI
 
         private void OnSettingsItemClick(object sender, EventArgs e)
         {
-            foreach (TabPage tabPage in mainTabs.TabPages)
+            if (mainTabs.OpenTab("Settings"))
             {
-                if (tabPage.Text == "Settings")
-                {
-                    mainTabs.SelectTab(tabPage);
-                    return;
-                }
+                return;
             }
 
             var seettingsTab = new ThemedTabPage("Settings")
             {
+                Name = "Settings",
                 ToolTipText = "Settings",
                 ImageIndex = AppIcons.Icons["Settings"],
             };
@@ -1318,6 +1315,7 @@ namespace GUI
 
             var explorerTab = new ThemedTabPage("Explorer")
             {
+                Name = "Explorer",
                 ToolTipText = "Explorer",
                 ImageIndex = AppIcons.Icons["Explorer"],
             };
@@ -1344,6 +1342,7 @@ namespace GUI
 
             var welcomeTab = new ThemedTabPage("Welcome")
             {
+                Name = "Welcome",
                 ToolTipText = "Welcome",
                 ImageIndex = AppIcons.Icons["WelcomeScreen"],
             };
