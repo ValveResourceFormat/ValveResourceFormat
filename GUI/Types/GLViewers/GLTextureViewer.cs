@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -602,7 +603,7 @@ namespace GUI.Types.GLViewers
             if (spriteFrameLabel != null)
             {
                 var unit = SpriteAnimateInFps ? "frames/s" : "passes/s";
-                spriteFrameLabel.Text = $"Frame: {frame + 1} / {sequence.Frames.Length}    Rate: {SpriteAnimationRate:0.##} {unit}";
+                spriteFrameLabel.Text = string.Create(CultureInfo.InvariantCulture, $"Frame: {frame + 1} / {sequence.Frames.Length}    Rate: {SpriteAnimationRate:0.##} {unit}");
             }
         }
 
@@ -1032,7 +1033,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected void UpdateZoomLabel() => SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
+        protected void UpdateZoomLabel() => SetMoveSpeedOrZoomLabel(string.Create(CultureInfo.InvariantCulture, $"Zoom: {TextureScale * 100:0.0}% (scroll to change)"));
 
         protected override void OnKeyDown(Keys keyData)
         {

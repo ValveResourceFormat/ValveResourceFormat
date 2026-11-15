@@ -457,7 +457,7 @@ namespace GUI.Types.GLViewers
 
             if (Input.OrbitMode)
             {
-                SetMoveSpeedOrZoomLabel($"Orbit distance: {Input.OrbitDistance:0.0} (scroll to change)");
+                SetMoveSpeedOrZoomLabel(string.Create(CultureInfo.InvariantCulture, $"Orbit distance: {Input.OrbitDistance:0.0} (scroll to change)"));
             }
             else
             {

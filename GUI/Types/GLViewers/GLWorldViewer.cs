@@ -123,7 +123,7 @@ namespace GUI.Types.GLViewers
             var exposureLabel = new Label();
             void UpdateExposureText(float exposure)
             {
-                exposureLabel.Text = $"Exposure: {exposure:0.00}";
+                exposureLabel.Text = string.Create(CultureInfo.InvariantCulture, $"Exposure: {exposure:0.00}");
             }
 
             UiControl.AddControl(exposureLabel);
@@ -666,7 +666,7 @@ namespace GUI.Types.GLViewers
 
             static string FormatVector(Vector3 vector)
             {
-                return $"{vector.X:F2} {vector.Y:F2} {vector.Z:F2}";
+                return string.Create(CultureInfo.InvariantCulture, $"{vector.X:F2} {vector.Y:F2} {vector.Z:F2}");
             }
 
             static string ToRenderColor(Vector4 tint)

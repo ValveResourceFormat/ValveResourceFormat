@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -243,11 +244,11 @@ static class UpdateInstaller
             if (totalBytes > 0)
             {
                 dialog.SetBarValue((int)(written * 1000 / totalBytes));
-                dialog.SetProgress($"{written / 1024f / 1024f:F1} MB of {totalMegabytes:F1} MB");
+                dialog.SetProgress(string.Create(CultureInfo.InvariantCulture, $"{written / 1024f / 1024f:F1} MB of {totalMegabytes:F1} MB"));
             }
             else
             {
-                dialog.SetProgress($"{written / 1024f / 1024f:F1} MB");
+                dialog.SetProgress(string.Create(CultureInfo.InvariantCulture, $"{written / 1024f / 1024f:F1} MB"));
             }
         }
 
