@@ -42,7 +42,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
     public static class VfxEvalRuntime
     {
         /// <summary>Runs an expression that results in a vector or scalar, failing on an unset attribute, an unknown parameter or an unsupported operation.</summary>
-        /// <remarks><paramref name="isConstant"/> is false when the result reads time or a random value.</remarks>
         public static bool TryEvaluate(ReadOnlySpan<byte> bytecode, IVfxEvalContext context, out Vector4 value, out bool isConstant)
         {
             var stack = new ValueStack(stackalloc Vector4[MaxStackDepth]);
@@ -58,7 +57,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
         }
 
         /// <summary>Runs an expression that results in a 4x4 matrix, failing on an unset attribute, an unknown parameter or an unsupported operation.</summary>
-        /// <remarks><paramref name="isConstant"/> is false when the result reads time or a random value.</remarks>
         public static bool TryEvaluateMatrix(ReadOnlySpan<byte> bytecode, IVfxEvalContext context, out Matrix4x4 value, out bool isConstant)
         {
             var stack = new ValueStack(stackalloc Vector4[MaxStackDepth]);
@@ -104,40 +102,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 }
 
                 return items[--Count];
-            }
-        }
-
-        /// <summary>Adds the tokens of the render attributes an expression reads to <paramref name="tokens"/>.</summary>
-        public static void CollectAttributes(ReadOnlySpan<byte> bytecode, ISet<uint> tokens)
-        {
-            var offset = 0;
-
-            while (offset < bytecode.Length)
-            {
-                var opcode = (OPCODE)bytecode[offset++];
-
-                if (opcode is OPCODE.ATTRIBUTE or OPCODE.EXISTS && offset + sizeof(uint) <= bytecode.Length)
-                {
-                    tokens.Add(BinaryPrimitives.ReadUInt32LittleEndian(bytecode[offset..]));
-                }
-
-                int? operandSize = opcode switch
-                {
-                    OPCODE.STORE or OPCODE.LOAD or OPCODE.FEATURE or OPCODE.SWIZZLE or OPCODE.SYSTEM_VALUE => 1,
-                    OPCODE.JUMP or OPCODE.CALL or OPCODE.FUNC => 2,
-                    OPCODE.BRANCH or OPCODE.FLOAT or OPCODE.ATTRIBUTE or OPCODE.EXISTS or OPCODE.MATERIAL_PARAM => 4,
-                    OPCODE.FLOAT4 => 16,
-                    OPCODE.FEATURE2 or OPCODE.FEATURE3 or OPCODE.MATERIAL_PARAM_IDX => null,
-                    _ => 0,
-                };
-
-                // Operand sizes of these are not known, so the rest cannot be read
-                if (operandSize is not { } size)
-                {
-                    return;
-                }
-
-                offset += size;
             }
         }
 
@@ -282,6 +246,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
                     case OPCODE.ATTRIBUTE:
                     {
+                        isConstant = false;
+
                         if (!context.TryGetAttribute(BinaryPrimitives.ReadUInt32LittleEndian(bytecode[offset..]), out var attribute))
                         {
                             return false;
@@ -293,6 +259,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     }
 
                     case OPCODE.EXISTS:
+                        isConstant = false;
                         stack.Push(context.TryGetAttribute(BinaryPrimitives.ReadUInt32LittleEndian(bytecode[offset..]), out _) ? Vector4.One : Vector4.Zero);
                         offset += 4;
                         break;

@@ -911,18 +911,6 @@ namespace Tests.Formats
         }
 
         [Test]
-        public async Task TestCollectAttributesSkipsOperands()
-        {
-            // exists(attribute 9) ? attribute 10 : float4 whose bytes read as attribute 7
-            var exampleStr = "1F 09 00 00 00 04 0A 00 12 00 19 0A 00 00 00 02 23 00 21 19 07 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00";
-            var tokens = new HashSet<uint>();
-
-            VfxEvalRuntime.CollectAttributes(ParseString(exampleStr), tokens);
-
-            await Assert.That(tokens).IsEquivalentTo([9u, 10u]);
-        }
-
-        [Test]
         public async Task TestRuntimeFailsPastStackDepth()
         {
             // 33 floats, one more than the stack holds
