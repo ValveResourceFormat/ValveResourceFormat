@@ -59,7 +59,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         public required HashSet<string> SamplerUserConfigUniforms { get; init; }
 
         /// <summary>Gets the compiled expressions of the uniforms the <c>/* Expressions</c> blocks assign, used where game shader files do not provide them.</summary>
-        public IReadOnlyDictionary<string, byte[]> Expressions { get; init; } = new Dictionary<string, byte[]>();
+        public IReadOnlyDictionary<string, byte[]> Expressions { get; internal set; } = new Dictionary<string, byte[]>();
 
         /// <summary>Gets the sampler uniform that holds the color of a material, annotated with <c>// RepresentativeTexture</c>, or <see langword="null"/> when the shader has none.</summary>
         public string? RepresentativeTexture { get; init; }
@@ -89,7 +89,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         public GlobalsLayout ExpressionInputs
         {
             get => expressionInputs;
-            init
+            internal set
             {
                 expressionInputs = value;
                 AddDefaults(value);
@@ -875,6 +875,9 @@ namespace ValveResourceFormat.Renderer.Shaders
             RenderModes.Clear();
             RenderModes.UnionWith(shader.RenderModes);
 
+            // The layout rebuilds the defaults, so the inputs go first
+            Expressions = shader.Expressions;
+            ExpressionInputs = shader.ExpressionInputs;
             GlobalsLayout = shader.GlobalsLayout;
 
             ReservedTexturesUsed.Clear();

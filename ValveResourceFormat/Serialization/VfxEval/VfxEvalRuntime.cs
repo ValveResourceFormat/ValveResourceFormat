@@ -78,7 +78,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
             public int Count { get; private set; }
 
-            /// <summary>Gets whether a push found the stack full or a pop found it empty, failing the evaluation.</summary>
+            // Set when a push found the stack full or a pop found it empty
             public bool Failed { get; private set; }
 
             public void Push(Vector4 value)

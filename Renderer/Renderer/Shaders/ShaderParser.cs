@@ -315,7 +315,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             private const string ExpressionBlockStart = "/* Expressions";
             private const string ExpressionBlockEnd = "*/";
 
-            /// <summary>Collects the lines of an expressions block, and returns whether the line was part of one.</summary>
+            // Collects the lines of an expressions block, and returns whether the line was part of one
             private bool TryCollectExpressionBlock(SourceFile file, string line)
             {
                 var trimmed = line.AsSpan().Trim();

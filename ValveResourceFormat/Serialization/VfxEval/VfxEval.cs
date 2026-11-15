@@ -454,7 +454,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     return;
                 }
 
-                // Both operands are evaluated, unlike the branches || and && usually compile to
                 case OpCode.Or or OpCode.And:
                 {
                     var (symbol, precedence) = GetOperator(op);

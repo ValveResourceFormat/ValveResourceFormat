@@ -524,8 +524,8 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>Sets a packed global uniform in this material's constant buffer.</summary>
         /// <remarks>
-        /// The value survives until the buffer is refilled. A refill happens only when an input of the buffer
-        /// changes or a shader reload replaces the layout.
+        /// The value survives until the buffer is refilled: when an input of the buffer changes, a shader reload
+        /// replaces the layout, or an expression that reads time or attributes assigns the same uniform.
         /// </remarks>
         public void SetUniform(string name, float value)
         {
@@ -717,7 +717,10 @@ namespace ValveResourceFormat.Renderer.Materials
             // Game shader files compile the same expressions, with constants folded per static combo
             foreach (var (name, expression) in shader.Expressions)
             {
-                Evaluate(shader, buffer, members, name, variables.TryGetValue(name, out var variable) ? variable.CompiledExpression : expression);
+                if (!variables.TryGetValue(name, out var variable) || !Evaluate(shader, buffer, members, name, variable.CompiledExpression))
+                {
+                    Evaluate(shader, buffer, members, name, expression);
+                }
             }
 
             // Other game expressions mostly convert a raw parameter our shaders already convert, matrices are final
@@ -740,24 +743,37 @@ namespace ValveResourceFormat.Renderer.Materials
             return expressionContext.IsConstant;
         }
 
-        private void Evaluate(Shader shader, Globals buffer, IReadOnlyDictionary<string, GlobalsMember> members, string name, byte[] expression)
+        // Returns false only when the expression fails to evaluate
+        private bool Evaluate(Shader shader, Globals buffer, IReadOnlyDictionary<string, GlobalsMember> members, string name, byte[] expression)
         {
             if (!members.TryGetValue(name, out var constant))
             {
-                return;
+                return true;
             }
 
             if (constant.Type == GlobalsType.Mat4)
             {
-                if (!Matrices.ContainsKey(name) && expressionContext.TryEvaluateMatrix(expression, out var matrix))
+                if (Matrices.ContainsKey(name))
                 {
-                    buffer.SetMatrix(constant, matrix);
+                    return true;
                 }
+
+                if (!expressionContext.TryEvaluateMatrix(expression, out var matrix))
+                {
+                    return false;
+                }
+
+                buffer.SetMatrix(constant, matrix);
+                return true;
             }
-            else if (expressionContext.TryEvaluate(expression, out var value))
+
+            if (!expressionContext.TryEvaluate(expression, out var value))
             {
-                SetEvaluated(shader, buffer, constant, name, value);
+                return false;
             }
+
+            SetEvaluated(shader, buffer, constant, name, value);
+            return true;
         }
 
         private static void SetEvaluated(Shader shader, Globals buffer, in GlobalsMember constant, string name, Vector4 value)
@@ -829,10 +845,10 @@ namespace ValveResourceFormat.Renderer.Materials
                 return expressions?.Shader.VariablesByToken.TryGetValue(name, out variable) == true;
             }
 
-            /// <summary>Gets or sets whether everything evaluated since this was last set only depends on the material.</summary>
+            // Whether everything evaluated since this was last set only depends on the material
             public bool IsConstant { get; set; } = true;
 
-            /// <summary>Gets or sets the node render attributes of the buffer being filled, null for the material's own.</summary>
+            // Node render attributes of the buffer being filled, null for the material's own
             public RenderAttributes? Attributes { get; set; }
 
             public float Time => material.Context?.Uptime ?? 0f;
@@ -915,7 +931,9 @@ namespace ValveResourceFormat.Renderer.Materials
                     : name.Name.StartsWith("g_t", StringComparison.Ordinal);
 
             public int GetFeature(int index)
-                => expressions?.Shader.Features is { } features ? (int)material.IntParams.GetValueOrDefault(features.StaticComboArray[index].Name) : 0;
+                => expressions?.Shader.Features is { } features && index < features.StaticComboArray.Length
+                    ? (int)material.IntParams.GetValueOrDefault(features.StaticComboArray[index].Name)
+                    : 0;
 
             public Vector4 GetTextureSize(StringToken textureName)
                 => TryGetTexture(textureName, out var texture) ? new Vector4(texture.Width, texture.Height, texture.Depth, 0f) : Vector4.Zero;
