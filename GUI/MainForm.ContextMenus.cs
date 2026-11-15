@@ -20,6 +20,7 @@ namespace GUI
         public void ShowVpkContextMenu(Control control, Point position, bool isRootNode, bool isFolderNode, bool deletedFilesRecovered, bool canEdit)
         {
             copyFileNameToolStripMenuItem.Visible = !isRootNode;
+            addToBookmarksToolStripMenuItem.Visible = !isRootNode && !isFolderNode;
             openWithDefaultAppToolStripMenuItem.Visible = !isRootNode && !isFolderNode;
             openWithoutViewerToolStripMenuItem.Visible = !isRootNode && !isFolderNode;
             viewAssetInfoToolStripMenuItem.Visible = !isRootNode && !isFolderNode;
@@ -209,6 +210,33 @@ namespace GUI
             {
                 AppClipboard.SetText(sb.ToString());
             }
+        }
+
+        private void AddToBookmarksToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var (context, selectedNodes) = GetSelectedItems(sender);
+
+            if (context == null)
+            {
+                return;
+            }
+
+            foreach (var selectedNode in selectedNodes)
+            {
+                if (selectedNode.PackageEntry == null)
+                {
+                    continue;
+                }
+
+                var link = context.GetLocalEntryLink(selectedNode.PackageEntry.GetFullPath());
+
+                if (link != null && !Settings.Config.BookmarkedFiles.Contains(link))
+                {
+                    Settings.Config.BookmarkedFiles.Add(link);
+                }
+            }
+
+            Settings.Save();
         }
 
         private void OpenWithoutViewerToolStripMenuItem_Click(object sender, EventArgs e)

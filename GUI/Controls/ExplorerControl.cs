@@ -106,7 +106,7 @@ namespace GUI.Controls
             };
             treeView.Nodes.Add(scanningTreeNode);
 
-            string[] listedFiles = [.. Settings.Config.RecentFiles, .. Settings.Config.BookmarkedFiles];
+            string[] listedFiles = [.. Settings.Config.RecentFiles, .. Settings.Config.BookmarkedFiles.Select(path => SplitPackageLink(path).PathOnDisk)];
 
             // Scan for vpks
             _ = ScanForSteamGamesAndUpdateTree(listedFiles, scanningTreeNode);
@@ -433,7 +433,11 @@ namespace GUI.Controls
             }
 #endif
 
-            if (File.Exists(path))
+            if (VpkLink.IsVpkLink(path))
+            {
+                Program.MainForm.OpenCommandLineArgFiles([path]);
+            }
+            else if (File.Exists(path))
             {
                 Program.MainForm.OpenFile(path);
             }
@@ -522,12 +526,13 @@ namespace GUI.Controls
 
         private void OnVisibleChanged(object sender, EventArgs e)
         {
-            // Refresh recent files list whenever explorer becomes visible
+            // Refresh bookmarks and recent files whenever explorer becomes visible
             if (!Visible)
             {
                 return;
             }
 
+            RedrawList(APPID_BOOKMARKS, GetBookmarkedFileNodes());
             RedrawList(APPID_RECENT_FILES, GetRecentFileNodes());
         }
 
@@ -558,7 +563,8 @@ namespace GUI.Controls
             for (var i = paths.Count - 1; i >= 0; i--)
             {
                 var path = paths[i];
-                var pathDisplay = path.Replace(Path.DirectorySeparatorChar, '/');
+                var (pathOnDisk, entryPath) = SplitPackageLink(path);
+                var pathDisplay = pathOnDisk.Replace(Path.DirectorySeparatorChar, '/');
                 var isVpk = false;
                 var imageIndexGame = -1;
 
@@ -570,8 +576,8 @@ namespace GUI.Controls
                 }
                 else
                 {
-                    var extension = Path.GetExtension(path).ToLowerInvariant().AsSpan();
-                    isVpk = MemoryExtensions.Equals(extension, ".vpk", StringComparison.Ordinal);
+                    var extension = Path.GetExtension(entryPath ?? path).ToLowerInvariant().AsSpan();
+                    isVpk = entryPath == null && MemoryExtensions.Equals(extension, ".vpk", StringComparison.Ordinal);
 
                     if (isVpk && Path.GetFileName(path.AsSpan()).StartsWith("shaders_", StringComparison.Ordinal))
                     {
@@ -592,7 +598,7 @@ namespace GUI.Controls
                     }
                 }
 
-                if (GameFolderLocator.FindSteamGameContainingPath(path, InstalledSteamGames.Games) is { } game)
+                if (GameFolderLocator.FindSteamGameContainingPath(pathOnDisk, InstalledSteamGames.Games) is { } game)
                 {
                     pathDisplay = $"[{game.AppName}] {pathDisplay.AsSpan(Math.Min(game.GamePath.Length, pathDisplay.Length))}";
 
@@ -600,6 +606,11 @@ namespace GUI.Controls
                     {
                         imageIndexGame = -1;
                     }
+                }
+
+                if (entryPath != null)
+                {
+                    pathDisplay = $"{pathDisplay}:{entryPath}";
                 }
 
                 var image = imageIndexGame > -1 ? imageIndexGame : imageIndexFile;
@@ -614,6 +625,33 @@ namespace GUI.Controls
             return treeNodes;
         }
 
+        /// <summary>
+        /// Splits a <c>vpk:</c> link into the path of its outermost package on disk and the path inside of it,
+        /// or returns the path itself and null when it is not a link.
+        /// </summary>
+        private static (string PathOnDisk, string? EntryPath) SplitPackageLink(string path)
+        {
+            if (!VpkLink.IsVpkLink(path))
+            {
+                return (path, null);
+            }
+
+            var (packagePaths, innerPath) = VpkLink.Parse(path);
+
+            if (packagePaths.Count == 0)
+            {
+                return (innerPath, null);
+            }
+
+            var pathOnDisk = Path.GetFullPath(packagePaths[0]);
+
+            // Nested packages stay in the path inside
+            packagePaths.RemoveAt(0);
+            packagePaths.Add(innerPath);
+
+            return (pathOnDisk, string.Join(':', packagePaths));
+        }
+
         private void OnClearRecentFilesClick(object sender, EventArgs e)
         {
             Settings.ClearRecentFiles();
@@ -626,10 +664,12 @@ namespace GUI.Controls
 
         private void OnRevealInFileExplorerClick(object sender, EventArgs e)
         {
-            if (sender is not ToolStripMenuItem { Owner: ContextMenuStrip { SourceControl: TreeView { SelectedNode.Tag: string path } } })
+            if (sender is not ToolStripMenuItem { Owner: ContextMenuStrip { SourceControl: TreeView { SelectedNode.Tag: string selectedPath } } })
             {
                 return;
             }
+
+            var path = SplitPackageLink(selectedPath).PathOnDisk;
 
             if (File.Exists(path))
             {

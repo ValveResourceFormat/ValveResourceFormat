@@ -104,11 +104,29 @@ namespace GUI.Utils
         public string GetVpkLink() => VpkLink.Create(GetPackageChain());
 
         /// <summary>
+        /// Builds the <c>vpk:</c> link to a file inside of the package of this context, starting from the absolute path on disk,
+        /// or returns null when the package is not on disk.
+        /// </summary>
+        public string? GetLocalEntryLink(string entryPath)
+        {
+            var chain = GetPackageChain(portable: false);
+
+            if (!Path.IsPathRooted(chain[0]))
+            {
+                return null;
+            }
+
+            chain.Add(entryPath);
+
+            return VpkLink.Create(chain);
+        }
+
+        /// <summary>
         /// File names from the file on disk down to this file, where each one is inside of the package before it.
         /// Contexts above the file on disk only opened it, so they are not part of its path.
-        /// The file on disk is relative to its Steam app when it is inside of one, so links work on other computers.
+        /// When <paramref name="portable"/> is set, the file on disk is relative to its Steam app when it is inside of one, so links work on other computers.
         /// </summary>
-        private List<string> GetPackageChain()
+        private List<string> GetPackageChain(bool portable = true)
         {
             var chain = new List<string>();
 
@@ -116,7 +134,7 @@ namespace GUI.Utils
             {
                 if (Path.IsPathRooted(context.FileName))
                 {
-                    chain.Add(GetDisplayPath(context.FileName));
+                    chain.Add(portable ? GetDisplayPath(context.FileName) : context.FileName);
                     break;
                 }
 

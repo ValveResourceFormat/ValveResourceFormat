@@ -82,6 +82,7 @@ namespace GUI
             toolStripSeparator1 = new ToolStripSeparator();
             copyFileNameToolStripMenuItem = new ThemedToolStripMenuItem();
             copyFileNameOnDiskToolStripMenuItem = new ThemedToolStripMenuItem();
+            addToBookmarksToolStripMenuItem = new ThemedToolStripMenuItem();
             toolStripSeparator3 = new ToolStripSeparator();
             searchInFolderToolStripMenuItem = new ThemedToolStripMenuItem();
             openWithoutViewerToolStripMenuItem = new ThemedToolStripMenuItem();
@@ -380,7 +381,7 @@ namespace GUI
             // 
             vpkContextMenu.BackColor = System.Drawing.Color.FromArgb(231, 236, 236);
             vpkContextMenu.ImageScalingSize = new System.Drawing.Size(24, 24);
-            vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, copyFileNameOnDiskToolStripMenuItem, toolStripSeparator3, searchInFolderToolStripMenuItem, openWithoutViewerToolStripMenuItem, openWithDefaultAppToolStripMenuItem, viewAssetInfoToolStripMenuItem, verifyPackageContentsToolStripMenuItem, recoverDeletedToolStripMenuItem, editThisVpkToolStripMenuItem });
+            vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, copyFileNameOnDiskToolStripMenuItem, addToBookmarksToolStripMenuItem, toolStripSeparator3, searchInFolderToolStripMenuItem, openWithoutViewerToolStripMenuItem, openWithDefaultAppToolStripMenuItem, viewAssetInfoToolStripMenuItem, verifyPackageContentsToolStripMenuItem, recoverDeletedToolStripMenuItem, editThisVpkToolStripMenuItem });
             vpkContextMenu.Name = "vpkContextMenu";
             vpkContextMenu.Size = new System.Drawing.Size(200, 258);
             // 
@@ -420,6 +421,14 @@ namespace GUI
             copyFileNameOnDiskToolStripMenuItem.SVGImageResourceName = "GUI.Icons.CopyURL.svg";
             copyFileNameOnDiskToolStripMenuItem.Text = "Copy URL";
             copyFileNameOnDiskToolStripMenuItem.Click += CopyFileNameOnDiskToolStripMenuItem_Click;
+            // 
+            // addToBookmarksToolStripMenuItem
+            // 
+            addToBookmarksToolStripMenuItem.Name = "addToBookmarksToolStripMenuItem";
+            addToBookmarksToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
+            addToBookmarksToolStripMenuItem.SVGImageResourceName = "GUI.Icons.BookmarksAdd.svg";
+            addToBookmarksToolStripMenuItem.Text = "Add to bookmarks";
+            addToBookmarksToolStripMenuItem.Click += AddToBookmarksToolStripMenuItem_Click;
             // 
             // toolStripSeparator3
             // 
@@ -699,6 +708,7 @@ namespace GUI
         private ThemedToolStripMenuItem vpkEditRemoveThisFolderToolStripMenuItem;
         private ThemedToolStripMenuItem vpkEditRemoveThisFileToolStripMenuItem;
         private ThemedToolStripMenuItem copyFileNameOnDiskToolStripMenuItem;
+        private ThemedToolStripMenuItem addToBookmarksToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator3;
         private ThemedToolStripMenuItem searchInFolderToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator4;
