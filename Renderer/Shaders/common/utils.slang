@@ -152,53 +152,60 @@ vec2 ApplyTexCoordXform(vec2 texCoord, vec4 xform, vec2 offset)
 // Transform rows that scale about the origin and rotate about the center
 float4 TexCoordXform0(float rotation, float2 scale, float2 center, float2 offset)
 {
-    float c = cos(radians(rotation));
-    float s = sin(radians(rotation));
+    float r = radians(rotation);
+    float c = cos(r);
+    float s = sin(r);
     return float4(c * scale.x, -s * scale.y, 0, center.x + offset.x + s * center.y - c * center.x);
 }
 
 float4 TexCoordXform1(float rotation, float2 scale, float2 center, float2 offset)
 {
-    float c = cos(radians(rotation));
-    float s = sin(radians(rotation));
+    float r = radians(rotation);
+    float c = cos(r);
+    float s = sin(r);
     return float4(s * scale.x, c * scale.y, 0, center.y + offset.y - (s * center.x + c * center.y));
 }
 
 // Transform rows of the CS2 generic shaders, whose v row adds the center's x
 float4 SecondaryTexCoordXform0(float rotation, float2 scale, float2 center, float2 offset)
 {
-    float c = cos(radians(rotation));
-    float s = sin(radians(rotation));
+    float r = radians(rotation);
+    float c = cos(r);
+    float s = sin(r);
     return float4(c * scale.x, -s * scale.y, 0, center.x + offset.x + s * scale.y * center.y - c * scale.x * center.x);
 }
 
 float4 SecondaryTexCoordXform1(float rotation, float2 scale, float2 center, float2 offset)
 {
-    float c = cos(radians(rotation));
-    float s = sin(radians(rotation));
+    float r = radians(rotation);
+    float c = cos(r);
+    float s = sin(r);
     return float4(s * scale.x, c * scale.y, 0, center.y + offset.y + s * scale.x * center.x - c * scale.y * center.y);
 }
 
 // Scale and rotation about the texture center as a row-major 2x2 matrix, and the offset after it
 float4 TexCoordMatrix(float rotation, float2 scale)
 {
-    float c = cos(radians(rotation));
-    float s = sin(radians(rotation));
+    float r = radians(rotation);
+    float c = cos(r);
+    float s = sin(r);
     return scale.xxy * float4(c, -s, s, c);
 }
 
 float2 TexCoordMatrixOffset(float rotation, float2 scale, float2 offset)
 {
-    float c = cos(radians(rotation));
-    float s = sin(radians(rotation));
+    float r = radians(rotation);
+    float c = cos(r);
+    float s = sin(r);
     return -.5 * scale * float2(c - s, s + c) + offset + .5;
 }
 
 // Rotation as a row-major 2x2 matrix
 float4 RotationMatrix2D(float rotation)
 {
-    float c = cos(radians(rotation));
-    float s = sin(radians(rotation));
+    float r = radians(rotation);
+    float c = cos(r);
+    float s = sin(r);
     return float4(c, -s, s, c);
 }
 */
