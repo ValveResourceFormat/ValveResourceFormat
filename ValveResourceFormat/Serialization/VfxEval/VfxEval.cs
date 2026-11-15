@@ -140,8 +140,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
             /// <summary>Pushes 1 when the render attribute whose uint token follows is set, else 0.</summary>
             Exists = 0x1F,
 
-            /// <summary>Pushes a material parameter through a material index map.</summary>
-            MaterialParamIndex = 0x20,
+            /// <summary>Pushes the material parameter whose int index follows, mapped to its slot in the material instead of found by token.</summary>
+            MaterialParamByIndex = 0x20,
 
             /// <summary>Pushes the four floats that follow.</summary>
             Float4 = 0x21,
@@ -213,6 +213,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
             [Function("MatrixColorTint3", 3)]    MatrixColorTint3 = 0x37,
             [Function("RemapVal", 5)]            RemapVal = 0x38,
             [Function("RemapValClamped", 5)]     RemapValClamped = 0x39,
+            [Function("MakeOrthonormalRight", 1)]   MakeOrthonormalRight = 0x3A,
+            [Function("MakeOrthonormalForward", 1)] MakeOrthonormalForward = 0x3B,
 #pragma warning restore format, CS1591
         }
 

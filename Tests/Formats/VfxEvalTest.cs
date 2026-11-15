@@ -913,6 +913,17 @@ namespace Tests.Formats
         }
 
         [Test]
+        // MakeOrthonormalRight(float4(0.6, 0, -0.8, 1)), a normal facing down
+        [Arguments("21 9A 99 19 3F 00 00 00 00 CD CC 4C BF 00 00 80 3F 06 3A 00 00", 0.8f, 0f, 0.6f)]
+        // MakeOrthonormalForward(float4(0.6, 0, -0.8, 1))
+        [Arguments("21 9A 99 19 3F 00 00 00 00 CD CC 4C BF 00 00 80 3F 06 3B 00 00", 0f, -1f, 0f)]
+        public async Task TestRuntimeOrthonormalBasis(string exampleStr, float x, float y, float z)
+        {
+            await Assert.That(VfxEvalRuntime.TryEvaluate(ParseString(exampleStr), new RuntimeContext(), out var value, out _)).IsTrue();
+            await Assert.That(Vector4.Distance(value, new Vector4(x, y, z, 0f))).IsLessThan(1e-6f);
+        }
+
+        [Test]
         public async Task TestRuntimeFailsPastStackDepth()
         {
             // 33 floats, one more than the stack holds

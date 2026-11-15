@@ -560,7 +560,16 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     break;
                 }
 
-                // Rotation2d, Rotate2d, SinCos and anything newer
+                case ExpressionFunction.MakeOrthonormalRight:
+                case ExpressionFunction.MakeOrthonormalForward:
+                {
+                    var normal = stack.Pop();
+                    var (right, forward) = VfxEvalFunctions.OrthonormalBasis(IsTexture(normal) ? Vector3.Zero : normal.AsVector3());
+                    stack.Push(new Vector4(function == ExpressionFunction.MakeOrthonormalRight ? right : forward, 0f));
+                    break;
+                }
+
+                // Rotation2d, Rotate2d and SinCos
                 default:
                     return false;
             }
