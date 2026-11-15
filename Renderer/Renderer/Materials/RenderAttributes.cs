@@ -1,4 +1,5 @@
 using ValveResourceFormat.Renderer.Shaders;
+using ValveResourceFormat.Renderer.Utils;
 
 namespace ValveResourceFormat.Renderer.Materials;
 
@@ -8,16 +9,16 @@ namespace ValveResourceFormat.Renderer.Materials;
 /// </remarks>
 public sealed class RenderAttributes
 {
-    internal MaterialInputs<Vector4> Values { get; } = [];
+    internal MaterialInputs<Variant> Values { get; } = [];
 
     internal uint Version => Values.Version;
 
     // Filled by the material, freed with the node
     internal Dictionary<RenderMaterial, RenderMaterial.GlobalsState> Baked { get; } = [];
 
-    /// <summary>Gets or sets an attribute, with scalars in every component.</summary>
+    /// <summary>Gets or sets an attribute.</summary>
     /// <exception cref="KeyNotFoundException">The attribute is not set.</exception>
-    public Vector4 this[string name]
+    public Variant this[string name]
     {
         get => Values[name];
         set => Values[name] = value;
@@ -57,11 +58,11 @@ public sealed class RenderAttributes
     /// <summary>Gets an attribute by the token expressions read it with, with scalars in every component.</summary>
     internal bool TryGetValue(StringToken name, out Vector4 value)
     {
-        foreach (var (key, attribute) in Values)
+        foreach (var (key, variant) in Values)
         {
             if (StringToken.Get(key) == name.Token)
             {
-                value = attribute;
+                value = variant.ToVector4();
                 return true;
             }
         }

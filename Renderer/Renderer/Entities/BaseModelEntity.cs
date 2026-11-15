@@ -347,7 +347,7 @@ public abstract partial class BaseModelEntity : BaseEntity
         node.RenderAttributes.Remove(data.Parameter.Trim());
     }
 
-    private static bool TryParseRenderAttribute(string? parameter, out string name, out Vector4 value)
+    private static bool TryParseRenderAttribute(string? parameter, out string name, out Variant value)
     {
         name = string.Empty;
         value = default;
@@ -381,7 +381,7 @@ public abstract partial class BaseModelEntity : BaseEntity
         }
 
         value = count == 1
-            ? new Vector4(components[0])
+            ? components[0]
             : new Vector4(components[0], components[1], components[2], components[3]);
 
         return true;
