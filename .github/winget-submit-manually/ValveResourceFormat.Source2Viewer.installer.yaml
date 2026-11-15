@@ -1,7 +1,7 @@
-# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.28.0.schema.json
 
 PackageIdentifier: ValveResourceFormat.Source2Viewer
-PackageVersion: 21.2.1
+PackageVersion: 21.1.7798
 InstallerType: exe
 Scope: user
 InstallModes:
@@ -13,13 +13,16 @@ InstallerSwitches:
 ElevationRequirement: elevationProhibited
 UpgradeBehavior: install
 ProductCode: Source2Viewer
-AppsAndFeaturesEntries:
-- DisplayName: Source 2 Viewer
-  Publisher: ValveResourceFormat Contributors
-  ProductCode: Source2Viewer
+FileExtensions:
+- vpk
+Protocols:
+- vpk
+MinimumOSVersion: 10.0.22000.0
+InstallationMetadata:
+  DefaultInstallLocation: '%LocalAppData%\Source2Viewer'
 Installers:
 - Architecture: x64
-  InstallerUrl: https://github.com/ValveResourceFormat/ValveResourceFormat/releases/download/21.2/Source2Viewer.exe
-  InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
+  InstallerUrl: https://github.com/ValveResourceFormat/ValveResourceFormat/releases/download/21.1/Source2Viewer.exe
+  InstallerSha256: DFF46D35A85DE32E2D9FA54028464D146156933C64FEBCE5972A713DB4B01117
 ManifestType: installer
-ManifestVersion: 1.12.0
+ManifestVersion: 1.28.0

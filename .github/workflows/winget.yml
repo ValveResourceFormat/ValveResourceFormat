@@ -25,7 +25,7 @@ jobs:
       shell: pwsh
       env:
         # Classic personal access token with the public_repo scope, of the account that opens the pull requests
-        WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
       run: |
         $ErrorActionPreference = 'Stop'
         $url = "https://github.com/${{ github.repository }}/releases/download/$env:TAG/Source2Viewer.exe"
@@ -38,5 +38,5 @@ jobs:
         Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
         $signature = Get-AuthenticodeSignature wingetcreate.exe
         if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') { throw 'wingetcreate.exe is not signed by Microsoft' }
-        ./wingetcreate.exe update ValveResourceFormat.Source2Viewer --version $version --urls $url --submit --token $env:WINGET_TOKEN
+        ./wingetcreate.exe update ValveResourceFormat.Source2Viewer --version $version --urls $url --submit
         if ($LASTEXITCODE -ne 0) { throw "wingetcreate failed with exit code $LASTEXITCODE" }
