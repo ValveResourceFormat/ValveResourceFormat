@@ -225,6 +225,16 @@ namespace Tests.Formats
         }
 
         [Test]
+        // 1 OR 0 AND 2, as opcodes rather than branches
+        [Arguments("07 00 00 80 3F 07 00 00 00 00 07 00 00 00 40 0B 0A 00", "return 1 || 0 && 2;")]
+        // (1 OR 0) AND 2
+        [Arguments("07 00 00 80 3F 07 00 00 00 00 0A 07 00 00 00 40 0B 00", "return (1 || 0) && 2;")]
+        public async Task TestLogicalOpcodes(string exampleStr, string expectedResult)
+        {
+            await Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult).IsEqualTo(expectedResult);
+        }
+
+        [Test]
         public async Task TestDynamicExpression15_EnumMapper()
         {
             var exampleStr =
@@ -888,6 +898,10 @@ namespace Tests.Formats
         [Arguments("1D 05 00 00 00 06 28 00 00", 5f, 5f, 5f, 5f)]
         // exists(attribute 7)
         [Arguments("1F 07 00 00 00 00", 0f, 0f, 0f, 0f)]
+        // float4(0, 1, 0, 1) OR float4(0, 0, 1, 1)
+        [Arguments("21 00 00 00 00 00 00 80 3F 00 00 00 00 00 00 80 3F 21 00 00 00 00 00 00 00 00 00 00 80 3F 00 00 80 3F 0A 00", 0f, 1f, 1f, 1f)]
+        // float4(0, 1, 0, 1) AND float4(0, 0, 1, 1)
+        [Arguments("21 00 00 00 00 00 00 80 3F 00 00 00 00 00 00 80 3F 21 00 00 00 00 00 00 00 00 00 00 80 3F 00 00 80 3F 0B 00", 0f, 0f, 0f, 1f)]
         public async Task TestRuntimeEvaluatesTo(string exampleStr, float x, float y, float z, float w)
         {
             await Assert.That(VfxEvalRuntime.TryEvaluate(ParseString(exampleStr), new RuntimeContext(), out var value, out _)).IsTrue();
