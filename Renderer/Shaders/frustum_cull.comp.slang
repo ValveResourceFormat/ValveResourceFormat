@@ -74,21 +74,14 @@ uniform float g_flDepthRangeMin;
 uniform float g_flDepthRangeMax;
 uniform bool g_bOcclusionCullEnabled;
 
-// Project AABB to screen space and test occlusion
-bool testAABBOcclusion(vec3 bmin, vec3 bmax)
+// Corners indexed by x, y, z bits; projection is linear before the divide, so derive them by adds
+void projectAABBCorners(mat4 worldToProjection, vec3 bmin, vec3 ext, out vec4 corners[8])
 {
-    // Offset camera forward to reduce false occlusions
-    //vec3 cameraOffset = g_vCameraDirWs * g_flDepthPyramidCameraOffset;
+    vec4 dx = worldToProjection[0] * ext.x;
+    vec4 dy = worldToProjection[1] * ext.y;
+    vec4 dz = worldToProjection[2] * ext.z;
 
-    // Projection is linear before the divide, so project the min corner and the three
-    // axis extents once, then derive the other corners by adds
-    vec3 ext = bmax - bmin;
-    vec4 dx = g_matPrevWorldToProjection[0] * ext.x;
-    vec4 dy = g_matPrevWorldToProjection[1] * ext.y;
-    vec4 dz = g_matPrevWorldToProjection[2] * ext.z;
-
-    vec4 corners[8];
-    corners[0] = g_matPrevWorldToProjection * vec4(bmin, 1.0);
+    corners[0] = worldToProjection * vec4(bmin, 1.0);
     corners[1] = corners[0] + dx;
     corners[2] = corners[0] + dy;
     corners[3] = corners[1] + dy;
@@ -96,6 +89,84 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     corners[5] = corners[1] + dz;
     corners[6] = corners[2] + dz;
     corners[7] = corners[3] + dz;
+}
+
+// Clip-space distances to the left, right, bottom and top planes, negative outside
+vec4 clipSideDistances(vec4 clipPos)
+{
+    return clipPos.wwww + vec4(clipPos.x, -clipPos.x, clipPos.y, -clipPos.y);
+}
+
+// Side distances less one pixel, so a part touching a plane counts as outside
+vec4 clipSideMargins(vec4 clipPos)
+{
+    vec2 pixelNdc = 2.0 / g_vViewportSize;
+    return clipSideDistances(clipPos) - pixelNdc.xxyy * abs(clipPos.w);
+}
+
+// The pyramid holds no depth past last frame's screen edges, so a box part there that is in view now cannot be occluded
+bool isPartPastScreenEdgeInView(vec4 prevCorners[8], vec3 bmin, vec3 ext)
+{
+    vec4 currCorners[8];
+    projectAABBCorners(g_matWorldToProjection, bmin, ext, currCorners);
+
+    vec4 prevDist[8];
+    for (int i = 0; i < 8; i++)
+    {
+        prevDist[i] = clipSideDistances(prevCorners[i]);
+    }
+
+    for (int side = 0; side < 4; side++)
+    {
+        // Largest current margins over the vertices of the box part outside this previous side plane
+        vec4 maxMargin = vec4(-1e30);
+
+        for (int i = 0; i < 8; i++)
+        {
+            float a = prevDist[i][side];
+
+            if (a < 0.0)
+            {
+                maxMargin = max(maxMargin, clipSideMargins(currCorners[i]));
+            }
+
+            for (int axisBit = 1; axisBit < 8; axisBit <<= 1)
+            {
+                if ((i & axisBit) != 0)
+                {
+                    continue;
+                }
+
+                int j = i | axisBit;
+                float b = prevDist[j][side];
+
+                if ((a < 0.0) != (b < 0.0))
+                {
+                    vec4 crossing = mix(currCorners[i], currCorners[j], a / (a - b));
+                    maxMargin = max(maxMargin, clipSideMargins(crossing));
+                }
+            }
+        }
+
+        // In view unless all vertices are outside one current side plane
+        if (all(greaterThan(maxMargin, vec4(0.0))))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// Project AABB to screen space and test occlusion
+bool testAABBOcclusion(vec3 bmin, vec3 bmax)
+{
+    // Offset camera forward to reduce false occlusions
+    //vec3 cameraOffset = g_vCameraDirWs * g_flDepthPyramidCameraOffset;
+
+    vec3 ext = bmax - bmin;
+    vec4 corners[8];
+    projectAABBCorners(g_matPrevWorldToProjection, bmin, ext, corners);
 
     float minW = min(min(min(corners[0].w, corners[1].w), min(corners[2].w, corners[3].w)),
                      min(min(corners[4].w, corners[5].w), min(corners[6].w, corners[7].w)));
@@ -108,25 +179,28 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
         return false;
     }
 
+    if (isPartPastScreenEdgeInView(corners, bmin, ext))
+    {
+        return false;
+    }
+
     vec3 ndc[8];
     for (int i = 0; i < 8; i++)
     {
         ndc[i] = corners[i].xyz / corners[i].w;
     }
 
-    vec3 ndcMin = min(min(min(ndc[0], ndc[1]), min(ndc[2], ndc[3])),
-                      min(min(ndc[4], ndc[5]), min(ndc[6], ndc[7])));
-    vec3 ndcMax = max(max(max(ndc[0], ndc[1]), max(ndc[2], ndc[3])),
-                      max(max(ndc[4], ndc[5]), max(ndc[6], ndc[7])));
-
-    // The pyramid holds no depth for the part of the box that was off screen last frame,
-    // and that part may be on screen now
-    bool pastScreenEdge = any(lessThan(ndcMin.xy, vec2(-1.0))) || any(greaterThan(ndcMax.xy, vec2(1.0)));
-
-    if (pastScreenEdge)
-    {
-        return false;
-    }
+    // Any part past the screen edge is out of view now, so test the part on screen
+    vec3 ndcMin = max(
+        min(min(min(ndc[0], ndc[1]), min(ndc[2], ndc[3])),
+            min(min(ndc[4], ndc[5]), min(ndc[6], ndc[7]))),
+        vec3(-1.0)
+    );
+    vec3 ndcMax = min(
+        max(max(max(ndc[0], ndc[1]), max(ndc[2], ndc[3])),
+            max(max(ndc[4], ndc[5]), max(ndc[6], ndc[7]))),
+        vec3(1.0)
+    );
 
     // Convert to UV space [0, 1]
     vec2 uvMin = ndcMin.xy * 0.5 + 0.5;
@@ -146,7 +220,9 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     // check if this AABB is too small to even draw anything
     if (SizeCull && any(lessThan(screenSpaceSize, vec2(minPixelSize))))
     {
-        return true;
+        // oob objects will have zero size, so ignore those
+        bool atScreenEdge = any(equal(uvMin.xy, vec2(0.0))) || any(equal(uvMax.xy, vec2(1.0)));
+        return atScreenEdge == false;
     }
 
     vec2 pixelMin = uvMin * vec2(g_nDepthPyramidWidth, g_nDepthPyramidHeight);
