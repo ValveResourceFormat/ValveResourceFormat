@@ -76,7 +76,7 @@ in the Dump column.
 | vpost    | Postprocessing Settings    | LUT image; applied in 3D      | yes     | `.vpost` + LUT `.raw`                                                                                  |
 | vpram    | Processing Graph Instance  | text                          | generic | -                                                                                                      |
 | vpsf     | Particle Snapshot (legacy) | text                          | generic | -                                                                                                      |
-| vpulse   | Pulse Graph                | graph                         | generic | - (graph view only)                                                                                    |
+| vpulse   | Pulse Graph                | graph                         | yes     | `.vpulse` graph document (see [Pulse](#pulse-graphs-vpulse))                                           |
 | vrman    | Resource Manifest          | text                          | yes     | KV3 text                                                                                               |
 | vrmap    | Resource Remap Table       | text                          | generic | -                                                                                                      |
 | vrr      | Response Rules             | text                          | yes     | original rules script (byte-exact)                                                                     |
@@ -410,8 +410,23 @@ other graphs of the file or, for one graph per file, the graphs of the folder.
   compiler's JavaScript output, so the original TypeScript source is gone. Dynamic image
   manifests (`vpdi`) dump their listing; the pixels live in the separate `vtex`/`vsvg`
   resources they reference.
-- **Pulse graphs** (`vpulse`): reconstructed from bytecode into a readable node graph in the
-  GUI, including control flow; there is no textual source export.
+
+## Pulse Graphs (vpulse)
+
+Every compiled instruction records the editor node it came from, so the viewer and the
+decompiler rebuild the same editor nodes: entry points, steps, branches, loops, switches,
+expressions, method calls, variables and public outputs, and generic nodes for game
+bindings. The decompiled `.vpulse` document uses the viewer's layout, and for the graphs
+CS2, Deadlock and Dota 2 ship, resourcecompiler builds it back into the same bytecode
+except for the limitations below.
+
+| Feature                                  | Category              | Details                                                                                                                                                                            |
+| ---------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Skipped nodes                            | Not in compiled files | A skipped node compiles to nothing. A skipped entity fire is rebuilt from the output connection it lists, without its parameter value. Nodes after a skipped entry point are lost. |
+| Text expression debug ids                | Not in compiled files | Parts of a text expression get new node ids, so a recompiled graph differs in those debug ids only.                                                                                |
+| Node positions                           | Not in compiled files | Nodes are placed by the viewer's layout.                                                                                                                                           |
+| Chunks without debug info                | Not in compiled files | Decompiling fails. The viewer draws such a chunk as a list of instructions.                                                                                                        |
+| Array elements and blackboard references | Not implemented       | The viewer shows these instructions, the decompiled document leaves them out.                                                                                                      |
 
 ## Per-Game Notes
 
