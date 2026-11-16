@@ -105,29 +105,32 @@ vec4 clipSideMargins(vec4 clipPos)
 }
 
 // The pyramid holds no depth past last frame's screen edges, so a box part there that is in view now cannot be occluded
-bool isPartPastScreenEdgeInView(vec4 prevCorners[8], vec3 bmin, vec3 ext)
+bool isPartPastScreenEdgeInView(vec4 prevCorners[8], bvec4 crossedSides, vec3 bmin, vec3 ext)
 {
-    vec4 currCorners[8];
-    projectAABBCorners(g_matWorldToProjection, bmin, ext, currCorners);
-
-    vec4 prevDist[8];
-    for (int i = 0; i < 8; i++)
-    {
-        prevDist[i] = clipSideDistances(prevCorners[i]);
-    }
+    // Corners are rebuilt per use rather than stored, to keep register pressure off the common path
+    vec4 dx = g_matWorldToProjection[0] * ext.x;
+    vec4 dy = g_matWorldToProjection[1] * ext.y;
+    vec4 dz = g_matWorldToProjection[2] * ext.z;
+    vec4 corner0 = g_matWorldToProjection * vec4(bmin, 1.0);
 
     for (int side = 0; side < 4; side++)
     {
+        if (!crossedSides[side])
+        {
+            continue;
+        }
+
         // Largest current margins over the vertices of the box part outside this previous side plane
         vec4 maxMargin = vec4(-1e30);
 
         for (int i = 0; i < 8; i++)
         {
-            float a = prevDist[i][side];
+            float a = clipSideDistances(prevCorners[i])[side];
+            vec4 cornerI = corner0 + float(i & 1) * dx + float((i >> 1) & 1) * dy + float(i >> 2) * dz;
 
             if (a < 0.0)
             {
-                maxMargin = max(maxMargin, clipSideMargins(currCorners[i]));
+                maxMargin = max(maxMargin, clipSideMargins(cornerI));
             }
 
             for (int axisBit = 1; axisBit < 8; axisBit <<= 1)
@@ -137,12 +140,12 @@ bool isPartPastScreenEdgeInView(vec4 prevCorners[8], vec3 bmin, vec3 ext)
                     continue;
                 }
 
-                int j = i | axisBit;
-                float b = prevDist[j][side];
+                float b = clipSideDistances(prevCorners[i | axisBit])[side];
 
                 if ((a < 0.0) != (b < 0.0))
                 {
-                    vec4 crossing = mix(currCorners[i], currCorners[j], a / (a - b));
+                    vec4 axis = axisBit == 1 ? dx : axisBit == 2 ? dy : dz;
+                    vec4 crossing = cornerI + axis * (a / (a - b));
                     maxMargin = max(maxMargin, clipSideMargins(crossing));
                 }
             }
@@ -179,28 +182,30 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
         return false;
     }
 
-    if (isPartPastScreenEdgeInView(corners, bmin, ext))
-    {
-        return false;
-    }
-
     vec3 ndc[8];
     for (int i = 0; i < 8; i++)
     {
         ndc[i] = corners[i].xyz / corners[i].w;
     }
 
+    vec3 ndcMin = min(min(min(ndc[0], ndc[1]), min(ndc[2], ndc[3])),
+                      min(min(ndc[4], ndc[5]), min(ndc[6], ndc[7])));
+    vec3 ndcMax = max(max(max(ndc[0], ndc[1]), max(ndc[2], ndc[3])),
+                      max(max(ndc[4], ndc[5]), max(ndc[6], ndc[7])));
+
+    // Left, right, bottom and top edges of last frame's screen
+    bvec4 crossedSides = bvec4(ndcMin.x < -1.0, ndcMax.x > 1.0, ndcMin.y < -1.0, ndcMax.y > 1.0);
+
+    bool viewChanged = g_matWorldToProjection != g_matPrevWorldToProjection;
+
+    if (viewChanged && any(crossedSides) && isPartPastScreenEdgeInView(corners, crossedSides, bmin, ext))
+    {
+        return false;
+    }
+
     // Any part past the screen edge is out of view now, so test the part on screen
-    vec3 ndcMin = max(
-        min(min(min(ndc[0], ndc[1]), min(ndc[2], ndc[3])),
-            min(min(ndc[4], ndc[5]), min(ndc[6], ndc[7]))),
-        vec3(-1.0)
-    );
-    vec3 ndcMax = min(
-        max(max(max(ndc[0], ndc[1]), max(ndc[2], ndc[3])),
-            max(max(ndc[4], ndc[5]), max(ndc[6], ndc[7]))),
-        vec3(1.0)
-    );
+    ndcMin = max(ndcMin, vec3(-1.0));
+    ndcMax = min(ndcMax, vec3(1.0));
 
     // Convert to UV space [0, 1]
     vec2 uvMin = ndcMin.xy * 0.5 + 0.5;
