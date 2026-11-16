@@ -157,6 +157,24 @@ void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToC
 
 uniform sampler3D g_tFogVolume; // reserved
 
+// The position in the volume grid of a point of the screen, from its clip xy over w and its depth along the view direction.
+// Slices sit at near + range * f(s) with s from 0 to 1, where f is s^2 without a depth warp. A depth past the last
+// slice gives a z above 1, and a depth before the first gives 0.
+// nearRange: the distance of the first slice, and the distance from it to the last slice.
+// depthWarp: the warp of the slice distribution and one over its log2, or zero without a warp.
+vec3 GetVolumetricFogCoords(vec2 ndc, float viewDepth, vec2 nearRange, vec2 depthWarp)
+{
+    float depthFraction = max((viewDepth - nearRange.x) / nearRange.y, 0.0);
+    float slice = sqrt(depthFraction);
+
+    if (depthWarp.x > 0.0)
+    {
+        slice = log2(depthFraction * depthWarp.x + 1.0) * depthWarp.y;
+    }
+
+    return vec3(ndc * 0.5 + 0.5, slice);
+}
+
 // The volumetric fog between the camera and a position: the light it scatters in rgb, the transmittance in a.
 // The volume is a grid of the screen, with slices at near + range * w^2 along the view direction.
 vec4 GetVolumetricFog(vec3 positionWS)
@@ -164,18 +182,7 @@ vec4 GetVolumetricFog(vec3 positionWS)
     vec4 clipPos = g_matWorldToProjection * vec4(positionWS, 1.0);
     float viewDepth = dot(positionWS - g_vCameraPositionWs, g_vCameraDirWs);
 
-    vec3 volumeCoords;
-    volumeCoords.xy = clipPos.xy / clipPos.w * 0.5 + 0.5;
-    float sliceDepth = saturate((viewDepth - g_vVolumetricFogNearRange.x) / g_vVolumetricFogNearRange.y);
-
-    if (g_vVolumetricFogDepthWarp.x > 0.0)
-    {
-        volumeCoords.z = log2(sliceDepth * g_vVolumetricFogDepthWarp.x + 1.0) * g_vVolumetricFogDepthWarp.y;
-    }
-    else
-    {
-        volumeCoords.z = sqrt(sliceDepth);
-    }
+    vec3 volumeCoords = GetVolumetricFogCoords(clipPos.xy / clipPos.w, viewDepth, g_vVolumetricFogNearRange, g_vVolumetricFogDepthWarp);
 
     return textureLod(g_tFogVolume, volumeCoords, 0.0);
 }
