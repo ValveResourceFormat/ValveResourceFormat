@@ -1295,7 +1295,7 @@ namespace CLI
                 if (!CollectStats)
                 {
                     shader.PrintSummary(output);
-                    Console.Write(output.ToString());
+                    Console.Write(output);
                 }
                 else
                 {
@@ -1347,7 +1347,7 @@ namespace CLI
 
                 if (!CollectStats)
                 {
-                    Console.WriteLine(navMeshFile.ToString());
+                    Console.WriteLine(navMeshFile);
                 }
                 else
                 {
@@ -1371,7 +1371,7 @@ namespace CLI
 
                 if (!CollectStats)
                 {
-                    Console.WriteLine(navSpaceFile.ToString());
+                    Console.WriteLine(navSpaceFile);
                     return;
                 }
 

@@ -43,7 +43,7 @@ namespace GUI.Types.GLViewers
         protected QuadOverdraw? QuadOverdrawRenderer { get; set; }
 
         public Scene Scene { get; }
-        public VrfGuiContext GuiContext;
+        public readonly VrfGuiContext GuiContext;
 
         /// <summary>Optional sound event player, created by viewers that play scene audio.</summary>
         protected SoundEventPlayer? soundPlayer;

@@ -328,7 +328,7 @@ public abstract class EntityHelper
     /// <param name="key">Name of the key.</param>
     /// <returns>The block, or <see langword="null"/> when there is no block under the key.</returns>
     private protected static KVObject? GetBlock(KVObject? block, string key)
-        => block != null && block.ContainsKey(key) && block[key] is { ValueType: KVValueType.Collection } value ? value : null;
+        => block != null && block.TryGetValue(key, out var value) && value is { ValueType: KVValueType.Collection } ? value : null;
 
     // The key getters below are shorthands for reading the owner entity's keys with the KVObjectExtensions getters.
 

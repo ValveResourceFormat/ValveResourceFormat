@@ -13,27 +13,27 @@ namespace ValveResourceFormat.ResourceTypes
 
         private class SerializationContext : IDisposable
         {
-            public OrderedDictionary<string, int> StringMap = [];
+            public readonly OrderedDictionary<string, int> StringMap = [];
             public MemoryStream Bytes1 = new();
-            public MemoryStream Bytes2 = new();
-            public MemoryStream Bytes4 = new();
-            public MemoryStream Bytes8 = new();
-            public MemoryStream Types = new();
-            public MemoryStream ObjectLengths = new();
-            public MemoryStream BinaryBlobs = new();
-            public List<int> BinaryBlobLengths = [];
+            public readonly MemoryStream Bytes2 = new();
+            public readonly MemoryStream Bytes4 = new();
+            public readonly MemoryStream Bytes8 = new();
+            public readonly MemoryStream Types = new();
+            public readonly MemoryStream ObjectLengths = new();
+            public readonly MemoryStream BinaryBlobs = new();
+            public readonly List<int> BinaryBlobLengths = [];
             public int CountObjects;
             public int CountArrays;
             public int CountArrayElements;
             public int CountNodes;
 
-            public BinaryWriter Bytes1Writer;
-            public BinaryWriter Bytes2Writer;
-            public BinaryWriter Bytes4Writer;
-            public BinaryWriter Bytes8Writer;
-            public BinaryWriter TypesWriter;
-            public BinaryWriter ObjectLengthsWriter;
-            public BinaryWriter BinaryBlobsWriter;
+            public readonly BinaryWriter Bytes1Writer;
+            public readonly BinaryWriter Bytes2Writer;
+            public readonly BinaryWriter Bytes4Writer;
+            public readonly BinaryWriter Bytes8Writer;
+            public readonly BinaryWriter TypesWriter;
+            public readonly BinaryWriter ObjectLengthsWriter;
+            public readonly BinaryWriter BinaryBlobsWriter;
 
             public SerializationContext(int version)
             {

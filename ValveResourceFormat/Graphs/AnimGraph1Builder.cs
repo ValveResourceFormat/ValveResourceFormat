@@ -954,12 +954,10 @@ internal sealed class AnimGraph1Builder : IDisposable
 
         foreach (var field in paramFields)
         {
-            if (!compiledNode.ContainsKey(field))
+            if (!compiledNode.TryGetValue(field, out var value))
             {
                 continue;
             }
-
-            var value = compiledNode[field];
 
             if (value.ValueType is KVValueType.Int32 or KVValueType.UInt32)
             {
@@ -1001,12 +999,10 @@ internal sealed class AnimGraph1Builder : IDisposable
     // A vector is stored either as an array or as a collection keyed "0" and "1"
     private static (float x, float y) ParseVector2(KVObject obj, string key)
     {
-        if (!obj.ContainsKey(key))
+        if (!obj.TryGetValue(key, out var value))
         {
             return (0f, 0f);
         }
-
-        var value = obj[key];
 
         if (value.ValueType == KVValueType.Array)
         {

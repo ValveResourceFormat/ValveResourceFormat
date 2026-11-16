@@ -456,8 +456,6 @@ namespace GUI.Types.Exporter
                 return;
             }
 
-            ContentFile? contentFile = null;
-
             try
             {
                 if (outExtension == ".sound" || outExtension == ".image" || outExtension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
@@ -474,7 +472,7 @@ namespace GUI.Types.Exporter
                     flatSubfiles = false;
                 }
 
-                contentFile = FileExtract.Extract(resource, exportData.FileLoader, progress);
+                using var contentFile = FileExtract.Extract(resource, exportData.FileLoader, progress);
 
                 if (contentFile.Data != null)
                 {
@@ -496,10 +494,6 @@ namespace GUI.Types.Exporter
             catch (Exception e)
             {
                 ReportFailure(inFilePath, e);
-            }
-            finally
-            {
-                contentFile?.Dispose();
             }
         }
 

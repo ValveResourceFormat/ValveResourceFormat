@@ -153,7 +153,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     protected long lastFpsUpdate;
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "RendererContext is disposed in Dispose method")]
-    protected internal RendererContext RendererContext;
+    protected internal readonly RendererContext RendererContext;
 
     protected Framebuffer? GLDefaultFramebuffer;
     protected Framebuffer? MainFramebuffer;

@@ -154,7 +154,7 @@ public class Framebuffer
     public override bool Equals(object? obj) => obj is Framebuffer other && other.FboHandle == FboHandle;
 
     /// <inheritdoc/>
-    public override int GetHashCode() => FboHandle.GetHashCode();
+    public override int GetHashCode() => FboHandle;
 
     /// <summary>
     /// Returns <see langword="true"/> if both framebuffers wrap the same OpenGL handle.

@@ -8,7 +8,7 @@ internal sealed class VertexKDTree
 {
     private sealed class Node
     {
-        public int[] Children = [-1, -1];
+        public readonly int[] Children = [-1, -1];
         public int Axis = -1;
         public float Split;
         public int LeafStart, LeafCount;

@@ -60,7 +60,7 @@ namespace GUI.Types.GLViewers
         const float SpriteRateSliderMax = 4f;
         const float SpriteFpsSliderMax = 60f;
 
-        protected VrfGuiContext VrfGuiContext;
+        protected readonly VrfGuiContext VrfGuiContext;
         private Resource? Resource;
         private SKBitmap? Bitmap;
         private SKSvg? Svg;

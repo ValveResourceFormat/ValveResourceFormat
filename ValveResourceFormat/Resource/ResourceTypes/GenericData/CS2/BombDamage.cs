@@ -105,14 +105,16 @@ public sealed class BombDamage : GenericData
         }
 
         var data = kvRoot.GetSubCollection("data");
-        if (!data.ContainsKey("bombsites") || !data.ContainsKey("positions") || !data.ContainsKey("damage_values"))
+        if (!data.TryGetValue("bombsites", out var bombsites) ||
+            !data.TryGetValue("positions", out var positions) ||
+            !data.TryGetValue("damage_values", out var damageValues))
         {
             throw new ArgumentException("Baked bomb damage resource does not contain expected KV3 data structure.");
         }
 
-        ReadBombsites(data["bombsites"].AsBlob());
-        ReadPositions(data["positions"].AsBlob());
-        ReadDamageValues(data["damage_values"].AsBlob());
+        ReadBombsites(bombsites.AsBlob());
+        ReadPositions(positions.AsBlob());
+        ReadDamageValues(damageValues.AsBlob());
 
         if (DamageValues.Length != Bombsites.Length * Positions.Length)
         {

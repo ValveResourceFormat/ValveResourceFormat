@@ -41,8 +41,8 @@ public partial class GltfModelExporter
     /// Gets all supported glTF texture channels from the mappings.
     /// </summary>
     public static readonly (ChannelMapping Channel, string Name)[] SupportedGltfChannels = [.. GltfTextureMappings.Values.SelectMany(x => x)];
-    internal static MaterialExtract.LayeredTextureNameComparer BlendNameComparer = new([.. SupportedGltfChannels.Select(x => x.Name)]);
-    internal static MaterialExtract.ChannelMappingComparer BlendInputComparer = new(BlendNameComparer);
+    internal static readonly MaterialExtract.LayeredTextureNameComparer BlendNameComparer = new([.. SupportedGltfChannels.Select(x => x.Name)]);
+    internal static readonly MaterialExtract.ChannelMappingComparer BlendInputComparer = new(BlendNameComparer);
 
     // In SatelliteImages mode, SharpGLTF will still load and validate images.
     // To save memory, we initiate MemoryImage with a dummy image instead.

@@ -44,22 +44,22 @@ partial class ModelExtract
 
     static void AddBoneConstraintProperty<T>(KVObject sourceObject, KVObject targetObject, string sourceName, string targetName)
     {
-        if (sourceObject.ContainsKey(sourceName))
+        if (sourceObject.TryGetValue(sourceName, out var value))
         {
             if (typeof(T) == typeof(Quaternion))
             {
-                var rot = sourceObject.GetSubCollection(sourceName).ToQuaternion();
+                var rot = value.ToQuaternion();
                 var angles = EntityTransformHelper.ToEulerAngles(rot);
                 targetObject.Add(targetName, ToKVArray(angles));
             }
             else if (typeof(T) == typeof(Vector3))
             {
-                var pos = sourceObject.GetSubCollection(sourceName).ToVector3();
+                var pos = value.ToVector3();
                 targetObject.Add(targetName, ToKVArray(pos));
             }
             else
             {
-                targetObject.Add(targetName, sourceObject[sourceName]);
+                targetObject.Add(targetName, value);
             }
         }
     }

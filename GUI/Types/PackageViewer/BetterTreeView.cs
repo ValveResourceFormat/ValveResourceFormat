@@ -11,7 +11,7 @@ namespace GUI.Types.PackageViewer
     partial class BetterTreeView : TreeViewDoubleBuffered
     {
         public VirtualPackageNode? Root;
-        public Dictionary<string, int> ExtensionIconList = [];
+        public readonly Dictionary<string, int> ExtensionIconList = [];
         public int FolderImage;
 
         public VrfGuiContext? VrfGuiContext { get; set; }

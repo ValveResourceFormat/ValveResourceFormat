@@ -155,7 +155,7 @@ partial class ModelExtract
 
         foreach (var genericDataClass in genericDataClasses)
         {
-            if (!keyvalues.ContainsKey(genericDataClass))
+            if (!keyvalues.TryGetValue(genericDataClass, out var classValue))
             {
                 continue;
             }
@@ -168,7 +168,7 @@ partial class ModelExtract
 
             // Some of these classes hold one entry and others an array; an array wrapped in a single
             // node compiles back to an unnamed member.
-            if (keyvalues[genericDataClass].ValueType == KVValueType.Array)
+            if (classValue.ValueType == KVValueType.Array)
             {
                 foreach (var entry in keyvalues.GetArray(genericDataClass))
                 {
