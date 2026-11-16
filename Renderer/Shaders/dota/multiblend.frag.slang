@@ -14,9 +14,13 @@
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_TINT_MASK 0
+#define F_TINT_MASK_2 0
 #define F_NORMAL_MAP 0
-#define F_TWO_LAYER_BLEND 0
-#define F_WORLDSPACE_UVS 0
+#define F_SPECULAR 0
+#define F_GLOBAL_TINT 0
+#define F_LAYER_BORDER_TINT 0
+#define F_PARALLAX_MAP_ON_0 0
+#define F_PARALLAX_MAP_ON_3 0
 //End of parameter defines
 
 in vec3 vFragPosition;
@@ -30,10 +34,8 @@ in vec4 vVertexColor;
 
 in vec2 vTexCoordOut;
 in vec2 vTexCoord1Out;
-#if (F_TWO_LAYER_BLEND == 0)
-    in vec2 vTexCoord2Out;
-    in vec2 vTexCoord3Out;
-#endif
+in vec2 vTexCoord2Out;
+in vec2 vTexCoord3Out;
 
 out vec4 outputColor;
 
@@ -47,16 +49,61 @@ uniform sampler2D g_tNormal1;
 uniform sampler2D g_tNormal2;
 uniform sampler2D g_tNormal3;
 
-uniform sampler2D g_tSpecular0; // SrgbRead(true)
-uniform sampler2D g_tSpecular1; // SrgbRead(true)
-uniform sampler2D g_tSpecular2; // SrgbRead(true)
-uniform sampler2D g_tSpecular3; // SrgbRead(true)
+#if (F_SPECULAR == 1)
+    uniform sampler2D g_tSpecular0; // SrgbRead(true)
+    uniform sampler2D g_tSpecular1; // SrgbRead(true)
+    uniform sampler2D g_tSpecular2; // SrgbRead(true)
+    uniform sampler2D g_tSpecular3; // SrgbRead(true)
+#endif
 
 #if (F_TINT_MASK == 1)
     uniform sampler2D g_tTintMasks;
 #endif
 
-uniform vec3 g_vGlobalTint = vec3(1.0); // SrgbRead(true)
+#if (F_TINT_MASK_2 == 1)
+    uniform sampler2D g_tTint2Masks;
+#endif
+
+uniform vec3 g_vColorTintC0 = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vColorTintC1 = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vColorTintC2 = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vColorTintC3 = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vColorTintD0 = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vColorTintD1 = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vColorTintD2 = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vColorTintD3 = vec3(1.0); // SrgbRead(true)
+
+#if (F_PARALLAX_MAP_ON_0 == 1 || F_PARALLAX_MAP_ON_3 == 1)
+    uniform sampler2D g_tParallaxMask;
+#endif
+
+#if (F_PARALLAX_MAP_ON_0 == 1)
+    uniform float g_flParallaxStrength0 = 0.1;
+#endif
+
+#if (F_PARALLAX_MAP_ON_3 == 1)
+    uniform float g_flParallaxStrength3 = 0.1;
+#endif
+
+#if (F_LAYER_BORDER_TINT == 2)
+    uniform vec3 g_vBorderColorTint1 = vec3(1.0); // SrgbRead(true)
+    uniform vec3 g_vBorderColorTint2 = vec3(1.0); // SrgbRead(true)
+    uniform vec3 g_vBorderColorTint3 = vec3(1.0); // SrgbRead(true)
+    uniform float g_flBorderOffset1;
+    uniform float g_flBorderOffset2;
+    uniform float g_flBorderOffset3;
+    uniform float g_flBorderTintStrength1 = 1.0;
+    uniform float g_flBorderTintStrength2 = 1.0;
+    uniform float g_flBorderTintStrength3 = 1.0;
+    uniform float g_flBorderTintSoftness1 = 0.5;
+    uniform float g_flBorderTintSoftness2 = 0.5;
+    uniform float g_flBorderTintSoftness3 = 0.5;
+#endif
+
+#if (F_GLOBAL_TINT == 1)
+    uniform vec4 g_vGlobalTint = vec4(1.0); // SrgbRead(true)
+#endif
+
 uniform vec3 g_vColorTint0 = vec3(1.0); // SrgbRead(true)
 uniform vec3 g_vColorTint1 = vec3(1.0); // SrgbRead(true)
 uniform vec3 g_vColorTint2 = vec3(1.0); // SrgbRead(true)
@@ -65,6 +112,14 @@ uniform vec3 g_vColorTintB0 = vec3(1.0); // SrgbRead(true)
 uniform vec3 g_vColorTintB1 = vec3(1.0); // SrgbRead(true)
 uniform vec3 g_vColorTintB2 = vec3(1.0); // SrgbRead(true)
 uniform vec3 g_vColorTintB3 = vec3(1.0); // SrgbRead(true)
+
+// Layer texcoord rotation in degrees and scale, in the same units as the vertex shader
+uniform float g_flTexCoordRotate0;
+uniform float g_flTexCoordRotate1;
+uniform float g_flTexCoordRotate2;
+uniform float g_flTexCoordRotate3;
+uniform float g_flTexCoordScale0 = 1.0;
+uniform float g_flTexCoordScale3 = 1.0;
 
 #include "../common/utils.slang"
 #include "../common/view_constants.slang"
@@ -78,7 +133,7 @@ uniform float g_flSpecularIntensity = 1.0;
 #include "../common/fog.slang"
 #include "global_light.slang"
 
-// One value per layer. The third and fourth are zero when only two layers are blended.
+// One value per layer
 struct Layers_t
 {
     vec4 Layer0;
@@ -87,21 +142,56 @@ struct Layers_t
     vec4 Layer3;
 };
 
-// TODO: F_PARALLAX_MAP_ON_0..3 offset each enabled layer's texcoords before any sampling by its texcoord rotation and
-// scale applied to (dot(view, tangent), dot(view, bitangent)) * g_tParallaxMask[layer] * g_flParallaxStrength{layer},
-// where view points from the camera to the fragment.
-Layers_t SampleLayers(sampler2D texture0, sampler2D texture1, sampler2D texture2, sampler2D texture3)
+struct LayerUvs_t
+{
+    vec2 Layer0;
+    vec2 Layer1;
+    vec2 Layer2;
+    vec2 Layer3;
+};
+
+#if (F_PARALLAX_MAP_ON_0 == 1 || F_PARALLAX_MAP_ON_3 == 1)
+// Parallax shift of a layer's texcoords, in the layer's rotated and scaled texcoord space
+vec2 GetParallaxOffset(vec2 uv, vec2 viewTs, int channel, float strength, float rotation, float scale)
+{
+    float mask = texture(g_tParallaxMask, uv)[channel];
+    return RotateVector2D(viewTs * mask * strength, rotation) / scale;
+}
+#endif
+
+LayerUvs_t GetLayerUvs()
+{
+    LayerUvs_t uvs;
+    uvs.Layer0 = vTexCoordOut;
+    uvs.Layer1 = vTexCoord1Out;
+    uvs.Layer2 = vTexCoord2Out;
+    uvs.Layer3 = vTexCoord3Out;
+
+#if (F_PARALLAX_MAP_ON_0 == 1 || F_PARALLAX_MAP_ON_3 == 1)
+    vec3 viewDirection = normalize(vFragPosition - g_vCameraPositionWs);
+    vec3 tangent = normalize(vTangentOut.xyz);
+    vec3 bitangent = normalize(GetBitangent(vNormalOut, vTangentOut));
+    vec2 viewTs = vec2(dot(viewDirection, tangent), dot(viewDirection, bitangent));
+#endif
+
+#if (F_PARALLAX_MAP_ON_0 == 1)
+    uvs.Layer0 += GetParallaxOffset(vTexCoordOut, viewTs, 0, g_flParallaxStrength0, g_flTexCoordRotate0, g_flTexCoordScale0);
+#endif
+
+#if (F_PARALLAX_MAP_ON_3 == 1)
+    uvs.Layer3 += GetParallaxOffset(vTexCoord3Out, viewTs, 3, g_flParallaxStrength3, g_flTexCoordRotate3, g_flTexCoordScale3);
+#endif
+
+    return uvs;
+}
+
+Layers_t SampleLayers(sampler2D texture0, sampler2D texture1, sampler2D texture2, sampler2D texture3, LayerUvs_t uvs)
 {
     Layers_t layers;
-    layers.Layer0 = texture(texture0, vTexCoordOut);
-    layers.Layer1 = texture(texture1, vTexCoord1Out);
-#if F_TWO_LAYER_BLEND == 0
-    layers.Layer2 = texture(texture2, vTexCoord2Out);
-    layers.Layer3 = texture(texture3, vTexCoord3Out);
-#else
-    layers.Layer2 = vec4(0.0);
-    layers.Layer3 = vec4(0.0);
-#endif
+    layers.Layer0 = texture(texture0, uvs.Layer0);
+    layers.Layer1 = texture(texture1, uvs.Layer1);
+    layers.Layer2 = texture(texture2, uvs.Layer2);
+    layers.Layer3 = texture(texture3, uvs.Layer3);
     return layers;
 }
 
@@ -117,7 +207,6 @@ vec4 GetBlendWeights(Layers_t colors)
 
     float invBlendWeight1 = 1.0 - blendWeight1;
 
-#if F_TWO_LAYER_BLEND == 0
     float blendWeight2 = ApplyBlendModulation(vBlendWeights.y, colors.Layer2.w, vBlendAlphas.y);
     blendWeight2 = clamp(blendWeight2, 0.0, invBlendWeight1);
 
@@ -130,52 +219,93 @@ vec4 GetBlendWeights(Layers_t colors)
     float blendWeight0 = invBlendWeight2 - blendWeight3;
 
     return vec4(blendWeight0, blendWeight1, blendWeight2, blendWeight3);
-#else
-    return vec4(invBlendWeight1, blendWeight1, 0.0, 0.0);
-#endif
 }
 
-// Interpolate between two tint colors based on the tint mask.
-vec3 GetLayerTint(int id, vec3 tintBase, vec3 tint, vec2 coords)
+// Interpolate between the tint colors based on the tint masks
+vec3 GetLayerTint(int id, vec3 tintBase, vec3 tint, vec3 tintC, vec3 tintD, vec2 coords)
 {
 #if (F_TINT_MASK == 1)
     float maskValue = texture(g_tTintMasks, coords)[id];
-    return mix(tintBase, tint, maskValue);
+    vec3 layerTint = mix(tintBase, tint, maskValue);
+
+#if (F_TINT_MASK_2 == 1)
+    float mask2 = texture(g_tTint2Masks, coords)[id];
+    return ApplyTintMask2(layerTint, mask2, tintC, tintD);
+#else
+    return layerTint;
+#endif
 #else
     return tint;
 #endif
 }
 
-vec3 BlendColors(vec4 weights, Layers_t colors)
+#if (F_LAYER_BORDER_TINT == 2)
+// Tints the band of a layer's reveal mask around the vertex amount
+vec3 GetBorderTint(vec3 borderColor, float softnessParam, float offset, float strength, float vertexAmount, float revealMask)
 {
-    vec3 tint0 = GetLayerTint(0, g_vColorTintB0.rgb, g_vColorTint0.rgb, vTexCoordOut);
-    vec3 tint1 = GetLayerTint(1, g_vColorTintB1.rgb, g_vColorTint1.rgb, vTexCoord1Out);
+    float softness = max(0.01, softnessParam * 2.0);
+    float width = softness * 2.0;
+    float edge = saturate(vertexAmount - offset) * (1.0 + width) - softness - softness;
+    float distanceToEdge = 1.0 - saturate((revealMask - edge) / width);
+    float amount = (1.0 - abs(distanceToEdge * 2.0 - 1.0)) * strength;
 
-    vec3 c0 = weights.x * colors.Layer0.rgb * tint0;
-    vec3 c1 = weights.y * colors.Layer1.rgb * tint1;
-    vec3 blended = c0 + c1;
+    return mix(vec3(1.0), borderColor, amount);
+}
 
-#if (F_TWO_LAYER_BLEND == 0)
-    vec3 tint2 = GetLayerTint(2, g_vColorTintB2.rgb, g_vColorTint2.rgb, vTexCoord2Out);
-    vec3 tint3 = GetLayerTint(3, g_vColorTintB3.rgb, g_vColorTint3.rgb, vTexCoord3Out);
+vec3 GetBorderTints(vec4 weights, Layers_t colors)
+{
+    vec3 border1 = GetBorderTint(g_vBorderColorTint1, g_flBorderTintSoftness1, g_flBorderOffset1, g_flBorderTintStrength1, vBlendWeights.x, colors.Layer1.w);
+    vec3 border2 = GetBorderTint(g_vBorderColorTint2, g_flBorderTintSoftness2, g_flBorderOffset2, g_flBorderTintStrength2, vBlendWeights.y, colors.Layer2.w);
+    vec3 border3 = GetBorderTint(g_vBorderColorTint3, g_flBorderTintSoftness3, g_flBorderOffset3, g_flBorderTintStrength3, vBlendWeights.z, colors.Layer3.w);
 
-    vec3 c2 = weights.z * colors.Layer2.rgb * tint2;
-    vec3 c3 = weights.w * colors.Layer3.rgb * tint3;
-    blended += c2;
-    blended += c3;
+    // Each layer hides the borders of the layers below it
+    vec3 borders = mix(border3, vec3(1.0), weights.w) * border2;
+    borders = mix(borders, vec3(1.0), weights.z) * border1;
+    return mix(borders, vec3(1.0), weights.y);
+}
 #endif
 
-    return blended * (vVertexColor.rgb * g_vGlobalTint.rgb);
+vec3 BlendColors(vec4 weights, Layers_t colors, LayerUvs_t uvs)
+{
+    vec3 tint0 = GetLayerTint(0, g_vColorTintB0, g_vColorTint0, g_vColorTintC0, g_vColorTintD0, uvs.Layer0);
+    vec3 tint1 = GetLayerTint(1, g_vColorTintB1, g_vColorTint1, g_vColorTintC1, g_vColorTintD1, uvs.Layer1);
+    vec3 tint2 = GetLayerTint(2, g_vColorTintB2, g_vColorTint2, g_vColorTintC2, g_vColorTintD2, uvs.Layer2);
+    vec3 tint3 = GetLayerTint(3, g_vColorTintB3, g_vColorTint3, g_vColorTintC3, g_vColorTintD3, uvs.Layer3);
+
+    vec3 blended = weights.x * colors.Layer0.rgb * tint0
+        + weights.y * colors.Layer1.rgb * tint1
+        + weights.z * colors.Layer2.rgb * tint2
+        + weights.w * colors.Layer3.rgb * tint3;
+
+#if (F_LAYER_BORDER_TINT == 2)
+    blended *= GetBorderTints(weights, colors);
+#endif
+
+    blended *= vVertexColor.rgb;
+
+#if (F_GLOBAL_TINT == 1)
+    blended *= g_vGlobalTint.rgb;
+#endif
+
+    return blended;
+}
+
+// The packed normal of a layer, rotated around the texture center to follow the layer's texcoord rotation
+vec2 GetRotatedNormal(vec4 normalTexel, float rotation)
+{
+    return RotateVector2D(normalTexel.ag - 0.5, rotation) + 0.5;
 }
 
 // Tangent space normal of the blended normal maps
-vec3 GetBumpNormalTs(vec4 weights)
+vec3 GetBumpNormalTs(vec4 weights, LayerUvs_t uvs)
 {
 #if (F_NORMAL_MAP == 1)
-    // horribly, they actually correct normal orientations to match with texcoord rotation. We're not doing that.
-    vec4 bumpNormal = BlendLayers(weights, SampleLayers(g_tNormal0, g_tNormal1, g_tNormal2, g_tNormal3));
+    vec2 blendedNormal = weights.x * GetRotatedNormal(texture(g_tNormal0, uvs.Layer0), g_flTexCoordRotate0)
+        + weights.y * GetRotatedNormal(texture(g_tNormal1, uvs.Layer1), g_flTexCoordRotate1)
+        + weights.z * GetRotatedNormal(texture(g_tNormal2, uvs.Layer2), g_flTexCoordRotate2)
+        + weights.w * GetRotatedNormal(texture(g_tNormal3, uvs.Layer3), g_flTexCoordRotate3);
 
-    vec3 bumpNormalTs = DecodeDxt5Normal(bumpNormal);
+    vec3 bumpNormalTs = DecodeDxt5Normal(vec4(0.0, blendedNormal.y, 0.0, blendedNormal.x));
     bumpNormalTs.xy *= g_flBumpStrength;
 
     return bumpNormalTs;
@@ -193,16 +323,16 @@ vec3 CalculateWorldNormal(vec3 normalTs)
 #endif
 }
 
-vec3 GetIllumination(vec3 worldNormal, out float sunShadow)
+vec3 GetIllumination(vec3 worldNormal, out float sunLit)
 {
-    sunShadow = 0.0;
+    sunLit = 0.0;
 
     if (g_iRenderMode == renderMode_FullBright)
     {
         return vec3(1.0);
     }
 
-    return CalculateDotaGlobalLight(worldNormal, vFragPosition, sunShadow);
+    return CalculateDotaGlobalLight(worldNormal, vFragPosition, sunLit);
 }
 
 vec4 ApplyRenderMode(vec4 litColor, vec3 finalColor, vec4 blendSpecular, vec3 bumpNormalTs, vec3 worldNormal, vec3 illumination)
@@ -260,22 +390,30 @@ vec4 ApplyRenderMode(vec4 litColor, vec3 finalColor, vec4 blendSpecular, vec3 bu
 
 void main()
 {
-    Layers_t colors = SampleLayers(g_tColor0, g_tColor1, g_tColor2, g_tColor3);
+    LayerUvs_t uvs = GetLayerUvs();
+    Layers_t colors = SampleLayers(g_tColor0, g_tColor1, g_tColor2, g_tColor3, uvs);
     vec4 weights = GetBlendWeights(colors);
-    vec3 finalColor = BlendColors(weights, colors);
+    vec3 finalColor = BlendColors(weights, colors, uvs);
 
-    vec3 bumpNormalTs = GetBumpNormalTs(weights);
+    vec3 bumpNormalTs = GetBumpNormalTs(weights, uvs);
     vec3 worldNormal = CalculateWorldNormal(bumpNormalTs);
 
-    float sunShadow;
-    vec3 illumination = GetIllumination(worldNormal, sunShadow);
+    float sunLit;
+    vec3 illumination = GetIllumination(worldNormal, sunLit);
 
-    vec4 blendSpecular = BlendLayers(weights, SampleLayers(g_tSpecular0, g_tSpecular1, g_tSpecular2, g_tSpecular3));
+#if (F_SPECULAR == 1)
+    vec4 blendSpecular = BlendLayers(weights, SampleLayers(g_tSpecular0, g_tSpecular1, g_tSpecular2, g_tSpecular3, uvs));
+#else
+    vec4 blendSpecular = vec4(0.0);
+#endif
     float reflectance = blendSpecular.x * g_flSpecularIntensity;
+#if (F_GLOBAL_TINT == 1)
+    reflectance *= g_vGlobalTint.a;
+#endif
     float specular = CalculateDotaSpecular(worldNormal, vFragPosition) * reflectance;
     vec3 specularAlbedo = finalColor + specular * g_vSpecularAlbedoColor.rgb;
 
-    vec4 litColor = vec4(illumination * specularAlbedo + specular * g_vSpecularLitColor.rgb * sunShadow, vVertexColor.a);
+    vec4 litColor = vec4(illumination * specularAlbedo + specular * g_vSpecularLitColor.rgb * sunLit, vVertexColor.a);
 
     // Self illumination shows the unlit albedo
     litColor.rgb = mix(litColor.rgb, specularAlbedo, blendSpecular.y);

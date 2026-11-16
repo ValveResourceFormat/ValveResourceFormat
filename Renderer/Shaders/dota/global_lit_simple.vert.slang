@@ -39,5 +39,6 @@ void main()
 
     #if (F_PAINT_VERTEX_COLORS == 1)
         vVertexColorOut = vCOLOR;
+        vTintColorFadeOut.rgb *= SrgbGammaToLinear(vCOLOR.rgb);
     #endif
 }
