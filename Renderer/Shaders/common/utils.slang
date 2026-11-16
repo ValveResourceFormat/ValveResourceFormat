@@ -65,6 +65,71 @@ float GetLuma(vec3 color) { return dot(color, LumaWeights); }
 vec3 GetLuma(vec3 r, vec3 g, vec3 b) { return mat3(r, g, b) * LumaWeights; }
 vec4 GetLuma(vec4 r, vec4 g, vec4 b) { return mat3x4(r, g, b) * LumaWeights; }
 
+vec3 RgbToHsv(vec3 color)
+{
+    float value = Max3(color);
+    float range = value - Min3(color);
+
+    if (range == 0.0)
+    {
+        return vec3(0.0, 0.0, value);
+    }
+
+    vec3 distances = (vec3(value) - color) / range;
+    float hue;
+
+    if (color.r >= value)
+    {
+        hue = distances.b - distances.g;
+    }
+    else if (color.g >= value)
+    {
+        hue = distances.r - distances.b + 2.0;
+    }
+    else
+    {
+        hue = distances.g - distances.r + 4.0;
+    }
+
+    return vec3(fract(hue / 6.0), range / value, value);
+}
+
+vec3 HsvToRgb(vec3 hsv)
+{
+    float scaledHue = hsv.x * 6.0;
+    float sector = floor(scaledHue);
+    float fraction = scaledHue - sector;
+
+    float value = hsv.z;
+    float p = value * (1.0 - hsv.y);
+    float q = value * (1.0 - hsv.y * fraction);
+    float t = value * (1.0 - hsv.y * (1.0 - fraction));
+
+    // A hue outside of 0 to 1 is not wrapped, a sector past 4 is the last one
+    if (sector == 0.0)
+    {
+        return vec3(value, t, p);
+    }
+    if (sector == 1.0)
+    {
+        return vec3(q, value, p);
+    }
+    if (sector == 2.0)
+    {
+        return vec3(p, value, t);
+    }
+    if (sector == 3.0)
+    {
+        return vec3(p, q, value);
+    }
+    if (sector == 4.0)
+    {
+        return vec3(t, p, value);
+    }
+
+    return vec3(value, p, q);
+}
+
 vec3 SrgbGammaToLinear(vec3 color)
 {
     vec3 vLinearSegment = color / vec3(12.92);
