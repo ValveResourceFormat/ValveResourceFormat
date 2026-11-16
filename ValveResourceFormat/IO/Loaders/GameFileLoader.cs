@@ -975,7 +975,7 @@ namespace ValveResourceFormat.IO
 
         private static string? FindFileInFolder(string folder, string file)
         {
-            var path = Path.Combine(folder, file);
+            var path = Path.Join(folder, file);
 
             if (!File.Exists(path))
             {

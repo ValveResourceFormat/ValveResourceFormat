@@ -362,7 +362,7 @@ namespace GUI.Types.Exporter
 
                 progress.SetProgress(fileFullName);
 
-                var outFilePath = Path.Combine(outputPath, fileFullName);
+                var outFilePath = Path.Join(outputPath, fileFullName);
 
                 if (outputFormat != null)
                 {
@@ -533,7 +533,7 @@ namespace GUI.Types.Exporter
             foreach (var contentSubFile in contentFile.SubFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                contentSubFile.FileName = Path.Combine(contentRelativeFolder, contentSubFile.FileName).Replace(Path.DirectorySeparatorChar, '/');
+                contentSubFile.FileName = Path.Join(contentRelativeFolder, contentSubFile.FileName).Replace(Path.DirectorySeparatorChar, '/');
 
                 if (extractedFiles.Contains(contentSubFile.FileName))
                 {
@@ -601,11 +601,11 @@ namespace GUI.Types.Exporter
                 if (normalized.AsSpan().EndsWith(assetName.AsSpan(0, slash))
                     && (normalized.Length == slash || normalized[normalized.Length - slash - 1] == '/'))
                 {
-                    return Path.Combine(userFolder, assetName[(slash + 1)..]);
+                    return Path.Join(userFolder, assetName[(slash + 1)..]);
                 }
             }
 
-            return Path.Combine(userFolder, assetName);
+            return Path.Join(userFolder, assetName);
         }
     }
 }

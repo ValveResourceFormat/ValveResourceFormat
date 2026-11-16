@@ -1907,7 +1907,7 @@ namespace CLI
 
                             if (RecursiveSearchArchives)
                             {
-                                outputFile = Path.Combine(parentPath, outputFile);
+                                outputFile = Path.Join(parentPath, outputFile);
                             }
 
                             if (Decompile)
@@ -1966,7 +1966,7 @@ namespace CLI
 
                                 if (RecursiveSearchArchives)
                                 {
-                                    outputFile = Path.Combine(parentPath, outputFile);
+                                    outputFile = Path.Join(parentPath, outputFile);
                                 }
 
                                 outputFile = GetOutputPath(outputFile);
@@ -1995,7 +1995,7 @@ namespace CLI
 
                         if (RecursiveSearchArchives)
                         {
-                            outputFile = Path.Combine(parentPath, outputFile);
+                            outputFile = Path.Join(parentPath, outputFile);
                         }
 
                         outputFile = GetOutputPath(outputFile);
@@ -2094,7 +2094,7 @@ namespace CLI
             foreach (var additionalFile in contentFile.AdditionalFiles)
             {
                 var additionalPath = OutputIsDirectory
-                    ? Path.Combine(OutputFile!, additionalFile.FileName)
+                    ? Path.Join(OutputFile!, additionalFile.FileName)
                     : Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileName(additionalFile.FileName));
                 DumpContentFile(additionalPath, additionalFile);
             }
@@ -2117,7 +2117,7 @@ namespace CLI
                     var data = contentSubFile.Extract?.Invoke();
                     if (data != null)
                     {
-                        DumpFile(Path.Combine(Path.GetDirectoryName(path)!, contentSubFile.FileName), data);
+                        DumpFile(Path.Join(Path.GetDirectoryName(path)!, contentSubFile.FileName), data);
                     }
                 }
             }
