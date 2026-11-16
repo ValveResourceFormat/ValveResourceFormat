@@ -1227,7 +1227,6 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         // custom point light hack
         const uint LitInsideNearPlaneFlag = 0x8000u;
-        const float ApexCullNearPlane = 0.001f;
         var faceFlags = light.LuminaireShape == -1 ? 0xFFFF0000u | LitInsideNearPlaneFlag : 0xFFFF0000u;
 
         // Luminaire size and shape flag for the shaders that shade a rect light as a rectangle or disc
@@ -1301,12 +1300,21 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         {
             var lightView = Matrix4x4.CreateLookAtLeftHanded(origin, origin + faceForward, faceUp);
             var lightProj = Matrix4x4.CreatePerspectiveLeftHanded(2f * nearPlane, 2f * nearPlane, nearPlane, nearPlane + range);
-            var cullProj = (faceFlags & LitInsideNearPlaneFlag) != 0u
-                ? Matrix4x4.CreatePerspectiveLeftHanded(2f * ApexCullNearPlane, 2f * ApexCullNearPlane, ApexCullNearPlane, nearPlane + range)
-                : lightProj;
+            var lightViewProj = lightView * lightProj;
+            var cullViewProj = lightViewProj;
+
+            if ((faceFlags & LitInsideNearPlaneFlag) != 0u)
+            {
+                // Eye one near plane behind the light, so the frustum holds the whole pyramid from the apex.
+                // A tiny near plane loses the near corners to float precision when the frustum is inverted.
+                var cullView = Matrix4x4.CreateLookAtLeftHanded(origin - faceForward * nearPlane, origin, faceUp);
+                var cullProj = Matrix4x4.CreatePerspectiveLeftHanded(2f * nearPlane, 2f * nearPlane, nearPlane, 2f * nearPlane + range);
+                cullViewProj = cullView * cullProj;
+            }
+
             var (illuminationFromWorld, obbToWorld) = GetOmni2FaceOBB(light, faceIndex);
 
-            return CreateFace(lightView * lightProj, lightView * cullProj, illuminationFromWorld, obbToWorld, faceFlags);
+            return CreateFace(lightViewProj, cullViewProj, illuminationFromWorld, obbToWorld, faceFlags);
         }
 
         light.BarnFaces[0] = MakeFace(forward, up, light.Range, 0);
