@@ -866,7 +866,8 @@ namespace ValveResourceFormat.IO
                 2 => new RsBlendStateDesc { AlphaToCoverageEnable = true },
                 3 => CreateBlendState(RsBlendMode.DestColor, RsBlendMode.SrcColor),
                 5 => CreateBlendState(RsBlendMode.Zero, RsBlendMode.SrcColor),
-                6 => CreateBlendState(RsBlendMode.DestColor, RsBlendMode.InvSrcAlpha),
+                6 when shaderName == "csgo_static_overlay" => CreateBlendState(RsBlendMode.DestColor, RsBlendMode.InvSrcAlpha),
+                6 => CreateBlendState(RsBlendMode.DestColor, RsBlendMode.One),
                 > 0 => GetPassBlendState(combos),
                 _ when shaderName == "vr_energy_field" && combos.GetValueOrDefault("F_TRANSLUCENT") == 3
                     => CreateBlendState(RsBlendMode.SrcAlpha, RsBlendMode.One),

@@ -50,6 +50,11 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
 #if (F_BLEND_MODE == 6)
     mat.IllumColor = SampleSelfIllumination(texCoord, mat.Albedo);
+
+    #if (S_MODE_DEPTH == 0)
+        // The blend ignores the source alpha, so fade by the fog before the color fades by the opacity
+        mat.Opacity *= GetFogAttenuation(vFragPosition);
+    #endif
 #endif
 
 #if (F_LIT == 0)
@@ -76,6 +81,7 @@ void main()
     SurfaceOptions_t options = DefaultSurfaceOptions();
     options.BlendMode = F_BLEND_MODE;
     options.OccludeDirectDiffuse = false;
+    options.FogFadesAlpha = (F_BLEND_MODE == 4) || (F_BLEND_MODE == 6);
 
 #if (F_LIT == 0)
     RenderUnlitSurface(g_tColor, options);
