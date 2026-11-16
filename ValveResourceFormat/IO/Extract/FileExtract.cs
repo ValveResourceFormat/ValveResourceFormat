@@ -302,6 +302,9 @@ namespace ValveResourceFormat.IO
                 case ResourceType.ChoreoSceneFileData:
                     return new ChoreoExtract(resource).ToContentFile();
 
+                case ResourceType.PulseGraphDef:
+                    return new PulseGraphExtract(resource) { ProgressReporter = progress }.ToContentFile();
+
                 default:
                     if (resource.DataBlock is { } dataBlock)
                     {

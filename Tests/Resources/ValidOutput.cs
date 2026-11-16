@@ -82,6 +82,32 @@ namespace Tests.Resources
             }
         }
 
+        /// <summary>
+        /// Compares what an extractor wrote against <c>Files/ValidOutput/&lt;name&gt;/&lt;fileName&gt;</c>, ignoring line endings.
+        /// </summary>
+        public static async Task VerifyText(string actual, string name, string fileName)
+        {
+            var file = Path.Combine(TestFixtures.ValidOutputDirectory, name, fileName);
+            var expected = File.Exists(file) ? (await File.ReadAllTextAsync(file)).ReplaceLineEndings("\n") : null;
+            actual = actual.ReplaceLineEndings("\n");
+
+            if (expected == actual)
+            {
+                return;
+            }
+
+            if (RegenerateFixtures)
+            {
+                var sourceFile = Path.Combine(TestFixtures.SourceValidOutputDirectory, name, fileName);
+                Directory.CreateDirectory(Path.GetDirectoryName(sourceFile)!);
+                await File.WriteAllTextAsync(sourceFile, actual);
+                await Console.Error.WriteLineAsync($"Regenerated '{sourceFile}'");
+                return;
+            }
+
+            await Assert.That(actual).IsEqualTo(expected);
+        }
+
         [GeneratedRegex(@"\s+")]
         private static partial Regex SpaceRegex();
     }

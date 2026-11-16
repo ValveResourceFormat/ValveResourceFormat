@@ -1,0 +1,692 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:vpulse17:version{ad8ba504-a08c-43af-8d5f-63b5d13e157a} -->
+{
+	_class = "Root"
+	m_NodeID = 345
+	m_Children = 
+	[
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 5
+			m_Name = "counter"
+			m_Value = 
+			{
+				m_Type = "PVAL_INT"
+				m_Value = 3
+			}
+			m_Description = "how many times"
+			m_nKeysSource = "VMAP"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 6
+			m_Name = "enabled"
+			m_Value = 
+			{
+				m_Type = "PVAL_BOOL"
+				m_Value = true
+			}
+			m_Description = ""
+			m_nKeysSource = "PRIVATE"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "PublicOutputDefinition"
+			m_NodeID = 311
+			m_Name = "OnCounted"
+			m_Description = "fires after counting"
+			m_Args = [  ]
+		},
+		{
+			_class = "Inflow_Method"
+			m_NodeID = 10
+			m_Name = "AddTo"
+			m_vPosition = [ 0.0, 1060.0 ]
+			m_bIsPublic = true
+			m_Description = "adds an amount"
+			m_Args = 
+			[
+				{
+					m_Name = "amount"
+					m_Type = "PVAL_INT"
+					m_Description = "how much"
+				},
+			]
+			m_ReturnValues = 
+			[
+				{
+					m_Name = "result"
+					m_Type = "PVAL_INT"
+					m_Description = ""
+				},
+			]
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 322
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 20
+				},
+			]
+		},
+		{
+			_class = "Inflow_Method"
+			m_NodeID = 40
+			m_Name = "Run"
+			m_vPosition = [ 0.0, 330.0 ]
+			m_bIsPublic = true
+			m_Description = ""
+			m_Args = [  ]
+			m_ReturnValues = [  ]
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 325
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 50
+				},
+			]
+		},
+		{
+			_class = "Inflow_Method"
+			m_NodeID = 200
+			m_Name = "Fan"
+			m_vPosition = [ 3727.0, 368.0 ]
+			m_bIsPublic = false
+			m_Description = ""
+			m_Args = [  ]
+			m_ReturnValues = [  ]
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 332
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "Start"
+					m_DestFlowNodeID = 210
+				},
+			]
+		},
+		{
+			_class = "Inflow_EntOutput"
+			m_NodeID = 300
+			m_vPosition = [ 2317.0, 1060.0 ]
+			m_SourceEntity = "trigger"
+			m_SourceOutput = "OnStartTouch"
+			m_CachedOutputType = "PVAL_VOID"
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 333
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 310
+				},
+			]
+		},
+		{
+			_class = "ExprAdd"
+			m_NodeID = 15
+			m_vPosition = [ 526.0, 1118.0 ]
+			m_FirstArg = 
+			{
+				m_ValueSource = "var"
+				m_nVarOrConstID = 5
+			}
+			m_SecondArg = 
+			{
+				m_ValueSource = "port"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 312
+					m_SourceNode = 10
+					m_SourceOutparamName = "amount"
+					m_ThisInparamName = "second"
+				},
+			]
+		},
+		{
+			_class = "Step_SetVar"
+			m_NodeID = 20
+			m_vPosition = [ 1006.0, 1104.0 ]
+			m_VarDefID = 5
+			m_Value = 
+			{
+				m_ValueSource = "port"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 323
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 25
+				},
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 313
+					m_SourceNode = 15
+					m_SourceOutparamName = "retval"
+					m_ThisInparamName = "m_Value"
+				},
+			]
+		},
+		{
+			_class = "Step_PublicOutput"
+			m_NodeID = 25
+			m_vPosition = [ 1486.0, 1104.0 ]
+			m_OutputDefID = 311
+			m_ArgList = 
+			{
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 324
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 30
+				},
+			]
+		},
+		{
+			_class = "Outflow_Return"
+			m_NodeID = 30
+			m_vPosition = [ 2007.0, 1162.0 ]
+			m_ReturnValues = 
+			{
+				result = 
+				{
+					m_ValueSource = "var"
+					m_nVarOrConstID = 5
+				}
+			}
+		},
+		{
+			_class = "Step_CallMethod"
+			m_NodeID = 50
+			m_vPosition = [ 480.0, 374.0 ]
+			m_MethodID = 10
+			m_ArgList = 
+			{
+				amount = 
+				{
+					m_ValueSource = "literal"
+					m_LiteralValue = 7
+				}
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 326
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 60
+				},
+			]
+		},
+		{
+			_class = "ExprNot"
+			m_NodeID = 55
+			m_vPosition = [ 480.0, 688.0 ]
+			m_Arg = 
+			{
+				m_ValueSource = "var"
+				m_nVarOrConstID = 6
+			}
+		},
+		{
+			_class = "Outflow_If"
+			m_NodeID = 60
+			m_vPosition = [ 984.0, 428.0 ]
+			m_Condition = 
+			{
+				m_ValueSource = "port"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 327
+					m_SourceOutflowName = "m_IsFalse"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 80
+				},
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 334
+					m_SourceOutflowName = "m_IsTrue"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 70
+				},
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 314
+					m_SourceNode = 55
+					m_SourceOutparamName = "retval"
+					m_ThisInparamName = "m_bCondition"
+				},
+			]
+		},
+		{
+			_class = "Outflow_IntSwitch"
+			m_NodeID = 80
+			m_vPosition = [ 2007.0, 432.0 ]
+			m_SwitchValue = 
+			{
+				m_ValueSource = "var"
+				m_nVarOrConstID = 5
+			}
+			m_Cases = [ 1, 2 ]
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 328
+					m_SourceOutflowName = "m_DefaultCaseOutflow"
+					m_DestInflowName = "m_Inflow_Start"
+					m_DestFlowNodeID = 100
+				},
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 335
+					m_SourceOutflowName = "1"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 90
+				},
+			]
+		},
+		{
+			_class = "Outflow_LoopIntegerRange"
+			m_NodeID = 100
+			m_vPosition = [ 2587.0, 468.0 ]
+			m_Start = 
+			{
+				m_ValueSource = "literal"
+				m_LiteralValue = 0
+			}
+			m_Stop = 
+			{
+				m_ValueSource = "var"
+				m_nVarOrConstID = 5
+			}
+			m_Step = 
+			{
+				m_ValueSource = "literal"
+				m_LiteralValue = 1
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 329
+					m_SourceOutflowName = "m_Outflow_Completed"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 120
+				},
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 339
+					m_SourceOutflowName = "m_Outflow_Loop"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 110
+				},
+			]
+		},
+		{
+			_class = "Step_CreateTempVar"
+			m_NodeID = 120
+			m_vPosition = [ 3181.0, 538.0 ]
+			m_VarName = "message"
+			m_ValueType = "PVAL_STRING"
+			m_Value = 
+			{
+				m_ValueSource = "literal"
+				m_LiteralValue = "looping"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 330
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "m_Inflow_Start"
+					m_DestFlowNodeID = 130
+				},
+			]
+		},
+		{
+			_class = "Outflow_LoopWhile"
+			m_NodeID = 130
+			m_vPosition = [ 3727.0, 592.0 ]
+			m_Condition = 
+			{
+				m_ValueSource = "var"
+				m_nVarOrConstID = 6
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 331
+					m_SourceOutflowName = "m_Outflow_Completed"
+					m_DestInflowName = "Start"
+					m_DestFlowNodeID = 160
+				},
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 340
+					m_SourceOutflowName = "m_Outflow_Loop"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 140
+				},
+			]
+		},
+		{
+			_class = "Step_Timeline"
+			m_NodeID = 160
+			m_vPosition = [ 4263.0, 134.0 ]
+			m_EventDefinitions = 
+			[
+				{
+					m_InternalPortName = "event_0"
+					m_FriendlyName = ""
+					m_flTimeFromPrevious = 1.0
+				},
+				{
+					m_InternalPortName = "event_1"
+					m_FriendlyName = ""
+					m_flTimeFromPrevious = 0.5
+				},
+			]
+			m_bWaitForChildOutflows = true
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 336
+					m_SourceOutflowName = "OnFinished"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 180
+				},
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 337
+					m_SourceOutflowName = "event_0"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 170
+				},
+			]
+		},
+		{
+			_class = "Step_FireCursors"
+			m_NodeID = 210
+			m_vPosition = [ 4263.0, 408.0 ]
+			m_nChildCursors = 2
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 338
+					m_SourceOutflowName = "Child0"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 220
+				},
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 344
+					m_SourceOutflowName = "Child1"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 175
+				},
+			]
+		},
+		{
+			_class = "Step_EntFire"
+			m_NodeID = 310
+			m_vPosition = [ 2860.0, 1126.0 ]
+			m_nFireMode = "PulseEntFireMode_t::HANDLE"
+			m_TargetHandle = 
+			{
+				m_ValueSource = "port"
+			}
+			m_Input = "Kill"
+			m_Children = 
+			[
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 315
+					m_SourceNode = 300
+					m_SourceOutparamName = "Activator"
+					m_ThisInparamName = "hTarget"
+				},
+			]
+		},
+		{
+			_class = "Step_EntFire"
+			m_NodeID = 70
+			m_vPosition = [ 1464.0, 454.0 ]
+			m_TargetName = 
+			{
+				m_ValueSource = "domain_value"
+				m_LiteralValue = "door"
+			}
+			m_Input = "SetSpeed"
+			m_Param = 
+			{
+				m_ValueSource = "literal"
+				m_LiteralValue = "5"
+			}
+			m_SingleParamType = "PVAL_STRING"
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 316
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 80
+				},
+			]
+		},
+		{
+			_class = "ExprTernaryConditional"
+			m_NodeID = 85
+			m_vPosition = [ 2007.0, 804.0 ]
+			m_Condition = 
+			{
+				m_ValueSource = "var"
+				m_nVarOrConstID = 6
+			}
+			m_TrueVal = 
+			{
+				m_ValueSource = "literal"
+				m_LiteralValue = "yes"
+				m_UserRefinedType = "PVAL_STRING"
+			}
+			m_FalseVal = 
+			{
+				m_ValueSource = "literal"
+				m_LiteralValue = "no"
+				m_UserRefinedType = "PVAL_STRING"
+			}
+		},
+		{
+			_class = "Step_DebugLog"
+			m_NodeID = 90
+			m_vPosition = [ 2587.0, 834.0 ]
+			m_Message = 
+			{
+				m_ValueSource = "port"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 317
+					m_SourceNode = 85
+					m_SourceOutparamName = "retval"
+					m_ThisInparamName = "pMessage"
+				},
+			]
+		},
+		{
+			_class = "Outflow_Cycle"
+			m_NodeID = 170
+			m_vPosition = [ 4778.0, 374.0 ]
+			m_nNumExits = 2
+			m_nCycleMode = "PulseCycleMode_t::SHUFFLED"
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 320
+					m_SourceOutflowName = "0"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 175
+				},
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 321
+					m_SourceOutflowName = "1"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 176
+				},
+			]
+		},
+		{
+			_class = "Step_SetVar"
+			m_NodeID = 110
+			m_vPosition = [ 3181.0, 768.0 ]
+			m_VarDefID = 5
+			m_Value = 
+			{
+				m_ValueSource = "port"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 318
+					m_SourceNode = 100
+					m_SourceOutparamName = "Index"
+					m_ThisInparamName = "m_Value"
+				},
+			]
+		},
+		{
+			_class = "Step_DebugLog"
+			m_NodeID = 140
+			m_vPosition = [ 4263.0, 618.0 ]
+			m_Message = 
+			{
+				m_ValueSource = "local_name_ref"
+				m_LiteralValue = "message"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 341
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 150
+				},
+			]
+		},
+		{
+			_class = "Outflow_Break"
+			m_NodeID = 150
+			m_vPosition = [ 4778.0, 618.0 ]
+		},
+		{
+			_class = "Step_CallMethod"
+			m_NodeID = 190
+			m_vPosition = [ 5476.0, 40.0 ]
+			m_MethodID = 200
+			m_nCallMode = "ASYNC_FIRE_AND_FORGET"
+			m_ArgList = 
+			{
+			}
+		},
+		{
+			_class = "Step_DebugLog"
+			m_NodeID = 176
+			m_vPosition = [ 5476.0, 260.0 ]
+			m_Message = 
+			{
+				m_ValueSource = "literal"
+				m_LiteralValue = "second"
+			}
+		},
+		{
+			_class = "Step_CallMethod"
+			m_NodeID = 220
+			m_vPosition = [ 4778.0, 180.0 ]
+			m_MethodID = 200
+			m_nCallMode = "ASYNC_FIRE_AND_FORGET"
+			m_ArgList = 
+			{
+			}
+			m_nStandardYieldingFlow_CallMode = "ASYNC_FIRE_AND_FORGET"
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 319
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 176
+				},
+			]
+		},
+		{
+			_class = "Step_DebugLog"
+			m_NodeID = 175
+			m_vPosition = [ 5476.0, 478.0 ]
+			m_Message = 
+			{
+				m_ValueSource = "literal"
+				m_LiteralValue = "first"
+			}
+		},
+		{
+			_class = "Outflow_Simultaneous"
+			m_NodeID = 180
+			m_vPosition = [ 4778.0, 0.0 ]
+			m_nNumExits = 2
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 342
+					m_SourceOutflowName = "0"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 190
+				},
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 343
+					m_SourceOutflowName = "1"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 176
+				},
+			]
+		},
+	]
+	m_DomainIdentifier = "ServerEntity"
+	m_DomainSubType = "PVAL_EHANDLE:point_pulse"
+	m_ParentMapName = "maps/pulse_test.vmap"
+	m_ParentXmlName = ""
+}
