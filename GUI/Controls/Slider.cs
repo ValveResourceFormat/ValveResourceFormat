@@ -70,7 +70,7 @@ internal class Slider : UserControl
             e.Graphics.FillRectangle(unfilledBrush, unfilledRectangle);
         }
 
-        float knobY = (Height - KnobSize) / 2;
+        float knobY = (Height - KnobSize) / 2f;
 
         using var knobBrush = new SolidBrush(activeSliderColor);
 

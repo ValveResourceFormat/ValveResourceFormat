@@ -738,14 +738,14 @@ namespace GUI.Forms
                 _ => 0
             };
 
-            float knobY = (height - knobSize) / 2;
+            float knobY = (height - knobSize) / 2f;
 
             KnobColor = BetterColorPicker.ColorFromHSV(h, s, v);
 
             using var knobBrush = new SolidBrush(KnobColor);
             using var knobPen = new Pen(Color.FromArgb(KnobColor.ToArgb() ^ 0xffffff), Themer.AdjustForDPI(this, 2));
 
-            var knobXTransformed = knobX * width - knobSize / 2;
+            var knobXTransformed = knobX * width - knobSize / 2f;
 
             e.Graphics.FillEllipse(knobBrush, knobXTransformed, knobY, knobSize, knobSize);
             e.Graphics.DrawEllipse(knobPen, knobXTransformed, knobY, knobSize, knobSize);

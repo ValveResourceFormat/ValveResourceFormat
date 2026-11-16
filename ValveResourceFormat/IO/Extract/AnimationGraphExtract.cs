@@ -1421,8 +1421,6 @@ public partial class AnimationGraphExtract : IDisposable
 
     private List<KVObject>? ParseConditionScript(string scriptCode, int targetTransitionIndex)
     {
-        var conditions = new List<KVObject>();
-
         var trimmedScript = scriptCode.Trim();
         var conditionString = ExtractConditionFromTernary(trimmedScript, targetTransitionIndex);
 

@@ -215,7 +215,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             // Any vector not parallel to the given vector
             var arbitraryVector = new Vector3(1, 0, 0);
             var arbitraryDot = Vector3.Dot(arbitraryVector, a);
-            if (Math.Abs(arbitraryDot) == 1)
+            var nearlyParallelDot = 0.999f * a.Length();
+            if (MathF.Abs(arbitraryDot) > nearlyParallelDot)
             {
                 arbitraryVector = new Vector3(0, 1, 0);
             }

@@ -79,7 +79,7 @@ public static class TwoBoneSolver
         var length2 = v2.Length();
         var lenHDesired = vHDesired.Length();
 
-        if (MathF.Abs(length1) <= TransformMath.Epsilon || length2 == 0f)
+        if (length1 <= TransformMath.Epsilon || length2 <= TransformMath.Epsilon)
         {
             return false;
         }

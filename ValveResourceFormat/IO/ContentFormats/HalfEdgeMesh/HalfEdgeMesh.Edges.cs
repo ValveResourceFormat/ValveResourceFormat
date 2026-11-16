@@ -437,7 +437,7 @@ partial class HalfEdgeMesh
 
         HalfEdgeHandle[]? edgeLoopB = null;
 
-        if ((edgeLoopA!.Length < 2) || (FindNextHalfEdgeInLoop(edgeLoopA.LastOrDefault(), nMaxVertices) != edgeLoopA.FirstOrDefault()))
+        if ((edgeLoopA is null) || (edgeLoopA.Length < 2) || (FindNextHalfEdgeInLoop(edgeLoopA.LastOrDefault(), nMaxVertices) != edgeLoopA.FirstOrDefault()))
         {
             FindEdgeLoopStartingAtEdge(hHalfEdgeB, nMaxVertices, out edgeLoopB);
         }

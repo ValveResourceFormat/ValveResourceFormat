@@ -472,7 +472,7 @@ namespace ValveResourceFormat.IO
             navMesh.Read(stream);
 
             var exporter = new GltfModelExporter(new NullFileLoader());
-            var glbStream = new MemoryStream();
+            using var glbStream = new MemoryStream();
             var resourceName = Path.GetFileNameWithoutExtension(fileName);
             exporter.Export(navMesh, resourceName, glbStream);
 
