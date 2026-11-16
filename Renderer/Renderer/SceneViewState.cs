@@ -350,6 +350,12 @@ public sealed class SceneViewState
             demandedTextures.AddDemand(request.Node, request.Call);
         }
 
+        // Queue the opaque back face pass that draws before the translucent surface
+        if (renderPass == RenderPass.Translucent && request.Call.Material.HasInterior)
+        {
+            Add(request with { DistanceFromCamera = 0f, Interior = true }, RenderPass.Opaque);
+        }
+
         // Aggregated geometry is opaque world detail that never samples the scene color, and the refract
         // pass is the one place it cannot go: it has neither the depth prepass nor the indirect draw path.
         var isAggregated = request.Node is SceneAggregate or SceneAggregate.Fragment;

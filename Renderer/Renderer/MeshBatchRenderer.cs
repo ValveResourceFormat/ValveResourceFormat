@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
         [DebuggerDisplay("{Node.DebugName,nq}")]
 #endif
-        public readonly record struct Request(RenderableMesh Mesh, DrawCall? Call, float DistanceFromCamera, int RenderOrder, SceneNode Node);
+        public readonly record struct Request(RenderableMesh Mesh, DrawCall? Call, float DistanceFromCamera, int RenderOrder, SceneNode Node, bool Interior = false);
         record struct BatchRequest(RenderableMesh Mesh, DrawCall Call, SceneNode Node);
 
         /// <summary>Compares two requests by shader pipeline sort ID, placing custom-render nodes at the boundary.</summary>
@@ -169,7 +169,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Picks the program a draw runs with: the pass's replacement shader, the material's mode for this pass, or the material's own.</summary>
-        private static Shader ResolveShader(Scene.RenderContext context, RenderableMesh mesh, RenderMaterial material)
+        private static Shader ResolveShader(Scene.RenderContext context, RenderableMesh mesh, RenderMaterial material, bool interior)
         {
             if (context.ReplacementShader is { } replacement)
             {
@@ -193,7 +193,7 @@ namespace ValveResourceFormat.Renderer
                     ?? overdraw.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest).WithMorph(mesh.FlexStateManager != null);
             }
 
-            return material.Shader;
+            return interior ? material.Shader.InteriorMode ?? material.Shader : material.Shader;
         }
 
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
@@ -239,7 +239,13 @@ namespace ValveResourceFormat.Renderer
 
                 var requestMaterial = request.Call.Material;
 
-                var requestShader = ResolveShader(context, request.Mesh, requestMaterial);
+                var requestShader = ResolveShader(context, request.Mesh, requestMaterial, request.Interior);
+
+                // Passes that swap the shader have no use for the back faces, the translucent draw covers them
+                if (request.Interior && !requestShader.IsInteriorVariant)
+                {
+                    continue;
+                }
 
                 if (material != requestMaterial || shader != requestShader)
                 {

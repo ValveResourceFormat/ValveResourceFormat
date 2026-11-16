@@ -179,6 +179,12 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Gets a value indicating whether this material uses any blending mode that requires back-to-front ordering.</summary>
         public bool IsTranslucent { get; private set; }
 
+        /// <summary>
+        /// Gets a value indicating whether this translucent material also draws its back faces opaque, before the
+        /// translucent surface, so that the inside of the mesh shows through.
+        /// </summary>
+        public bool HasInterior { get; private set; }
+
         /// <summary>Gets a value indicating whether this material only adds light over the destination, hiding nothing behind it.</summary>
         public bool IsAdditive => IsTranslucent && destBlend == RsBlendMode.One;
 
@@ -195,7 +201,7 @@ namespace ValveResourceFormat.Renderer.Materials
         /// Gets whether this material can perform early depth priming and then shade with Equal comparison.
         /// An alpha-tested material is primed even when it opts out of the depth prepass.
         /// </summary>
-        public bool CanPrimeDepth => !IsOverlay && !disableDepthTest
+        public bool CanPrimeDepth => !IsOverlay && !disableDepthTest && !HasInterior
             && (IsAlphaTest || (IntParams.GetValueOrDefault("F_NO_Z_PREPASS") == 0 && IntParams.GetValueOrDefault("F_DISABLE_Z_PREPASS") == 0));
 
         private readonly MaterialLoader? Loader;
@@ -354,7 +360,8 @@ namespace ValveResourceFormat.Renderer.Materials
             disableDepthTest = IntParams.GetValueOrDefault("F_DISABLE_Z_BUFFERING") == 1;
 
             var blendState = shaderDataProvider.GetBlendState(material, IntParams);
-            IsTranslucent = attributes.GetValueOrDefault("translucent") == 1;
+            HasInterior = attributes.GetValueOrDefault("crystal") == 1;
+            IsTranslucent = HasInterior || attributes.GetValueOrDefault("translucent") == 1;
             IsAlphaTest = !IsTranslucent && blendState.AlphaToCoverageEnable;
 
             // Our shaders output color without alpha premultiplied, unlike some game shaders, so only factors
@@ -668,7 +675,7 @@ namespace ValveResourceFormat.Renderer.Materials
 #endif
 
             var renderState = GraphicsContext.RenderState;
-            renderState.Apply(ComposeRenderState(renderState.CurrentPass));
+            renderState.Apply(ComposeRenderState(renderState.CurrentPass, shader.IsInteriorVariant));
         }
 
         private static void SetMatrix(Shader shader, Globals buffer, string name, Matrix4x4 value)
@@ -898,8 +905,9 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>Composes this material's render state over the given pass baseline.</summary>
         /// <param name="passState">The baseline state of the enclosing pass.</param>
+        /// <param name="interior">Whether the draw is the opaque back face pass of <see cref="HasInterior"/>, which does not blend.</param>
         /// <returns>The state this material draws with.</returns>
-        public RenderState ComposeRenderState(in RenderState passState)
+        public RenderState ComposeRenderState(in RenderState passState, bool interior = false)
         {
             var state = passState;
 
@@ -916,6 +924,12 @@ namespace ValveResourceFormat.Renderer.Materials
                 // mask would leave samples where the masks disagree with depth and no color.
                 var coverageFromPrepass = state.DepthStencil.DepthFunc == RsComparison.Equal;
                 state.Blend.AlphaToCoverageEnable = state.Rasterizer.MultisampleEnable && !coverageFromPrepass;
+            }
+            else if (interior)
+            {
+                state.BlendEnable = false;
+                state.DepthStencil.DepthWriteEnable = true;
+                state.Rasterizer.CullMode = RsCullMode.Front;
             }
             else if (IsTranslucent)
             {
@@ -944,7 +958,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 state.Rasterizer.DepthBiasClamp = 0.0005f;
             }
 
-            if (isRenderBackfaces)
+            if (isRenderBackfaces && !interior)
             {
                 state.Rasterizer.CullMode = RsCullMode.None;
             }

@@ -133,6 +133,12 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets this shader's depth only mode, or <see langword="null"/> when it has none.</summary>
         public Shader? DepthMode => DeclaresCombo(DepthModeCombo) ? WithCombo(DepthModeCombo, 1) : null;
 
+        /// <summary>Gets whether this variant shades the back faces of a translucent surface, which are drawn opaque before it.</summary>
+        public bool IsInteriorVariant => Parameters.GetValueOrDefault(CullFrontCombo) == 1;
+
+        /// <summary>Gets this shader's variant that shades back faces only, or <see langword="null"/> when it has none.</summary>
+        public Shader? InteriorMode => DeclaresCombo(CullFrontCombo) ? WithCombo(CullFrontCombo, 1) : null;
+
         /// <summary>Gets this shader's alpha test variant when it has one and the material alpha tests, and this shader otherwise.</summary>
         public Shader WithAlphaTest(bool alphaTest)
             => alphaTest && DeclaresCombo(AlphaTestCombo) ? WithCombo(AlphaTestCombo, 1) : this;
@@ -157,6 +163,9 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         /// <summary>The static combo of a material that sets the bloom amount of its pixels.</summary>
         public const string OverrideBloomAmountCombo = "F_OVERRIDE_BLOOM_AMOUNT";
+
+        /// <summary>The dynamic combo that makes a translucent surface shade its back faces only.</summary>
+        public const string CullFrontCombo = "D_CULL_FRONT";
 
         /// <summary>The static combo that turns on alpha testing.</summary>
         public const string AlphaTestCombo = "F_ALPHA_TEST";
