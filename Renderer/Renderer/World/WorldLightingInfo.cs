@@ -1299,7 +1299,9 @@ namespace ValveResourceFormat.Renderer.World
 
             var numLayers = textures.Count + 1;
 
-            var atlas = RenderTexture.Create3D(TextureTarget.Texture2DArray, atlasSize, atlasSize, numLayers, ImageFormat.RGBA8888, 1, "CookieAtlas", srgb: true);
+            // Mips let the volumetric fog read a cookie filtered over the size of a froxel
+            var mipCount = BitOperations.Log2((uint)atlasSize) + 1;
+            var atlas = RenderTexture.Create3D(TextureTarget.Texture2DArray, atlasSize, atlasSize, numLayers, ImageFormat.RGBA8888, mipCount, "CookieAtlas", srgb: true);
 
             var readFbo = GraphicsDevice.CreateFramebuffer("CookieAtlasBlitSrc");
             var drawFbo = GraphicsDevice.CreateFramebuffer("CookieAtlasBlitDst");
@@ -1323,6 +1325,8 @@ namespace ValveResourceFormat.Renderer.World
             GL.DeleteFramebuffer(readFbo);
             GL.DeleteFramebuffer(drawFbo);
 
+            GL.GenerateTextureMipmap(atlas.Handle);
+
             return atlas;
         }
 
@@ -1330,12 +1334,12 @@ namespace ValveResourceFormat.Renderer.World
         {
             var clampBorder = new Sampler(nameof(CookieSamplerClampBorder));
             clampBorder.SetWrapMode(RsTextureAddressMode.Border, RsTextureAddressMode.Border);
-            clampBorder.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+            clampBorder.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
             CookieSamplerClampBorder = clampBorder.Handle;
 
             var wrap = new Sampler(nameof(CookieSamplerWrap));
             wrap.SetWrapMode(RsTextureAddressMode.Wrap, RsTextureAddressMode.Wrap);
-            wrap.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+            wrap.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
             CookieSamplerWrap = wrap.Handle;
         }
 

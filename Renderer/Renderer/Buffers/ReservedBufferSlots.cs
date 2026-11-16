@@ -80,6 +80,8 @@ public enum ReservedBufferSlots
     FogVolumes = BufferSlot10,
     /// <summary>Volumetric fog lights SSBO slot.</summary>
     FogLights = BufferSlot11,
+    /// <summary>Volumetric fog volume grid cells and their volume lists SSBO slot.</summary>
+    FogVolumeCells = BufferSlot12,
     /// <summary>Volumetric fog light shadow faces SSBO slot.</summary>
     FogShadowFaces = BufferSlot15,
 

@@ -24,6 +24,10 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         public const int DefaultGridDepth = 64;
 
         private const int MaxVolumes = 128;
+
+        // Most cells of the grid that lists the volumes overlapping each cell
+        private const int MaxVolumeGridCells = 32768;
+
         private const int MaxLights = 64;
         private const int MaxBarnLights = 64;
 
@@ -50,12 +54,6 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         private const int IrradianceTextureUnit = 30;
         private const int ShadowTextureUnit = 29;
         private const int LightingTextureUnit = 28;
-        private const int LightingHistoryTextureUnit = 27;
-
-        // A froxel keeps this much of its light of the previous frame, and its jitter repeats every 32 frames
-        private const float HistoryWeight = 0.9f;
-        private const int JitterFrameMask = 31;
-        private const float GoldenRatio = 1.618034f;
 
         // Cube face order of a point light's shadow faces: +X, -X, +Y, -Y, +Z, -Z
         private static readonly Vector3[] CubeFaceDirections = [Vector3.UnitX, -Vector3.UnitX, Vector3.UnitY, -Vector3.UnitY, Vector3.UnitZ, -Vector3.UnitZ];
@@ -166,6 +164,13 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         private readonly List<FogVolume> volumes = [];
         private readonly FogVolumeGpu[] volumeGpu = new FogVolumeGpu[MaxVolumes];
         private StorageBuffer? volumeBuffer;
+        private bool volumesChanged = true;
+
+        // World grid over the volumes. Each cell has the offset and count of its list of overlapping volumes, in volume order
+        private StorageBuffer? volumeCellBuffer;
+        private Vector3 volumeGridMins;
+        private float volumeGridInverseCellSize;
+        private Vector3 volumeGridSize;
         private RenderTexture? irradiance;
         private int gridDepth = DefaultGridDepth;
         private float warp;
@@ -180,15 +185,8 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         private Shader? shader;
         private Shader? integrateShader;
 
-        // The lit froxels of this frame and the previous one, swapped every frame
-        private RenderTexture? lightingNow;
-        private RenderTexture? lightingPrevious;
-        private int frame;
-
-        private readonly record struct FogHistory(Matrix4x4 WorldToProjection, Vector2 NearRange, Vector2 DepthWarp);
-
-        // The view and slice distribution the previous lit froxels were built with, or null without lit froxels to reuse
-        private FogHistory? history;
+        // The light and density of each froxel, written by the first pass and integrated by the second
+        private RenderTexture? lighting;
 
         private int staticLightCount;
         private bool lightStorageIs8Bit = true;
@@ -273,8 +271,21 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// </summary>
         public Vector2 DepthWarp => warp > 0f ? new Vector2(warp, 1f / MathF.Log2(warp + 1f)) : Vector2.Zero;
 
-        /// <summary>Gets the fog volumes of the scene.</summary>
-        public List<FogVolume> Volumes => volumes;
+        /// <summary>Adds a fog volume to the scene.</summary>
+        /// <param name="fogVolume">The volume to add.</param>
+        public void AddVolume(FogVolume fogVolume)
+        {
+            volumes.Add(fogVolume);
+            volumesChanged = true;
+        }
+
+        /// <summary>Removes a fog volume from the scene.</summary>
+        /// <param name="fogVolume">The volume to remove.</param>
+        public void RemoveVolume(FogVolume fogVolume)
+        {
+            volumes.Remove(fogVolume);
+            volumesChanged = true;
+        }
 
         /// <summary>
         /// Gets or sets how many <c>env_volumetric_fog_volume</c> entities the scene has, including disabled ones.
@@ -407,8 +418,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <param name="camera">The view the fog is built for.</param>
         /// <param name="shadowDepth">The shadow atlas of the scene's spot lights.</param>
         /// <param name="fogShadowDepth">The atlas the <see cref="ShadowFaces"/> were rendered into, or <see langword="null"/> if there are none.</param>
-        /// <param name="blueNoise">The blue noise that jitters the points the froxels are lit at.</param>
-        public void Render(Scene scene, Camera camera, RenderTexture shadowDepth, RenderTexture? fogShadowDepth, RenderTexture blueNoise)
+        public void Render(Scene scene, Camera camera, RenderTexture shadowDepth, RenderTexture? fogShadowDepth)
         {
             var cameraPosition = camera.Location;
             var hasPreparedLights = lightsPrepared;
@@ -435,24 +445,18 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
                 GL.ClearTexImage(volume.Handle, 0, PixelFormat.Rgba, PixelType.Float, [0f, 0f, 0f, 1f]);
             }
 
-            if (lightingNow == null || lightingPrevious == null)
+            lighting ??= CreateFogTexture("VolumetricFogLighting");
+
+            if (volumesChanged)
             {
-                lightingNow = CreateFogTexture("VolumetricFogLighting");
-                lightingPrevious = CreateFogTexture("VolumetricFogLighting");
-                history = null;
+                StoreVolumes();
+                volumesChanged = false;
             }
 
-            var volumeCount = StoreVolumes();
             var lightCount = StoreLights(scene);
             var barnLightCount = StoreBarnLights(scene, cameraPosition);
             var nearRange = NearRange;
             var depthWarp = DepthWarp;
-
-            if (history is { } previousView && (nearRange != previousView.NearRange || depthWarp != previousView.DepthWarp))
-            {
-                history = null;
-            }
-
             var gridSize = new Vector3(GridWidth, GridHeight, gridDepth);
 
             // Fades in from the start distance to the end distance, or not at all without a range
@@ -477,22 +481,11 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
                 fogShader.SetUniform("g_nFogLightStorageIs8Bit", lightStorageIs8Bit ? 1 : 0);
             }
 
-            var jitterOffset = (frame++ & JitterFrameMask) * GoldenRatio;
-
             shader.Use();
             SetGridUniforms(shader);
-            shader.SetUniform("g_flFogJitterOffset", jitterOffset);
-            shader.SetUniform("g_flFogHistoryWeight", history.HasValue ? HistoryWeight : 0f);
-
-            if (history is { } lastView)
-            {
-                shader.SetUniform("g_matFogHistoryWorldToProjection", lastView.WorldToProjection);
-                shader.SetUniform("g_vFogHistoryNearRange", lastView.NearRange);
-                shader.SetUniform("g_vFogHistoryDepthWarp", lastView.DepthWarp);
-            }
-
             shader.SetUniform("g_vFogTint_IndirectStrength", new Vector4(tint, indirectStrength));
-            shader.SetUniform("g_nFogVolumeCount", volumeCount);
+            shader.SetUniform("g_vFogVolumeGridMins_InverseCellSize", new Vector4(volumeGridMins, volumeGridInverseCellSize));
+            shader.SetUniform("g_vFogVolumeGridSize", volumeGridSize);
             shader.SetUniform("g_flFogDensityFloor", densityFloor);
 
             if (irradiance != null)
@@ -504,6 +497,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             }
 
             volumeBuffer!.BindBufferBase();
+            volumeCellBuffer!.BindBufferBase();
             shader.SetUniform("g_nFogLightCount", lightCount);
             shader.SetUniform("g_nFogStaticLightCount", staticLightCount);
 
@@ -535,27 +529,21 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             }
 
             GL.BindTextureUnit(ShadowTextureUnit, fogShadowAtlas.Handle);
-            GL.BindTextureUnit((int)ReservedTextureSlots.BlueNoise, blueNoise.Handle);
-            GL.BindTextureUnit(LightingHistoryTextureUnit, lightingPrevious.Handle);
 
             var groupsX = MathUtils.DivideRoundUp(GridWidth, 8);
             var groupsY = MathUtils.DivideRoundUp(GridHeight, 8);
 
-            GL.BindImageTexture(1, lightingNow.Handle, 0, true, 0, TextureAccess.WriteOnly, SizedInternalFormat.Rgba16f);
+            GL.BindImageTexture(1, lighting.Handle, 0, true, 0, TextureAccess.WriteOnly, SizedInternalFormat.Rgba16f);
             GL.DispatchCompute(groupsX, groupsY, gridDepth);
             GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit);
-
-            history = new FogHistory(camera.ViewProjectionMatrix, nearRange, depthWarp);
 
             integrateShader.Use();
             SetGridUniforms(integrateShader);
 
-            GL.BindTextureUnit(LightingTextureUnit, lightingNow.Handle);
+            GL.BindTextureUnit(LightingTextureUnit, lighting.Handle);
             GL.BindImageTexture(0, volume.Handle, 0, true, 0, TextureAccess.WriteOnly, SizedInternalFormat.Rgba16f);
             GL.DispatchCompute(groupsX, groupsY, 1);
             GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit);
-
-            (lightingNow, lightingPrevious) = (lightingPrevious, lightingNow);
         }
 
         private RenderTexture CreateFogTexture(string name)
@@ -566,16 +554,18 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             return texture;
         }
 
-        private int StoreVolumes()
+        private void StoreVolumes()
         {
             var source = volumes.Count == 0 ? DefaultVolumes.AsSpan() : CollectionsMarshal.AsSpan(volumes);
             var count = Math.Min(source.Length, MaxVolumes);
+            var worldBounds = new AABB[count];
 
             for (var i = 0; i < count; i++)
             {
                 var fogVolume = source[i];
                 var size = fogVolume.Maxs - fogVolume.Mins;
                 var scale = Vector3.One / size;
+                var localBounds = new AABB(fogVolume.Mins, fogVolume.Maxs);
 
                 // Without rotation, the world to volume transform is a translation by the negated origin of the entity
                 var worldToLocal = Matrix4x4.CreateTranslation(-fogVolume.LocalToWorld.Translation);
@@ -583,6 +573,11 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
                 if (fogVolume.FollowsRotation && Matrix4x4.Invert(fogVolume.LocalToWorld, out var inverse))
                 {
                     worldToLocal = inverse;
+                    worldBounds[i] = localBounds.Transform(fogVolume.LocalToWorld);
+                }
+                else
+                {
+                    worldBounds[i] = localBounds.Translate(fogVolume.LocalToWorld.Translation);
                 }
 
                 var worldToUnit = worldToLocal * Matrix4x4.CreateTranslation(-fogVolume.Mins) * Matrix4x4.CreateScale(scale);
@@ -612,7 +607,87 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
 
             volumeBuffer.Update<FogVolumeGpu>(volumeGpu.AsSpan(0, count), 0);
 
-            return count;
+            StoreVolumeGrid(worldBounds);
+        }
+
+        // Lists the volumes whose world bounds overlap each cell of a grid over all of them, so the shader only tests
+        // those. The cells are cubes, as many as fit in the cell budget.
+        private void StoreVolumeGrid(AABB[] worldBounds)
+        {
+            var gridBounds = worldBounds[0];
+
+            foreach (var bounds in worldBounds)
+            {
+                gridBounds = gridBounds.Union(bounds);
+            }
+
+            var gridExtent = Vector3.Max(gridBounds.Size, Vector3.One);
+            var cellSize = MathF.Cbrt(gridExtent.X * gridExtent.Y * gridExtent.Z / MaxVolumeGridCells);
+            var sizeX = (int)MathF.Ceiling(gridExtent.X / cellSize);
+            var sizeY = (int)MathF.Ceiling(gridExtent.Y / cellSize);
+            var sizeZ = (int)MathF.Ceiling(gridExtent.Z / cellSize);
+
+            // A flat grid rounds up to more cells than the budget along its thin axis
+            while (sizeX * sizeY * sizeZ > MaxVolumeGridCells)
+            {
+                cellSize *= 1.25f;
+                sizeX = (int)MathF.Ceiling(gridExtent.X / cellSize);
+                sizeY = (int)MathF.Ceiling(gridExtent.Y / cellSize);
+                sizeZ = (int)MathF.Ceiling(gridExtent.Z / cellSize);
+            }
+
+            var cellCount = sizeX * sizeY * sizeZ;
+            var cellLists = new List<uint>[cellCount];
+            var maxCell = new Vector3(sizeX - 1, sizeY - 1, sizeZ - 1);
+
+            // Volumes are added in order, which the order dependent tint and baked light blending need
+            for (var i = 0; i < worldBounds.Length; i++)
+            {
+                // Padded by a unit against rounding at the faces
+                var firstCell = Vector3.Clamp((worldBounds[i].Min - Vector3.One - gridBounds.Min) / cellSize, Vector3.Zero, maxCell);
+                var lastCell = Vector3.Clamp((worldBounds[i].Max + Vector3.One - gridBounds.Min) / cellSize, Vector3.Zero, maxCell);
+
+                for (var z = (int)firstCell.Z; z <= (int)lastCell.Z; z++)
+                {
+                    for (var y = (int)firstCell.Y; y <= (int)lastCell.Y; y++)
+                    {
+                        for (var x = (int)firstCell.X; x <= (int)lastCell.X; x++)
+                        {
+                            var cell = (z * sizeY + y) * sizeX + x;
+                            cellLists[cell] ??= [];
+                            cellLists[cell].Add((uint)i);
+                        }
+                    }
+                }
+            }
+
+            // Two words per cell, the offset and the count of its list, followed by the lists
+            var cells = new List<uint>(cellCount * 2);
+            var offset = cellCount * 2;
+
+            foreach (var list in cellLists)
+            {
+                var count = list?.Count ?? 0;
+                cells.Add((uint)offset);
+                cells.Add((uint)count);
+                offset += count;
+            }
+
+            foreach (var list in cellLists)
+            {
+                if (list != null)
+                {
+                    cells.AddRange(list);
+                }
+            }
+
+            volumeCellBuffer?.Delete();
+            volumeCellBuffer = new StorageBuffer(ReservedBufferSlots.FogVolumeCells, "FogVolumeCells");
+            volumeCellBuffer.Create(cells, BufferUsage.Static);
+
+            volumeGridMins = gridBounds.Min;
+            volumeGridInverseCellSize = 1f / cellSize;
+            volumeGridSize = new Vector3(sizeX, sizeY, sizeZ);
         }
 
         private bool CanRender => HasController && (volumes.Count > 0 || VolumeEntityCount == 0);
@@ -1261,13 +1336,14 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             volume?.Delete();
             volume = null;
 
-            lightingNow?.Delete();
-            lightingNow = null;
-            lightingPrevious?.Delete();
-            lightingPrevious = null;
+            lighting?.Delete();
+            lighting = null;
 
             volumeBuffer?.Delete();
             volumeBuffer = null;
+            volumeCellBuffer?.Delete();
+            volumeCellBuffer = null;
+            volumesChanged = true;
             lightBuffer?.Delete();
             lightBuffer = null;
             shadowFaceBuffer?.Delete();

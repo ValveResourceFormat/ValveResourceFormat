@@ -81,7 +81,7 @@ public sealed class EnvVolumetricFogVolume : BaseEntity
             followsRotation);
 
         fogVolume = newVolume;
-        fogInfo.Volumetric.Volumes.Add(newVolume);
+        fogInfo.Volumetric.AddVolume(newVolume);
     }
 
     /// <inheritdoc/>
@@ -93,7 +93,7 @@ public sealed class EnvVolumetricFogVolume : BaseEntity
 
             if (fogVolume is { } volume)
             {
-                volumetric.Volumes.Remove(volume);
+                volumetric.RemoveVolume(volume);
             }
         }
 

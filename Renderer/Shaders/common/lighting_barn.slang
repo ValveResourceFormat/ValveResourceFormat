@@ -243,15 +243,15 @@ vec2 ApplyBarnCookieTransform(BarnLightConstants barnLight, vec2 cookieUV)
 }
 
 // A positive cookie index projects a cookie through the frustum, a negative one wraps a cookie around the light.
-// Without a cookie the light has a soft edge.
-vec3 GetBarnLightCookie(BarnLightConstants barnLight, vec3 ndc, vec3 lightDir)
+// Without a cookie the light has a soft edge. lod: mip level of the cookie to read.
+vec3 GetBarnLightCookie(BarnLightConstants barnLight, vec3 ndc, vec3 lightDir, float lod)
 {
     if (barnLight.m_vBarnLightColor_flCookie.w > 0.0)
     {
         vec2 cookieUV = ndc.xy * vec2(-0.5, -0.5) + vec2(0.5);
         cookieUV = ApplyBarnCookieTransform(barnLight, cookieUV);
         float layer = barnLight.m_vBarnLightColor_flCookie.w - 1.0;
-        return textureLod(g_tLightCookieTexture, vec3(cookieUV, layer), 0.0).rgb;
+        return textureLod(g_tLightCookieTexture, vec3(cookieUV, layer), lod).rgb;
     }
 
     if (barnLight.m_vBarnLightColor_flCookie.w < 0.0)
@@ -264,7 +264,7 @@ vec3 GetBarnLightCookie(BarnLightConstants barnLight, vec3 ndc, vec3 lightDir)
         cookieUV = ApplyBarnCookieTransform(barnLight, cookieUV);
 
         float layer = -barnLight.m_vBarnLightColor_flCookie.w - 1.0;
-        return textureLod(g_tLightCookieTextureWrap, vec3(cookieUV, layer), 0.0).rgb;
+        return textureLod(g_tLightCookieTextureWrap, vec3(cookieUV, layer), lod).rgb;
     }
 
     return vec3(GetBarnLightSoftEdge(barnLight, ndc.xy));
@@ -346,7 +346,7 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
             * visibility
             * attenuation;
 
-        lightColor *= GetBarnLightCookie(barnLight, ndc, lightDir);
+        lightColor *= GetBarnLightCookie(barnLight, ndc, lightDir, 0.0);
 
         if (lightColor == vec3(0.0))
         {

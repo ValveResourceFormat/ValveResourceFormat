@@ -18,13 +18,11 @@ void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lig
 {
 }
 #include "common/lighting_barn.slang"
-#include "common/fog.slang"
 
-// Builds the volumetric fog volume of a view in two passes. Pass 0 lights every froxel of the grid at a point
-// jittered inside it and blends the result with the previous frame's light at the reprojected froxel. Pass 1 walks
-// the slices of every pixel column from the camera outwards, reads the lit froxels with a filter over their
-// neighbours, and accumulates the in-scattered light and the remaining transmittance. The volume is read as
-// scatter.rgb + color * transmittance.a.
+// Builds the volumetric fog volume of a view in two passes. Pass 0 lights every froxel of the grid as the average
+// of fixed points spread inside it. Pass 1 walks the slices of every pixel column from the camera outwards, reads
+// the lit froxels with a filter over their neighbours, and accumulates the in-scattered light and the remaining
+// transmittance. The volume is read as scatter.rgb + color * transmittance.a.
 #define D_PASS 0
 
 layout(local_size_x = 8, local_size_y = 8) in;
@@ -34,20 +32,6 @@ layout(binding = 0, rgba16f) uniform writeonly image3D g_tFogVolumeOut;
 // The light of each froxel in rgb and its density in a, written by pass 0 and read by pass 1
 layout(binding = 1, rgba16f) uniform writeonly image3D g_tFogLightingOut;
 layout(binding = 28) uniform sampler3D g_tFogLighting;
-
-// The lit froxels of the previous frame
-layout(binding = 27) uniform sampler3D g_tFogLightingHistory;
-
-uniform sampler2D g_tBlueNoise; // reserved
-
-// The jitter of this frame, added to the blue noise, and how much of the previous frame a froxel keeps
-uniform float g_flFogJitterOffset;
-uniform float g_flFogHistoryWeight;
-
-// World to clip of the previous frame's view, and its near, range and depth warp as in g_vFogNearRange and g_vFogDepthWarp
-uniform mat4 g_matFogHistoryWorldToProjection;
-uniform vec2 g_vFogHistoryNearRange;
-uniform vec2 g_vFogHistoryDepthWarp;
 
 // Baked light of the fog, over the box of the fog controller
 layout(binding = 30) uniform sampler3D g_tFogIrradiance;
@@ -85,7 +69,16 @@ layout(std430, binding = 10) readonly buffer FogVolumes
     FogVolume_t g_FogVolumes[];
 };
 
-uniform int g_nFogVolumeCount;
+// A world grid over the volumes. Words 2c and 2c + 1 are the offset and count of the list of volumes overlapping
+// cell c, in volume order
+layout(std430, binding = 12) readonly buffer FogVolumeCells
+{
+    uint g_FogVolumeCells[];
+};
+
+// xyz: corner of the grid with the smallest coordinates, w: one over the size of a cell
+uniform vec4 g_vFogVolumeGridMins_InverseCellSize;
+uniform vec3 g_vFogVolumeGridSize;
 
 // The density of fog that no volume covers
 uniform float g_flFogDensityFloor;
@@ -186,9 +179,21 @@ float GetFogDensity(vec3 vPositionWs, out float flIndirectStrength, out vec3 vTi
     float flDensity = g_flFogDensityFloor;
     vec4 vPosition = vec4(vPositionWs, 1.0);
 
-    for (int i = 0; i < g_nFogVolumeCount; i++)
+    ivec3 vGridSize = ivec3(g_vFogVolumeGridSize);
+    ivec3 vCell = ivec3(floor((vPositionWs - g_vFogVolumeGridMins_InverseCellSize.xyz) * g_vFogVolumeGridMins_InverseCellSize.w));
+    uint nListStart = 0u;
+    uint nListCount = 0u;
+
+    if (all(greaterThanEqual(vCell, ivec3(0))) && all(lessThan(vCell, vGridSize)))
     {
-        FogVolume_t volume = g_FogVolumes[i];
+        int nCell = (vCell.z * vGridSize.y + vCell.y) * vGridSize.x + vCell.x;
+        nListStart = g_FogVolumeCells[nCell * 2];
+        nListCount = g_FogVolumeCells[nCell * 2 + 1];
+    }
+
+    for (uint i = 0u; i < nListCount; i++)
+    {
+        FogVolume_t volume = g_FogVolumes[g_FogVolumeCells[nListStart + i]];
         vec3 vUnit = vec3(dot(vPosition, volume.vUnitX), dot(vPosition, volume.vUnitY), dot(vPosition, volume.vUnitZ));
 
         if (any(lessThan(vUnit, vec3(0.0))) || any(greaterThan(vUnit, vec3(1.0))))
@@ -411,8 +416,34 @@ vec3 GetFogLight(int i, vec3 vPositionWs)
     return vColor * flShadow * flAttenuation * vCone * flShadow;
 }
 
-// Light of one face of a barn light at a position
-vec3 GetFogBarnLight(int i, vec3 vPositionWs)
+// Mip of a barn light's projected cookie whose texels cover a footprint at a position, 0 for other cookies.
+// matFootprint: the edges of the footprint across the view in world units, a column per axis.
+float GetFogCookieLod(BarnLightConstants barnLight, vec3 vPositionWs, mat2x3 matFootprint)
+{
+    if (barnLight.m_vBarnLightColor_flCookie.w <= 0.0)
+    {
+        return 0.0;
+    }
+
+    vec2 vUvScale = abs(barnLight.m_vBarnLightCookieParameters.zw);
+    vec4 vClip = barnLight.m_mBarnFrustum * vec4(vPositionWs, 1.0);
+    vec2 vNdc = vClip.xy / vClip.w;
+    float flUvExtent = 0.0;
+
+    for (int nAxis = 0; nAxis < 2; nAxis++)
+    {
+        // Change of ndc along the edge, where ndc spans twice the uv
+        vec4 vClipStep = barnLight.m_mBarnFrustum * vec4(matFootprint[nAxis], 0.0);
+        vec2 vNdcStep = (vClipStep.xy - vNdc * vClipStep.w) / vClip.w;
+        flUvExtent = max(flUvExtent, length(vNdcStep * 0.5 * vUvScale));
+    }
+
+    float flCookieSize = float(textureSize(g_tLightCookieTexture, 0).x);
+    return log2(max(flUvExtent * flCookieSize, 1.0));
+}
+
+// Light of one face of a barn light at a position, with its cookie filtered over a footprint
+vec3 GetFogBarnLight(int i, vec3 vPositionWs, mat2x3 matFootprint)
 {
     vec4 vParams = g_vFogBarnLight[i];
     BarnLightConstants barnLight = g_BarnLights[int(vParams.x)];
@@ -435,7 +466,7 @@ vec3 GetFogBarnLight(int i, vec3 vPositionWs)
     float flAttenuation = GetBarnLightAttenuation(barnLight, vPositionWs, flSkirtFade, vLightDir);
 
     vec3 vLight = barnLight.m_vBarnLightColor_flCookie.xyz * (flAttenuation * vParams.y);
-    vLight *= GetBarnLightCookie(barnLight, vNdc, vLightDir);
+    vLight *= GetBarnLightCookie(barnLight, vNdc, vLightDir, GetFogCookieLod(barnLight, vPositionWs, matFootprint));
 
     if (vLight == vec3(0.0) || vParams.z == 0.0)
     {
@@ -445,8 +476,8 @@ vec3 GetFogBarnLight(int i, vec3 vPositionWs)
     return vLight * GetBarnLightShadow(barnLight, vNdc);
 }
 
-// Light the fog scatters towards the eye at a position
-vec3 GetFogLighting(vec3 vPositionWs)
+// Light the fog scatters towards the eye at a position, for a sample covering a footprint
+vec3 GetFogLighting(vec3 vPositionWs, mat2x3 matFootprint)
 {
     vec3 vStaticLighting = vec3(0.0);
     vec3 vDynamicLighting = vec3(0.0);
@@ -472,7 +503,7 @@ vec3 GetFogLighting(vec3 vPositionWs)
 
     for (int i = 0; i < g_nFogBarnLightCount; i++)
     {
-        vDynamicLighting += GetFogBarnLight(i, vPositionWs);
+        vDynamicLighting += GetFogBarnLight(i, vPositionWs, matFootprint);
     }
 
     if (!bIs8Bit)
@@ -500,67 +531,64 @@ vec3 GetFogRay(vec2 vColumn, vec2 vGridSize)
     return vRay / dot(vRay, g_vCameraDirWs);
 }
 
-// Position of a world point in the grid of the previous frame, or false when it lies outside of it
-bool GetHistoryCoords(vec3 vPositionWs, out vec3 vHistoryCoords)
-{
-    vHistoryCoords = vec3(0.0);
+const int FROXEL_SAMPLE_COUNT = 4;
 
-    // The clip w of the projection is the distance along the view direction
-    vec4 vClip = g_matFogHistoryWorldToProjection * vec4(vPositionWs, 1.0);
+// Points of a froxel as offsets from its center in columns and slices, one in each half of every axis pair
+const vec3 g_vFroxelSampleOffsets[FROXEL_SAMPLE_COUNT] = vec3[](
+    vec3(-0.25, -0.25, -0.25),
+    vec3(0.25, 0.25, -0.25),
+    vec3(0.25, -0.25, 0.25),
+    vec3(-0.25, 0.25, 0.25)
+);
 
-    if (vClip.w < g_vFogHistoryNearRange.x)
-    {
-        return false;
-    }
-
-    vHistoryCoords = GetVolumetricFogCoords(vClip.xy / vClip.w, vClip.w, g_vFogHistoryNearRange, g_vFogHistoryDepthWarp);
-    return all(equal(saturate(vHistoryCoords), vHistoryCoords));
-}
-
+// Lights a froxel at its fixed points. The light is weighted by the density at each point,
+// so points outside of the fog do not darken the light of the froxel.
 void LightFroxel(ivec3 vFroxel, ivec3 vGridSize)
 {
-    // A point of the froxel picked by blue noise that moves every frame, from its center to half the froxel away
-    // across the column and half the slice towards the camera
-    vec3 vJitter = fract(texelFetch(g_tBlueNoise, vFroxel.xy & (textureSize(g_tBlueNoise, 0) - 1), 0).xyz + g_flFogJitterOffset) - 0.5;
-    vec3 vRay = GetFogRay(vec2(vFroxel.xy) + 0.5 + vJitter.xy, vec2(vGridSize.xy));
-
     float flSlice = (float(vFroxel.z) + 0.5) / float(vGridSize.z);
     float flDepth = GetSliceDepth(flSlice);
     float flSliceThickness = flDepth - GetSliceDepth(max(0.0, flSlice - 1.0 / float(vGridSize.z)));
-    vec3 vPositionWs = g_vCameraPositionWs + vRay * (flDepth + vJitter.z * flSliceThickness);
 
-    float flIndirectStrength;
-    vec3 vTint;
-    float flDensity = GetFogDensity(vPositionWs, flIndirectStrength, vTint);
-    vec3 vLighting = vec3(0.0);
+    // The ray is affine in the column, so the steps give the ray of any point in the froxel.
+    // Each point covers half of the froxel across the view. Along the view the points alone filter
+    // the light, as a slice is often thicker than a narrow beam.
+    vec2 vColumn = vec2(vFroxel.xy) + 0.5;
+    vec3 vCenterRay = GetFogRay(vColumn, vec2(vGridSize.xy));
+    vec3 vColumnStep = GetFogRay(vColumn + vec2(1.0, 0.0), vec2(vGridSize.xy)) - vCenterRay;
+    vec3 vRowStep = GetFogRay(vColumn + vec2(0.0, 1.0), vec2(vGridSize.xy)) - vCenterRay;
+    mat2x3 matFootprint = 0.5 * flDepth * mat2x3(vColumnStep, vRowStep);
 
-    if (flDensity > 0.0)
+    vec3 vWeightedLighting = vec3(0.0);
+    float flDensitySum = 0.0;
+
+    for (int i = 0; i < FROXEL_SAMPLE_COUNT; i++)
     {
-        vLighting = GetFogLighting(vPositionWs);
+        vec3 vOffset = g_vFroxelSampleOffsets[i];
+        vec3 vRay = vCenterRay + vOffset.x * vColumnStep + vOffset.y * vRowStep;
+        vec3 vPositionWs = g_vCameraPositionWs + vRay * (flDepth + vOffset.z * flSliceThickness);
+
+        float flIndirectStrength;
+        vec3 vTint;
+        float flDensity = GetFogDensity(vPositionWs, flIndirectStrength, vTint);
+
+        if (flDensity <= 0.0)
+        {
+            continue;
+        }
+
+        vec3 vLighting = GetFogLighting(vPositionWs, matFootprint);
 
         if (flIndirectStrength > 0.0)
         {
             vLighting += GetFogIndirectLighting(vPositionWs) * flIndirectStrength;
         }
 
-        vLighting *= vTint;
+        vWeightedLighting += vLighting * vTint * flDensity;
+        flDensitySum += flDensity;
     }
 
-    if (g_flFogHistoryWeight > 0.0)
-    {
-        // The center of the froxel, so the history is read at the same point every frame
-        vec3 vCenterRay = GetFogRay(vec2(vFroxel.xy) + 0.5, vec2(vGridSize.xy));
-        vec3 vCenterWs = g_vCameraPositionWs + vCenterRay * flDepth;
-        vec3 vHistoryCoords;
-
-        if (GetHistoryCoords(vCenterWs, vHistoryCoords))
-        {
-            vec3 vHistory = textureLod(g_tFogLightingHistory, vHistoryCoords, 0.0).rgb;
-            vLighting = mix(vLighting, vHistory, g_flFogHistoryWeight);
-        }
-    }
-
-    imageStore(g_tFogLightingOut, vFroxel, vec4(vLighting, flDensity));
+    vec3 vLighting = flDensitySum > 0.0 ? vWeightedLighting / flDensitySum : vec3(0.0);
+    imageStore(g_tFogLightingOut, vFroxel, vec4(vLighting, flDensitySum / float(FROXEL_SAMPLE_COUNT)));
 }
 
 // Averages taps at the four corners of a froxel. With 8 bit storage the taps lie half a slice before and after
