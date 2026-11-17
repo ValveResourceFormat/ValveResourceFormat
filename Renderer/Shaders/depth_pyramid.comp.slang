@@ -46,10 +46,6 @@ float loadSourceDepth(ivec2 destCoord, ivec2 destSize)
         for (int x = sourceMin.x; x < sourceMax.x; x++)
         {
             float depth = texelFetch(g_tSourceDepthNpot, ivec2(x, y), 0).r;
-
-            // The viewmodel moves with the camera, and the world behind it is not drawn
-            depth = depth > g_flViewportMaxZ ? 0.0 : depth;
-
             furthestDepth = min(furthestDepth, depth);
         }
     }
