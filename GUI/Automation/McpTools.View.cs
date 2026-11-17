@@ -558,7 +558,7 @@ internal sealed partial class McpTools
         };
     }
 
-    [Tool("Render new frames of a 3D tab and return its performance numbers. 'exposure' is auto while the scene sets it, or manual with the Exposure slider, and its value is the linear scalar applied before tonemapping. 'counters' are the last frame's, without zeros. 'timings' are the CPU and GPU milliseconds of each render pass, averaged over the frames, in frame order with 'depth' for nesting. GPU readings arrive late and not every frame, so 'gpu_samples' counts them and a row may have none.")]
+    [Tool("Render new frames of a 3D tab and return its performance numbers. 'exposure' is auto while the scene sets it, or manual with the Exposure slider, and its value is the linear scalar applied before tonemapping. 'counters' are the last frame's, without zeros. 'frame' is the spread of the per-frame CPU, GPU, swap wait and swap to swap period. 'timings' are the CPU and GPU milliseconds of each render pass, averaged over the frames with their standard deviation and maximum, in frame order with 'depth' for nesting. GPU readings arrive a few frames late, so 'gpu_samples' counts them and a row may have none.")]
     private static async Task<object> GetRenderStats(
         GLSceneViewer viewer,
         [Description("Frames to average the timings over.")][Range(1, 600)] int frames = 1,
@@ -588,6 +588,18 @@ internal sealed partial class McpTools
         // Not cancellable, because averaging has to stop either way
         var rows = await WithGl(viewer, timings.StopAveraging, CancellationToken.None).ConfigureAwait(false);
         var averaged = timings.AveragedFrames;
+        var (frameCpu, frameGpu, swap, period) = timings.LastFrameDistributions;
+
+        static object? Describe(Timings.FrameDistribution? distribution) => distribution is not { } d ? null : new
+        {
+            Mean = Math.Round(d.Mean, 3),
+            P50 = Math.Round(d.P50, 3),
+            P95 = Math.Round(d.P95, 3),
+            P99 = Math.Round(d.P99, 3),
+            Max = Math.Round(d.Max, 3),
+            StdDev = Math.Round(d.StdDev, 3),
+            d.Samples,
+        };
 
         return new
         {
@@ -596,12 +608,23 @@ internal sealed partial class McpTools
                 .Where(static stat => stat.Value != 0 && double.IsFinite(stat.Value))
                 .ToDictionary(static stat => JsonNamingPolicy.SnakeCaseLower.ConvertName(stat.Key), static stat => Math.Round(stat.Value, 3)),
             Frames = averaged,
+            Frame = new
+            {
+                CpuMs = Describe(frameCpu),
+                GpuMs = Describe(frameGpu),
+                SwapMs = Describe(swap),
+                PeriodMs = Describe(period),
+            },
             Timings = rows.Select(row => new
             {
                 row.Name,
                 Depth = NonZero(row.Depth),
                 CpuMs = Math.Round(row.CpuMs, 3),
+                CpuSd = Math.Round(row.CpuStdDev, 3),
+                CpuMax = Math.Round(row.CpuMax, 3),
                 GpuMs = row.GpuMs.HasValue ? Math.Round(row.GpuMs.Value, 3) : (double?)null,
+                GpuSd = row.GpuStdDev.HasValue ? Math.Round(row.GpuStdDev.Value, 3) : (double?)null,
+                GpuMax = row.GpuMax.HasValue ? Math.Round(row.GpuMax.Value, 3) : (double?)null,
                 GpuSamples = NonZero(row.GpuSamples),
                 CpuSamples = row.CpuSamples != averaged ? row.CpuSamples : (int?)null,
             }).ToList(),

@@ -85,7 +85,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     public static ContextFlags Flags => ContextFlags.ForwardCompatible;
 #endif
 
-    protected readonly Lock glLock = new();
+    private readonly GLContextLock contextLock = new();
 
     private int MaxSamples;
     protected int NumSamples => Math.Max(1, Math.Min(Settings.Config.AntiAliasingSamples, MaxSamples));
@@ -127,7 +127,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         // Holding the lock keeps the window from being destroyed after the check. Making the context
         // current is not nestable, so callers must not have it current already.
-        using var glScope = glLock.EnterScope();
+        using var glScope = contextLock.EnterReleased();
 
         if (GraphicsContext is null || GLNativeWindow is not { Exists: true })
         {
@@ -192,7 +192,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
     public Control InitializeUiControls(bool isPreview = false)
     {
-        GLControl = new GLControl(glLock)
+        GLControl = new GLControl(contextLock)
         {
             Dock = DockStyle.Fill,
             // Back-reference for FindHostedIn: this class is not itself a WinForms control, so the
@@ -465,7 +465,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     {
         RendererContext.CancelLoading();
 
-        using var lockedGl = glLock.EnterScope();
+        // The window cannot be destroyed while the render loop keeps its context current
+        using var lockedGl = contextLock.EnterReleased();
 
         RestoreCursorAfterDrag();
 
@@ -504,6 +505,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         NativeWindowFactory.Destroy(GLNativeWindow);
         GraphicsContext = null;
         RendererContext.Dispose();
+        contextLock.Dispose();
     }
 
     private void OnMouseLeave(object? sender, EventArgs e)
@@ -1155,7 +1157,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
     public bool Draw(bool isPaused)
     {
-        using var lockedGl = glLock.EnterScope();
+        using var lockedGl = contextLock.Enter();
 
         if (GLNativeWindow == null || !GLNativeWindow.Exists || GraphicsContext == null)
         {
@@ -1175,6 +1177,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             Log.Debug(nameof(GLFWGraphicsContext), e.Message);
             return false;
         }
+
+        contextLock.Keep();
 
         if (ShouldResize)
         {
@@ -1211,7 +1215,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         catch (OperationCanceledException) when (RendererContext.CancellationToken.IsCancellationRequested)
         {
             // The tab was closed while the scene was loading on this thread
-            GraphicsContext.End();
+            ReleaseKeptContext();
             RenderLoopThread.UnsetCurrentGLControl(this);
             return false;
         }
@@ -1223,7 +1227,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         if (SkipBufferSwap)
         {
             SkipBufferSwap = false;
-            GraphicsContext.End();
+            ReleaseContextIfRequested();
             return false;
         }
 
@@ -1239,7 +1243,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         lastSwapTimestamp = swapEnd;
 
-        GraphicsContext.End();
+        ReleaseContextIfRequested();
 
         if (firstDraw)
         {
@@ -1254,7 +1258,33 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         //
     }
 
-    public GLLockScope MakeCurrent() => new(glLock, this);
+    // Another thread waits for the context, so the loop stops keeping it after this frame
+    private void ReleaseContextIfRequested()
+    {
+        if (contextLock.IsRequested)
+        {
+            ReleaseKeptContext();
+        }
+    }
+
+    private void ReleaseKeptContext()
+    {
+        GraphicsContext?.End();
+        contextLock.Release();
+    }
+
+    /// <summary>Releases the context the render loop kept current after drawing. Called on the render loop thread.</summary>
+    public void ReleaseRenderLoopContext()
+    {
+        using var lockedGl = contextLock.Enter();
+
+        if (contextLock.IsKeptByCurrentThread)
+        {
+            ReleaseKeptContext();
+        }
+    }
+
+    public GLLockScope MakeCurrent() => new(contextLock, this);
 
     static bool loadedBindings;
     private static void LoadOpenGLBindings()

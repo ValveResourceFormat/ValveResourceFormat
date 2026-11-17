@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -18,6 +19,10 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         /// <summary>The GLSL version directive that must appear as the first line of every shader file.</summary>
         public const string ExpectedShaderVersion = "#version 460";
+
+        /// <summary>Guards the sampler declarations this parser keeps for the slot bound path.</summary>
+        public const string BindlessTexturesDefine = "VRF_BINDLESS_TEXTURES";
+
         private const string RenderModeDefinePrefix = "renderMode_";
 
         // Marks a shader that draws every material the same way, see Shader.IgnoreMaterialData
@@ -93,8 +98,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <returns>The preprocessed GLSL source text ready for driver compilation.</returns>
         public string PreprocessShader(string shaderFile, ParsedShaderData parsedData)
         {
-            var isVertexStage = GetTypeFromFileName(shaderFile) == ShaderProgramType.Vertex;
-            var preprocessor = new ShaderPreprocessor(builder, parsedData, isVertexStage);
+            var stage = GetTypeFromFileName(shaderFile);
+            var preprocessor = new ShaderPreprocessor(builder, parsedData, stage == ShaderProgramType.Vertex, stage == ShaderProgramType.Compute);
 
             // simulate first time compile
             // builder.Append($"// {Guid.CreateVersion7()}");
@@ -107,7 +112,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>
         /// Appends a shader file and the files it includes to the builder, collecting what they declare.
         /// </summary>
-        private sealed class ShaderPreprocessor(StringBuilder builder, ParsedShaderData parsedData, bool isVertexStage)
+        private sealed class ShaderPreprocessor(StringBuilder builder, ParsedShaderData parsedData, bool isVertexStage, bool isComputeStage)
         {
             // The line state of one source file, which an include interrupts
             private sealed class SourceFile(string name, int number)
@@ -134,6 +139,19 @@ namespace ValveResourceFormat.Renderer.Shaders
                 builder.Append(' ');
                 builder.Append(b.ToString(CultureInfo.InvariantCulture));
                 builder.Append('\n');
+            }
+
+            // Keeps a sampler declaration for the slot bound path, where no uniform block declares it
+            private void AppendBindlessAlternative(SourceFile file, string line)
+            {
+                builder.Append("#if !");
+                builder.Append(BindlessTexturesDefine);
+                builder.Append('\n');
+                builder.Append(line);
+                builder.Append('\n');
+                builder.Append("#endif\n");
+
+                AppendLineNumber(file.LineNumber, file.Number);
             }
 
             public void LoadShaderString(string shaderFileToLoad, string? parentFile)
@@ -411,11 +429,6 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                 parsedData.Uniforms.Add(uniformName);
 
-                if (uniformType.StartsWith("sampler", StringComparison.Ordinal) && MaterialLoader.IsReservedTexture(uniformName))
-                {
-                    parsedData.ReservedTextures.Add(uniformName);
-                }
-
                 if (match.Groups["SrgbRead"].Success)
                 {
                     parsedData.SrgbUniforms.Add(uniformName);
@@ -434,9 +447,40 @@ namespace ValveResourceFormat.Renderer.Shaders
                     parsedData.RepresentativeTexture = uniformName;
                 }
 
-                if (match.Groups["Array"].Success
-                || !IsPackableUniformName(uniformName)
-                || !GlobalsLayout.TryGetType(uniformType, out var constantType))
+                if (uniformType.StartsWith("sampler", StringComparison.Ordinal) && MaterialLoader.IsReservedTexture(uniformName))
+                {
+                    parsedData.ReservedTextures.Add(uniformName);
+
+                    // The block declaration and the null texture come from ReservedTextureSlots.
+                    var reserved = MaterialLoader.ReservedSamplerByName[uniformName];
+
+                    Debug.Assert(reserved.PerInstance || uniformType == GlobalsLayout.GetGlslName(reserved.Kind),
+                        $"'{uniformName}' is declared '{uniformType}' in '{file.Name}', but {nameof(ReservedTextureSlots)} says '{GlobalsLayout.GetGlslName(reserved.Kind)}'.");
+
+                    if (SceneTexturesLayout.Members.ContainsKey(uniformName))
+                    {
+                        AppendBindlessAlternative(file, line);
+                        return true;
+                    }
+                }
+
+                if (match.Groups["Array"].Success || !IsPackableUniformName(uniformName))
+                {
+                    return false;
+                }
+
+                // Packed alongside the material's other inputs, so a draw binds one buffer instead of a texture unit per sampler.
+                // Compute passes bind their own inputs, and may reuse a sampler name as an image in another combo.
+                if (!isComputeStage && !MaterialLoader.IsReservedTexture(uniformName) && GlobalsLayout.TryGetSamplerKind(uniformType, out var samplerKind))
+                {
+                    parsedData.GlobalsDeclarations.Add(new GlobalsDeclaration(uniformName, GlobalsType.Sampler,
+                        null, match.Groups["SrgbRead"].Success, samplerKind));
+
+                    AppendBindlessAlternative(file, line);
+                    return true;
+                }
+
+                if (!GlobalsLayout.TryGetType(uniformType, out var constantType))
                 {
                     return false;
                 }

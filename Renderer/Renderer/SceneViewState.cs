@@ -1357,7 +1357,7 @@ public sealed class SceneViewState
 
     /// <summary>
     /// Renders the opaque first-person viewmodel layer collected during <see cref="CollectSceneDrawCalls"/>.
-    /// Rendered after the main scene and its translucents. A reserved near depth range keeps the layer in front of world geometry.
+    /// Rendered before the main scene, so the world behind it is not shaded. A reserved near depth range keeps the layer in front of world geometry.
     /// </summary>
     /// <param name="renderContext">The render context for this pass, expected to use the dedicated viewmodel camera and depth range.</param>
     /// <param name="depthOnlyShader">Optional depth-only shader; <see langword="null"/> for a pass that replaces material shaders.</param>

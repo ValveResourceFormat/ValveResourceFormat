@@ -1,4 +1,5 @@
 using System.IO.Hashing;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -75,6 +76,14 @@ namespace ValveResourceFormat.Renderer.Shaders
                 Default.IntParams.Clear();
                 Default.VectorParams.Clear();
                 Default.Matrices.Clear();
+                Default.Textures.Clear();
+
+                // Block members are not reported as uniforms, so unlike the loose samplers
+                // StoreUniformLocations picks up, these are seeded from the layout.
+                foreach (var sampler in value.Samplers)
+                {
+                    Default.Textures[sampler.Name] = MaterialLoader.GetDefaultTexture(sampler.Name, sampler.Sampler);
+                }
 
                 foreach (var (name, defaultValue) in value.FloatDefaults)
                 {
@@ -497,21 +506,51 @@ namespace ValveResourceFormat.Renderer.Shaders
                 }
             }
 
-            // Seeded from the source, where a sampler behind a combo the linker dropped still looks used.
-            ReservedTexturesUsed.RemoveWhere(reserved => ActiveUniformLocation(reserved) == -1);
+            TrimReservedTextures();
+        }
+
+        /// <summary>
+        /// Narrows <see cref="ReservedTexturesUsed"/> down to what this variant kept. It is seeded from the
+        /// source, where a sampler behind a dropped combo still looks used.
+        /// </summary>
+        private void TrimReservedTextures()
+        {
+            // A sampler in the scene textures block has no uniform location; the linker instead leaves it
+            // out of the block's active members, which is the invalid index here.
+            string[] blockNames = [.. ReservedTexturesUsed.Where(SceneTexturesLayout.Contains)];
+            var blockIndices = new int[blockNames.Length];
+
+            if (blockNames.Length > 0)
+            {
+                GL.GetUniformIndices(Program, blockNames.Length, blockNames, blockIndices);
+            }
+
+            ReservedTexturesUsed.RemoveWhere(reserved =>
+            {
+                var block = Array.IndexOf(blockNames, reserved);
+
+                return block > -1
+                    ? blockIndices[block] == -1
+                    : ActiveUniformLocation(reserved) == -1;
+            });
         }
 
         /// <summary>Points every reserved texture sampler this program declares at its global texture unit.</summary>
         private void BindReservedTextureSlots()
         {
             // Table driven: StoreUniformLocations does not classify array and shadow samplers.
-            foreach (var (name, slot) in MaterialLoader.ReservedTextureSlotByName)
+            foreach (var sampler in MaterialLoader.ReservedSamplers)
             {
-                var uniformLocation = ActiveUniformLocation(name);
+                if (SceneTexturesLayout.Contains(sampler.Name))
+                {
+                    continue; // Read out of the scene textures buffer.
+                }
+
+                var uniformLocation = ActiveUniformLocation(sampler.Name);
 
                 if (uniformLocation > -1)
                 {
-                    GL.ProgramUniform1(Program, uniformLocation, (int)slot);
+                    GL.ProgramUniform1(Program, uniformLocation, (int)sampler.Slot);
                 }
             }
         }
@@ -526,6 +565,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             GL.UseProgram(Program);
 
             Default.BindGlobals(this);
+            RendererContext.SceneTextures.Bind();
         }
 
         /// <summary>Sets a packed global uniform in this shader's own constant buffer.</summary>
@@ -604,19 +644,33 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 
 #if DEBUG
-        /// <summary>Checks the offsets <see cref="GlobalsLayout"/> computed against the driver's own std140 layout (debug builds only).</summary>
+        /// <summary>Checks every uniform block this program reads against the layout it was built from.</summary>
         private void VerifyGlobalsLayout()
         {
-            if (GlobalsLayout.Size == 0)
+            VerifyBlockLayout(GlobalsLayout.Members);
+
+            if (GLEnvironment.BindlessTextures)
+            {
+                VerifyBlockLayout(SceneTexturesLayout.Members);
+            }
+        }
+
+        /// <summary>
+        /// Both sides are std140 so the offsets have to agree, but getting it wrong corrupts every material
+        /// silently.
+        /// </summary>
+        private void VerifyBlockLayout(IReadOnlyDictionary<string, GlobalsMember> members)
+        {
+            if (members.Count == 0)
             {
                 return;
             }
 
-            var names = new string[GlobalsLayout.Members.Count];
+            var names = new string[members.Count];
             var expected = new int[names.Length];
             var i = 0;
 
-            foreach (var (name, constant) in GlobalsLayout.Members)
+            foreach (var (name, constant) in members)
             {
                 names[i] = name;
                 expected[i] = constant.Offset;
@@ -807,16 +861,33 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-        /// <summary>Binds a texture to the given texture unit and sets the named sampler uniform, returning <see langword="false"/> if the texture or uniform is absent.</summary>
-        /// <param name="slot">The texture unit index.</param>
+        /// <summary>
+        /// Points the named sampler at a texture, returning false if the texture or the sampler is absent.
+        /// </summary>
+        /// <remarks>
+        /// A packed sampler's handle goes into a constant buffer and <paramref name="slot"/> goes unused. One
+        /// of this shader's own goes where SetUniform writes, which a draw reads only while no material is
+        /// bound; set a material's textures on the material. A reserved one goes into the shared buffer.
+        /// </remarks>
+        /// <param name="slot">The texture unit to bind to, when the sampler is not packed.</param>
         /// <param name="name">The sampler uniform name.</param>
-        /// <param name="texture">The texture to bind.</param>
-        /// <returns><see langword="true"/> if the texture was successfully bound; otherwise <see langword="false"/>.</returns>
+        /// <param name="texture">The texture to sample.</param>
         public bool SetTexture(int slot, string name, RenderTexture? texture)
         {
             if (texture == null)
             {
                 return false;
+            }
+
+            if (Default.SetTexture(name, texture))
+            {
+                return true;
+            }
+
+            if (SceneTexturesLayout.Contains(name))
+            {
+                RendererContext.SceneTextures.SetTexture(name, texture);
+                return true;
             }
 
             var uniformLocation = GetUniformLocation(name);

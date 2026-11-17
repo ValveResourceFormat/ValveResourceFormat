@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Threading;
 using System.Windows.Forms;
+using GUI.Types.GLViewers;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
@@ -31,19 +31,19 @@ public class GLControl : Control
     [Browsable(false)]
     public IGLFWGraphicsContext? Context => _nativeWindow?.Context;
 
-    private readonly Lock glLock;
+    private readonly GLContextLock contextLock;
 
     /// <summary>
     /// Constructs a new instance using the specified lock to guard the native OpenGL window.
     /// </summary>
-    /// <param name="glLock">The lock used to synchronize access to the OpenGL/GLFW native window.</param>
-    public GLControl(Lock glLock)
+    /// <param name="contextLock">The lock used to synchronize access to the OpenGL/GLFW native window.</param>
+    internal GLControl(GLContextLock contextLock)
     {
         SetStyle(ControlStyles.Opaque, true);
         SetStyle(ControlStyles.UserPaint, true);
         SetStyle(ControlStyles.AllPaintingInWmPaint, true);
         DoubleBuffered = false;
-        this.glLock = glLock;
+        this.contextLock = contextLock;
     }
 
     protected override void Dispose(bool disposing)
@@ -166,7 +166,7 @@ public class GLControl : Control
     {
         if (_nativeWindow != null)
         {
-            using var lockedGl = glLock.EnterScope();
+            using var lockedGl = contextLock.EnterReleased();
 
             _nativeWindow.Dispose();
             _nativeWindow = null;

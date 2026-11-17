@@ -1521,6 +1521,17 @@ public class Renderer : ISceneHost
         ViewmodelCamera.CreateProjectionMatrix();
         ViewmodelCamera.RecalculateMatrices();
 
+        // First, so the world behind it fails the depth test instead of being shaded
+        using (new GLDebugGroup("Viewmodel Opaque"))
+        {
+            GraphicsContext.RenderState.SetDepthRange(DepthRange.Viewmodel);
+
+            DrawThrough(ViewmodelView(mainView), mainState, ref renderContext);
+            mainState.RenderViewmodelOpaqueLayer(renderContext, isMaterialPass ? depthOnlyShader : null);
+
+            GraphicsContext.RenderState.SetDepthRange(DepthRange.Scene);
+        }
+
         using (new GLDebugGroup("Main Scene Opaque Render"))
         {
             screenSpaceAoComputed = false;
@@ -1657,12 +1668,11 @@ public class Renderer : ISceneHost
             }
         }
 
-        using (new GLDebugGroup("Viewmodel"))
+        using (new GLDebugGroup("Viewmodel Translucent"))
         {
             GraphicsContext.RenderState.SetDepthRange(DepthRange.Viewmodel);
 
             DrawThrough(ViewmodelView(mainView), mainState, ref renderContext);
-            mainState.RenderViewmodelOpaqueLayer(renderContext, isMaterialPass ? depthOnlyShader : null);
             mainState.RenderViewmodelTranslucentLayer(renderContext);
 
             GraphicsContext.RenderState.SetDepthRange(DepthRange.Scene);
@@ -2522,14 +2532,17 @@ public class Renderer : ISceneHost
 
         scenesUpdated.Clear();
 
-        foreach (var view in views)
+        using (new ProfilerScope("Scene Nodes"))
         {
-            foreach (var state in view.States)
+            foreach (var view in views)
             {
-                if (scenesUpdated.Add(state.Scene))
+                foreach (var state in view.States)
                 {
-                    state.Scene.Update(updateContext with { Camera = view.Camera });
-                    state.Scene.VisibilityBoxes.PrepareView(Settings.DisableAllCulling || !Settings.EnableVisBoxCulling ? null : view.Sky?.ToSky(boxEye) ?? boxEye);
+                    if (scenesUpdated.Add(state.Scene))
+                    {
+                        state.Scene.Update(updateContext with { Camera = view.Camera });
+                        state.Scene.VisibilityBoxes.PrepareView(Settings.DisableAllCulling || !Settings.EnableVisBoxCulling ? null : view.Sky?.ToSky(boxEye) ?? boxEye);
+                    }
                 }
             }
         }
@@ -2547,10 +2560,13 @@ public class Renderer : ISceneHost
             }
         }
 
-        foreach (var scene in scenesUpdated)
+        using (new ProfilerScope("Instance Buffers"))
         {
-            scene.UpdateInstanceTransformBuffers();
-            scene.UpdateIndirectRenderingState();
+            foreach (var scene in scenesUpdated)
+            {
+                scene.UpdateInstanceTransformBuffers();
+                scene.UpdateIndirectRenderingState();
+            }
         }
 
         // Volumes are entered by the player's origin, not the eyes
@@ -2562,7 +2578,10 @@ public class Renderer : ISceneHost
 
         LendSun(views[0]);
 
-        UpdateSunCascadeViews(views, updateContext.Camera);
+        using (new ProfilerScope("Collect Shadow Casters"))
+        {
+            UpdateSunCascadeViews(views, updateContext.Camera);
+        }
 
         Scene.LightingInfo.UpdateMixedShadows(updateContext.Camera.Location, updateContext.Timestep);
 
@@ -2583,20 +2602,23 @@ public class Renderer : ISceneHost
         var streaming = RendererContext.TextureStreaming;
         var measureTextureDemand = !Prewarming && streaming.BeginDemandPass();
 
-        foreach (var view in views)
+        using (new ProfilerScope("Collect Draw Calls"))
         {
-            // Sky views cull from the main eye mapped into sky space; an eye outside the sky visibility culls nothing
-            var viewPvsPosition = view.Sky?.ToSky(pvsPosition) ?? pvsPosition;
-
-            foreach (var state in view.States)
+            foreach (var view in views)
             {
-                var scene = state.Scene;
+                // Sky views cull from the main eye mapped into sky space; an eye outside the sky visibility culls nothing
+                var viewPvsPosition = view.Sky?.ToSky(pvsPosition) ?? pvsPosition;
 
-                state.Pvs = pvsEnabled && scene.VoxelVisibility is { } visibility
-                    ? visibility.GetVisibilityRowForPoint(Vector3.Transform(viewPvsPosition, scene.WorldToVisibility))
-                    : default;
+                foreach (var state in view.States)
+                {
+                    var scene = state.Scene;
 
-                state.CollectSceneDrawCalls(view.Camera, CullFrustumFor(view), measureTextureDemand ? streaming : null);
+                    state.Pvs = pvsEnabled && scene.VoxelVisibility is { } visibility
+                        ? visibility.GetVisibilityRowForPoint(Vector3.Transform(viewPvsPosition, scene.WorldToVisibility))
+                        : default;
+
+                    state.CollectSceneDrawCalls(view.Camera, CullFrustumFor(view), measureTextureDemand ? streaming : null);
+                }
             }
         }
 

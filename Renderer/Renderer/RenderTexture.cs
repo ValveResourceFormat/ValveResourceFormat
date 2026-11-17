@@ -48,6 +48,19 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public float[]? RadianceCoefficients { get; }
 
+        private long bindlessHandle;
+        private Dictionary<int, long>? samplerHandles;
+
+        // A handle freezes the parameters of the texture object it was made from, for good
+        private bool parametersFrozen;
+
+        // View over the mips in the base and max level, which the handles sample instead of a 2D texture
+        // whose levels have to change after its parameters froze
+        private int levelView;
+
+        /// <summary>Gets a number that changes whenever <see cref="GetBindlessHandle"/> would return a different handle.</summary>
+        public uint HandleVersion { get; private set; }
+
         RenderTexture(TextureTarget target, string label)
         {
             Target = target;
@@ -169,6 +182,12 @@ namespace ValveResourceFormat.Renderer
         /// <param name="r">Addressing mode across the depth.</param>
         public void SetWrapMode(RsTextureAddressMode s, RsTextureAddressMode t, RsTextureAddressMode r)
         {
+            // A cached texture is set up again by each user, after a handle may have frozen it
+            if (parametersFrozen && wrapMode == (s, t, r))
+            {
+                return;
+            }
+
             wrapMode = (s, t, r);
 
             SetParameter(TextureParameterName.TextureWrapS, (int)s.ToGLTextureWrapMode());
@@ -189,6 +208,11 @@ namespace ValveResourceFormat.Renderer
         /// <param name="mag">Magnification filter.</param>
         public void SetFiltering(TextureMinFilter min, TextureMagFilter mag)
         {
+            if (parametersFrozen && filtering == (min, mag))
+            {
+                return;
+            }
+
             filtering = (min, mag);
 
             SetParameter(TextureParameterName.TextureMinFilter, (int)min);
@@ -200,11 +224,30 @@ namespace ValveResourceFormat.Renderer
         /// <param name="maxLevel">Highest mip level index.</param>
         public void SetBaseMaxLevel(int baseLevel, int maxLevel)
         {
+            if (baseMaxLevel == (baseLevel, maxLevel))
+            {
+                return;
+            }
+
             baseMaxLevel = (baseLevel, maxLevel);
+
+            if (UsesLevelView)
+            {
+                ReleaseBindlessHandles();
+                HandleVersion++;
+
+                if (parametersFrozen)
+                {
+                    return;
+                }
+            }
 
             SetParameter(TextureParameterName.TextureBaseLevel, baseLevel);
             SetParameter(TextureParameterName.TextureMaxLevel, maxLevel);
         }
+
+        // Streamed textures change their levels while they are being sampled
+        private bool UsesLevelView => GLEnvironment.BindlessTextures && Target == TextureTarget.Texture2D && baseMaxLevel != null;
 
         /// <summary>Sets the maximum anisotropic filtering level.</summary>
         /// <param name="anisotropy">Maximum anisotropy, typically <see cref="GLEnvironment"/>'s supported maximum.</param>
@@ -220,11 +263,136 @@ namespace ValveResourceFormat.Renderer
         /// <param name="value">The integer value to assign.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetParameter(TextureParameterName parameter, int value)
-            => GL.TextureParameter(Handle, parameter, value);
+        {
+            Debug.Assert(!parametersFrozen,
+                "A bindless handle freezes the texture's parameters, set them before it is first sampled.");
+
+            GL.TextureParameter(Handle, parameter, value);
+        }
+
+        /// <summary>
+        /// This texture's bindless handle, created and made resident on first use. A handle cannot be freed
+        /// and freezes the texture's parameters, so only ask for one you are about to sample through.
+        /// </summary>
+        /// <param name="sampler">A sampler object to read the texture through, or 0 for its own parameters.</param>
+        public long GetBindlessHandle(int sampler = 0)
+        {
+            if (sampler == 0 && bindlessHandle != 0)
+            {
+                return bindlessHandle;
+            }
+
+            if (sampler != 0 && samplerHandles != null && samplerHandles.TryGetValue(sampler, out var cached))
+            {
+                return cached;
+            }
+
+            var source = Handle;
+
+            if (UsesLevelView)
+            {
+                source = EnsureLevelView();
+            }
+            else
+            {
+                parametersFrozen = true;
+            }
+
+            if (sampler == 0)
+            {
+                return bindlessHandle = MakeResident(GL.Arb.GetTextureHandle(source));
+            }
+
+            var handle = MakeResident(GL.Arb.GetTextureSamplerHandle(source, sampler));
+            samplerHandles ??= [];
+            samplerHandles.Add(sampler, handle);
+
+            return handle;
+        }
+
+        private int EnsureLevelView()
+        {
+            if (levelView != 0)
+            {
+                return levelView;
+            }
+
+            var (baseLevel, maxLevel) = baseMaxLevel!.Value;
+            maxLevel = Math.Min(maxLevel, NumMipLevels - 1);
+
+            GL.GetTextureLevelParameter(Handle, 0, GetTextureParameter.TextureInternalFormat, out int internalFormat);
+
+            // A view needs a name without a target yet, which only the non-DSA path hands out
+            levelView = GL.GenTexture();
+            GL.TextureView(levelView, Target, Handle, (PixelInternalFormat)internalFormat, baseLevel, maxLevel - baseLevel + 1, 0, 1);
+
+            if (filtering is { } filter)
+            {
+                GL.TextureParameter(levelView, TextureParameterName.TextureMinFilter, (int)filter.Min);
+                GL.TextureParameter(levelView, TextureParameterName.TextureMagFilter, (int)filter.Mag);
+            }
+
+            if (wrapMode is { } wrap)
+            {
+                GL.TextureParameter(levelView, TextureParameterName.TextureWrapS, (int)wrap.S.ToGLTextureWrapMode());
+                GL.TextureParameter(levelView, TextureParameterName.TextureWrapT, (int)wrap.T.ToGLTextureWrapMode());
+            }
+
+            if (maxAnisotropy > 0f)
+            {
+                GL.TextureParameter(levelView, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, maxAnisotropy);
+            }
+
+            return levelView;
+        }
+
+        private static long MakeResident(long handle)
+        {
+            Debug.Assert(handle != 0);
+
+            GL.Arb.MakeTextureHandleResident(handle);
+            return handle;
+        }
+
+        private void ReleaseBindlessHandles()
+        {
+            ReleaseResidentHandles();
+
+            if (levelView != 0)
+            {
+                GL.DeleteTexture(levelView);
+                levelView = 0;
+            }
+        }
+
+        private void ReleaseResidentHandles()
+        {
+            if (bindlessHandle != 0)
+            {
+                GL.Arb.MakeTextureHandleNonResident(bindlessHandle);
+                bindlessHandle = 0;
+            }
+
+            if (samplerHandles == null)
+            {
+                return;
+            }
+
+            foreach (var handle in samplerHandles.Values)
+            {
+                GL.Arb.MakeTextureHandleNonResident(handle);
+            }
+
+            samplerHandles = null;
+        }
 
         // Raw SetParameter writes are not remembered and do not survive the swap.
         internal void ReplaceHandle(int newHandle, int numMipLevels)
         {
+            ReleaseBindlessHandles();
+            HandleVersion++;
+            parametersFrozen = false;
+
             GL.DeleteTexture(Handle);
             Handle = newHandle;
             NumMipLevels = numMipLevels;
@@ -255,6 +423,8 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Deletes the underlying OpenGL texture object.</summary>
         public void Delete()
         {
+            ReleaseBindlessHandles();
+
             GL.DeleteTexture(Handle);
             Handle = 0;
         }

@@ -63,6 +63,33 @@ public static class GLEnvironment
     /// </summary>
     public static string? GpuRendererAndDriver { get; private set; }
 
+    private static bool bindlessTexturesSupported;
+    private static bool? bindlessTextures;
+
+    /// <summary>Forces the slot bound path on a driver that does support bindless textures. Set it before the first GL context.</summary>
+    public static bool DisableBindlessTextures { get; set; }
+
+    /// <summary>
+    /// Whether textures reach shaders as handles in a constant buffer rather than bound to texture units.
+    /// Needs GL_ARB_bindless_texture.
+    /// </summary>
+    /// <remarks>
+    /// Latched on first read: shader source, buffer layouts and binding paths all have to agree, and
+    /// preprocessing runs on a background thread that can beat <see cref="Initialize"/> to it.
+    /// </remarks>
+    public static bool BindlessTextures
+    {
+        get
+        {
+            // Reading before the context has been queried would latch false and silently drop to the slot
+            // bound path for the rest of the session, on a driver that supports the extension.
+            System.Diagnostics.Debug.Assert(bindlessTextures != null || GpuRendererAndDriver != null,
+                $"{nameof(BindlessTextures)} was read before {nameof(Initialize)} queried the driver.");
+
+            return bindlessTextures ??= bindlessTexturesSupported;
+        }
+    }
+
     /// <summary>
     /// Initializes the OpenGL environment and queries capabilities.
     /// </summary>
@@ -106,6 +133,13 @@ public static class GLEnvironment
         SlowMultiDrawIndirect = (vendor == "Intel"
             && (renderer.Contains("Intel(R) HD", StringComparison.Ordinal) || renderer.Contains("Intel(R) UHD", StringComparison.Ordinal)))
             || renderer.Contains("llvmpipe", StringComparison.Ordinal);
+
+        bindlessTexturesSupported = extensions.Contains("GL_ARB_bindless_texture") && !DisableBindlessTextures;
+
+        if (!bindlessTexturesSupported)
+        {
+            logger.LogWarning("Bindless textures are off, textures will be bound to texture units");
+        }
 
         if (extensions.Contains("GL_KHR_parallel_shader_compile"))
         {

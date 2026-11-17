@@ -918,7 +918,7 @@ namespace ValveResourceFormat.Renderer.Decals
                 GL.BindTextureUnit((int)slot, texture.Handle);
             }
 
-            scene.LightingInfo.BindLightmapTextures();
+            scene.LightingInfo.BindLightmapTextures(scene.RendererContext.SceneTextures);
 
             var textureUnit = RenderMaterial.TextureUnitStart;
             passShader.SetTexture(textureUnit++, "g_tDecalColor", colorArray.ArrayTexture);

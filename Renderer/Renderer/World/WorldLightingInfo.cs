@@ -147,18 +147,26 @@ namespace ValveResourceFormat.Renderer.World
         private int CookieSamplerWrap;
         private bool WarnedAboutTooManyLights;
 
-        /// <summary>Binds the scene's lightmap, light probe atlas, and barn light cookie textures to their reserved units.</summary>
-        public void BindLightmapTextures()
+        /// <summary>
+        /// Makes the scene's lightmap, light probe atlas and barn light cookie textures readable, by handle
+        /// for the samplers <paramref name="sceneTextures"/> holds and by texture unit for the rest.
+        /// </summary>
+        public void BindLightmapTextures(SceneTextures sceneTextures)
         {
             foreach (var (name, texture) in Lightmaps)
             {
-                if (!MaterialLoader.ReservedTextureSlotByName.TryGetValue(name, out var lightmapSlot))
+                if (sceneTextures.SetTexture(name, texture))
                 {
-                    Debug.Assert(false, $"Lightmap texture '{name}' has no reserved slot. Add it to {nameof(MaterialLoader.ReservedTextureSlotByName)}.");
                     continue;
                 }
 
-                GL.BindTextureUnit((int)lightmapSlot, texture.Handle);
+                if (!MaterialLoader.ReservedSamplerByName.TryGetValue(name, out var lightmapSampler))
+                {
+                    Debug.Assert(false, $"Lightmap texture '{name}' has no reserved slot. Add it to {nameof(ReservedTextureSlots)}.");
+                    continue;
+                }
+
+                GL.BindTextureUnit((int)lightmapSampler.Slot, texture.Handle);
             }
 
             // Shaders always declare the array, and sample nothing from it in a scene without environment maps
@@ -176,17 +184,25 @@ namespace ValveResourceFormat.Renderer.World
                 BindProbeTexture("g_tLPV_Shadows", ProbeAtlas.DirectLightShadows ?? noDirectLight);
             }
 
-            // Always bind something, even when the scene has no cookies: the cookie samplers are 2D arrays,
+            // Always set something, even when the scene has no cookies: the cookie samplers are 2D arrays,
             // and leaving their reserved units empty makes shaders sample an incomplete texture.
             var cookieAtlas = BarnLightCookieAtlas ?? (DefaultCookieAtlas ??= CreateDefaultCookieAtlas());
 
             EnsureCookieSamplers();
 
-            GL.BindTextureUnit((int)ReservedTextureSlots.LightCookieTexture, cookieAtlas.Handle);
-            GL.BindSampler((int)ReservedTextureSlots.LightCookieTexture, CookieSamplerClampBorder);
+            // The two names read one atlas through different address modes, which a handle carries with it.
+            if (sceneTextures.SetTexture("g_tLightCookieTexture", cookieAtlas, CookieSamplerClampBorder))
+            {
+                sceneTextures.SetTexture("g_tLightCookieTextureWrap", cookieAtlas, CookieSamplerWrap);
+            }
+            else
+            {
+                GL.BindTextureUnit((int)ReservedTextureSlots.LightCookieTexture, cookieAtlas.Handle);
+                GL.BindSampler((int)ReservedTextureSlots.LightCookieTexture, CookieSamplerClampBorder);
 
-            GL.BindTextureUnit((int)ReservedTextureSlots.LightCookieTextureWrap, cookieAtlas.Handle);
-            GL.BindSampler((int)ReservedTextureSlots.LightCookieTextureWrap, CookieSamplerWrap);
+                GL.BindTextureUnit((int)ReservedTextureSlots.LightCookieTextureWrap, cookieAtlas.Handle);
+                GL.BindSampler((int)ReservedTextureSlots.LightCookieTextureWrap, CookieSamplerWrap);
+            }
 
             BindLightCookieVolume();
         }
@@ -318,8 +334,7 @@ namespace ValveResourceFormat.Renderer.World
                 return;
             }
 
-            var slot = MaterialLoader.ReservedTextureSlotByName[samplerName];
-            GL.BindTextureUnit((int)slot, texture.Handle);
+            GL.BindTextureUnit((int)MaterialLoader.GetReservedSlot(samplerName), texture.Handle);
         }
 
         /// <summary>

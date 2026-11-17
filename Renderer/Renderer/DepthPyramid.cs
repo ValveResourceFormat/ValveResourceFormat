@@ -8,6 +8,10 @@ internal sealed class DepthPyramid(RendererContext rendererContext)
     // Size of the larger axis. The other axis follows the viewport aspect
     private const int MaxDimension = 512;
 
+    // Threads per axis of a shader tile, which reduces through LevelsPerDispatch levels
+    private const int TileSize = 16;
+    private const int LevelsPerDispatch = 5;
+
     private Shader? downsampleShader;
     private Shader? npotDownsampleShader;
 
@@ -62,33 +66,38 @@ internal sealed class DepthPyramid(RendererContext rendererContext)
         npotDownsampleShader.SetUniform("g_nSourceDepthWidth", depthSource.Width);
         npotDownsampleShader.SetUniform("g_nSourceDepthHeight", depthSource.Height);
 
-        npotDownsampleShader.SetUniform("g_nDestDepthWidth", pyramid.Width);
-        npotDownsampleShader.SetUniform("g_nDestDepthHeight", pyramid.Height);
+        DispatchLevels(npotDownsampleShader, pyramid, 0);
 
-        GL.BindImageTexture(2, pyramid.Handle, 0, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
-
-        GL.DispatchCompute(MathUtils.DivideRoundUp(pyramid.Width, 8), MathUtils.DivideRoundUp(pyramid.Height, 8), 1);
-        GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
-
-        // Generate mip levels down to 1x1
         downsampleShader.Use();
 
-        for (var mipLevel = 1; mipLevel < pyramid.NumMipLevels; mipLevel++)
+        for (var firstLevel = LevelsPerDispatch; firstLevel < pyramid.NumMipLevels; firstLevel += LevelsPerDispatch)
         {
-            var destWidth = MathUtils.MipLevelSize(pyramid.Width, mipLevel);
-            var destHeight = MathUtils.MipLevelSize(pyramid.Height, mipLevel);
-
-            downsampleShader.SetUniform("g_nDestDepthWidth", destWidth);
-            downsampleShader.SetUniform("g_nDestDepthHeight", destHeight);
-
-            GL.BindImageTexture(1, pyramid.Handle, mipLevel - 1, false, 0, TextureAccess.ReadOnly, SizedInternalFormat.R32f);
-            GL.BindImageTexture(2, pyramid.Handle, mipLevel, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
-
-            GL.DispatchCompute(MathUtils.DivideRoundUp(destWidth, 8), MathUtils.DivideRoundUp(destHeight, 8), 1);
-            GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+            GL.BindImageTexture(1, pyramid.Handle, firstLevel - 1, false, 0, TextureAccess.ReadOnly, SizedInternalFormat.R32f);
+            DispatchLevels(downsampleShader, pyramid, firstLevel);
         }
 
         GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit);
+    }
+
+    private static void DispatchLevels(Shader shader, RenderTexture pyramid, int firstLevel)
+    {
+        var levelCount = Math.Min(LevelsPerDispatch, pyramid.NumMipLevels - firstLevel);
+        var width = MathUtils.MipLevelSize(pyramid.Width, firstLevel);
+        var height = MathUtils.MipLevelSize(pyramid.Height, firstLevel);
+
+        shader.SetUniform("g_nDestDepthWidth", width);
+        shader.SetUniform("g_nDestDepthHeight", height);
+        shader.SetUniform("g_nDestLevelCount", levelCount);
+
+        for (var i = 0; i < LevelsPerDispatch; i++)
+        {
+            // Units past the last level rebind it, the shader skips their writes
+            var level = firstLevel + Math.Min(i, levelCount - 1);
+            GL.BindImageTexture(2 + i, pyramid.Handle, level, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
+        }
+
+        GL.DispatchCompute(MathUtils.DivideRoundUp(width, TileSize), MathUtils.DivideRoundUp(height, TileSize), 1);
+        GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
     }
 
     public void Delete()

@@ -34,6 +34,7 @@ namespace GUI.Controls
             volumeSlider.Value = volumePercent;
             volumeValueLabel.Text = string.Create(CultureInfo.InvariantCulture, $"{volumePercent}%");
             smoothCamCheckbox.Checked = Settings.Config.SmoothCameraEnabled;
+            bindlessTexturesCheckBox.Checked = Settings.Config.BindlessTexturesEnabled;
 
             shadowQualityComboBox.Items.AddRange(ShadowQualityNames);
             var currentShadowResolution = Settings.Config.ShadowResolution;
@@ -307,6 +308,16 @@ namespace GUI.Controls
             }
 
             Settings.Config.SmoothCameraEnabled = smoothCamCheckbox.Checked;
+        }
+
+        private void OnBindlessTexturesChanged(object sender, EventArgs e)
+        {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
+            Settings.Config.BindlessTexturesEnabled = bindlessTexturesCheckBox.Checked;
         }
 
         private void SettingsControl_Leave(object sender, EventArgs e)

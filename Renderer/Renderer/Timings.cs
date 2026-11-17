@@ -22,10 +22,13 @@ public class Timings
         public int Order;
         public long StartTimestamp;
 
-        public int StartQuery;
-        public int EndQuery;
-        public bool SubmitGpuQueries;
+        // Timestamp query pairs, one per frame in flight, so every region reads back the same frame
+        public readonly int[] StartQueries = new int[GpuQueryFrames];
+        public readonly int[] EndQueries = new int[GpuQueryFrames];
+        public readonly bool[] Pending = new bool[GpuQueryFrames];
+        public int Slot;
         public double GpuMs;
+        public bool GpuFresh;
 
         // Peak of the last whole second, or null when the region did not run in it
         public double? PreviousMax;
@@ -37,8 +40,12 @@ public class Timings
 
         public bool Averaged;
         public double AveragedCpuMs;
+        public double AveragedCpuSquares;
+        public double AveragedCpuMax;
         public int AveragedCpuSamples;
         public double AveragedGpuMs;
+        public double AveragedGpuSquares;
+        public double AveragedGpuMax;
         public int AveragedGpuSamples;
     }
 
@@ -57,7 +64,65 @@ public class Timings
     /// <param name="CpuSamples">Frames the region ran in.</param>
     /// <param name="GpuMs">Average GPU milliseconds, or null for a region that submits no GPU work or got no GPU reading.</param>
     /// <param name="GpuSamples">GPU readings the average is made of. GPU times arrive a few frames late and not every frame.</param>
-    internal readonly record struct TimingAverage(string Name, int Depth, double CpuMs, int CpuSamples, double? GpuMs, int GpuSamples);
+    internal readonly record struct TimingAverage(string Name, int Depth, double CpuMs, int CpuSamples, double? GpuMs, int GpuSamples)
+    {
+        /// <summary>Gets the standard deviation of the CPU milliseconds.</summary>
+        public double CpuStdDev { get; init; }
+
+        /// <summary>Gets the longest CPU milliseconds of a single frame.</summary>
+        public double CpuMax { get; init; }
+
+        /// <summary>Gets the standard deviation of the GPU milliseconds, or null without GPU readings.</summary>
+        public double? GpuStdDev { get; init; }
+
+        /// <summary>Gets the longest GPU milliseconds of a single reading, or null without GPU readings.</summary>
+        public double? GpuMax { get; init; }
+    }
+
+    /// <summary>The spread of a per-frame time over the frames since <see cref="StartAveraging"/>, in milliseconds.</summary>
+    internal readonly record struct FrameDistribution(double Mean, double P50, double P95, double P99, double Max, double StdDev, int Samples)
+    {
+        internal static FrameDistribution? From(List<double> samples)
+        {
+            if (samples.Count == 0)
+            {
+                return null;
+            }
+
+            samples.Sort();
+
+            var mean = 0.0;
+
+            foreach (var sample in samples)
+            {
+                mean += sample;
+            }
+
+            mean /= samples.Count;
+
+            var variance = 0.0;
+
+            foreach (var sample in samples)
+            {
+                variance += (sample - mean) * (sample - mean);
+            }
+
+            double Percentile(double fraction) => samples[Math.Min(samples.Count - 1, (int)(fraction * samples.Count))];
+
+            return new FrameDistribution(mean, Percentile(0.5), Percentile(0.95), Percentile(0.99), samples[^1],
+                Math.Sqrt(variance / samples.Count), samples.Count);
+        }
+    }
+
+    // Per-frame totals while averaging: CPU of the timed regions, GPU of the top-level regions read back
+    // for one frame, the swap wait, and the time between swaps
+    private readonly List<double> frameCpuSeries = [];
+    private readonly List<double> frameGpuSeries = [];
+    private readonly List<double> swapSeries = [];
+    private readonly List<double> framePeriodSeries = [];
+
+    /// <summary>Gets the spread of the frame totals of the last <see cref="StopAveraging"/>.</summary>
+    internal (FrameDistribution? Cpu, FrameDistribution? Gpu, FrameDistribution? Swap, FrameDistribution? Period) LastFrameDistributions { get; private set; }
 
     // Regions in the order they were first seen while averaging, or null when not averaging
     private List<Region>? averaging;
@@ -82,6 +147,9 @@ public class Timings
     private readonly SortedDictionary<QueryId, TimingResult> results = [];
 
     private const int NameColumnWidth = 40;
+
+    // Frames a GPU reading lags behind, deeper than the frames a driver queues up
+    private const int GpuQueryFrames = 4;
 
     // A collapsed region still lists the regions nested in it once it peaks above this
     private const double ExpandCollapsedMs = 1.0;
@@ -126,6 +194,12 @@ public class Timings
 
         swapMs = milliseconds;
         swapMaxCurrent = Math.Max(swapMaxCurrent, milliseconds);
+
+        if (averaging != null)
+        {
+            swapSeries.Add(milliseconds);
+            framePeriodSeries.Add(framePeriodMilliseconds);
+        }
 
         unaccountedMs = framePeriodMilliseconds - (frameCpuMs + milliseconds);
         unaccountedMaxCurrent = Math.Max(unaccountedMaxCurrent, unaccountedMs);
@@ -190,19 +264,19 @@ public class Timings
         // No GPU queries for a CPU-only region: it issues no draw work, so a GPU time would only measure the gap around it
         if (!cpuOnly)
         {
-            if (region.StartQuery == 0)
-            {
-                region.StartQuery = GraphicsDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingStart");
-                region.EndQuery = GraphicsDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingEnd");
-                region.SubmitGpuQueries = true;
+            var slot = (int)(frame % GpuQueryFrames);
+            region.Slot = slot;
 
-                Debug.Assert(region.StartQuery != 0 && region.EndQuery != 0, "Failed to generate GPU query objects.");
+            if (region.StartQueries[slot] == 0)
+            {
+                region.StartQueries[slot] = GraphicsDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingStart");
+                region.EndQueries[slot] = GraphicsDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingEnd");
+
+                Debug.Assert(region.StartQueries[slot] != 0 && region.EndQueries[slot] != 0, "Failed to generate GPU query objects.");
             }
 
-            if (region.SubmitGpuQueries)
-            {
-                GL.QueryCounter(region.StartQuery, QueryCounterTarget.Timestamp);
-            }
+            region.GpuFresh = ReadGpuTime(region, slot);
+            GL.QueryCounter(region.StartQueries[slot], QueryCounterTarget.Timestamp);
         }
 
         region.StartTimestamp = Stopwatch.GetTimestamp();
@@ -233,28 +307,37 @@ public class Timings
             return;
         }
 
-        // The queries are only read back once their results land, so until then the last GPU time is carried forward
-        var gpuFresh = false;
+        GL.QueryCounter(region.EndQueries[region.Slot], QueryCounterTarget.Timestamp);
+        region.Pending[region.Slot] = true;
 
-        if (region.SubmitGpuQueries)
-        {
-            GL.QueryCounter(region.EndQuery, QueryCounterTarget.Timestamp);
-            region.SubmitGpuQueries = false;
-        }
-        else
-        {
-            GL.GetQueryObject(region.StartQuery, GetQueryObjectParam.QueryResultNoWait, out long startTimestampGpu);
-            GL.GetQueryObject(region.EndQuery, GetQueryObjectParam.QueryResultNoWait, out long endTimestampGpu);
+        results[id] = new TimingResult(region, elapsedMs, region.GpuMs, region.GpuFresh);
+    }
 
-            if (startTimestampGpu != 0 && endTimestampGpu != 0)
-            {
-                region.GpuMs = (endTimestampGpu - startTimestampGpu) / 1_000_000.0; // convert nanoseconds to milliseconds
-                region.SubmitGpuQueries = true;
-                gpuFresh = true;
-            }
+    /// <summary>
+    /// Reads the time the slot measured <see cref="GpuQueryFrames"/> frames ago, before the slot is reused. A result
+    /// that has not landed is dropped, and the last GPU time is carried forward.
+    /// </summary>
+    private static bool ReadGpuTime(Region region, int slot)
+    {
+        if (!region.Pending[slot])
+        {
+            return false;
         }
 
-        results[id] = new TimingResult(region, elapsedMs, region.GpuMs, gpuFresh);
+        region.Pending[slot] = false;
+
+        GL.GetQueryObject(region.EndQueries[slot], GetQueryObjectParam.QueryResultAvailable, out int available);
+
+        if (available == 0)
+        {
+            return false;
+        }
+
+        GL.GetQueryObject(region.StartQueries[slot], GetQueryObjectParam.QueryResult, out long startTimestampGpu);
+        GL.GetQueryObject(region.EndQueries[slot], GetQueryObjectParam.QueryResult, out long endTimestampGpu);
+
+        region.GpuMs = (endTimestampGpu - startTimestampGpu) / 1_000_000.0; // convert nanoseconds to milliseconds
+        return true;
     }
 
     /// <summary>
@@ -547,6 +630,9 @@ public class Timings
 
         AveragedFrames++;
 
+        var frameGpuMs = 0.0;
+        var frameGpuComplete = true;
+
         foreach (var result in results.Values)
         {
             var region = result.Region;
@@ -555,21 +641,43 @@ public class Timings
             {
                 region.Averaged = true;
                 region.AveragedCpuMs = 0.0;
+                region.AveragedCpuSquares = 0.0;
+                region.AveragedCpuMax = 0.0;
                 region.AveragedCpuSamples = 0;
                 region.AveragedGpuMs = 0.0;
+                region.AveragedGpuSquares = 0.0;
+                region.AveragedGpuMax = 0.0;
                 region.AveragedGpuSamples = 0;
                 averaging.Add(region);
             }
 
             region.AveragedCpuMs += result.TimeMs;
+            region.AveragedCpuSquares += result.TimeMs * result.TimeMs;
+            region.AveragedCpuMax = Math.Max(region.AveragedCpuMax, result.TimeMs);
             region.AveragedCpuSamples++;
 
             // Between readings the last GPU time is carried forward, which would count it more than once
             if (result.GpuFresh)
             {
                 region.AveragedGpuMs += result.TimeMsGpu;
+                region.AveragedGpuSquares += result.TimeMsGpu * result.TimeMsGpu;
+                region.AveragedGpuMax = Math.Max(region.AveragedGpuMax, result.TimeMsGpu);
                 region.AveragedGpuSamples++;
             }
+
+            if (result.Depth == 0 && !region.CpuOnly)
+            {
+                frameGpuMs += result.TimeMsGpu;
+                frameGpuComplete &= result.GpuFresh;
+            }
+        }
+
+        frameCpuSeries.Add(frameCpuMs);
+
+        // A frame missing a reading would mix in an older frame's time
+        if (frameGpuComplete)
+        {
+            frameGpuSeries.Add(frameGpuMs);
         }
     }
 
@@ -583,6 +691,11 @@ public class Timings
 
         averaging = [];
         AveragedFrames = 0;
+
+        frameCpuSeries.Clear();
+        frameGpuSeries.Clear();
+        swapSeries.Clear();
+        framePeriodSeries.Clear();
     }
 
     /// <summary>Stops summing, and returns each region's averages in the order they were first timed. Call between frames.</summary>
@@ -599,16 +712,30 @@ public class Timings
         foreach (var region in averaging)
         {
             var cpuMs = region.AveragedCpuMs / region.AveragedCpuSamples;
-            double? gpuMs = region.CpuOnly || region.AveragedGpuSamples == 0 ? null : region.AveragedGpuMs / region.AveragedGpuSamples;
+            var hasGpu = !region.CpuOnly && region.AveragedGpuSamples > 0;
+            double? gpuMs = hasGpu ? region.AveragedGpuMs / region.AveragedGpuSamples : null;
 
-            averages.Add(new TimingAverage(region.Name, region.Depth, cpuMs, region.AveragedCpuSamples, gpuMs, region.AveragedGpuSamples));
+            averages.Add(new TimingAverage(region.Name, region.Depth, cpuMs, region.AveragedCpuSamples, gpuMs, region.AveragedGpuSamples)
+            {
+                CpuStdDev = StdDev(region.AveragedCpuSquares, cpuMs, region.AveragedCpuSamples),
+                CpuMax = region.AveragedCpuMax,
+                GpuStdDev = hasGpu ? StdDev(region.AveragedGpuSquares, gpuMs!.Value, region.AveragedGpuSamples) : null,
+                GpuMax = hasGpu ? region.AveragedGpuMax : null,
+            });
+
             region.Averaged = false;
         }
 
         averaging = null;
 
+        LastFrameDistributions = (FrameDistribution.From(frameCpuSeries), FrameDistribution.From(frameGpuSeries),
+            FrameDistribution.From(swapSeries), FrameDistribution.From(framePeriodSeries));
+
         return averages;
     }
+
+    private static double StdDev(double squares, double mean, int samples)
+        => Math.Sqrt(Math.Max(0.0, (squares / samples) - (mean * mean)));
 
     /// <summary>
     /// Releases resources.

@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Collections.Frozen;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO.Hashing;
 using System.Linq;
@@ -87,6 +88,10 @@ namespace ValveResourceFormat.Renderer.Materials
 
             RendererContext.TextureStreaming.CancelAllStreaming();
             RendererContext.TextureStreaming.DeleteStaging();
+
+            // The scene textures buffer outlives the scene and holds handles to what was just deleted. The
+            // next scene only overwrites the members it has a texture for.
+            RendererContext.ResetSceneTextures();
         }
 
         /// <summary>Returns a cached <see cref="RenderMaterial"/> for the given resource path and shader arguments, loading and caching it on first access.</summary>
@@ -604,36 +609,61 @@ namespace ValveResourceFormat.Renderer.Materials
             _ => throw new NotImplementedException($"Unsupported texture format {vformat}")
         };
 
-        /// <summary>Gets the texture unit each reserved sampler uniform is bound to.</summary>
-        public static readonly FrozenDictionary<string, ReservedTextureSlots> ReservedTextureSlotByName = BuildReservedTextureSlotByName();
+        /// <summary>A sampler uniform the renderer supplies, as declared on <see cref="ReservedTextureSlots"/>.</summary>
+        /// <param name="Name">The sampler uniform name.</param>
+        /// <param name="Kind">The sampler type the shaders declare it as.</param>
+        /// <param name="Slot">The texture unit it takes when it is not read through a handle.</param>
+        /// <param name="PerInstance">Rebound per draw, which keeps it on its texture unit.</param>
+        public readonly record struct ReservedSampler(string Name, SamplerKind Kind, ReservedTextureSlots Slot, bool PerInstance);
 
-        private static FrozenDictionary<string, ReservedTextureSlots> BuildReservedTextureSlotByName()
+        /// <summary>The reserved samplers in slot order.</summary>
+        public static readonly ImmutableArray<ReservedSampler> ReservedSamplers = BuildReservedSamplers();
+
+        /// <summary>The reserved samplers by uniform name.</summary>
+        public static readonly FrozenDictionary<string, ReservedSampler> ReservedSamplerByName =
+            ReservedSamplers.ToFrozenDictionary(static sampler => sampler.Name, StringComparer.Ordinal);
+
+        private static ImmutableArray<ReservedSampler> BuildReservedSamplers()
         {
-            var slotByName = new Dictionary<string, ReservedTextureSlots>(StringComparer.Ordinal);
+            var samplers = ImmutableArray.CreateBuilder<ReservedSampler>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var field in typeof(ReservedTextureSlots).GetFields(BindingFlags.Public | BindingFlags.Static))
             {
-                var attribute = field.GetCustomAttribute<SamplerNameAttribute>();
-
-                if (attribute == null)
-                {
-                    continue; // Aliases such as Last carry no names of their own.
-                }
-
                 var slot = (ReservedTextureSlots)field.GetRawConstantValue()!;
 
-                foreach (var name in attribute.Names)
+                // Aliases such as Last carry no names of their own.
+                foreach (var attribute in field.GetCustomAttributes<SamplerNameAttribute>())
                 {
-                    // Add, not assign: two slots claiming one sampler name is a mistake worth failing on.
-                    slotByName.Add(name, slot);
+                    if (!seen.Add(attribute.Name))
+                    {
+                        throw new InvalidOperationException($"Sampler '{attribute.Name}' is claimed by more than one {nameof(ReservedTextureSlots)}.");
+                    }
+
+                    samplers.Add(new ReservedSampler(attribute.Name, attribute.Kind, slot, attribute.PerInstance));
                 }
             }
 
-            return slotByName.ToFrozenDictionary(StringComparer.Ordinal);
+            return samplers.DrainToImmutable();
         }
 
+        /// <summary>The texture unit the named reserved sampler is bound to.</summary>
+        public static ReservedTextureSlots GetReservedSlot(string uniformName) => ReservedSamplerByName[uniformName].Slot;
+
+        /// <summary>The texture target a sampler of the given type reads from.</summary>
+        public static TextureTarget GetTextureTarget(SamplerKind kind) => kind switch
+        {
+            SamplerKind.Texture2D or SamplerKind.Texture2DShadow => TextureTarget.Texture2D,
+            SamplerKind.Texture2DArrayShadow => TextureTarget.Texture2DArray,
+            SamplerKind.Texture3D => TextureTarget.Texture3D,
+            SamplerKind.TextureCube => TextureTarget.TextureCubeMap,
+            SamplerKind.Texture2DArray => TextureTarget.Texture2DArray,
+            SamplerKind.TextureCubeArray => TextureTarget.TextureCubeMapArray,
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+        };
+
         /// <summary>Returns whether a uniform name is bound to one of the <see cref="ReservedTextureSlots"/>.</summary>
-        public static bool IsReservedTexture(string uniformName) => ReservedTextureSlotByName.ContainsKey(uniformName);
+        public static bool IsReservedTexture(string uniformName) => ReservedSamplerByName.ContainsKey(uniformName);
 
         /// <summary>
         /// Material invariant textures, requested by shaders. They become scene-wide textures.
@@ -688,6 +718,124 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>Returns a lazily created 1x1 solid white colour texture, a neutral fallback albedo.</summary>
         public RenderTexture GetDefaultColor() => DefaultColor ??= CreateSolidTexture(255, 255, 255);
+
+        private readonly Dictionary<SamplerKind, RenderTexture> NullTextures = [];
+
+        /// <summary>
+        /// The texture a sampler of the given type falls back to when there is nothing to put there. Every
+        /// packed sampler gets one rather than being left unwritten, since sampling a handle of the wrong
+        /// target is undefined.
+        /// </summary>
+        public RenderTexture GetNullTexture(SamplerKind kind)
+        {
+            switch (kind)
+            {
+                case SamplerKind.Texture2D:
+                    return GetErrorTexture();
+
+                case SamplerKind.Texture3D:
+                    return GetDefaultVolume();
+
+                default:
+                    if (!NullTextures.TryGetValue(kind, out var texture))
+                    {
+                        texture = CreateNullTexture(kind);
+                        NullTextures.Add(kind, texture);
+                    }
+
+                    return texture;
+            }
+        }
+
+        private static RenderTexture CreateNullTexture(SamplerKind kind)
+        {
+            if (kind is SamplerKind.Texture2DShadow or SamplerKind.Texture2DArrayShadow)
+            {
+                return CreateNullShadowTexture(layered: kind == SamplerKind.Texture2DArrayShadow);
+            }
+
+            var (target, depth) = kind switch
+            {
+                SamplerKind.TextureCube => (TextureTarget.TextureCubeMap, 6),
+                SamplerKind.Texture2DArray => (TextureTarget.Texture2DArray, 1),
+                SamplerKind.TextureCubeArray => (TextureTarget.TextureCubeMapArray, 6),
+                _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+            };
+
+            var texture = new RenderTexture(target, 1, 1, depth, 1, $"NullTexture{kind}");
+            texture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+            texture.SetWrapMode(RsTextureAddressMode.Clamp);
+
+            // Cube faces go through the layered entry points, same as array slices.
+            var texels = new byte[depth * 3];
+
+            for (var i = 0; i < depth; i++)
+            {
+                texels[(i * 3) + 0] = 100;
+                texels[(i * 3) + 1] = 25;
+                texels[(i * 3) + 2] = 75;
+            }
+
+            if (target == TextureTarget.TextureCubeMap)
+            {
+                GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.Rgb8, 1, 1);
+            }
+            else
+            {
+                GL.TextureStorage3D(texture.Handle, 1, SizedInternalFormat.Rgb8, 1, 1, depth);
+            }
+
+            GL.TextureSubImage3D(texture.Handle, 0, 0, 0, 0, 1, 1, depth, PixelFormat.Rgb, PixelType.UnsignedByte, texels);
+
+            return texture;
+        }
+
+        /// <summary>One texel at maximum depth, so the comparison passes and nothing ends up shadowed.</summary>
+        private static RenderTexture CreateNullShadowTexture(bool layered)
+        {
+            var target = layered ? TextureTarget.Texture2DArray : TextureTarget.Texture2D;
+
+            var texture = new RenderTexture(target, 1, 1, 1, 1, layered ? "NullTextureShadowArray" : "NullTextureShadow");
+            texture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+            texture.SetWrapMode(RsTextureAddressMode.Clamp);
+            texture.SetParameter(TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
+            texture.SetParameter(TextureParameterName.TextureCompareFunc, (int)DepthFunction.Lequal);
+
+            float[] farDepth = [1f];
+
+            if (layered)
+            {
+                GL.TextureStorage3D(texture.Handle, 1, SizedInternalFormat.DepthComponent32f, 1, 1, 1);
+                GL.TextureSubImage3D(texture.Handle, 0, 0, 0, 0, 1, 1, 1, PixelFormat.DepthComponent, PixelType.Float, farDepth);
+            }
+            else
+            {
+                GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.DepthComponent32f, 1, 1);
+                GL.TextureSubImage2D(texture.Handle, 0, 0, 0, 1, 1, PixelFormat.DepthComponent, PixelType.Float, farDepth);
+            }
+
+            return texture;
+        }
+
+        /// <summary>
+        /// The texture a shader's sampler starts out with. Two dimensional samplers get a stand-in picked
+        /// from the name, everything else the null texture of its type.
+        /// </summary>
+        public RenderTexture GetDefaultTexture(string uniformName, SamplerKind kind = SamplerKind.None)
+        {
+            if (kind is not SamplerKind.None and not SamplerKind.Texture2D)
+            {
+                return GetNullTexture(kind);
+            }
+
+            return uniformName switch
+            {
+                _ when uniformName.Contains("color", StringComparison.OrdinalIgnoreCase) => GetErrorTexture(),
+                _ when uniformName.Contains("normal", StringComparison.OrdinalIgnoreCase) => GetDefaultNormal(),
+                _ when uniformName.Contains("mask", StringComparison.OrdinalIgnoreCase) => GetDefaultMask(),
+                _ => GetErrorTexture(),
+            };
+        }
 
         /// <summary>
         /// Returns the texture that names a label in its color, such as that of a tools material, an entity volume or

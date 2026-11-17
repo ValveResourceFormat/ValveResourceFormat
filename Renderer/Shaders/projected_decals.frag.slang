@@ -352,7 +352,10 @@ void main()
     }
 #endif
 
-    if (ReadReceiverDepth(ivec2(fragCoord)) < g_flViewportMinZ)
+    // Outside the scene range: the sky behind it or the viewmodel in front
+    float receiverDepth = ReadReceiverDepth(ivec2(fragCoord));
+
+    if (receiverDepth < g_flViewportMinZ || receiverDepth > g_flViewportMaxZ)
     {
         discard;
     }
