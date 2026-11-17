@@ -8,7 +8,7 @@
     <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="TUnit" Version="1.75.0" />
+    <PackageReference Include="TUnit" Version="1.86.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj" />

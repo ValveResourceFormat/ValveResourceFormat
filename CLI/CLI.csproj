@@ -8,7 +8,7 @@
     <PublishSingleFile Condition="'$(Configuration)' != 'Debug'">true</PublishSingleFile>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="ConsoleAppFramework" Version="5.7.13">
+    <PackageReference Include="ConsoleAppFramework" Version="5.8.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>

@@ -152,6 +152,7 @@ What a recompiled model will be missing:
 | Additive clip base             | Not in compiled files | An additive Animgraph 2 clip keeps only its offsets. One that holds an unchanged frame comes back relative to that frame; any other, such as one generated against another animation, comes back relative to the skeleton's reference pose, which recompiles to the same offsets.                                                       |
 | Vertical root motion           | Intentional           | The Z component of root motion is zeroed on export, matching how the engine applies movement to the visible body.                                                                                                                                                                                                                       |
 | Attachment camera preview look | Not in compiled files | The `preview_scale` and `background_color` of an `Attachment Camera Preview` only affect the editor, so they come back at their defaults. A camera on an attachment that the compiled model does not have is dropped.                                                                                                                   |
+
 ### glTF Export
 
 Models and maps export to glTF 2.0 (`.glb`/`.gltf`) with meshes, up to 8 bone weights per
@@ -193,14 +194,14 @@ physics geometry for collision that has no matching render mesh.
 
 Data that was already destroyed by the map compiler, and therefore cannot come back:
 
-| What                          | Details                                                                                                                                                              |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Prefab instances              | The compiler flattens prefabs into the world; nothing marks their boundaries.                                                                                        |
-| Groups and selection sets     | Only a numeric `hammeruniqueid` lineage survives; VRF rebuilds nesting from it, but the original names and folder structure are gone.                                |
-| Overlay projection parameters | Compiled maps store only the final projected triangles, which come back as plain Hammer meshes.                                                                      |
-| Per-face lightmap scale       | Not stored; all faces come back with default luxel density.                                                                                                          |
-| Mesh subdivision levels       | Only the final tessellated mesh is stored; subdivided surfaces come back flat (non-subdivided).                                                                      |
-| Per-light "No Shadow" flag    | Not preserved in compiled CS2 maps.                                                                                                                                  |
+| What                          | Details                                                                                                                               |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Prefab instances              | The compiler flattens prefabs into the world; nothing marks their boundaries.                                                         |
+| Groups and selection sets     | Only a numeric `hammeruniqueid` lineage survives; VRF rebuilds nesting from it, but the original names and folder structure are gone. |
+| Overlay projection parameters | Compiled maps store only the final projected triangles, which come back as plain Hammer meshes.                                       |
+| Per-face lightmap scale       | Not stored; all faces come back with default luxel density.                                                                           |
+| Mesh subdivision levels       | Only the final tessellated mesh is stored; subdivided surfaces come back flat (non-subdivided).                                       |
+| Per-light "No Shadow" flag    | Not preserved in compiled CS2 maps.                                                                                                   |
 
 On cubemap and light probe entities, VRF also intentionally renames the baked
 `cubemaptexture`, `lightprobetexture` and `array_index` keys with a `vrf_stripped_` prefix:
@@ -285,11 +286,11 @@ reconstruct a compilable `.mks` plus per-frame images; LDR cubemaps export a 6:1
 cube, HDR cubemaps combine into a single equirectangular map. 2D arrays and volumes export
 one image per slice. Every shape comes with a compilable `.vtex`.
 
-| What                                       | Why                   | Details                                                                                                                                                                                                                                                                                                                                             |
-| ------------------------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Original source images                     | Not in compiled files | Block compression (BC1-7, ETC2) is lossy at compile time; exports faithfully reflect the compiled data, not the artist's source.                                                                                                                                                                                                                    |
-| Mip chain                                  | Format limitation     | File extraction always uses the largest mip only; the texture viewer can save the mip, face, or slice it is currently showing, and per-mip access exists in the library API. HL:Alyx's per-mip roughness packing therefore has no single-file preserving export path. [#936](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/936) |
-| Transform detection without edit info      | Not implemented       | Which compile-time transform to reverse is detected from the resource's edit info block; files stripped of it export still-encoded pixels without warning.                                                                                                                                                                                          |
+| What                                  | Why                   | Details                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Original source images                | Not in compiled files | Block compression (BC1-7, ETC2) is lossy at compile time; exports faithfully reflect the compiled data, not the artist's source.                                                                                                                                                                                                                    |
+| Mip chain                             | Format limitation     | File extraction always uses the largest mip only; the texture viewer can save the mip, face, or slice it is currently showing, and per-mip access exists in the library API. HL:Alyx's per-mip roughness packing therefore has no single-file preserving export path. [#936](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/936) |
+| Transform detection without edit info | Not implemented       | Which compile-time transform to reverse is detected from the resource's edit info block; files stripped of it export still-encoded pixels without warning.                                                                                                                                                                                          |
 
 ## Animation
 
