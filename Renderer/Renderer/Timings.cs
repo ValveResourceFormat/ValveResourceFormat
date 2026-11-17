@@ -22,10 +22,13 @@ public class Timings
         public int Order;
         public long StartTimestamp;
 
-        public int StartQuery;
-        public int EndQuery;
-        public bool SubmitGpuQueries;
+        // Timestamp query pairs, one per frame in flight, so every region reads back the same frame
+        public readonly int[] StartQueries = new int[GpuQueryFrames];
+        public readonly int[] EndQueries = new int[GpuQueryFrames];
+        public readonly bool[] Pending = new bool[GpuQueryFrames];
+        public int Slot;
         public double GpuMs;
+        public bool GpuFresh;
 
         // Peak of the last whole second, or null when the region did not run in it
         public double? PreviousMax;
@@ -82,6 +85,9 @@ public class Timings
     private readonly SortedDictionary<QueryId, TimingResult> results = [];
 
     private const int NameColumnWidth = 40;
+
+    // Frames a GPU reading lags behind, deeper than the frames a driver queues up
+    private const int GpuQueryFrames = 4;
 
     // A collapsed region still lists the regions nested in it once it peaks above this
     private const double ExpandCollapsedMs = 1.0;
@@ -190,19 +196,19 @@ public class Timings
         // No GPU queries for a CPU-only region: it issues no draw work, so a GPU time would only measure the gap around it
         if (!cpuOnly)
         {
-            if (region.StartQuery == 0)
-            {
-                region.StartQuery = GraphicsDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingStart");
-                region.EndQuery = GraphicsDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingEnd");
-                region.SubmitGpuQueries = true;
+            var slot = (int)(frame % GpuQueryFrames);
+            region.Slot = slot;
 
-                Debug.Assert(region.StartQuery != 0 && region.EndQuery != 0, "Failed to generate GPU query objects.");
+            if (region.StartQueries[slot] == 0)
+            {
+                region.StartQueries[slot] = GraphicsDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingStart");
+                region.EndQueries[slot] = GraphicsDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingEnd");
+
+                Debug.Assert(region.StartQueries[slot] != 0 && region.EndQueries[slot] != 0, "Failed to generate GPU query objects.");
             }
 
-            if (region.SubmitGpuQueries)
-            {
-                GL.QueryCounter(region.StartQuery, QueryCounterTarget.Timestamp);
-            }
+            region.GpuFresh = ReadGpuTime(region, slot);
+            GL.QueryCounter(region.StartQueries[slot], QueryCounterTarget.Timestamp);
         }
 
         region.StartTimestamp = Stopwatch.GetTimestamp();
@@ -233,28 +239,37 @@ public class Timings
             return;
         }
 
-        // The queries are only read back once their results land, so until then the last GPU time is carried forward
-        var gpuFresh = false;
+        GL.QueryCounter(region.EndQueries[region.Slot], QueryCounterTarget.Timestamp);
+        region.Pending[region.Slot] = true;
 
-        if (region.SubmitGpuQueries)
-        {
-            GL.QueryCounter(region.EndQuery, QueryCounterTarget.Timestamp);
-            region.SubmitGpuQueries = false;
-        }
-        else
-        {
-            GL.GetQueryObject(region.StartQuery, GetQueryObjectParam.QueryResultNoWait, out long startTimestampGpu);
-            GL.GetQueryObject(region.EndQuery, GetQueryObjectParam.QueryResultNoWait, out long endTimestampGpu);
+        results[id] = new TimingResult(region, elapsedMs, region.GpuMs, region.GpuFresh);
+    }
 
-            if (startTimestampGpu != 0 && endTimestampGpu != 0)
-            {
-                region.GpuMs = (endTimestampGpu - startTimestampGpu) / 1_000_000.0; // convert nanoseconds to milliseconds
-                region.SubmitGpuQueries = true;
-                gpuFresh = true;
-            }
+    /// <summary>
+    /// Reads the time the slot measured <see cref="GpuQueryFrames"/> frames ago, before the slot is reused. A result
+    /// that has not landed is dropped, and the last GPU time is carried forward.
+    /// </summary>
+    private static bool ReadGpuTime(Region region, int slot)
+    {
+        if (!region.Pending[slot])
+        {
+            return false;
         }
 
-        results[id] = new TimingResult(region, elapsedMs, region.GpuMs, gpuFresh);
+        region.Pending[slot] = false;
+
+        GL.GetQueryObject(region.EndQueries[slot], GetQueryObjectParam.QueryResultAvailable, out int available);
+
+        if (available == 0)
+        {
+            return false;
+        }
+
+        GL.GetQueryObject(region.StartQueries[slot], GetQueryObjectParam.QueryResult, out long startTimestampGpu);
+        GL.GetQueryObject(region.EndQueries[slot], GetQueryObjectParam.QueryResult, out long endTimestampGpu);
+
+        region.GpuMs = (endTimestampGpu - startTimestampGpu) / 1_000_000.0; // convert nanoseconds to milliseconds
+        return true;
     }
 
     /// <summary>
