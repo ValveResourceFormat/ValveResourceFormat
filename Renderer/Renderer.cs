@@ -2520,6 +2520,8 @@ public class Renderer : ISceneHost
 
         var boxEye = LockedCullPosition ?? updateContext.Camera.Location;
 
+        var cullsWithBoxes = EntitySystem.Enabled && Settings.EnableVisBoxCulling && !Settings.DisableAllCulling;
+
         scenesUpdated.Clear();
 
         foreach (var view in views)
@@ -2529,7 +2531,7 @@ public class Renderer : ISceneHost
                 if (scenesUpdated.Add(state.Scene))
                 {
                     state.Scene.Update(updateContext with { Camera = view.Camera });
-                    state.Scene.VisibilityBoxes.PrepareView(Settings.DisableAllCulling || !Settings.EnableVisBoxCulling ? null : view.Sky?.ToSky(boxEye) ?? boxEye);
+                    state.Scene.VisibilityBoxes.PrepareView(cullsWithBoxes ? view.Sky?.ToSky(boxEye) ?? boxEye : null);
                 }
             }
         }
@@ -2539,7 +2541,7 @@ public class Renderer : ISceneHost
         // Each view state splits the boxes for its own eye, as a sky view may see the same scene from elsewhere
         foreach (var view in views)
         {
-            Vector3? viewBoxEye = Settings.DisableAllCulling || !Settings.EnableVisBoxCulling ? null : view.Sky?.ToSky(boxEye) ?? boxEye;
+            Vector3? viewBoxEye = cullsWithBoxes ? view.Sky?.ToSky(boxEye) ?? boxEye : null;
 
             foreach (var state in view.States)
             {
