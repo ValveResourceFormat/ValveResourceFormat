@@ -789,7 +789,7 @@ public sealed class SceneViewState
         => Enum.GetValues<DepthOnlyBucket>().ToDictionary(static bucket => bucket, static _ => new List<MeshBatchRenderer.Request>());
 
     internal (float Min, float Max) CollectShadowCasters(Frustum frustum, bool includeStatic, VisibilityBoxCuller boxes, Vector3 depthFitAxis,
-        bool cullAggregatesOnGpu)
+        bool cullAggregatesOnGpu, Camera camera)
     {
         var depthMin = float.MaxValue;
         var depthMax = float.MinValue;
@@ -878,6 +878,7 @@ public sealed class SceneViewState
             }
 
             MathUtils.SetBit(visibleBits, (int)node.Id);
+            node.UpdateBuffers(camera);
         }
 
         return (depthMin, depthMax);

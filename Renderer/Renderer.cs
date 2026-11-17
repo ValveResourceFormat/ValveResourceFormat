@@ -688,7 +688,7 @@ public class Renderer : ISceneHost
             var lightmapHoldsStatics = sunShadowBaked && !(Settings.StaticSunShadows && cascade <= scene.LightingInfo.LastStaticSunCascade);
 
             var (min, max) = state.CollectShadowCasters(frustum, includeStatic: includeBakedStatic || !lightmapHoldsStatics,
-                from.States[i].VisibilityBoxes, depthFitAxis, cullAggregatesOnGpu: true);
+                from.States[i].VisibilityBoxes, depthFitAxis, cullAggregatesOnGpu: true, from.Camera);
 
             depthMin = MathF.Min(depthMin, min);
             depthMax = MathF.Max(depthMax, max);
@@ -716,7 +716,7 @@ public class Renderer : ISceneHost
             // Static shadows of stationary lights are baked
             view.States[0].CollectShadowCasters(view.Camera.ViewFrustum,
                 includeStatic: caster.Light.DirectLight != SceneLight.DirectLightType.Stationary,
-                Scene.VisibilityBoxes.PrepareSecondaryView(caster.Light.Position), Vector3.Zero, cullAggregatesOnGpu: false);
+                Scene.VisibilityBoxes.PrepareSecondaryView(caster.Light.Position), Vector3.Zero, cullAggregatesOnGpu: false, Camera);
 
             barnLightFaceRegions[barnLightFaceViewCount++] = caster.Region;
         }
@@ -728,7 +728,7 @@ public class Renderer : ISceneHost
             var view = NextBarnLightFaceView();
             view.Camera.SetViewProjection(Matrix4x4.Identity, Camera.ViewProjectionMatrix);
             view.States[0].CollectShadowCasters(noCullFrustum, includeStatic: true,
-                Scene.VisibilityBoxes.PrepareSecondaryView(Camera.Location), Vector3.Zero, cullAggregatesOnGpu: false);
+                Scene.VisibilityBoxes.PrepareSecondaryView(Camera.Location), Vector3.Zero, cullAggregatesOnGpu: false, Camera);
 
             var atlasSize = Scene.LightingInfo.BarnLightShadowAtlasSize;
             barnLightFaceRegions[barnLightFaceViewCount++] = new ShadowAtlasRegion(0, 0, atlasSize, atlasSize);
@@ -1895,7 +1895,7 @@ public class Renderer : ISceneHost
 
             fogShadowFrustum.Update(face.WorldToProjection);
             fogShadowState.CollectShadowCasters(fogShadowFrustum, includeStatic: true,
-                Scene.VisibilityBoxes.PrepareSecondaryView(face.Eye), Vector3.Zero, cullAggregatesOnGpu: false);
+                Scene.VisibilityBoxes.PrepareSecondaryView(face.Eye), Vector3.Zero, cullAggregatesOnGpu: false, renderContext.Camera);
 
             ViewBuffer.Data.WorldToProjection = face.WorldToProjection;
             ViewBuffer.Update();
@@ -1911,7 +1911,7 @@ public class Renderer : ISceneHost
             GL.Clear(ClearBufferMask.DepthBufferBit);
 
             fogShadowState.CollectShadowCasters(noCullFrustum, includeStatic: true,
-                Scene.VisibilityBoxes.PrepareSecondaryView(renderContext.Camera.Location), Vector3.Zero, cullAggregatesOnGpu: false);
+                Scene.VisibilityBoxes.PrepareSecondaryView(renderContext.Camera.Location), Vector3.Zero, cullAggregatesOnGpu: false, renderContext.Camera);
 
             ViewBuffer.Data.WorldToProjection = renderContext.Camera.ViewProjectionMatrix;
             ViewBuffer.Update();

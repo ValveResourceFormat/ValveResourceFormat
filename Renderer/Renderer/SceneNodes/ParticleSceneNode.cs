@@ -919,7 +919,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         public override void UpdateBuffers(Camera camera)
         {
-            if (IsDrawable && LayerEnabled && Visible)
+            // Upload once per frame, for the first view that draws the effect
+            if (!drawnSinceSimulate && IsDrawable && LayerEnabled && Visible)
             {
                 drawnSinceSimulate = true;
                 DrawAlpha = Alpha * GetDistanceFade(camera);
