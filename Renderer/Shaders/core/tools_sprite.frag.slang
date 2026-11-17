@@ -12,11 +12,11 @@ in vec4 vTintOut;
 
 // The alpha test mode picks the texture: color only, alpha from a separate texture, or alpha in the color texture
 #if (F_ALPHA_TEST == 1)
-    uniform sampler2D g_tColorB; // SrgbRead(true)
+    uniform sampler2D g_tColorB; // SrgbRead(true) Sampler(UserConfig)
 #elif (F_ALPHA_TEST == 2)
-    uniform sampler2D g_tColorC; // SrgbRead(true)
+    uniform sampler2D g_tColorC; // SrgbRead(true) Sampler(UserConfig)
 #else
-    uniform sampler2D g_tColorA; // SrgbRead(true) RepresentativeTexture
+    uniform sampler2D g_tColorA; // SrgbRead(true) Sampler(UserConfig) RepresentativeTexture
 #endif
 
 uniform vec4 g_vBorderColor = vec4(0.0, 0.0, 0.0, 1.0);

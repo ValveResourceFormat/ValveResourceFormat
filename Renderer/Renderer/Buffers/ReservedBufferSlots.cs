@@ -23,6 +23,8 @@ public enum ReservedBufferSlots
     CullParams = 5,
     /// <summary>Packed material properties.</summary>
     Globals = 7,
+    /// <summary>Bindless handles of the textures the renderer supplies for the whole scene.</summary>
+    SceneTextures = 8,
 
     // ssbo: fixed slots stay bound across draws. Others bind a BufferSlotN just before their dispatch
     // or draw, so different passes can share a number.

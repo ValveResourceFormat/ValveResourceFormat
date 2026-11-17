@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer;
@@ -54,6 +55,17 @@ public class RendererContext : IDisposable
     public GPUMeshBufferCache MeshBufferCache { get; }
 
     private bool disposed;
+
+    private SceneTextures? sceneTextures;
+
+    /// <summary>
+    /// Handles of the textures the renderer supplies for the whole scene. Created on first use, which needs
+    /// a current GL context.
+    /// </summary>
+    public SceneTextures SceneTextures => sceneTextures ??= new SceneTextures(MaterialLoader);
+
+    /// <summary>Resets <see cref="SceneTextures"/> if it exists, without creating it just to reset it.</summary>
+    internal void ResetSceneTextures() => sceneTextures?.Reset();
 
     /// <summary>
     /// Maximum texture mip size to load in <see cref="MaterialLoader"/>.
@@ -133,6 +145,9 @@ public class RendererContext : IDisposable
 
         ShaderLoader?.Dispose();
         MorphAtlas.Dispose();
+
+        sceneTextures?.Delete();
+        sceneTextures = null;
     }
 
     // Outlive Dispose: the loader wait runs off the UI thread after teardown and reads these fields.

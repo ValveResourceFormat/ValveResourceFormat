@@ -85,6 +85,8 @@ namespace GUI.Utils
             public float MouseSensitivity { get; set => field = Math.Clamp(value, 0, 8); } = 4f;
             /// <summary>Gets or sets whether the viewport camera should have acceleration/deceleration when starting or stopping to move</summary>
             public bool SmoothCameraEnabled { get; set; } = true;
+            /// <summary>Gets or sets whether textures reach shaders as bindless handles. Read once at startup.</summary>
+            public bool BindlessTexturesEnabled { get; set; } = true;
             /// <summary>Gets or sets the number of MSAA samples used for anti-aliasing.</summary>
             public int AntiAliasingSamples { get; set => field = Math.Clamp(value, 0, 64); } = 8;
             /// <summary>Gets or sets the top edge position of the main window.</summary>
@@ -222,6 +224,8 @@ namespace GUI.Utils
             }
 
             Config._VERSION_DO_NOT_MODIFY = SettingsFileCurrentVersion;
+
+            ValveResourceFormat.Renderer.GLEnvironment.DisableBindlessTextures = !Config.BindlessTexturesEnabled;
         }
 
         /// <summary>

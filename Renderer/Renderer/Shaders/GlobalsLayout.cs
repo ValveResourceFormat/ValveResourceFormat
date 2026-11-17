@@ -43,13 +43,40 @@ public enum GlobalsType
     BVec4,
     /// <summary>Four by four column major float matrix.</summary>
     Mat4,
+    /// <summary>Texture sampler, stored as a 64 bit handle. Only packed when bindless textures are on.</summary>
+    Sampler,
+}
+
+/// <summary>
+/// Sampler types whose handle can be packed. Integer and multisample samplers are left out: the renderer
+/// binds those itself, and each would need a null texture of its own to stay crash safe.
+/// </summary>
+public enum SamplerKind
+{
+    /// <summary>Not a sampler.</summary>
+    None,
+    /// <summary><c>sampler2D</c>.</summary>
+    Texture2D,
+    /// <summary><c>sampler3D</c>.</summary>
+    Texture3D,
+    /// <summary><c>samplerCube</c>.</summary>
+    TextureCube,
+    /// <summary><c>sampler2DArray</c>.</summary>
+    Texture2DArray,
+    /// <summary><c>samplerCubeArray</c>.</summary>
+    TextureCubeArray,
+    /// <summary><c>sampler2DShadow</c>.</summary>
+    Texture2DShadow,
+    /// <summary><c>sampler2DArrayShadow</c>.</summary>
+    Texture2DArrayShadow,
 }
 
 /// <summary>A single uniform packed into the globals constant buffer.</summary>
 /// <param name="Name">The uniform name as declared in the shader source.</param>
 /// <param name="Type">The declared GLSL type.</param>
 /// <param name="Offset">The byte offset of this member within the constant buffer.</param>
-public readonly record struct GlobalsMember(string Name, GlobalsType Type, int Offset)
+/// <param name="Sampler">The sampler type, when <paramref name="Type"/> is <see cref="GlobalsType.Sampler"/>.</param>
+public readonly record struct GlobalsMember(string Name, GlobalsType Type, int Offset, SamplerKind Sampler = SamplerKind.None)
 {
     /// <summary>Gets the number of scalar components, 16 for <see cref="GlobalsType.Mat4"/>.</summary>
     public int ComponentCount => GlobalsLayout.GetComponentCount(Type);
@@ -66,7 +93,8 @@ public readonly record struct GlobalsMember(string Name, GlobalsType Type, int O
 /// <param name="Type">The declared GLSL type.</param>
 /// <param name="Initializer">The default value expression, or <see langword="null"/> when the declaration has none.</param>
 /// <param name="SrgbRead">Whether the declaration is annotated with <c>// SrgbRead(true)</c>.</param>
-public readonly record struct GlobalsDeclaration(string Name, GlobalsType Type, string? Initializer, bool SrgbRead);
+/// <param name="Sampler">The sampler type, when <paramref name="Type"/> is <see cref="GlobalsType.Sampler"/>.</param>
+public readonly record struct GlobalsDeclaration(string Name, GlobalsType Type, string? Initializer, bool SrgbRead, SamplerKind Sampler = SamplerKind.None);
 
 /// <summary>
 /// The std140 layout of a shader's loose global uniforms after they have been packed into a single
@@ -85,6 +113,7 @@ public sealed class GlobalsLayout
     public static GlobalsLayout Empty { get; } = new([]);
 
     private readonly Dictionary<string, GlobalsMember> members = [];
+    private readonly List<GlobalsMember> samplers = [];
     private readonly Dictionary<string, float> floatDefaults = [];
     private readonly Dictionary<string, long> intDefaults = [];
     private readonly Dictionary<string, Vector4> vectorDefaults = [];
@@ -94,8 +123,18 @@ public sealed class GlobalsLayout
     /// <summary>Gets the packed members by uniform name.</summary>
     public IReadOnlyDictionary<string, GlobalsMember> Members => members;
 
+    /// <summary>
+    /// Sampler members, one handle each. Empty without bindless textures, where the samplers stay loose
+    /// uniforms on a texture unit. Every one has to be written on each fill: they start out zeroed, and a
+    /// zero handle is not something the GPU can sample.
+    /// </summary>
+    public IReadOnlyList<GlobalsMember> Samplers => samplers;
+
     /// <summary>Gets the size of the constant buffer in bytes, zero when there is nothing to pack.</summary>
     public int Size { get; }
+
+    /// <summary>Whether sampler handles were packed into this layout.</summary>
+    public bool PacksSamplers { get; }
 
     /// <summary>Gets the GLSL declaration of the uniform block, prepended to every stage of the shader.</summary>
     public string BlockSource { get; } = string.Empty;
@@ -119,23 +158,29 @@ public sealed class GlobalsLayout
     /// Merges the declarations collected from every stage of one shader and computes the packed layout.
     /// </summary>
     /// <param name="declarations">Declarations in source order; duplicates across stages are merged.</param>
+    /// <param name="packSamplers">Whether sampler declarations become handles here, or stay loose uniforms in the source.</param>
     /// <exception cref="ShaderLoader.ShaderCompilerException">A uniform is declared with conflicting types or defaults.</exception>
-    public static GlobalsLayout Build(IEnumerable<GlobalsDeclaration> declarations)
+    public static GlobalsLayout Build(IEnumerable<GlobalsDeclaration> declarations, bool packSamplers)
     {
         var merged = new Dictionary<string, GlobalsDeclaration>();
 
         foreach (var declaration in declarations)
         {
+            if (declaration.Type == GlobalsType.Sampler && !packSamplers)
+            {
+                continue;
+            }
+
             if (!merged.TryGetValue(declaration.Name, out var existing))
             {
                 merged.Add(declaration.Name, declaration);
                 continue;
             }
 
-            if (existing.Type != declaration.Type)
+            if (existing.Type != declaration.Type || existing.Sampler != declaration.Sampler)
             {
                 throw new ShaderLoader.ShaderCompilerException(
-                    $"Uniform '{declaration.Name}' is declared as both '{GetGlslName(existing.Type)}' and '{GetGlslName(declaration.Type)}'");
+                    $"Uniform '{declaration.Name}' is declared as both '{GetGlslName(existing)}' and '{GetGlslName(declaration)}'");
             }
 
             var srgbRead = existing.SrgbRead || declaration.SrgbRead;
@@ -161,7 +206,7 @@ public sealed class GlobalsLayout
             merged[declaration.Name] = existing with { SrgbRead = srgbRead };
         }
 
-        return merged.Count == 0 ? Empty : new GlobalsLayout([.. merged.Values]);
+        return merged.Count == 0 ? Empty : new GlobalsLayout([.. merged.Values], packSamplers);
     }
 
     /// <summary>Initializes a layout from members with predefined offsets.</summary>
@@ -185,8 +230,10 @@ public sealed class GlobalsLayout
         }
     }
 
-    private GlobalsLayout(List<GlobalsDeclaration> declarations)
+    private GlobalsLayout(List<GlobalsDeclaration> declarations, bool packSamplers = false)
     {
+        PacksSamplers = packSamplers;
+
         if (declarations.Count == 0)
         {
             defaultBytes = [];
@@ -220,12 +267,18 @@ public sealed class GlobalsLayout
         {
             offset = MathUtils.AlignUp(offset, GetBaseAlignment(declaration.Type));
 
-            members.Add(declaration.Name, new GlobalsMember(declaration.Name, declaration.Type, offset));
+            var member = new GlobalsMember(declaration.Name, declaration.Type, offset, declaration.Sampler);
+            members.Add(declaration.Name, member);
+
+            if (declaration.Type == GlobalsType.Sampler)
+            {
+                samplers.Add(member);
+            }
 
             offset += GetComponentCount(declaration.Type) * sizeof(float);
 
             builder.Append("    ");
-            builder.Append(GetGlslName(declaration.Type));
+            builder.Append(GetGlslName(declaration));
             builder.Append(' ');
             builder.Append(declaration.Name);
             builder.Append(";\n");
@@ -284,6 +337,12 @@ public sealed class GlobalsLayout
     private void WriteDefault(GlobalsDeclaration declaration)
     {
         var constant = members[declaration.Name];
+
+        if (constant.Type == GlobalsType.Sampler)
+        {
+            // No handle stands in for "no texture", so the zeroes stay and every fill writes over them.
+            return;
+        }
 
         Span<double> values = stackalloc double[16];
         ParseInitializer(declaration, constant, values);
@@ -445,10 +504,14 @@ public sealed class GlobalsLayout
         return negative ? -value : value;
     }
 
-    /// <summary>Returns the number of scalar components in the given type, 16 for <see cref="GlobalsType.Mat4"/>.</summary>
+    /// <summary>
+    /// Returns the number of scalar components in the given type, 16 for a mat4 and 2 for a sampler, whose
+    /// 64 bit handle is laid out like a uvec2.
+    /// </summary>
     internal static int GetComponentCount(GlobalsType type) => type switch
     {
         GlobalsType.Mat4 => 16,
+        GlobalsType.Sampler => 2,
         GlobalsType.Vec4 or GlobalsType.IVec4 or GlobalsType.UVec4 or GlobalsType.BVec4 => 4,
         GlobalsType.Vec3 or GlobalsType.IVec3 or GlobalsType.UVec3 or GlobalsType.BVec3 => 3,
         GlobalsType.Vec2 or GlobalsType.IVec2 or GlobalsType.UVec2 or GlobalsType.BVec2 => 2,
@@ -469,6 +532,39 @@ public sealed class GlobalsLayout
         2 => 8,
         _ => 16,
     };
+
+    /// <summary>Returns the GLSL keyword the given declaration is written with.</summary>
+    internal static string GetGlslName(GlobalsDeclaration declaration)
+        => declaration.Type == GlobalsType.Sampler ? GetGlslName(declaration.Sampler) : GetGlslName(declaration.Type);
+
+    /// <summary>Returns the GLSL keyword for the given sampler type.</summary>
+    internal static string GetGlslName(SamplerKind kind) => kind switch
+    {
+        SamplerKind.Texture2D => "sampler2D",
+        SamplerKind.Texture3D => "sampler3D",
+        SamplerKind.TextureCube => "samplerCube",
+        SamplerKind.Texture2DArray => "sampler2DArray",
+        SamplerKind.TextureCubeArray => "samplerCubeArray",
+        SamplerKind.Texture2DShadow => "sampler2DShadow",
+        SamplerKind.Texture2DArrayShadow => "sampler2DArrayShadow",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+    };
+
+    /// <summary>Maps a GLSL sampler keyword onto the sampler type it names, when its handle can be packed.</summary>
+    internal static bool TryGetSamplerKind(ReadOnlySpan<char> glslType, out SamplerKind kind)
+    {
+        switch (glslType)
+        {
+            case "sampler2D": kind = SamplerKind.Texture2D; return true;
+            case "sampler3D": kind = SamplerKind.Texture3D; return true;
+            case "samplerCube": kind = SamplerKind.TextureCube; return true;
+            case "sampler2DArray": kind = SamplerKind.Texture2DArray; return true;
+            case "samplerCubeArray": kind = SamplerKind.TextureCubeArray; return true;
+            case "sampler2DShadow": kind = SamplerKind.Texture2DShadow; return true;
+            case "sampler2DArrayShadow": kind = SamplerKind.Texture2DArrayShadow; return true;
+            default: kind = SamplerKind.None; return false;
+        }
+    }
 
     /// <summary>Returns the GLSL keyword for the given type.</summary>
     internal static string GetGlslName(GlobalsType type) => type switch
