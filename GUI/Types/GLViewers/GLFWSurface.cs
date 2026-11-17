@@ -9,7 +9,14 @@ namespace GUI.Types.GLViewers;
 /// </summary>
 sealed class GLFWSurface(IGLFWGraphicsContext context) : IGraphicsSurface
 {
-    public void Begin() => context.MakeCurrent();
+    // The render loop keeps the context current between frames, and making it current again is not free
+    public void Begin()
+    {
+        if (!context.IsCurrent)
+        {
+            context.MakeCurrent();
+        }
+    }
 
     public void End() => context.MakeNoneCurrent();
 }
