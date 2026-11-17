@@ -216,6 +216,9 @@ namespace ValveResourceFormat.Renderer
         private readonly List<SceneNode> staticNodes = [];
         private readonly List<SceneNode> dynamicNodes = [];
 
+        // Static nodes without aggregate fragments, which have nothing to update and outnumber the rest
+        private readonly List<SceneNode> staticUpdatedNodes = [];
+
         internal IReadOnlyList<SceneNode> StaticNodes => staticNodes;
 
         internal IReadOnlyList<SceneNode> DynamicNodes => dynamicNodes;
@@ -341,6 +344,11 @@ namespace ValveResourceFormat.Renderer
             {
                 staticNodes.Add(node);
                 StaticSet.Dirty = true;
+
+                if (node is not SceneAggregate.Fragment)
+                {
+                    staticUpdatedNodes.Add(node);
+                }
             }
         }
 
@@ -381,6 +389,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             StaticSet.Dirty = true;
+            staticUpdatedNodes.Remove(node);
             return staticNodes.Remove(node);
         }
 
@@ -456,6 +465,7 @@ namespace ValveResourceFormat.Renderer
 
             dynamicNodes.Clear();
             staticNodes.Clear();
+            staticUpdatedNodes.Clear();
 
             foreach (var node in nodes)
             {
@@ -706,7 +716,7 @@ namespace ValveResourceFormat.Renderer
 
         private void UpdateNodes(Scene.UpdateContext updateContext)
         {
-            foreach (var node in staticNodes)
+            foreach (var node in staticUpdatedNodes)
             {
                 if (node.Parent == null)
                 {
