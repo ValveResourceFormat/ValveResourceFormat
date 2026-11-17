@@ -186,6 +186,11 @@ public class PerfStats
     private readonly int[][] totalLights = CreateLightCounters();
     private long lastTotalsUpdate;
 
+    // Memory readings, requeried twice per second as the driver query costs tens of microseconds
+    private (int Free, int Total) gpuMemoryMegabytes;
+    private int processMemoryMegabytes;
+    private long lastMemoryUpdate;
+
     /// <summary>Suspends stat collection for the following draws until <see cref="ResumeTriangleCounter"/> is called. Nestable.</summary>
     internal void SuspendTriangleCounter()
     {
@@ -576,10 +581,16 @@ public class PerfStats
         Array.Clear(counts);
         Array.Clear(floatMetrics);
 
-        var gpuMemory = GLEnvironment.GetGpuMemoryMegabytes();
-        counts[(int)Counter.GpuMemoryFreeMegabytes] = gpuMemory.Free;
-        counts[(int)Counter.GpuMemoryTotalMegabytes] = gpuMemory.Total;
-        counts[(int)Counter.ProcessMemoryMegabytes] = (int)(Environment.WorkingSet / (1024 * 1024));
+        if (lastMemoryUpdate == 0 || Stopwatch.GetElapsedTime(lastMemoryUpdate).TotalSeconds >= 0.5)
+        {
+            lastMemoryUpdate = Stopwatch.GetTimestamp();
+            gpuMemoryMegabytes = GLEnvironment.GetGpuMemoryMegabytes();
+            processMemoryMegabytes = (int)(Environment.WorkingSet / (1024 * 1024));
+        }
+
+        counts[(int)Counter.GpuMemoryFreeMegabytes] = gpuMemoryMegabytes.Free;
+        counts[(int)Counter.GpuMemoryTotalMegabytes] = gpuMemoryMegabytes.Total;
+        counts[(int)Counter.ProcessMemoryMegabytes] = processMemoryMegabytes;
 
         foreach (var costGroups in lightsInView)
         {
