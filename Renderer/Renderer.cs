@@ -1521,6 +1521,17 @@ public class Renderer : ISceneHost
         ViewmodelCamera.CreateProjectionMatrix();
         ViewmodelCamera.RecalculateMatrices();
 
+        // First, so the world behind it fails the depth test instead of being shaded
+        using (new GLDebugGroup("Viewmodel Opaque"))
+        {
+            GraphicsContext.RenderState.SetDepthRange(DepthRange.Viewmodel);
+
+            DrawThrough(ViewmodelView(mainView), mainState, ref renderContext);
+            mainState.RenderViewmodelOpaqueLayer(renderContext, isMaterialPass ? depthOnlyShader : null);
+
+            GraphicsContext.RenderState.SetDepthRange(DepthRange.Scene);
+        }
+
         using (new GLDebugGroup("Main Scene Opaque Render"))
         {
             screenSpaceAoComputed = false;
@@ -1657,12 +1668,11 @@ public class Renderer : ISceneHost
             }
         }
 
-        using (new GLDebugGroup("Viewmodel"))
+        using (new GLDebugGroup("Viewmodel Translucent"))
         {
             GraphicsContext.RenderState.SetDepthRange(DepthRange.Viewmodel);
 
             DrawThrough(ViewmodelView(mainView), mainState, ref renderContext);
-            mainState.RenderViewmodelOpaqueLayer(renderContext, isMaterialPass ? depthOnlyShader : null);
             mainState.RenderViewmodelTranslucentLayer(renderContext);
 
             GraphicsContext.RenderState.SetDepthRange(DepthRange.Scene);
