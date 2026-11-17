@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
@@ -144,7 +145,12 @@ public sealed partial class MapExtract
     /// <summary>Gets the physics vertex matcher used for physics mesh processing.</summary>
     public PhysicsTriangleMatcher? PhysTriangleMatcher { get; private set; }
 
-    //these all seem to be roughly hammer meshes in cs2
+    /// <summary>
+    /// World node model of a map mesh cluster, named <c>n{node}_lr{layer}_c{cluster}_s_</c> or with <c>_d_</c> when dynamic.
+    /// </summary>
+    [GeneratedRegex(@"(?:^|/)(?:n|node)[0-9]+_lr[0-9]+_c[0-9]+_[sd]_")]
+    private static partial Regex WorldNodeMeshClusterRegex();
+
     private static bool SceneObjectShouldConvertToHammerMesh(string? modelName)
     {
         if (string.IsNullOrEmpty(modelName))
@@ -154,7 +160,8 @@ public sealed partial class MapExtract
 
         return modelName.Contains("_mesh_blocklight", StringComparison.Ordinal)
             || modelName.Contains("_mesh_overlay", StringComparison.Ordinal)
-            || modelName.Contains("_c0_", StringComparison.Ordinal);
+            || modelName.Contains("_mesh_base", StringComparison.Ordinal)
+            || WorldNodeMeshClusterRegex().IsMatch(modelName);
     }
 
     /// <summary>
@@ -1317,9 +1324,10 @@ public sealed partial class MapExtract
         var objectTransform = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
         Vector4? drawCallTint = null;
 
-        if (SceneObjectShouldConvertToHammerMesh(modelName))
+        // Model marks draw calls of props baked into the world node
+        if (!objectFlags.HasFlag(ObjectTypeFlags.Model) && SceneObjectShouldConvertToHammerMesh(modelName))
         {
-            var isConverted = TryConvertSceneObjectToHammerMesh(modelName!, objectTransform, out drawCallTint);
+            var isConverted = TryConvertSceneObjectToHammerMesh(modelName!, objectTransform, GetWorldLayerNode(layerIndex, layerNodes), out drawCallTint);
             if (isConverted)
             {
                 return;
@@ -1339,7 +1347,7 @@ public sealed partial class MapExtract
     /// Converts a scene object to hammer meshes. Returns false when the object is a prop that stays a model, and then
     /// sets <paramref name="drawCallTint"/> to the tint the compiler baked into the draw calls of that model.
     /// </summary>
-    private bool TryConvertSceneObjectToHammerMesh(string modelName, Matrix4x4 objectTransform, out Vector4? drawCallTint)
+    private bool TryConvertSceneObjectToHammerMesh(string modelName, Matrix4x4 objectTransform, MapNode destNode, out Vector4? drawCallTint)
     {
         drawCallTint = null;
 
@@ -1375,7 +1383,7 @@ public sealed partial class MapExtract
             {
                 hammermesh.Origin = meshOrigin;
                 hammermesh.Angles = meshAngles;
-                MapDocument.World.Children.Add(hammermesh);
+                destNode.Children.Add(hammermesh);
             }
 
             return true;
