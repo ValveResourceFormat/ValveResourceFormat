@@ -78,7 +78,7 @@ internal sealed partial class McpTools
     }
 
     [Tool("Read or set the world simulation of a map tab, as its Play, Pause and Stop buttons do. "
-        + "Playing from stopped spawns the map's entities again at round start, runs their logic, and walks the camera as the player, with gravity. Stopping puts the world back as it loaded and frees the camera. Entities keep their ids. "
+        + "Playing from stopped spawns the map's entities again at round start, and runs their logic. The camera keeps flying until walk mode is turned on. Stopping puts the world back as it loaded and leaves walk mode. Entities keep their ids. "
         + "A playing world advances only while time runs. So while the pause tool holds time, step to run logic such as logic_auto outputs and point_template spawns.", Redraws = true)]
     private static async Task<object> Simulation(
         GLWorldViewer viewer,
@@ -110,7 +110,7 @@ internal sealed partial class McpTools
         viewer.QueueSimulation(request);
         await DrawShownFrames(viewer, 1, crash, cancellationToken).ConfigureAwait(false);
 
-        // Stopping lifts the camera with a fly-out, which would run on scene time
+        // Stopping leaves walk mode with a fly-out, which would run on scene time
         if (state == GLWorldViewer.SimulationState.Stopped)
         {
             await WithGl(viewer, () => viewer.Input.SaveCameraForTransition(transitionDuration: 0f), cancellationToken).ConfigureAwait(false);

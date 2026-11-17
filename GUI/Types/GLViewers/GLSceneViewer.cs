@@ -80,6 +80,9 @@ namespace GUI.Types.GLViewers
         private PerfDisplay perfDisplay;
         private ComboBox? perfDisplayComboBox;
 
+        // Input.WalkMode as of the last OnUpdate
+        private bool wasWalkMode;
+
         private volatile LayerChoice? layerChoice;
         private readonly ConditionalWeakTable<SceneNode, object?> nodesHiddenByKey = [];
         private volatile bool visibilityDirty;
@@ -740,16 +743,8 @@ namespace GUI.Types.GLViewers
                 var wheelDelta = ConsumePendingMouseWheelDelta();
 
                 Input.MouseSensitivity = Settings.Config.MouseSensitivity;
-                var wasWalkMode = Input.WalkMode;
                 Input.Tick(frameTime, pressedKeys, new Vector2(mouseDelta.X, mouseDelta.Y), Renderer.Camera);
                 LastMouseDelta = mouseDelta;
-
-                // cancel unintentional selection
-                if (!wasWalkMode && Input.WalkMode)
-                {
-                    Selection.Clear();
-                    OnWalkModeEntered();
-                }
 
                 // Walk mode and mouse look aim with the mouse, so they hold the cursor. Leaving both,
                 // pausing, escape, or the viewport losing focus hands it back.
@@ -760,6 +755,21 @@ namespace GUI.Types.GLViewers
                 var alreadyHoldingCursor = GrabbedMouse;
 
                 GrabbedMouse = wantsMouseLook && (alreadyHoldingCursor || MouseOverRenderArea);
+            }
+
+            var walkMode = Input.WalkMode;
+
+            if (walkMode != wasWalkMode)
+            {
+                wasWalkMode = walkMode;
+
+                // Cancel unintentional selection
+                if (walkMode)
+                {
+                    Selection.Clear();
+                }
+
+                OnWalkModeChanged(walkMode);
             }
         }
 
@@ -1242,8 +1252,9 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        /// <summary>Called on the render thread when the camera starts walking as the player.</summary>
-        protected virtual void OnWalkModeEntered()
+        /// <summary>Called on the render thread when the camera starts or stops walking as the player.</summary>
+        /// <param name="walk">Whether the camera now walks as the player.</param>
+        protected virtual void OnWalkModeChanged(bool walk)
         {
         }
 

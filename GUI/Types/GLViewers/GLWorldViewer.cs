@@ -44,8 +44,12 @@ namespace GUI.Types.GLViewers
         private System.Drawing.Image? playImage;
         private System.Drawing.Image? pauseImage;
         private System.Drawing.Image? stopImage;
+        private System.Drawing.Image? walkImage;
         private ThemedToggleButton? toolsButton;
+        private ThemedToggleButton? walkButton;
         private SimulationState simulationState;
+
+        private int walkRequest;
 
         // Whether tools were shown before playing hid them, which stopping shows again
         private bool showToolsBeforePlay;
@@ -77,6 +81,13 @@ namespace GUI.Types.GLViewers
             /// <summary>Pause while playing, otherwise play.</summary>
             PlayOrPause,
             Stop,
+        }
+
+        private enum WalkRequest
+        {
+            None,
+            Fly,
+            Walk,
         }
 
         /// <summary>Jump from the entity info popup to the entity's node in the I/O graph tab, when the map has one.</summary>
@@ -113,7 +124,9 @@ namespace GUI.Types.GLViewers
             playImage?.Dispose();
             pauseImage?.Dispose();
             stopImage?.Dispose();
+            walkImage?.Dispose();
             toolsButton?.Dispose();
+            walkButton?.Dispose();
         }
 
         private void AddSceneExposureSlider()
@@ -1198,9 +1211,11 @@ namespace GUI.Types.GLViewers
             playImage = AppIcons.ImageList.Images[AppIcons.Icons["RendererPlay"]];
             pauseImage = AppIcons.ImageList.Images[AppIcons.Icons["RendererPause"]];
             stopImage = AppIcons.ImageList.Images[AppIcons.Icons["RendererStop"]];
+            walkImage = AppIcons.ImageList.Images[AppIcons.Icons["RendererWalk"]];
 
             playPauseButton = UiControl.AddToolbarButton(playImage, "Play", () => RequestSimulation(SimulationRequest.PlayOrPause), centered: true);
             stopButton = UiControl.AddToolbarButton(stopImage, "Stop", () => RequestSimulation(SimulationRequest.Stop), centered: true);
+            walkButton = UiControl.AddToolbarToggle(walkImage, "Walk", Input.WalkMode, RequestWalkMode, centered: true);
 
             UpdateSimulationButtons(simulationState);
         }
@@ -1210,6 +1225,13 @@ namespace GUI.Types.GLViewers
             Interlocked.Exchange(ref simulationRequest, (int)request);
 
             // The click took keyboard focus. Return it to the viewport so the player can be walked
+            GLControl?.Focus();
+        }
+
+        private void RequestWalkMode(bool walk)
+        {
+            var request = walk ? WalkRequest.Walk : WalkRequest.Fly;
+            Interlocked.Exchange(ref walkRequest, (int)request);
             GLControl?.Focus();
         }
 
@@ -1248,15 +1270,27 @@ namespace GUI.Types.GLViewers
         {
             ApplySimulationRequest();
 
+            var walkMode = (WalkRequest)Interlocked.Exchange(ref walkRequest, (int)WalkRequest.None);
+
+            if (walkMode != WalkRequest.None)
+            {
+                Input.SetWalkMode(walkMode == WalkRequest.Walk);
+            }
+
             base.OnUpdate(frameTime);
         }
 
-        // Walking into a world at rest plays it
-        protected override void OnWalkModeEntered()
+        protected override void OnWalkModeChanged(bool walk)
         {
-            if (simulationState == SimulationState.Stopped)
+            // Walking into a world at rest plays it
+            if (walk && simulationState == SimulationState.Stopped)
             {
                 ApplySimulation(SimulationRequest.Play);
+            }
+
+            if (UiControl is { IsHandleCreated: true } control)
+            {
+                control.BeginInvoke(() => walkButton?.Checked = walk);
             }
         }
 
@@ -1287,7 +1321,6 @@ namespace GUI.Types.GLViewers
                     entitySystem.Enabled = true;
                     ResetScene();
                     entitySystem.StartRound();
-                    Input.SetWalkMode(true);
 
                     // Hide tools while playing, as the game does
                     showToolsBeforePlay = Tools.ShowTools;

@@ -624,24 +624,38 @@ partial class RendererControl : UserControl
     public ThemedButton AddToolbarButton(Image icon, string accessibleName, Action onClick, bool centered = false)
     {
         var button = AddToolbarButton(string.Empty, onClick, centered);
+        SetToolbarIcon(button, icon, accessibleName);
+
+        return button;
+    }
+
+    /// <summary>Adds a button that stays pressed while on to the toolbar above the viewport.</summary>
+    public ThemedToggleButton AddToolbarToggle(string text, bool initialChecked, Action<bool> onToggled, bool centered = false)
+    {
+        var button = new ThemedToggleButton { Checked = initialChecked };
+        AddToolbarItem(button, text, centered);
+        button.Toggled += onToggled;
+
+        return button;
+    }
+
+    /// <summary>Adds a toggle button showing an icon instead of a label to the toolbar above the viewport.</summary>
+    public ThemedToggleButton AddToolbarToggle(Image icon, string accessibleName, bool initialChecked, Action<bool> onToggled, bool centered = false)
+    {
+        var button = AddToolbarToggle(string.Empty, initialChecked, onToggled, centered);
+        SetToolbarIcon(button, icon, accessibleName);
+
+        return button;
+    }
+
+    private void SetToolbarIcon(ThemedButton button, Image icon, string accessibleName)
+    {
         button.Image = icon;
         button.AccessibleName = accessibleName;
 
         // The icon is drawn to fit the height, so the button only has to be a little wider than tall
         button.AutoSize = false;
         button.Size = new Size(this.AdjustForDPI(ToolbarItemHeight * 3 / 2), this.AdjustForDPI(ToolbarItemHeight));
-
-        return button;
-    }
-
-    /// <summary>Adds a button that stays pressed while on to the toolbar above the viewport.</summary>
-    public ThemedToggleButton AddToolbarToggle(string text, bool initialChecked, Action<bool> onToggled)
-    {
-        var button = new ThemedToggleButton { Checked = initialChecked };
-        AddToolbarItem(button, text);
-        button.Toggled += onToggled;
-
-        return button;
     }
 
     /// <summary>Adds a dropdown on the right of the toolbar above the viewport.</summary>
