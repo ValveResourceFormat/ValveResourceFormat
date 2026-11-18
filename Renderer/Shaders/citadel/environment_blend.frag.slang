@@ -55,7 +55,7 @@ uniform vec2 g_vLayerTintMaskContrastBrightness2 = vec2(1.0, 0.0);
 uniform vec2 g_vLayerMetalnessContrastBrightness2 = vec2(1.0, 0.0);
 
 #if (F_OVERRIDE_BLOOM_AMOUNT == 1)
-    uniform float g_flOverrideBloomAmount2 = 1.0;
+    uniform float g_flOverrideBloomAmount2 = 0.0;
 #endif
 
 uniform float g_flRevealOffset2 = 0.0;

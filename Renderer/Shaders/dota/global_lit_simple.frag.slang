@@ -61,8 +61,8 @@ out vec4 outputColor;
 
 #if (F_SCROLL_UV == 1 || F_SCROLL_UV == 2)
     uniform sampler2D g_tScrollSpeed;
-    uniform float g_flScrollUvSpeed;
-    uniform vec2 g_vScrollUvDirection;
+    uniform float g_flScrollUvSpeed = 1.0;
+    uniform vec2 g_vScrollUvDirection = vec2(0.0, 1.0);
 #endif
 
 #include "../common/utils.slang"

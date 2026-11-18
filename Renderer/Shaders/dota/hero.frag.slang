@@ -41,7 +41,7 @@ flat in vec4 vTintColorFadeOut;
 
 out vec4 outputColor;
 
-uniform float g_flAlphaTestReference;
+uniform float g_flAlphaTestReference = 0.5;
 uniform sampler2D g_tColor; // SrgbRead(true) RepresentativeTexture
 uniform sampler2D g_tNormal;
 uniform sampler2D g_tMasks1;

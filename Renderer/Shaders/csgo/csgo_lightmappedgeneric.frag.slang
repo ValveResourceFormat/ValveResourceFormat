@@ -73,7 +73,7 @@ uniform float g_flOpacityScale = 1.0;
 
 #if (F_FANCY_BLENDING > 0)
     uniform sampler2D g_tBlendModulation; // Sampler(UserConfig)
-    uniform float g_flBlendSoftness;
+    uniform float g_flBlendSoftness = 0.5;
 #endif
 
 #if (F_FANCY_BLENDING > 1)

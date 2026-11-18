@@ -40,11 +40,11 @@ uniform float g_flBumpStrength = 1.0;
 #if (F_SPECULAR == 1)
     uniform sampler2D g_tRoughness;
     uniform sampler2D g_tMetalnessReflectanceFresnel;
-    uniform vec2 g_vGlossinessRange;
-    uniform vec2 g_vMetalnessRange;
+    uniform vec2 g_vGlossinessRange = vec2(0.0, 1.0);
+    uniform vec2 g_vMetalnessRange = vec2(0.0, 1.0);
 
     #if (GENERIC_REFLECTANCE_RANGE == 1)
-        uniform vec2 g_vReflectanceRange;
+        uniform vec2 g_vReflectanceRange = vec2(0.0, 1.0);
     #endif
 #endif
 
