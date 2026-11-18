@@ -223,12 +223,12 @@ namespace Tests.IO
             await AssertAngles((Datamodel.QAngle)crate["angles"]!, 0, 30, 0);
             await AssertVector((Vector3)crate["scales"]!, Vector3.One);
 
-            // the authored Template01 keyvalue survives compilation (lowercased on export)
+            // the authored Template01 keyvalue survives compilation
             // and must remain the only template reference key
             var template = FindEntity("template_offset");
             var properties = Properties(template);
-            await Assert.That(properties["template01"]).IsEqualTo("crate_offset");
-            await Assert.That(properties.Select(p => p.Key)).DoesNotContain("Template01");
+            await Assert.That(properties["Template01"]).IsEqualTo("crate_offset");
+            await Assert.That(properties.Select(p => p.Key)).DoesNotContain("template01");
         }
 
         [Test]
@@ -271,8 +271,8 @@ namespace Tests.IO
             await AssertVector((Vector3)crates[0]["origin"]!, new Vector3(25, 25, 25));
             await AssertAngles((Datamodel.QAngle)crates[0]["angles"]!, 0, 15, 0);
 
-            await Assert.That(Properties(FindEntity("template_shared_a"))["template01"]).IsEqualTo("crate_shared");
-            await Assert.That(Properties(FindEntity("template_shared_b"))["template01"]).IsEqualTo("crate_shared");
+            await Assert.That(Properties(FindEntity("template_shared_a"))["Template01"]).IsEqualTo("crate_shared");
+            await Assert.That(Properties(FindEntity("template_shared_b"))["Template01"]).IsEqualTo("crate_shared");
         }
 
         [Test]
@@ -282,8 +282,8 @@ namespace Tests.IO
             await AssertVector((Vector3)FindEntity("crate_multi_b")["origin"]!, new Vector3(310, -10, 0));
 
             var properties = Properties(FindEntity("template_multi"));
-            await Assert.That(properties["template01"]).IsEqualTo("crate_multi_a");
-            await Assert.That(properties["template02"]).IsEqualTo("crate_multi_b");
+            await Assert.That(properties["Template01"]).IsEqualTo("crate_multi_a");
+            await Assert.That(properties["Template02"]).IsEqualTo("crate_multi_b");
         }
 
         private static DMElement Properties(DMElement entity)
