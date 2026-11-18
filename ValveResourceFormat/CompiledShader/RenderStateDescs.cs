@@ -76,8 +76,8 @@ public record struct RsDepthStencilStateDesc
 {
     // Version 71 layout:
     // 0 depth test | 1 depth write | 2-5 depth func | 16-19 front func | 20-23 back func
-    // 24 stencil enable | 25-27 front fail | 28-30 front depth fail | 31-33 front pass
-    // 34-36 back fail | 37-39 back depth fail | 40-42 back pass | 48-55 read mask | 56-63 write mask
+    // 24 stencil enable | 25-27 front fail | 28-30 front depth fail | 32-34 front pass
+    // 35-37 back fail | 38-40 back depth fail | 41-43 back pass | 48-55 read mask | 56-63 write mask
     private ulong bits;
 
 #pragma warning disable CS1591 // The properties below name what each mask covers
@@ -89,10 +89,10 @@ public record struct RsDepthStencilStateDesc
     public const ulong StencilEnableBits = 1UL << 24;
     public const ulong FrontStencilFailOpBits = 0x7UL << 25;
     public const ulong FrontStencilDepthFailOpBits = 0x7UL << 28;
-    public const ulong FrontStencilPassOpBits = 0x7UL << 31;
-    public const ulong BackStencilFailOpBits = 0x7UL << 34;
-    public const ulong BackStencilDepthFailOpBits = 0x7UL << 37;
-    public const ulong BackStencilPassOpBits = 0x7UL << 40;
+    public const ulong FrontStencilPassOpBits = 0x7UL << 32;
+    public const ulong BackStencilFailOpBits = 0x7UL << 35;
+    public const ulong BackStencilDepthFailOpBits = 0x7UL << 38;
+    public const ulong BackStencilPassOpBits = 0x7UL << 41;
     public const ulong StencilReadMaskBits = 0xFFUL << 48;
     public const ulong StencilWriteMaskBits = 0xFFUL << 56;
 #pragma warning restore CS1591
