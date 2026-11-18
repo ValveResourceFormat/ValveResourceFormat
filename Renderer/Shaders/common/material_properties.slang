@@ -8,6 +8,16 @@
 // The bloom threshold reads the stored bloom amount back at 20 times its value
 #define BLOOM_AMOUNT_TO_STORED 0.05
 
+#if (SNOW_GLINT)
+// The sparkle of the snow cell under the pixel, see snow_glint.slang
+struct SnowGlint_t
+{
+    float SunMask; // Sun glint scale, 0 outside the disk
+    float SkyMask; // Sky glint scale, 0 outside the disk
+    vec3 Normal; // Jittered normal of the cell
+};
+#endif
+
 struct MaterialProperties_t
 {
     vec3 PositionWS;
@@ -51,6 +61,9 @@ struct MaterialProperties_t
     float DirectDiffuseScale;
     vec3 IllumColor;
     float SnowAmount; // Snow coverage, 0 to 1
+#if (SNOW_GLINT)
+    SnowGlint_t SnowGlint;
+#endif
     float BloomAmount; // Written where F_OVERRIDE_BLOOM_AMOUNT is set: the value the bloom amount pass writes for the pixel
 
     vec3 LightmapUv;

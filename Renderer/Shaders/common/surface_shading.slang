@@ -3,6 +3,8 @@
 #ifndef VRF_SURFACE_SHADING_INCLUDE
 #define VRF_SURFACE_SHADING_INCLUDE
 
+#include "snow_glint.slang"
+
 // Lighting, output and render mode steps of main() that the lit surface shaders share, see surface_base_ps.slang.
 
 struct SurfaceOptions_t
@@ -110,6 +112,11 @@ vec4 ShadeSurface(inout MaterialProperties_t mat, out LightingTerms_t lighting, 
     }
 
     vec3 combinedLighting = mat.DiffuseColor * diffuseLighting + specularLighting + lighting.TransmissiveDirect + mat.IllumColor;
+
+#if (SNOW_GLINT)
+    combinedLighting += GetSnowGlintLighting(mat, lighting.DiffuseIndirect);
+#endif
+
     return vec4(combinedLighting, mat.Opacity);
 }
 

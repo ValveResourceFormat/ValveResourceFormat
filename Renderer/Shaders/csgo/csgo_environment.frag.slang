@@ -7,6 +7,7 @@
 #define DIFFUSE_WRAP 0
 #define ANISO_CUBEMAP_WARP_OPTIONAL 0
 #define ALPHA_TEST_COVERAGE_BY_UV_FOOTPRINT 1
+#define SNOW_GLINT 1
 
 #include "../common/surface_base_ps.slang"
 #include "../common/surface_shading.slang"
@@ -52,6 +53,9 @@ uniform int g_nUVSet1 = 1; // 0=Biplanar, 1=UV1, 2=UV2
 uniform vec2 g_vTexCoordScale1 = vec2(1.0);
 uniform float g_flTexCoordRotation1 = 0.0;
 
+uniform bool g_bSnowLayer1 = false;
+uniform float g_flSnowGlintStrength1 = 1.0;
+
 // The dielectric reflectance the specular color is built from. Wetness pulls it toward water.
 uniform float g_flReflectance = 0.04;
 
@@ -90,10 +94,14 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     InitHeightMaterial(mat, albedo, occlusion, normalTs, layer.Roughness, layer.Height.r, layer.Height.a);
 
+    float snow = float(g_bSnowLayer1);
     float reflectance = g_flReflectance;
     ApplyWetnessOld(mat, layer.Height.r, vColorBlendValues.z, vColorBlendValues.w, g_flWetnessDarkeningStrength1, reflectance);
+    ApplySnowGlint(mat, snow * g_flSnowGlintStrength1, reflectance);
 
     FinishHeightMaterial(mat, reflectance);
+
+    mat.SnowAmount = snow;
 
     return mat;
 }

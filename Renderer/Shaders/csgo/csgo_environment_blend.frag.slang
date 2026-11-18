@@ -6,6 +6,7 @@
 #define SUBSURFACE 0
 #define DIFFUSE_WRAP 0
 #define ANISO_CUBEMAP_WARP_OPTIONAL 0
+#define SNOW_GLINT 1
 
 #include "../common/surface_base_ps.slang"
 #include "../common/surface_shading.slang"
@@ -223,8 +224,11 @@ uniform float g_flBlendSoftnessDistanceModifierStrength = 1.0;
 
 uniform bool g_bSnowLayer1 = false;
 uniform bool g_bSnowLayer2 = false;
+uniform float g_flSnowGlintStrength1 = 1.0;
+uniform float g_flSnowGlintStrength2 = 1.0;
 #if (F_ENABLE_LAYER_3 == 1)
     uniform bool g_bSnowLayer3 = false;
+    uniform float g_flSnowGlintStrength3 = 1.0;
 #endif
 
 uniform float g_flBlendSoftness2 = 0.01;
@@ -817,12 +821,20 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         ApplyWetnessOld(mat, stack.RawHeight, vColorBlendValues.z, vColorBlendValues.w, GetWetDarkening(share2, weight3), reflectance);
     }
 
+    float snow1 = float(g_bSnowLayer1);
+    float snow2 = float(g_bSnowLayer2);
+    float snow = mix(snow1, snow2, weight2);
+    float snowGlintStrength = mix(snow1 * g_flSnowGlintStrength1, snow2 * g_flSnowGlintStrength2, weight2);
+#if (F_ENABLE_LAYER_3 == 1)
+    float snow3 = float(g_bSnowLayer3);
+    snow = mix(snow, snow3, weight3);
+    snowGlintStrength = mix(snowGlintStrength, snow3 * g_flSnowGlintStrength3, weight3);
+#endif
+    ApplySnowGlint(mat, snowGlintStrength, reflectance);
+
     FinishHeightMaterial(mat, reflectance);
 
-    mat.SnowAmount = mix(float(g_bSnowLayer1), float(g_bSnowLayer2), weight2);
-#if (F_ENABLE_LAYER_3 == 1)
-    mat.SnowAmount = mix(mat.SnowAmount, float(g_bSnowLayer3), weight3);
-#endif
+    mat.SnowAmount = snow;
 
     return mat;
 }
