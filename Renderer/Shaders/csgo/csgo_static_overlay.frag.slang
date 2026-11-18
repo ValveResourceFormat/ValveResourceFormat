@@ -167,6 +167,7 @@ vec3 ToBlendModeColor(vec3 color)
     uniform float g_fTextureRoughnessContrast = 1.0;
     uniform float g_fTextureRoughnessBrightness = 1.0;
     uniform int F_AUTOMATIC_PBR_COLOR_FITTING;
+    uniform bool g_bSnow = false;
 
     MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     {
@@ -195,6 +196,7 @@ vec3 ToBlendModeColor(vec3 color)
         mat.RoughnessTex = ContrastBrightness(normalTexture.bb, g_fTextureRoughnessContrast, g_fTextureRoughnessBrightness);
         mat.Metalness = texture(g_tMetalness, texCoord).g;
         mat.AmbientOcclusion = texture(g_tAmbientOcclusion, texCoord).r;
+        mat.SnowAmount = float(g_bSnow);
 
         if (F_AUTOMATIC_PBR_COLOR_FITTING == 1)
         {
