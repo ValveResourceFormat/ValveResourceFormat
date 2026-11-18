@@ -25,6 +25,7 @@ uniform bool g_bPreserveRoughnessSticker0 = false;
 uniform bool g_bHolographicSticker0 = false;
 uniform bool g_bClampSpectrumVSticker0 = true;
 uniform bool g_bGlitterSticker0 = false;
+uniform bool g_bFoilUsingGlitterMaskSticker0 = false;
 uniform vec3 g_vColorTintSticker0 = vec3(1.0); // SrgbRead(true)
 uniform float g_flTintSaturateSticker0 = 1.0;
 uniform float g_flColorBoostSticker0 = 1.0;
@@ -191,7 +192,7 @@ vec3 ApplySticker(inout MaterialProperties_t mat, vec2 texCoord)
 
     // A single filtered read of the mask
     vec4 sfxMask = vec4(0.0);
-    if (g_bGlitterSticker0 || g_bHolographicSticker0)
+    if (g_bGlitterSticker0 || g_bFoilUsingGlitterMaskSticker0 || g_bHolographicSticker0)
     {
         sfxMask = texture(g_tSfxMaskSticker0, stickerCoord, lodBias);
     }
@@ -200,6 +201,11 @@ vec3 ApplySticker(inout MaterialProperties_t mat, vec2 texCoord)
     if (g_bGlitterSticker0 && glitterAmount != 0.0)
     {
         glitter = ApplyStickerGlitter(stickerCoord, sticker.rgb, glitterAmount, mat, normal, metallic);
+    }
+
+    if (g_bFoilUsingGlitterMaskSticker0)
+    {
+        metallic = max(metallic, glitterAmount);
     }
 
     vec3 albedo = GetStickerAlbedo(sticker.rgb, metallic);
