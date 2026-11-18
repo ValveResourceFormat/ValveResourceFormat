@@ -250,7 +250,7 @@ namespace GUI.Types.Viewers
 
         private static bool ContainsKey(Entity entity, string key)
         {
-            foreach (var prop in entity.Children)
+            foreach (var prop in entity.Properties)
             {
                 if (prop.Key.Contains(key, StringComparison.OrdinalIgnoreCase))
                 {
@@ -263,7 +263,7 @@ namespace GUI.Types.Viewers
 
         private bool ContainsValue(Entity entity, string value)
         {
-            foreach (var prop in entity.Children)
+            foreach (var prop in entity.Properties)
             {
                 var stringValue = prop.Value.ToString() ?? string.Empty;
 
@@ -288,7 +288,7 @@ namespace GUI.Types.Viewers
 
         private bool ContainsKeyValue(Entity entity, string key, string value)
         {
-            foreach (var prop in entity.Children)
+            foreach (var prop in entity.Properties)
             {
                 var stringValue = prop.Value.ToString() ?? string.Empty;
 

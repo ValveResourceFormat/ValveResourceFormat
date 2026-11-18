@@ -107,7 +107,7 @@ namespace GUI.Forms
         /// </summary>
         public void PopulateFromEntity(List<Entity> entities, Entity entity)
         {
-            foreach (var child in entity.Children)
+            foreach (var child in entity.Properties)
             {
                 var text = BareText(child.Value);
                 LinkedResource? link = text switch
@@ -153,9 +153,9 @@ namespace GUI.Forms
                     continue;
                 }
 
-                foreach (var child in source.Children)
+                foreach (var child in source.Properties)
                 {
-                    if (child.Key == "targetname")
+                    if (child.Key.Equals("targetname", StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }

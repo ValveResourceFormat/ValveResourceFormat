@@ -32,7 +32,7 @@ public readonly record struct EntityNameFixup(string Parent, string Local)
 
         Entity? fixedUp = null;
 
-        foreach (var (key, value) in data.Children)
+        foreach (var (key, value) in data.Properties)
         {
             // The same instance comes back when there is nothing to replace
             if (value.ValueType == KVValueType.String && (string)value is var authored && Apply(authored) is var name && !ReferenceEquals(name, authored))
@@ -49,9 +49,9 @@ public readonly record struct EntityNameFixup(string Parent, string Local)
     {
         var copy = new Entity { ParentLump = data.ParentLump };
 
-        foreach (var (key, value) in data.Children)
+        foreach (var (key, value) in data.Properties)
         {
-            copy.Add(key, value);
+            copy[key] = value;
         }
 
         return copy;

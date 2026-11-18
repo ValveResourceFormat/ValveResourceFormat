@@ -50,12 +50,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         //[return: NotNullIfNotNull(nameof(defaultValue))]
         public static string GetStringProperty(this KVObject obj, string name, string? defaultValue = null)
-        {
-            if (!obj.TryGetValue(name, out var value))
-            {
-                return defaultValue!;
-            }
+            => obj.TryGetValue(name, out var value) ? value.ToStringOrDefault(defaultValue) : defaultValue!;
 
+        /// <summary>
+        /// Converts a value to a string. A number is returned as its invariant text.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        /// <param name="defaultValue">The result for any kind of value that is not text or a number.</param>
+        public static string ToStringOrDefault(this KVObject value, string? defaultValue = null)
+        {
             return value.ValueType switch
             {
                 KVValueType.String => (string)value,
@@ -207,12 +210,13 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// A wrong count uses the default so a malformed "scales" does not collapse a model.
         /// </remarks>
         public static Vector2 GetVector2Property(this KVObject obj, string name, Vector2 defaultValue = default)
-        {
-            if (!obj.TryGetValue(name, out var value))
-            {
-                return defaultValue;
-            }
+            => obj.TryGetValue(name, out var value) ? value.ToVector2OrDefault(defaultValue) : defaultValue;
 
+        /// <summary>
+        /// Converts a value to a two component vector. See <see cref="GetVector2Property"/>.
+        /// </summary>
+        public static Vector2 ToVector2OrDefault(this KVObject value, Vector2 defaultValue = default)
+        {
             Span<float> components = stackalloc float[2];
             return TryReadVector(value, components) ? new Vector2(components) : defaultValue;
         }
@@ -354,7 +358,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         public static bool GetParticleBooleanProperty(this KVObject obj, string name, bool defaultValue = false)
             => obj.TryGetValue(name, out var value) ? value.ToParticleBoolean(defaultValue) : defaultValue;
 
-        private static bool IsBlankText(KVObject value)
+        internal static bool IsBlankText(KVObject value)
             => value.ValueType == KVValueType.String && string.IsNullOrWhiteSpace((string)value);
 
         private static bool TryGetScalar(KVObject obj, string name, out KVObject value)
@@ -524,6 +528,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 throw new KeyNotFoundException($"Key '{name}' not found");
             }
 
+            return value.ToEnumValue<TEnum>(normalize, stripExtension);
+        }
+
+        /// <summary>
+        /// Converts a value to an enum, from its name or its integer value.
+        /// </summary>
+        public static TEnum ToEnumValue<TEnum>(this KVObject value, bool normalize = false, string stripExtension = "Flags")
+            where TEnum : struct, Enum
+        {
             if (value.ValueType != KVValueType.String)
             {
                 return (TEnum)(object)(int)value;

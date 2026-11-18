@@ -2352,7 +2352,7 @@ namespace CLI
 
                         foreach (var entity in entities)
                         {
-                            foreach (var property in entity.Children)
+                            foreach (var property in entity.Properties)
                             {
                                 if (!knownEntityKeys.Contains(property.Key) && property.Key.StartsWith("vrf_unknown_key_", StringComparison.Ordinal))
                                 {

@@ -1994,7 +1994,7 @@ public sealed partial class MapExtract
     private static int[] AddProperties(string className, Entity compiledEntity, BaseEntity mapEntity)
     {
         var entityLineage = Array.Empty<int>();
-        foreach (var (key, value) in compiledEntity.Children)
+        foreach (var (key, value) in compiledEntity.Properties)
         {
             var propertyKey = key.ToLowerInvariant();
 
