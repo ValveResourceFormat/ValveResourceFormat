@@ -3,7 +3,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
@@ -144,25 +143,6 @@ public sealed partial class MapExtract
 
     /// <summary>Gets the physics vertex matcher used for physics mesh processing.</summary>
     public PhysicsTriangleMatcher? PhysTriangleMatcher { get; private set; }
-
-    /// <summary>
-    /// World node model of a map mesh cluster, named <c>n{node}_lr{layer}_c{cluster}_s_</c> or with <c>_d_</c> when dynamic.
-    /// </summary>
-    [GeneratedRegex(@"(?:^|/)(?:n|node)[0-9]+_lr[0-9]+_c[0-9]+_[sd]_")]
-    private static partial Regex WorldNodeMeshClusterRegex();
-
-    private static bool SceneObjectShouldConvertToHammerMesh(string? modelName)
-    {
-        if (string.IsNullOrEmpty(modelName))
-        {
-            return false;
-        }
-
-        return modelName.Contains("_mesh_blocklight", StringComparison.Ordinal)
-            || modelName.Contains("_mesh_overlay", StringComparison.Ordinal)
-            || modelName.Contains("_mesh_base", StringComparison.Ordinal)
-            || WorldNodeMeshClusterRegex().IsMatch(modelName);
-    }
 
     /// <summary>
     /// Vertex streams a material reads as foliage animation. A Hammer mesh has no stream for them.
@@ -990,13 +970,10 @@ public sealed partial class MapExtract
         {
             HammerMesheEntitiesSelectionSet?.Children.Add(hammerMeshEntitySelectionSet);
         }
-        else if (resource.FileName!.Contains("_mesh_overlay", StringComparison.Ordinal))
+        else if (WorldNodeModelName.Parse(resource.FileName).Type is var meshClass and not WorldNodeTypes.Unknown)
         {
-            OverlaysSelectionSet?.Children.Add(drawSelectionSet);
-        }
-        else if (SceneObjectShouldConvertToHammerMesh(resource.FileName))
-        {
-            HammerMeshesSelectionSet?.Children.Add(drawSelectionSet);
+            var selectionSet = meshClass is WorldNodeTypes.Overlay or WorldNodeTypes.NoSplitOverlay ? OverlaysSelectionSet : HammerMeshesSelectionSet;
+            selectionSet?.Children.Add(drawSelectionSet);
         }
 
         return hammerMeshesToReturn;
@@ -1190,12 +1167,13 @@ public sealed partial class MapExtract
         var overrides = new SceneObjectOverrides(extraVertexStreamOverrides, extraVertexStreams, materialOverrides);
 
         var sceneObjects = node.SceneObjects;
+        var sceneObjectModelNames = node.SceneObjectModelNames;
         var sceneObjectLayerIndices = node.SceneObjectLayerIndices;
         for (var i = 0; i < sceneObjects.Count; i++)
         {
             var sceneObject = sceneObjects[i];
             var layerIndex = (int)(sceneObjectLayerIndices?[i] ?? -1);
-            ProcessSceneObject(sceneObject, i, layerIndex, layerNodes, overrides);
+            ProcessSceneObject(sceneObject, sceneObjectModelNames[i], i, layerIndex, layerNodes, overrides);
         }
 
         foreach (var aggregateSceneObject in node.AggregateSceneObjects)
@@ -1300,7 +1278,7 @@ public sealed partial class MapExtract
         properties["disableinlowquality"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.DisabledInLowQuality));
     }
 
-    private void ProcessSceneObject(KVObject sceneObject, int sceneObjectIndex, int layerIndex, List<MapNode> layerNodes, SceneObjectOverrides overrides)
+    private void ProcessSceneObject(KVObject sceneObject, WorldNodeModelName worldNodeModelName, int sceneObjectIndex, int layerIndex, List<MapNode> layerNodes, SceneObjectOverrides overrides)
     {
         var modelName = sceneObject.GetStringProperty("m_renderableModel");
         var meshName = sceneObject.GetStringProperty("m_renderable");
@@ -1325,7 +1303,7 @@ public sealed partial class MapExtract
         Vector4? drawCallTint = null;
 
         // Model marks draw calls of props baked into the world node
-        if (!objectFlags.HasFlag(ObjectTypeFlags.Model) && SceneObjectShouldConvertToHammerMesh(modelName))
+        if (!objectFlags.HasFlag(ObjectTypeFlags.Model) && worldNodeModelName.Type != WorldNodeTypes.Unknown)
         {
             var isConverted = TryConvertSceneObjectToHammerMesh(modelName!, objectTransform, GetWorldLayerNode(layerIndex, layerNodes), out drawCallTint);
             if (isConverted)

@@ -26,10 +26,57 @@ namespace ValveResourceFormat.ResourceTypes
             => Data.GetArray<long>("m_sceneObjectLayerIndices");
 
         /// <summary>
+        /// Gets what the compiler encoded in the model name of each of <see cref="SceneObjects"/>, in the same order.
+        /// </summary>
+        public IReadOnlyList<WorldNodeModelName> SceneObjectModelNames
+            => sceneObjectModelNames ??= ParseModelNames(SceneObjects);
+
+        private WorldNodeModelName[]? sceneObjectModelNames;
+
+        /// <summary>
         /// Gets the aggregate scene objects.
         /// </summary>
         public IReadOnlyList<KVObject> AggregateSceneObjects
             => Data.GetArray("m_aggregateSceneObjects") ?? [];
+
+        /// <summary>
+        /// Gets what the compiler encoded in the model name of each of <see cref="AggregateSceneObjects"/>, in the same order.
+        /// An <c>agg_prop</c> aggregate without fragment transforms is reported as <see cref="WorldNodeTypes.BakedPropLod"/>.
+        /// </summary>
+        public IReadOnlyList<WorldNodeModelName> AggregateSceneObjectModelNames
+            => aggregateSceneObjectModelNames ??= ParseAggregateModelNames(AggregateSceneObjects);
+
+        private WorldNodeModelName[]? aggregateSceneObjectModelNames;
+
+        private static WorldNodeModelName[] ParseAggregateModelNames(IReadOnlyList<KVObject> aggregates)
+        {
+            var names = ParseModelNames(aggregates);
+
+            for (var i = 0; i < names.Length; i++)
+            {
+                // Older compilers name aggregates of BakedPropLod agg_prop too, those have no fragment transforms
+                var fragmentTransforms = aggregates[i].GetArray("m_fragmentTransforms") ?? [];
+
+                if (names[i].Type == WorldNodeTypes.InstancedProp && fragmentTransforms.Count == 0)
+                {
+                    names[i] = names[i] with { Type = WorldNodeTypes.BakedPropLod };
+                }
+            }
+
+            return names;
+        }
+
+        private static WorldNodeModelName[] ParseModelNames(IReadOnlyList<KVObject> sceneObjects)
+        {
+            var names = new WorldNodeModelName[sceneObjects.Count];
+
+            for (var i = 0; i < names.Length; i++)
+            {
+                names[i] = WorldNodeModelName.Parse(sceneObjects[i].GetStringProperty("m_renderableModel"));
+            }
+
+            return names;
+        }
 
         /// <summary>
         /// Gets the decals placed with the map, each a box that projects a material onto what is inside it.
