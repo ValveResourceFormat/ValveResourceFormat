@@ -16,7 +16,7 @@
 			classes = 
 			[
 				"ambient_generic",
-				"point_soundevent",
+				"point_soundevent:570",
 				"snd_event_point",
 				"snd_event_sphere",
 				"snd_event_alignedbox",
@@ -32,6 +32,8 @@
 				"snd_opvar_set_aabb",
 				"snd_opvar_set_obb:570",
 				"snd_opvar_set_path_corner",
+				"snd_opvar_set_path_helper",
+				"snd_opvar_set_enclosure",
 				"snd_opvar_set_auto_room",
 				"snd_opvar_set_dome",
 				"snd_opvar_set_wind_obb",
@@ -88,7 +90,7 @@
 				"env_sprite",
 				"env_sprite_oriented",
 				"env_wind",
-				"sky_camera",
+				"sky_camera:570",
 				"game_weapon_manager",
 				"game_player_equip",
 				"game_text",
@@ -160,7 +162,7 @@
 				"filter_activator_context",
 				"filter_activator_class",
 				"filter_activator_mass_greater",
-				"filter_damage_type",
+				"filter_damage_type:570",
 				"filter_activator_attribute_int",
 				"filter_enemy",
 				"filter_proximity",
@@ -175,7 +177,7 @@
 				"func_physbox",
 				"phys_keepupright",
 				"info_constraint_anchor",
-				"phys_spring",
+				"phys_spring:570",
 				"phys_hinge:570",
 				"phys_hinge_local:570",
 				"phys_ballsocket:570",
@@ -215,21 +217,21 @@
 				"tanktrain_ai",
 				"path_track:570",
 				"test_traceline",
-				"trigger_autosave",
-				"trigger_changelevel",
-				"trigger_gravity",
-				"trigger_soundscape",
-				"trigger_hurt",
-				"trigger_remove",
-				"trigger_multiple",
-				"trigger_once",
-				"trigger_snd_sos_opvar",
-				"trigger_look",
+				"trigger_autosave:570",
+				"trigger_changelevel:570",
+				"trigger_gravity:570",
+				"trigger_soundscape:570",
+				"trigger_hurt:570",
+				"trigger_remove:570",
+				"trigger_multiple:570",
+				"trigger_once:570",
+				"trigger_snd_sos_opvar:570",
+				"trigger_look:570",
 				"trigger_push:570",
-				"trigger_wind",
+				"trigger_wind:570",
 				"trigger_impact",
-				"trigger_proximity",
-				"trigger_teleport",
+				"trigger_proximity:570",
+				"trigger_teleport:570",
 				"trigger_transition:570",
 				"trigger_serverragdoll",
 				"water_lod_control",
@@ -250,7 +252,7 @@
 				"env_instructor_vr_hint",
 				"point_instructor_event",
 				"func_timescale",
-				"point_worldtext",
+				"point_worldtext:570",
 				"fog_volume",
 				"point_workplane",
 				"path_corner:570",
@@ -267,6 +269,7 @@
 				"visibility_hint:570",
 				"info_visibility_box:570",
 				"info_cull_triangles",
+				"func_lightmesh",
 				"path_node_generic",
 				"path_generic",
 				"path_simple",
@@ -333,7 +336,7 @@
 				"npc_dota_unit_templar_gate",
 				"npc_dota_base_blocker",
 				"npc_dota_lantern",
-				"npc_dota_unit_item_stone_of_recall",
+				"npc_dota_stone_of_recall",
 				"npc_dota_xp_fountain",
 				"npc_dota_launchpad",
 				"ent_dota_shop",
@@ -349,6 +352,7 @@
 				"trigger_shop",
 				"trigger_no_wards",
 				"trigger_boss_attackable",
+				"trigger_roshan_obstruction",
 				"npc_dota_scripted_spawner",
 				"dota_item_spawner",
 				"trigger_hero",
@@ -376,6 +380,7 @@
 				"dota_whack_a_mole_effects",
 				"dota_crate_drop_effects",
 				"dota_dc_murder_of_crows",
+				"func_dota_nav_blocker",
 			]
 		},
 		{
@@ -383,7 +388,7 @@
 			classes = 
 			[
 				"ambient_generic",
-				"point_soundevent",
+				"point_soundevent:570",
 				"snd_event_point",
 				"snd_event_sphere",
 				"snd_event_alignedbox",
@@ -436,7 +441,7 @@
 				"snd_soundscape_triggerable",
 				"env_spark",
 				"env_wind",
-				"sky_camera",
+				"sky_camera:570",
 				"game_weapon_manager",
 				"game_player_equip",
 				"game_text",
@@ -502,7 +507,7 @@
 				"filter_activator_context",
 				"filter_activator_class",
 				"filter_activator_mass_greater",
-				"filter_damage_type",
+				"filter_damage_type:570",
 				"filter_activator_attribute_int",
 				"filter_enemy",
 				"filter_proximity",
@@ -517,7 +522,7 @@
 				"func_physbox",
 				"phys_keepupright",
 				"info_constraint_anchor",
-				"phys_spring",
+				"phys_spring:570",
 				"phys_hinge:570",
 				"phys_hinge_local:570",
 				"phys_ballsocket:570",
@@ -532,7 +537,7 @@
 				"phys_torque",
 				"phys_motor",
 				"phys_magnet",
-				"prop_static:570",
+				"prop_static:730",
 				"prop_dynamic:570",
 				"prop_dynamic_override:570",
 				"prop_physics_override",
@@ -551,21 +556,21 @@
 				"tanktrain_ai",
 				"path_track:570",
 				"test_traceline",
-				"trigger_autosave",
-				"trigger_changelevel",
-				"trigger_gravity",
-				"trigger_soundscape",
-				"trigger_hurt",
-				"trigger_remove",
-				"trigger_multiple",
-				"trigger_once",
-				"trigger_snd_sos_opvar",
-				"trigger_look",
+				"trigger_autosave:570",
+				"trigger_changelevel:570",
+				"trigger_gravity:570",
+				"trigger_soundscape:570",
+				"trigger_hurt:570",
+				"trigger_remove:570",
+				"trigger_multiple:570",
+				"trigger_once:570",
+				"trigger_snd_sos_opvar:570",
+				"trigger_look:570",
 				"trigger_push:570",
-				"trigger_wind",
+				"trigger_wind:570",
 				"trigger_impact",
-				"trigger_proximity",
-				"trigger_teleport",
+				"trigger_proximity:570",
+				"trigger_teleport:570",
 				"trigger_transition:570",
 				"trigger_serverragdoll",
 				"water_lod_control",
@@ -582,7 +587,7 @@
 				"info_target_instructor_hint",
 				"point_instructor_event",
 				"func_timescale",
-				"point_worldtext",
+				"point_worldtext:570",
 				"point_workplane",
 				"path_corner:730",
 				"point_value_remapper",
@@ -745,7 +750,7 @@
 				"info_npc_spawn_destination",
 				"npc_template_maker",
 				"ambient_generic",
-				"point_soundevent",
+				"point_soundevent:570",
 				"snd_event_point",
 				"snd_event_alignedbox",
 				"snd_stack_save",
@@ -781,7 +786,7 @@
 				"vgui_screen",
 				"vgui_slideshow_display",
 				"vgui_movie_display",
-				"cycler",
+				"cycler:250820",
 				"func_orator:250820",
 				"env_beam",
 				"env_beverage",
@@ -819,7 +824,7 @@
 				"env_sprite_oriented",
 				"env_wind",
 				"env_wind_clientside",
-				"sky_camera",
+				"sky_camera:570",
 				"game_weapon_manager",
 				"game_end",
 				"game_player_equip",
@@ -867,7 +872,7 @@
 				"color_correction",
 				"color_correction_volume",
 				"func_movelinear:250820",
-				"func_water_analog",
+				"func_water_analog:250820",
 				"func_rotating",
 				"func_platrot",
 				"keyframe_track",
@@ -921,7 +926,7 @@
 				"filter_activator_context",
 				"filter_activator_class",
 				"filter_activator_mass_greater",
-				"filter_damage_type",
+				"filter_damage_type:570",
 				"filter_enemy",
 				"filter_proximity",
 				"filter_los",
@@ -937,7 +942,7 @@
 				"physics_cannister",
 				"info_constraint_anchor",
 				"info_mass_center",
-				"phys_spring",
+				"phys_spring:570",
 				"phys_hinge:250820",
 				"phys_hinge_local:250820",
 				"phys_ballsocket:250820",
@@ -981,22 +986,22 @@
 				"tanktrain_ai",
 				"path_track:250820",
 				"test_traceline",
-				"trigger_autosave",
-				"trigger_changelevel",
-				"trigger_gravity",
-				"trigger_playermovement",
-				"trigger_soundscape",
-				"trigger_hurt",
-				"trigger_remove",
-				"trigger_multiple",
-				"trigger_once",
-				"trigger_snd_sos_opvar",
-				"trigger_look",
+				"trigger_autosave:570",
+				"trigger_changelevel:570",
+				"trigger_gravity:570",
+				"trigger_playermovement:250820",
+				"trigger_soundscape:570",
+				"trigger_hurt:570",
+				"trigger_remove:570",
+				"trigger_multiple:570",
+				"trigger_once:570",
+				"trigger_snd_sos_opvar:570",
+				"trigger_look:570",
 				"trigger_push:250820",
-				"trigger_wind",
+				"trigger_wind:570",
 				"trigger_impact",
-				"trigger_proximity",
-				"trigger_teleport",
+				"trigger_proximity:570",
+				"trigger_teleport:570",
 				"trigger_transition:250820",
 				"trigger_serverragdoll",
 				"ai_speechfilter",
@@ -1004,7 +1009,7 @@
 				"point_camera",
 				"info_camera_link",
 				"logic_measure_movement",
-				"npc_furniture",
+				"npc_furniture:250820",
 				"env_credits",
 				"material_modify_control",
 				"point_devshot_camera:250820",
@@ -1023,7 +1028,7 @@
 				"point_instructor_event",
 				"func_timescale",
 				"prop_hallucination",
-				"point_worldtext",
+				"point_worldtext:570",
 				"fog_volume",
 				"func_occluder",
 				"func_distance_occluder",
@@ -1048,20 +1053,20 @@
 				"light_environment:250820",
 				"light_irradvolume",
 				"env_time_of_day",
-				"light_omni",
-				"light_spot",
+				"light_omni:250820",
+				"light_spot:250820",
 				"light_ortho",
-				"light_importance_volume",
+				"light_importance_volume:250820",
 				"env_light_probe_volume:250820",
 				"env_cubemap",
 				"env_cubemap_box:250820",
 				"env_combined_light_probe_volume:250820",
 				"npc_vehicledriver",
 				"npc_bullseye",
-				"npc_enemyfinder",
+				"npc_enemyfinder:250820",
 				"ai_goal_operator",
-				"monster_generic",
-				"generic_actor",
+				"monster_generic:250820",
+				"generic_actor:250820",
 				"cycler_actor",
 				"npc_maker",
 				"scripted_sentence",
@@ -1083,12 +1088,12 @@
 				"ai_npc_eventresponsesystem",
 				"ai_changehintgroup",
 				"ai_script_conditions",
-				"scripted_sequence",
+				"scripted_sequence:250820",
 				"aiscripted_schedule",
 				"logic_choreographed_scene",
 				"logic_scene_list_manager",
 				"ai_sound",
-				"ai_attached_item_manager",
+				"ai_attached_item_manager:250820",
 				"ai_addon_builder",
 				"npc_crow",
 				"npc_seagull",
@@ -1107,13 +1112,360 @@
 			]
 		},
 		{
+			app_id = 453170
+			classes = 
+			[
+				"info_npc_spawn_destination",
+				"npc_template_maker",
+				"ambient_generic",
+				"point_soundevent:453170",
+				"sound_opvar_set",
+				"func_lod",
+				"env_zoom",
+				"env_screenoverlay",
+				"env_screeneffect",
+				"env_texturetoggle",
+				"env_splash",
+				"env_particlelight",
+				"env_sun",
+				"env_tonemap_controller",
+				"game_ragdoll_manager",
+				"game_gib_manager",
+				"env_dof_controller",
+				"env_lightglow",
+				"env_smokestack",
+				"env_fade",
+				"env_player_surface_trigger",
+				"trigger_tonemap",
+				"func_useableladder",
+				"func_ladderendpoint",
+				"info_ladder_dismount",
+				"func_areaportalwindow",
+				"func_wall",
+				"func_clip_vphysics",
+				"func_clip_interaction_layer",
+				"func_brush",
+				"vgui_screen",
+				"vgui_slideshow_display",
+				"vgui_movie_display",
+				"cycler:453170",
+				"func_orator:570",
+				"env_beam",
+				"env_beverage",
+				"env_funnel",
+				"env_blood",
+				"env_bubbles",
+				"env_explosion",
+				"env_smoketrail",
+				"env_physexplosion",
+				"env_physimpact",
+				"env_fire",
+				"env_firesource",
+				"env_firesensor",
+				"env_entity_igniter",
+				"env_fog_controller",
+				"postprocess_controller",
+				"env_laser",
+				"env_message",
+				"env_hudhint",
+				"env_shake",
+				"env_tilt",
+				"env_viewpunch",
+				"env_rotorwash_emitter",
+				"gibshooter",
+				"env_shooter",
+				"env_rotorshooter",
+				"env_soundscape_proxy",
+				"env_soundscape",
+				"env_soundscape_triggerable",
+				"env_spark",
+				"env_sprite",
+				"env_sprite_oriented",
+				"env_wind",
+				"env_wind_clientside",
+				"sky_camera:453170",
+				"game_weapon_manager",
+				"game_end",
+				"game_player_equip",
+				"game_player_team",
+				"game_score",
+				"game_text",
+				"point_enable_motion_fixup",
+				"point_message",
+				"point_spotlight",
+				"point_tesla",
+				"point_clientcommand",
+				"point_servercommand",
+				"point_broadcastclientcommand",
+				"point_bonusmaps_accessor",
+				"game_ui",
+				"point_entity_finder",
+				"game_zone_player",
+				"infodecal",
+				"info_projecteddecal",
+				"info_no_dynamic_shadow",
+				"info_player_start",
+				"info_overlay",
+				"info_overlay_transition",
+				"info_intermission",
+				"info_landmark",
+				"info_spawngroup_load_unload",
+				"info_null",
+				"info_target:250820",
+				"info_particle_target",
+				"info_particle_system:250820",
+				"phys_ragdollmagnet",
+				"info_lighting",
+				"info_teleport_destination",
+				"info_node",
+				"info_node_hint",
+				"info_node_air",
+				"info_node_air_hint",
+				"info_hint",
+				"info_node_link",
+				"info_node_link_controller",
+				"info_radial_link_controller",
+				"info_node_climb",
+				"light_dynamic",
+				"shadow_control",
+				"color_correction",
+				"color_correction_volume",
+				"func_movelinear:453170",
+				"func_water_analog:453170",
+				"func_rotating",
+				"func_platrot",
+				"keyframe_track",
+				"move_keyframed",
+				"move_track",
+				"keyframe_rope",
+				"move_rope",
+				"func_button:453170",
+				"func_rot_button",
+				"momentary_rot_button",
+				"func_door:453170",
+				"func_door_rotating",
+				"func_dustmotes",
+				"func_dustcloud",
+				"env_dustpuff",
+				"env_particlescript",
+				"env_effectscript",
+				"logic_auto",
+				"point_viewcontrol",
+				"point_posecontroller",
+				"logic_compare",
+				"logic_branch",
+				"logic_branch_listener",
+				"logic_case",
+				"logic_multicompare",
+				"logic_random_outputs",
+				"logic_script",
+				"logic_relay",
+				"logic_timer",
+				"hammer_updateignorelist",
+				"logic_collision_pair",
+				"env_microphone",
+				"math_remap",
+				"math_colorblend",
+				"math_counter",
+				"logic_lineto",
+				"logic_navigation",
+				"logic_autosave",
+				"logic_active_autosave",
+				"logic_playmovie",
+				"info_world_layer",
+				"point_template",
+				"env_entity_maker",
+				"filter_multi",
+				"filter_activator_name",
+				"filter_activator_model:250820",
+				"filter_activator_context",
+				"filter_activator_class",
+				"filter_activator_mass_greater",
+				"filter_damage_type:453170",
+				"filter_enemy",
+				"filter_proximity",
+				"filter_los",
+				"point_anglesensor",
+				"point_angularvelocitysensor",
+				"point_velocitysensor",
+				"point_proximity_sensor",
+				"point_teleport",
+				"point_hurt",
+				"point_playermoveconstraint",
+				"func_physbox",
+				"phys_constraintsystem",
+				"phys_keepupright",
+				"physics_cannister",
+				"info_constraint_anchor",
+				"info_mass_center",
+				"phys_spring:453170",
+				"phys_hinge:453170",
+				"phys_hinge_local:453170",
+				"phys_ballsocket:250820",
+				"phys_constraint",
+				"phys_pulleyconstraint",
+				"phys_slideconstraint",
+				"phys_lengthconstraint",
+				"phys_ragdollconstraint",
+				"phys_genericconstraint",
+				"phys_convert",
+				"phys_thruster:250820",
+				"phys_torque",
+				"phys_motor",
+				"phys_magnet",
+				"prop_detail",
+				"prop_static:453170",
+				"prop_dynamic:453170",
+				"prop_dynamic_override:250820",
+				"prop_physics_override",
+				"prop_physics:453170",
+				"prop_physics_multiplayer",
+				"prop_ragdoll",
+				"prop_dynamic_ornament:250820",
+				"func_areaportal",
+				"func_breakable",
+				"func_conveyor:250820",
+				"func_viscluster",
+				"func_illusionary",
+				"func_precipitation:250820",
+				"func_precipitation_blocker",
+				"func_detail_blocker",
+				"func_wall_toggle",
+				"func_guntarget",
+				"func_fish_pool",
+				"func_trackautochange",
+				"func_trackchange",
+				"func_tracktrain",
+				"func_tanktrain",
+				"func_traincontrols",
+				"tanktrain_aitarget",
+				"tanktrain_ai",
+				"path_track:250820",
+				"test_traceline",
+				"trigger_autosave:453170",
+				"trigger_changelevel:453170",
+				"trigger_gravity:453170",
+				"trigger_playermovement:453170",
+				"trigger_soundscape:453170",
+				"trigger_hurt:453170",
+				"trigger_remove:453170",
+				"trigger_multiple:453170",
+				"trigger_once:453170",
+				"trigger_snd_sos_opvar:453170",
+				"trigger_look:453170",
+				"trigger_push:453170",
+				"trigger_wind:453170",
+				"trigger_impact",
+				"trigger_proximity:453170",
+				"trigger_teleport:453170",
+				"trigger_transition:250820",
+				"trigger_serverragdoll",
+				"ai_speechfilter",
+				"water_lod_control",
+				"point_camera",
+				"info_camera_link",
+				"logic_measure_movement",
+				"npc_furniture:453170",
+				"env_credits",
+				"material_modify_control",
+				"point_devshot_camera:250820",
+				"logic_playerproxy",
+				"env_projectedtexture",
+				"func_reflective_glass",
+				"env_particle_performance_monitor",
+				"npc_puppet",
+				"point_gamestats_counter",
+				"beam_spotlight",
+				"func_instance",
+				"point_event_proxy",
+				"env_instructor_hint",
+				"info_target_instructor_hint",
+				"func_timescale",
+				"prop_hallucination",
+				"point_worldtext:453170",
+				"fog_volume",
+				"func_occluder",
+				"func_distance_occluder",
+				"point_workplane",
+				"path_corner:453170",
+				"point_value_remapper",
+				"prop_magic_carpet",
+				"env_clock",
+				"point_clientui_dialog",
+				"point_clientui_world_panel",
+				"point_clientui_world_text_panel",
+				"info_spawngroup_landmark",
+				"env_sky",
+				"func_shatterglass",
+				"point_player_speak",
+				"light_environment:453170",
+				"light_irradvolume",
+				"env_world_lighting",
+				"env_time_of_day",
+				"light_omni:453170",
+				"light_spot:453170",
+				"light_ambient",
+				"light_ambientocclusion",
+				"light_importance_volume:453170",
+				"env_light_probe_volume:453170",
+				"env_cubemap",
+				"env_cubemap_box:453170",
+				"env_combined_light_probe_volume:453170",
+				"npc_vehicledriver",
+				"npc_bullseye",
+				"npc_enemyfinder:453170",
+				"ai_goal_operator",
+				"monster_generic:453170",
+				"generic_actor:453170",
+				"cycler_actor",
+				"npc_maker",
+				"scripted_sentence",
+				"scripted_target",
+				"ai_relationship",
+				"ai_goal_lead",
+				"ai_goal_follow",
+				"ai_goal_injured_follow",
+				"ai_battle_line",
+				"ai_goal_fightfromcover",
+				"ai_goal_standoff",
+				"ai_goal_police",
+				"assault_rallypoint",
+				"assault_assaultpoint",
+				"ai_goal_assault",
+				"ai_goal_actbusy",
+				"ai_goal_actbusy_queue",
+				"ai_changetarget",
+				"ai_npc_eventresponsesystem",
+				"ai_changehintgroup",
+				"ai_script_conditions",
+				"scripted_sequence:453170",
+				"aiscripted_schedule",
+				"logic_choreographed_scene",
+				"logic_scene_list_manager",
+				"ai_sound",
+				"ai_attached_item_manager:453170",
+				"ai_addon_builder",
+				"npc_crow",
+				"npc_seagull",
+				"npc_pigeon",
+				"prop_door_rotating:250820",
+				"worldspawn",
+				"light_sky",
+				"env_gradient_fog:453170",
+				"vr_teleport_marker",
+				"vr_teleport_area",
+				"flex_background",
+				"prop_destinations_tool",
+			]
+		},
+		{
 			app_id = 546560
 			classes = 
 			[
 				"info_npc_spawn_destination",
 				"npc_template_maker",
 				"ambient_generic",
-				"point_soundevent",
+				"point_soundevent:570",
 				"snd_event_point",
 				"snd_event_alignedbox",
 				"snd_stack_save",
@@ -1131,7 +1483,7 @@
 				"func_wall",
 				"func_clip_interaction_layer",
 				"func_brush",
-				"cycler",
+				"cycler:250820",
 				"env_beam",
 				"env_explosion",
 				"env_physexplosion",
@@ -1150,7 +1502,7 @@
 				"env_spark",
 				"env_sprite",
 				"env_wind",
-				"sky_camera",
+				"sky_camera:570",
 				"game_weapon_manager",
 				"game_text",
 				"point_enable_motion_fixup",
@@ -1179,7 +1531,7 @@
 				"info_node_climb",
 				"color_correction",
 				"func_movelinear:250820",
-				"func_water_analog",
+				"func_water_analog:250820",
 				"func_rotating",
 				"keyframe_rope",
 				"move_rope",
@@ -1218,7 +1570,7 @@
 				"filter_activator_name",
 				"filter_activator_model:250820",
 				"filter_activator_class",
-				"filter_damage_type",
+				"filter_damage_type:570",
 				"filter_enemy",
 				"point_anglesensor",
 				"point_angularvelocitysensor",
@@ -1230,7 +1582,7 @@
 				"func_physbox",
 				"phys_keepupright",
 				"info_constraint_anchor",
-				"phys_spring",
+				"phys_spring:570",
 				"phys_hinge:250820",
 				"phys_hinge_local:250820",
 				"phys_ballsocket:250820",
@@ -1261,31 +1613,31 @@
 				"tanktrain_ai",
 				"path_track:250820",
 				"test_traceline",
-				"trigger_autosave",
-				"trigger_changelevel",
-				"trigger_gravity",
-				"trigger_soundscape",
-				"trigger_hurt",
-				"trigger_remove",
-				"trigger_multiple",
-				"trigger_once",
-				"trigger_snd_sos_opvar",
-				"trigger_look",
+				"trigger_autosave:570",
+				"trigger_changelevel:570",
+				"trigger_gravity:570",
+				"trigger_soundscape:570",
+				"trigger_hurt:570",
+				"trigger_remove:570",
+				"trigger_multiple:570",
+				"trigger_once:570",
+				"trigger_snd_sos_opvar:570",
+				"trigger_look:570",
 				"trigger_push:250820",
 				"trigger_impact",
-				"trigger_proximity",
-				"trigger_teleport",
+				"trigger_proximity:570",
+				"trigger_teleport:570",
 				"trigger_transition:250820",
 				"trigger_serverragdoll",
 				"ai_speechfilter",
 				"point_camera",
-				"npc_furniture",
+				"npc_furniture:250820",
 				"logic_playerproxy",
 				"point_event_proxy",
 				"info_target_instructor_hint",
 				"env_instructor_vr_hint",
 				"point_instructor_event",
-				"point_worldtext",
+				"point_worldtext:570",
 				"func_distance_occluder",
 				"point_workplane",
 				"path_corner:250820",
@@ -1307,19 +1659,19 @@
 				"commentary_auto",
 				"point_commentary_node",
 				"light_environment:250820",
-				"light_omni",
-				"light_spot",
+				"light_omni:250820",
+				"light_spot:250820",
 				"light_ortho",
-				"light_importance_volume",
+				"light_importance_volume:250820",
 				"env_light_probe_volume:250820",
 				"env_cubemap",
 				"env_cubemap_box:250820",
 				"env_combined_light_probe_volume:250820",
 				"npc_vehicledriver",
 				"npc_bullseye",
-				"npc_enemyfinder",
+				"npc_enemyfinder:250820",
 				"ai_goal_operator",
-				"generic_actor",
+				"generic_actor:250820",
 				"npc_maker",
 				"scripted_sentence",
 				"scripted_target",
@@ -1340,11 +1692,11 @@
 				"ai_npc_eventresponsesystem",
 				"ai_changehintgroup",
 				"ai_script_conditions",
-				"scripted_sequence",
+				"scripted_sequence:250820",
 				"aiscripted_schedule",
 				"logic_choreographed_scene",
 				"ai_sound",
-				"ai_attached_item_manager",
+				"ai_attached_item_manager:250820",
 				"ai_addon_builder",
 				"prop_combine_ball",
 				"npc_grenade_frag",
@@ -1625,6 +1977,24 @@
 					name = "sphere"
 				},
 			]
+			id = "ai_attached_item_manager:250820"
+		},
+		{
+			name = "ai_attached_item_manager"
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"editor/info_target.vmat",
+					]
+				},
+				{
+					name = "sphere"
+				},
+			]
+			id = "ai_attached_item_manager:453170"
 		},
 		{
 			name = "ai_battle_line"
@@ -2181,6 +2551,17 @@
 					]
 				},
 			]
+			id = "cycler:250820"
+		},
+		{
+			name = "cycler"
+			helpers = 
+			[
+				{
+					name = "model"
+				},
+			]
+			id = "cycler:453170"
 		},
 		{
 			name = "cycler_actor"
@@ -2566,6 +2947,48 @@
 					]
 				},
 				{
+					name = "orientedwirebox"
+					arguments = 
+					[
+						"box_mins",
+						"box_maxs",
+					]
+				},
+				{
+					name = "bakeresource"
+					arguments = 
+					[
+						"lightprobetexture",
+						"vtex",
+						"env_light_probe_volume",
+						"ToolObjects/LightProbeVolume",
+					]
+				},
+				{
+					name = "bakeresource"
+					arguments = 
+					[
+						"cubemaptexture",
+						"vtex",
+						"env_cubemap",
+						"ToolObjects/CubeMap",
+					]
+				},
+			]
+			id = "env_combined_light_probe_volume:453170"
+		},
+		{
+			name = "env_combined_light_probe_volume"
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/env_cubemap",
+					]
+				},
+				{
 					name = "box_oriented"
 					metadata = 
 					{
@@ -2677,6 +3100,38 @@
 				},
 			]
 			id = "env_cubemap_box:250820"
+		},
+		{
+			name = "env_cubemap_box"
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/env_cubemap",
+					]
+				},
+				{
+					name = "orientedwirebox"
+					arguments = 
+					[
+						"box_mins",
+						"box_maxs",
+					]
+				},
+				{
+					name = "bakeresource"
+					arguments = 
+					[
+						"cubemaptexture",
+						"vtex",
+						"env_cubemap",
+						"ToolObjects/CubeMap",
+					]
+				},
+			]
+			id = "env_cubemap_box:453170"
 		},
 		{
 			name = "env_cubemap_box"
@@ -3051,6 +3506,23 @@
 				{
 					name = "gradientfog"
 				},
+			]
+			id = "env_gradient_fog:453170"
+		},
+		{
+			name = "env_gradient_fog"
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/env_fog_controller.vmat",
+					]
+				},
+				{
+					name = "gradientfog"
+				},
 				{
 					name = "global"
 					arguments = 
@@ -3165,6 +3637,38 @@
 				},
 			]
 			id = "env_light_probe_volume:250820"
+		},
+		{
+			name = "env_light_probe_volume"
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/iv_helper",
+					]
+				},
+				{
+					name = "orientedwirebox"
+					arguments = 
+					[
+						"box_mins",
+						"box_maxs",
+					]
+				},
+				{
+					name = "bakeresource"
+					arguments = 
+					[
+						"lightprobetexture",
+						"vtex",
+						"env_light_probe_volume",
+						"ToolObjects/LightProbeVolume",
+					]
+				},
+			]
+			id = "env_light_probe_volume:453170"
 		},
 		{
 			name = "env_light_probe_volume"
@@ -3898,6 +4402,29 @@
 			]
 		},
 		{
+			name = "env_world_lighting"
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/light_env.vmat",
+					]
+				},
+				{
+					name = "global"
+					arguments = 
+					[
+						"worldlighting",
+					]
+				},
+				{
+					name = "worldlighting"
+				},
+			]
+		},
+		{
 			name = "env_zoom"
 		},
 		{
@@ -4008,6 +4535,10 @@
 		},
 		{
 			name = "filter_damage_type"
+			id = "filter_damage_type:453170"
+		},
+		{
+			name = "filter_damage_type"
 			helpers = 
 			[
 				{
@@ -4018,6 +4549,7 @@
 					]
 				},
 			]
+			id = "filter_damage_type:570"
 		},
 		{
 			name = "filter_dota"
@@ -4198,6 +4730,11 @@
 		{
 			name = "func_button"
 			kind = "solid"
+			id = "func_button:453170"
+		},
+		{
+			name = "func_button"
+			kind = "solid"
 			helpers = 
 			[
 				{
@@ -4273,6 +4810,11 @@
 		{
 			name = "func_door"
 			kind = "solid"
+			id = "func_door:453170"
+		},
+		{
+			name = "func_door"
+			kind = "solid"
 			helpers = 
 			[
 				{
@@ -4288,6 +4830,11 @@
 		{
 			name = "func_door_rotating"
 			kind = "solid"
+		},
+		{
+			name = "func_dota_nav_blocker"
+			kind = "solid"
+			auto_apply_material = "materials/tools/toolsclip.vmat"
 		},
 		{
 			name = "func_dry_erase_board"
@@ -4341,6 +4888,11 @@
 			maxs = [ 16.0, 16.0, 72.0 ]
 		},
 		{
+			name = "func_lightmesh"
+			kind = "solid"
+			auto_apply_material = "materials/tools/toolslightmesh.vmat"
+		},
+		{
 			name = "func_lod"
 			kind = "solid"
 			helpers = 
@@ -4380,6 +4932,11 @@
 				},
 			]
 			id = "func_movelinear:250820"
+		},
+		{
+			name = "func_movelinear"
+			kind = "solid"
+			id = "func_movelinear:453170"
 		},
 		{
 			name = "func_movelinear"
@@ -4625,6 +5182,12 @@
 					]
 				},
 			]
+			id = "func_water_analog:250820"
+		},
+		{
+			name = "func_water_analog"
+			kind = "solid"
+			id = "func_water_analog:453170"
 		},
 		{
 			name = "func_xen_membrane_barrier"
@@ -4707,6 +5270,17 @@
 					]
 				},
 			]
+			id = "generic_actor:250820"
+		},
+		{
+			name = "generic_actor"
+			helpers = 
+			[
+				{
+					name = "studio"
+				},
+			]
+			id = "generic_actor:453170"
 		},
 		{
 			name = "ghost_actor"
@@ -8145,6 +8719,47 @@
 			]
 		},
 		{
+			name = "light_ambient"
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/light_ambient.vmat",
+					]
+				},
+				{
+					name = "bakeambientlight"
+					arguments = 
+					[
+						"color",
+					]
+				},
+			]
+		},
+		{
+			name = "light_ambientocclusion"
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/light_ambientocclusion.vmat",
+					]
+				},
+				{
+					name = "bakeambientocclusion"
+					arguments = 
+					[
+						"max_distance",
+						"weight",
+					]
+				},
+			]
+		},
+		{
 			name = "light_barn"
 			helpers = 
 			[
@@ -8257,6 +8872,39 @@
 					name = "editormodel"
 					arguments = 
 					[
+						"models/editor/sun",
+					]
+				},
+				{
+					name = "global"
+					arguments = 
+					[
+						"sun",
+					]
+				},
+				{
+					name = "bakeskylight"
+					arguments = 
+					[
+						"skycolor",
+						"skyintensity",
+						"lower_hemisphere_is_black",
+					]
+				},
+			]
+			id = "light_environment:453170"
+		},
+		{
+			name = "light_environment"
+			helpers = 
+			[
+				{
+					name = "light"
+				},
+				{
+					name = "editormodel"
+					arguments = 
+					[
 						"models/editor/light_environment",
 						"lightModeTint",
 						"124 255 157",
@@ -8334,6 +8982,32 @@
 					name = "bakelightimportancevolume"
 				},
 			]
+			id = "light_importance_volume:250820"
+		},
+		{
+			name = "light_importance_volume"
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/light_importance_volume.vmat",
+					]
+				},
+				{
+					name = "orientedwirebox"
+					arguments = 
+					[
+						"box_mins",
+						"box_maxs",
+					]
+				},
+				{
+					name = "bakelightimportancevolume"
+				},
+			]
+			id = "light_importance_volume:453170"
 		},
 		{
 			name = "light_irradvolume"
@@ -8358,6 +9032,23 @@
 				},
 				{
 					name = "irradvolume"
+				},
+			]
+		},
+		{
+			name = "light_omni2"
+			helpers = 
+			[
+				{
+					name = "omnilight"
+				},
+				{
+					name = "iconsprite"
+					metadata = 
+					{
+						image = "materials/editor/light_omni.vmat"
+						tintKey = "color"
+					}
 				},
 			]
 		},
@@ -8399,23 +9090,44 @@
 					]
 				},
 			]
+			id = "light_omni:250820"
 		},
 		{
-			name = "light_omni2"
+			name = "light_omni"
 			helpers = 
 			[
 				{
-					name = "omnilight"
+					name = "light"
 				},
 				{
-					name = "iconsprite"
-					metadata = 
-					{
-						image = "materials/editor/light_omni.vmat"
-						tintKey = "color"
-					}
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/spot",
+					]
+				},
+				{
+					name = "leansphere"
+					arguments = 
+					[
+						"lightsourceradius",
+						"255",
+						"255",
+						"255",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"range",
+						"255",
+						"255",
+						"0",
+					]
 				},
 			]
+			id = "light_omni:453170"
 		},
 		{
 			name = "light_ortho"
@@ -8460,6 +9172,28 @@
 			]
 		},
 		{
+			name = "light_sky"
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/light_sky.vmat",
+					]
+				},
+				{
+					name = "bakeskylight"
+					arguments = 
+					[
+						"color",
+						"intensity",
+						"lower_hemisphere_is_black",
+					]
+				},
+			]
+		},
+		{
 			name = "light_spot"
 			helpers = 
 			[
@@ -8490,6 +9224,37 @@
 					name = "lightcone"
 				},
 			]
+			id = "light_spot:250820"
+		},
+		{
+			name = "light_spot"
+			helpers = 
+			[
+				{
+					name = "light"
+				},
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/spot",
+					]
+				},
+				{
+					name = "leansphere"
+					arguments = 
+					[
+						"lightsourceradius",
+						"255",
+						"255",
+						"255",
+					]
+				},
+				{
+					name = "lightcone"
+				},
+			]
+			id = "light_spot:453170"
 		},
 		{
 			name = "logic_achievement"
@@ -9015,6 +9780,17 @@
 					]
 				},
 			]
+			id = "monster_generic:250820"
+		},
+		{
+			name = "monster_generic"
+			helpers = 
+			[
+				{
+					name = "studio"
+				},
+			]
+			id = "monster_generic:453170"
 		},
 		{
 			name = "move_keyframed"
@@ -9609,6 +10385,20 @@
 			name = "npc_dota_spawner_good_top"
 		},
 		{
+			name = "npc_dota_stone_of_recall"
+			helpers = 
+			[
+				{
+					name = "studioprop"
+				},
+			]
+			preview_animation_keys = 
+			[
+				"StartingAnim",
+				"IdleAnim",
+			]
+		},
+		{
 			name = "npc_dota_tower"
 			helpers = 
 			[
@@ -9638,20 +10428,6 @@
 						"200",
 					]
 				},
-			]
-		},
-		{
-			name = "npc_dota_unit_item_stone_of_recall"
-			helpers = 
-			[
-				{
-					name = "studioprop"
-				},
-			]
-			preview_animation_keys = 
-			[
-				"StartingAnim",
-				"IdleAnim",
 			]
 		},
 		{
@@ -9740,6 +10516,13 @@
 					]
 				},
 			]
+			id = "npc_enemyfinder:250820"
+		},
+		{
+			name = "npc_enemyfinder"
+			mins = [ -16.0, -16.0, -16.0 ]
+			maxs = [ 16.0, 16.0, 16.0 ]
+			id = "npc_enemyfinder:453170"
 		},
 		{
 			name = "npc_fastzombie"
@@ -9769,6 +10552,17 @@
 					]
 				},
 			]
+			id = "npc_furniture:250820"
+		},
+		{
+			name = "npc_furniture"
+			helpers = 
+			[
+				{
+					name = "model"
+				},
+			]
+			id = "npc_furniture:453170"
 		},
 		{
 			name = "npc_gman"
@@ -10201,6 +10995,26 @@
 						"target",
 					]
 				},
+			]
+			id = "path_corner:453170"
+		},
+		{
+			name = "path_corner"
+			mins = [ -8.0, -8.0, -8.0 ]
+			maxs = [ 8.0, 8.0, 8.0 ]
+			helpers = 
+			[
+				{
+					name = "line"
+					arguments = 
+					[
+						"255",
+						"255",
+						"255",
+						"targetname",
+						"target",
+					]
+				},
 				{
 					name = "drawangles"
 					metadata = 
@@ -10443,6 +11257,9 @@
 			]
 		},
 		{
+			name = "phys_constraintsystem"
+		},
+		{
 			name = "phys_convert"
 			mins = [ -8.0, -8.0, -8.0 ]
 			maxs = [ 8.0, 8.0, 8.0 ]
@@ -10480,6 +11297,22 @@
 				},
 			]
 			id = "phys_hinge:250820"
+		},
+		{
+			name = "phys_hinge"
+			mins = [ -8.0, -8.0, -8.0 ]
+			maxs = [ 8.0, 8.0, 8.0 ]
+			helpers = 
+			[
+				{
+					name = "vecline"
+					arguments = 
+					[
+						"hingeaxis",
+					]
+				},
+			]
+			id = "phys_hinge:453170"
 		},
 		{
 			name = "phys_hinge"
@@ -10532,6 +11365,22 @@
 				},
 			]
 			id = "phys_hinge_local:250820"
+		},
+		{
+			name = "phys_hinge_local"
+			mins = [ -8.0, -8.0, -8.0 ]
+			maxs = [ 8.0, 8.0, 8.0 ]
+			helpers = 
+			[
+				{
+					name = "localaxis"
+					arguments = 
+					[
+						"hingeaxis",
+					]
+				},
+			]
+			id = "phys_hinge_local:453170"
 		},
 		{
 			name = "phys_hinge_local"
@@ -10709,6 +11558,20 @@
 			helpers = 
 			[
 				{
+					name = "vecline"
+					arguments = 
+					[
+						"springaxis",
+					]
+				},
+			]
+			id = "phys_spring:453170"
+		},
+		{
+			name = "phys_spring"
+			helpers = 
+			[
+				{
 					name = "editormodel"
 					arguments = 
 					[
@@ -10723,6 +11586,7 @@
 					]
 				},
 			]
+			id = "phys_spring:570"
 		},
 		{
 			name = "phys_thruster"
@@ -11272,10 +12136,25 @@
 					name = "iconsprite"
 					arguments = 
 					[
+						"editor/ambient_generic.vmat",
+					]
+				},
+			]
+			id = "point_soundevent:453170"
+		},
+		{
+			name = "point_soundevent"
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
 						"editor/snd_event.vmat",
 					]
 				},
 			]
+			id = "point_soundevent:570"
 		},
 		{
 			name = "point_spotlight"
@@ -12091,6 +12970,22 @@
 		},
 		{
 			name = "point_worldtext"
+			mins = [ -2.0, -2.0, -2.0 ]
+			maxs = [ 2.0, 2.0, 2.0 ]
+			helpers = 
+			[
+				{
+					name = "externalHelper"
+					arguments = 
+					[
+						"ToolObjects/point_worldtext",
+					]
+				},
+			]
+			id = "point_worldtext:453170"
+		},
+		{
+			name = "point_worldtext"
 			helpers = 
 			[
 				{
@@ -12108,6 +13003,7 @@
 					]
 				},
 			]
+			id = "point_worldtext:570"
 		},
 		{
 			name = "point_zombie_noise_generator"
@@ -12356,6 +13252,30 @@
 					name = "model"
 				},
 			]
+			id = "prop_dynamic:453170"
+		},
+		{
+			name = "prop_dynamic"
+			helpers = 
+			[
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademindist",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademaxdist",
+					]
+				},
+				{
+					name = "model"
+				},
+			]
 			preview_animation_keys = 
 			[
 				"StartingAnim",
@@ -12545,6 +13465,30 @@
 				},
 			]
 			id = "prop_physics:250820"
+		},
+		{
+			name = "prop_physics"
+			helpers = 
+			[
+				{
+					name = "model"
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademindist",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademaxdist",
+					]
+				},
+			]
+			id = "prop_physics:453170"
 		},
 		{
 			name = "prop_physics"
@@ -12795,6 +13739,114 @@
 						"200",
 						"200",
 						"200",
+						"singleSelect",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademaxdist",
+						"200",
+						"200",
+						"200",
+						"singleSelect",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"grass_exclusion_radius",
+						"100",
+						"200",
+						"100",
+						"singleSelect",
+					]
+				},
+				{
+					name = "model"
+					arguments = 
+					[
+						"static",
+					]
+				},
+			]
+			id = "prop_static:453170"
+		},
+		{
+			name = "prop_static"
+			helpers = 
+			[
+				{
+					name = "line"
+					arguments = 
+					[
+						"255",
+						"0",
+						"255",
+						"targetname",
+						"cubemap",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"grass_exclusion_radius",
+						"100",
+						"200",
+						"100",
+						"singleSelect",
+					]
+					metadata = 
+					{
+					}
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademaxdist",
+						"200",
+						"200",
+						"200",
+					]
+				},
+				{
+					name = "model"
+					metadata = 
+					{
+						static = true
+						extra_vertex_data = true
+					}
+				},
+			]
+			id = "prop_static:570"
+		},
+		{
+			name = "prop_static"
+			helpers = 
+			[
+				{
+					name = "line"
+					arguments = 
+					[
+						"255",
+						"0",
+						"255",
+						"targetname",
+						"cubemap",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademindist",
+						"200",
+						"200",
+						"200",
 					]
 				},
 				{
@@ -12827,7 +13879,7 @@
 					}
 				},
 			]
-			id = "prop_static:570"
+			id = "prop_static:730"
 		},
 		{
 			name = "prop_vehicle_apc"
@@ -12945,6 +13997,28 @@
 					]
 				},
 			]
+			id = "scripted_sequence:250820"
+		},
+		{
+			name = "scripted_sequence"
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/scripted_sequence.vmdl",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"m_flRadius",
+					]
+				},
+			]
+			id = "scripted_sequence:453170"
 		},
 		{
 			name = "scripted_target"
@@ -12974,8 +14048,15 @@
 		},
 		{
 			name = "sky_camera"
+			mins = [ -16.0, -16.0, -16.0 ]
+			maxs = [ 16.0, 16.0, 16.0 ]
+			id = "sky_camera:453170"
+		},
+		{
+			name = "sky_camera"
 			mins = [ -1.0, -1.0, -1.0 ]
 			maxs = [ 1.0, 1.0, 1.0 ]
+			id = "sky_camera:570"
 		},
 		{
 			name = "sky_camera_volume"
@@ -13508,6 +14589,56 @@
 			]
 		},
 		{
+			name = "snd_opvar_set_enclosure"
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"editor/snd_opvar_set.vmat",
+					]
+				},
+				{
+					name = "drawangles"
+					metadata = 
+					{
+					}
+				},
+				{
+					name = "line"
+					arguments = 
+					[
+						"255",
+						"255",
+						"255",
+						"targetname",
+						"pathHelperEntityName",
+					]
+				},
+				{
+					name = "vecline_local"
+					arguments = 
+					[
+						"heightTop",
+						"200",
+						"255",
+						"200",
+					]
+				},
+				{
+					name = "vecline_local"
+					arguments = 
+					[
+						"heightBottom",
+						"255",
+						"200",
+						"200",
+					]
+				},
+			]
+		},
+		{
 			name = "snd_opvar_set_obb"
 			helpers = 
 			[
@@ -13578,6 +14709,30 @@
 					arguments = 
 					[
 						"editor/snd_opvar_set.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "snd_opvar_set_path_helper"
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"editor/snd_opvar_set.vmat",
+					]
+				},
+				{
+					name = "line"
+					arguments = 
+					[
+						"255",
+						"255",
+						"255",
+						"targetname",
+						"target",
 					]
 				},
 			]
@@ -13883,6 +15038,19 @@
 			]
 		},
 		{
+			name = "sound_opvar_set"
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"editor/ambient_generic.vmat",
+					]
+				},
+			]
+		},
+		{
 			name = "tanktrain_ai"
 			helpers = 
 			[
@@ -14001,7 +15169,13 @@
 		{
 			name = "trigger_autosave"
 			kind = "solid"
+			id = "trigger_autosave:453170"
+		},
+		{
+			name = "trigger_autosave"
+			kind = "solid"
 			auto_apply_material = "materials/tools/toolstrigger.vmat"
+			id = "trigger_autosave:570"
 		},
 		{
 			name = "trigger_blind_zombie_crash"
@@ -14031,7 +15205,13 @@
 		{
 			name = "trigger_changelevel"
 			kind = "solid"
+			id = "trigger_changelevel:453170"
+		},
+		{
+			name = "trigger_changelevel"
+			kind = "solid"
 			auto_apply_material = "materials/tools/toolstrigger.vmat"
+			id = "trigger_changelevel:570"
 		},
 		{
 			name = "trigger_crafting_station_object_placement"
@@ -14065,7 +15245,13 @@
 		{
 			name = "trigger_gravity"
 			kind = "solid"
+			id = "trigger_gravity:453170"
+		},
+		{
+			name = "trigger_gravity"
+			kind = "solid"
 			auto_apply_material = "materials/tools/toolstrigger.vmat"
+			id = "trigger_gravity:570"
 		},
 		{
 			name = "trigger_hero"
@@ -14080,7 +15266,13 @@
 		{
 			name = "trigger_hurt"
 			kind = "solid"
+			id = "trigger_hurt:453170"
+		},
+		{
+			name = "trigger_hurt"
+			kind = "solid"
 			auto_apply_material = "materials/tools/toolstrigger.vmat"
+			id = "trigger_hurt:570"
 		},
 		{
 			name = "trigger_impact"
@@ -14094,12 +15286,24 @@
 		{
 			name = "trigger_look"
 			kind = "solid"
+			id = "trigger_look:453170"
+		},
+		{
+			name = "trigger_look"
+			kind = "solid"
 			auto_apply_material = "materials/tools/toolstrigger.vmat"
+			id = "trigger_look:570"
+		},
+		{
+			name = "trigger_multiple"
+			kind = "solid"
+			id = "trigger_multiple:453170"
 		},
 		{
 			name = "trigger_multiple"
 			kind = "solid"
 			auto_apply_material = "materials/tools/toolstrigger.vmat"
+			id = "trigger_multiple:570"
 		},
 		{
 			name = "trigger_no_wards"
@@ -14109,7 +15313,13 @@
 		{
 			name = "trigger_once"
 			kind = "solid"
+			id = "trigger_once:453170"
+		},
+		{
+			name = "trigger_once"
+			kind = "solid"
 			auto_apply_material = "materials/tools/toolstrigger.vmat"
+			id = "trigger_once:570"
 		},
 		{
 			name = "trigger_physics"
@@ -14164,11 +15374,23 @@
 			name = "trigger_playermovement"
 			kind = "solid"
 			auto_apply_material = "materials/tools/toolstrigger.vmat"
+			id = "trigger_playermovement:250820"
+		},
+		{
+			name = "trigger_playermovement"
+			kind = "solid"
+			id = "trigger_playermovement:453170"
+		},
+		{
+			name = "trigger_proximity"
+			kind = "solid"
+			id = "trigger_proximity:453170"
 		},
 		{
 			name = "trigger_proximity"
 			kind = "solid"
 			auto_apply_material = "materials/tools/toolstrigger.vmat"
+			id = "trigger_proximity:570"
 		},
 		{
 			name = "trigger_push"
@@ -14190,6 +15412,11 @@
 		{
 			name = "trigger_push"
 			kind = "solid"
+			id = "trigger_push:453170"
+		},
+		{
+			name = "trigger_push"
+			kind = "solid"
 			helpers = 
 			[
 				{
@@ -14206,10 +15433,21 @@
 		{
 			name = "trigger_remove"
 			kind = "solid"
+			id = "trigger_remove:453170"
+		},
+		{
+			name = "trigger_remove"
+			kind = "solid"
 			auto_apply_material = "materials/tools/toolstrigger.vmat"
+			id = "trigger_remove:570"
 		},
 		{
 			name = "trigger_resource_analyzer"
+			kind = "solid"
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
+		},
+		{
+			name = "trigger_roshan_obstruction"
 			kind = "solid"
 			auto_apply_material = "materials/tools/toolstrigger.vmat"
 		},
@@ -14225,12 +15463,24 @@
 		{
 			name = "trigger_snd_sos_opvar"
 			kind = "solid"
+			id = "trigger_snd_sos_opvar:453170"
+		},
+		{
+			name = "trigger_snd_sos_opvar"
+			kind = "solid"
 			auto_apply_material = "materials/tools/toolstrigger.vmat"
+			id = "trigger_snd_sos_opvar:570"
+		},
+		{
+			name = "trigger_soundscape"
+			kind = "solid"
+			id = "trigger_soundscape:453170"
 		},
 		{
 			name = "trigger_soundscape"
 			kind = "solid"
 			auto_apply_material = "materials/tools/toolstrigger.vmat"
+			id = "trigger_soundscape:570"
 		},
 		{
 			name = "trigger_survival_playarea"
@@ -14239,7 +15489,13 @@
 		{
 			name = "trigger_teleport"
 			kind = "solid"
+			id = "trigger_teleport:453170"
+		},
+		{
+			name = "trigger_teleport"
+			kind = "solid"
 			auto_apply_material = "materials/tools/toolstrigger.vmat"
+			id = "trigger_teleport:570"
 		},
 		{
 			name = "trigger_tonemap"
@@ -14400,7 +15656,13 @@
 		{
 			name = "trigger_wind"
 			kind = "solid"
+			id = "trigger_wind:453170"
+		},
+		{
+			name = "trigger_wind"
+			kind = "solid"
 			auto_apply_material = "materials/tools/toolstrigger.vmat"
+			id = "trigger_wind:570"
 		},
 		{
 			name = "trigger_xen_foliage_interaction"
