@@ -926,7 +926,7 @@ namespace GUI.Types.GLViewers
                 //Update the entity properties window if it was opened
                 if (entityInfoForm != null)
                 {
-                    Program.MainForm.Invoke(() =>
+                    Program.MainForm.BeginInvoke(() =>
                     {
                         ShowSceneNodeDetails(sceneNode);
                     });
@@ -936,7 +936,7 @@ namespace GUI.Types.GLViewers
 
             if (result.Intent == PickIntent.Details)
             {
-                Program.MainForm.Invoke(() =>
+                Program.MainForm.BeginInvoke(() =>
                 {
                     ShowSceneNodeDetails(sceneNode);
 
@@ -982,8 +982,6 @@ namespace GUI.Types.GLViewers
                 throw new InvalidOperationException("Matrix invert failed");
             }
 
-            FullScreenForm?.Close();
-
             foundFile.Context.GLPostLoadAction = (viewerControl) =>
             {
                 // The inverse of a view matrix, so its third row is the camera's backward direction
@@ -1027,8 +1025,9 @@ namespace GUI.Types.GLViewers
                 }
             };
 
-            Program.MainForm.Invoke(() =>
+            Program.MainForm.BeginInvoke(() =>
             {
+                FullScreenForm?.Close();
                 Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
             });
         }
