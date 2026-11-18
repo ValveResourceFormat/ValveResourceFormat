@@ -836,9 +836,11 @@ public sealed partial class MapExtract
     /// <param name="transform">Transform applied to the geometry.</param>
     /// <param name="drawCallTint">Tint (gamma space, 0-255, alpha in W) per draw call index, defaults to the draw call's own tint and alpha.</param>
     /// <param name="drawCallShadows">Hammer <c>disableShadows</c> mode per draw call index, defaults to 0.</param>
+    /// <param name="includeDrawCall">Whether to add the draw call at an index, defaults to every draw call.</param>
     /// <param name="builders">Builders to add to, created per material, tint and shadow mode as needed.</param>
     /// <returns>Number of draw calls added.</returns>
-    private int AddRenderMeshToBuilders(Model model, Resource resource, Matrix4x4 transform, Func<int, Vector4>? drawCallTint, Func<int, int>? drawCallShadows, Dictionary<HammerMeshGroup, HammerMeshBuilder> builders)
+    private int AddRenderMeshToBuilders(Model model, Resource resource, Matrix4x4 transform, Func<int, Vector4>? drawCallTint, Func<int, int>? drawCallShadows,
+        Func<int, bool>? includeDrawCall, Dictionary<HammerMeshGroup, HammerMeshBuilder> builders)
     {
         var modelExtract = new ModelExtract(resource, FileLoader);
         modelExtract.GrabMaterialInputSignatures(resource);
@@ -860,6 +862,11 @@ public sealed partial class MapExtract
 
             for (var drawCallIndex = 0; drawCallIndex < submeshDrawCalls.Count; drawCallIndex++)
             {
+                if (includeDrawCall?.Invoke(drawCallIndex) == false)
+                {
+                    continue;
+                }
+
                 var (dag, drawCall) = submeshDrawCalls[drawCallIndex];
                 drawCallCount++;
 
@@ -945,7 +952,7 @@ public sealed partial class MapExtract
         }
 
         var builders = new Dictionary<HammerMeshGroup, HammerMeshBuilder>();
-        var drawCallCount = AddRenderMeshToBuilders(model, resource, transform ?? Matrix4x4.Identity, null, null, builders);
+        var drawCallCount = AddRenderMeshToBuilders(model, resource, transform ?? Matrix4x4.Identity, null, null, null, builders);
         var hammerMeshesToReturn = GenerateHammerMeshes(builders);
 
         var hammerMeshEntitySelectionSet = new CMapSelectionSet();
@@ -1452,9 +1459,6 @@ public sealed partial class MapExtract
         var modelName = agg.GetStringProperty("m_renderableModel");
         var allFlags = agg.GetEnumValue<ObjectTypeFlags>("m_allFlags", normalize: true);
 
-        var hasModelFlag = allFlags.HasFlag(ObjectTypeFlags.Model);
-        var convertToHalfEdge = !hasModelFlag;
-
         var aggregateMeshes = agg.GetArray("m_aggregateMeshes");
 
         var drawCenters = Array.Empty<Vector3>();
@@ -1478,14 +1482,36 @@ public sealed partial class MapExtract
         var sceneObject = mesh.Mesh.Data.GetArray("m_sceneObjects")[0];
         var drawCalls = sceneObject.GetArray("m_drawCalls");
 
-        if (convertToHalfEdge)
+        // Model marks the fragments of props, the same aggregate may also hold Hammer meshes of the material
+        var hammerMeshDrawCalls = new HashSet<int>();
+        var propFragments = new List<KVObject>(aggregateMeshes.Count);
+        foreach (var fragment in aggregateMeshes)
         {
-            if (aggregateHasTransforms)
+            var fragmentFlags = fragment.ContainsKey("m_objectFlags")
+                ? fragment.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true)
+                : allFlags;
+
+            if (fragmentFlags.HasFlag(ObjectTypeFlags.Model))
+            {
+                propFragments.Add(fragment);
+                continue;
+            }
+
+            if (fragment.GetBooleanProperty("m_bHasTransform"))
             {
                 throw new InvalidOperationException("Unhandled aggregate with instanced transforms exported as hammer mesh!");
             }
 
-            AddAggregateHammerMesh(model, modelRes, aggregateMeshes, drawCalls, allFlags);
+            hammerMeshDrawCalls.Add(fragment.GetInt32Property("m_nDrawCallIndex"));
+        }
+
+        if (hammerMeshDrawCalls.Count > 0)
+        {
+            AddAggregateHammerMesh(model, modelRes, aggregateMeshes, drawCalls, allFlags, hammerMeshDrawCalls);
+        }
+
+        if (propFragments.Count == 0)
+        {
             return;
         }
 
@@ -1497,10 +1523,11 @@ public sealed partial class MapExtract
         var modelFiles = ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCenters, drawCalls.Count);
         PreExportedFragments.AddRange(modelFiles);
 
-        AddAggregateFragmentProps(modelName, aggregateMeshes, drawCalls, drawCenters, fragmentTransforms, layerIndex, layerNodes);
+        AddAggregateFragmentProps(modelName, propFragments, drawCalls, drawCenters, fragmentTransforms, layerIndex, layerNodes);
     }
 
-    private void AddAggregateHammerMesh(Model model, Resource modelRes, IReadOnlyList<KVObject> aggregateMeshes, IReadOnlyList<KVObject> drawCalls, ObjectTypeFlags allFlags)
+    private void AddAggregateHammerMesh(Model model, Resource modelRes, IReadOnlyList<KVObject> aggregateMeshes, IReadOnlyList<KVObject> drawCalls, ObjectTypeFlags allFlags,
+        HashSet<int> hammerMeshDrawCalls)
     {
         // the fragment tint multiplies the draw call tint, one fragment per draw call is expected here
         var fragmentTints = new Dictionary<int, Vector4>();
@@ -1535,7 +1562,8 @@ public sealed partial class MapExtract
             => DisableShadowsFromFlags(fragmentFlags.GetValueOrDefault(drawCallIndex, allFlags));
 
         // world geometry is welded across all aggregates, the meshes are made once every world node is in
-        WorldHammerMeshDrawCalls += AddRenderMeshToBuilders(model, modelRes, Matrix4x4.Identity, HammerMeshTint, HammerMeshShadows, WorldHammerMeshBuilders);
+        WorldHammerMeshDrawCalls += AddRenderMeshToBuilders(model, modelRes, Matrix4x4.Identity, HammerMeshTint, HammerMeshShadows, hammerMeshDrawCalls.Contains,
+            WorldHammerMeshBuilders);
     }
 
     private void AddAggregateFragmentProps(string modelName, IReadOnlyList<KVObject> aggregateMeshes, IReadOnlyList<KVObject> drawCalls, Vector3[] drawCenters, IReadOnlyList<KVObject> fragmentTransforms, int layerIndex, List<MapNode> layerNodes)
