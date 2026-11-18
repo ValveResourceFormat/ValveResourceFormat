@@ -121,6 +121,11 @@ namespace ValveResourceFormat
         DSTF = 'D' | ('S' << 8) | ('T' << 16) | ('F' << 24),
 
         /// <summary>
+        /// Panorama Image References. Contains the size and source CRC of each panorama image a vdata file references.
+        /// </summary>
+        PCRC = 'P' | ('C' << 8) | ('R' << 16) | ('C' << 24),
+
+        /// <summary>
         /// Tools Buffer. Contains vertex buffer data for unused attributes (tools only).
         /// </summary>
         TBUF = 'T' | ('B' << 8) | ('U' << 16) | ('F' << 24),

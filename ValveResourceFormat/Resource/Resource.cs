@@ -578,6 +578,7 @@ namespace ValveResourceFormat
                 BlockType.MIDX => new MeshIndexBuffer() { Resource = this },
                 BlockType.MADJ => new MeshAdjacencyBuffer() { Resource = this },
                 BlockType.MSLT => new MeshletBuffer() { Resource = this },
+                BlockType.PCRC => new PanoramaImageReferences() { Resource = this },
                 BlockType.CTRL => new BinaryKV3(BlockType.CTRL) { Resource = this },
                 BlockType.MDAT => new Mesh(BlockType.MDAT) { Resource = this },
                 BlockType.INSG => new BinaryKV3(BlockType.INSG) { Resource = this },

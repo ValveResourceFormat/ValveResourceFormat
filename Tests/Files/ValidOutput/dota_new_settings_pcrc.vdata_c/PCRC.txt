@@ -1,0 +1,3 @@
+Images(2):
+ - panorama/images/control_icons/24px/chatwheel.vsvg [0x0 - 4D17BED3]
+ - panorama/images/control_icons/24px/hot_keys.vsvg [0x0 - 7EB15F08]

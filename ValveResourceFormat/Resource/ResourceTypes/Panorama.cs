@@ -31,6 +31,36 @@ namespace ValveResourceFormat.ResourceTypes
             /// Gets or sets the CRC32 checksum of the image file.
             /// </summary>
             public uint CRC32 { get; set; }
+
+            internal static ImageEntry Read(BinaryReader reader, bool hasCRC32)
+            {
+                var entry = new ImageEntry
+                {
+                    Name = reader.ReadNullTermString(Encoding.UTF8),
+                    Width = reader.ReadUInt16(),
+                    Height = reader.ReadUInt16(),
+                };
+
+                if (hasCRC32)
+                {
+                    entry.CRC32 = reader.ReadUInt32();
+                }
+
+                return entry;
+            }
+
+            internal void Write(BinaryWriter writer, bool hasCRC32)
+            {
+                writer.Write(Encoding.UTF8.GetBytes(Name));
+                writer.Write((byte)0); // null terminator
+                writer.Write(Width);
+                writer.Write(Height);
+
+                if (hasCRC32)
+                {
+                    writer.Write(CRC32);
+                }
+            }
         }
 
         /// <summary>
@@ -88,19 +118,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             for (var i = 0; i < imageCount; i++)
             {
-                var entry = new ImageEntry
-                {
-                    Name = reader.ReadNullTermString(Encoding.UTF8),
-                    Width = reader.ReadUInt16(),
-                    Height = reader.ReadUInt16(),
-                };
-
-                if (Resource.Version >= 3)
-                {
-                    entry.CRC32 = reader.ReadUInt32();
-                }
-
-                Images.Add(entry);
+                Images.Add(ImageEntry.Read(reader, Resource.Version >= 3));
             }
 
             var headerSize = reader.BaseStream.Position - Offset;
@@ -133,15 +151,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var entry in Images)
             {
-                writer.Write(Encoding.UTF8.GetBytes(entry.Name));
-                writer.Write((byte)0); // null terminator
-                writer.Write(entry.Width);
-                writer.Write(entry.Height);
-
-                if (Resource.Version >= 3)
-                {
-                    writer.Write(entry.CRC32);
-                }
+                entry.Write(writer, Resource.Version >= 3);
             }
 
             writer.Write(Data);
