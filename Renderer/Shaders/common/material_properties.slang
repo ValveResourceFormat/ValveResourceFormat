@@ -50,6 +50,7 @@ struct MaterialProperties_t
     vec3 TransmissiveColor;
     float DirectDiffuseScale;
     vec3 IllumColor;
+    float SnowAmount; // Snow coverage, 0 to 1
     float BloomAmount; // Written where F_OVERRIDE_BLOOM_AMOUNT is set: the value the bloom amount pass writes for the pixel
 
     vec3 LightmapUv;

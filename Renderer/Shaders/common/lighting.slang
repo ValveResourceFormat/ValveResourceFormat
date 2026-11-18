@@ -950,6 +950,14 @@ void ApplyAmbientOcclusion(inout LightingTerms_t o, MaterialProperties_t mat, fl
 
     o.DiffuseDirect *= DirectAODiffuse;
     o.DiffuseIndirect *= mat.DiffuseAO;
+
+    if (mat.SnowAmount > 0.0)
+    {
+        // Shift snow indirect light toward blue, mostly where occluded
+        vec3 snowIndirect = mix(pow(o.DiffuseIndirect, vec3(1.4, 0.6, 0.45)), o.DiffuseIndirect, saturate(mat.AmbientOcclusion * 0.75));
+        o.DiffuseIndirect = mix(o.DiffuseIndirect, snowIndirect, mat.SnowAmount);
+    }
+
     o.SpecularDirect *= DirectAOSpecular;
     o.SpecularIndirect *= mat.SpecularAO;
 

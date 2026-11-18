@@ -221,6 +221,12 @@ uniform float g_flMetalnessReplace2 = 1.0;
 
 uniform float g_flBlendSoftnessDistanceModifierStrength = 1.0;
 
+uniform bool g_bSnowLayer1 = false;
+uniform bool g_bSnowLayer2 = false;
+#if (F_ENABLE_LAYER_3 == 1)
+    uniform bool g_bSnowLayer3 = false;
+#endif
+
 uniform float g_flBlendSoftness2 = 0.01;
 uniform float g_flUnderlyingHeightMapInfluence2 = 1.0;
 uniform float g_flMaskWithHeight2 = 0.0;
@@ -273,6 +279,12 @@ struct LayerCombine_t
     float MetalnessCombine;
     float MetalnessReplace;
 };
+
+// A snow layer fades in over its height texture
+float SnowLayerMask(bool isSnow, float height)
+{
+    return isSnow ? saturate((height + 2.5) * 0.4) : 1.0;
+}
 
 float CombineMetalness(float lower, float upper, float weight, float combine, float replace)
 {
@@ -460,6 +472,7 @@ void BlendLayer2(inout LayerStack_t stack, BlendState_t blend, HeightLayer_t lay
     float compositeWeight2;
     float weightBase2;
     float normalReplaceGate2 = 1.0;
+    float snowMask2 = SnowLayerMask(g_bSnowLayer2, layer2.Height.r);
 
     if (blend.NewBlending)
     {
@@ -468,7 +481,7 @@ void BlendLayer2(inout LayerStack_t stack, BlendState_t blend, HeightLayer_t lay
             g_flHeightMapZeroPoint2, g_flHeightMapScale2, softness2,
             g_flUnderlyingHeightMapInfluence2, g_flMaskWithHeight2);
 
-        weight2 = carry2.weight;
+        weight2 = carry2.weight * snowMask2;
         compositeWeight2 = weight2;
         weightBase2 = 1.0 - weight2;
     }
@@ -483,11 +496,11 @@ void BlendLayer2(inout LayerStack_t stack, BlendState_t blend, HeightLayer_t lay
             vec2(g_flHeightMapZeroPoint1, g_flHeightMapZeroPoint2),
             blend.BlendFactor2, softnessBelow2, softness2, zeroShift2, g_flMaskWithHeight2);
 
-        weight2 = oldBlend.Weight;
+        weight2 = oldBlend.Weight * snowMask2;
         normalReplaceGate2 = GetOldNormalReplaceGate(oldBlend);
 
         // Layer 2 stays out of the composite until it is more than a trace
-        compositeWeight2 = (weight2 > 0.05) ? weight2 : 0.0;
+        compositeWeight2 = (oldBlend.Weight > 0.05) ? weight2 : 0.0;
         weightBase2 = 1.0 - compositeWeight2;
     }
 
@@ -578,6 +591,7 @@ void BlendLayer3(inout LayerStack_t stack, BlendState_t blend, HeightLayer_t lay
     OldBlend_t oldBlend3;
     float compositeWeight3;
     float normalReplaceGate3 = 1.0;
+    float snowMask3 = SnowLayerMask(g_bSnowLayer3, layer3.Height.r);
 
     if (blend.NewBlending)
     {
@@ -585,7 +599,7 @@ void BlendLayer3(inout LayerStack_t stack, BlendState_t blend, HeightLayer_t lay
             g_flHeightMapZeroPoint3, g_flHeightMapScale3, softness3,
             g_flUnderlyingHeightMapInfluence3, g_flMaskWithHeight3);
 
-        weight3 = carry3.weight;
+        weight3 = carry3.weight * snowMask3;
         compositeWeight3 = weight3;
     }
     else
@@ -595,11 +609,11 @@ void BlendLayer3(inout LayerStack_t stack, BlendState_t blend, HeightLayer_t lay
         oldBlend3 = GetOldBlend3(oldBlend2, layer3.Height.r, g_flHeightMapScale3, g_flHeightMapZeroPoint3,
             blendFactor3, softness3, zeroShift3, g_flMaskWithHeight3);
 
-        weight3 = oldBlend3.Weight;
+        weight3 = oldBlend3.Weight * snowMask3;
         normalReplaceGate3 = GetOldNormalReplaceGate(oldBlend3);
 
         // Layer 3 stays out of the composite until it is more than a trace
-        compositeWeight3 = (weight3 > 0.05) ? weight3 : 0.0;
+        compositeWeight3 = (oldBlend3.Weight > 0.05) ? weight3 : 0.0;
     }
 
     vec3 color3 = layer3.Albedo;
@@ -804,6 +818,11 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     }
 
     FinishHeightMaterial(mat, reflectance);
+
+    mat.SnowAmount = mix(float(g_bSnowLayer1), float(g_bSnowLayer2), weight2);
+#if (F_ENABLE_LAYER_3 == 1)
+    mat.SnowAmount = mix(mat.SnowAmount, float(g_bSnowLayer3), weight3);
+#endif
 
     return mat;
 }
