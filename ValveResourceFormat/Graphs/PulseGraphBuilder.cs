@@ -60,6 +60,7 @@ internal sealed class PulseGraphBuilder
         CREATE_CHILD_CURSOR_OUTFLOW,
         CELL_INVOKE,
         LIBRARY_INVOKE,
+        BROADCAST_INVOKE,
         SET_VAR,
         GET_VAR,
         GET_VAR_DETACH,
@@ -93,6 +94,7 @@ internal sealed class PulseGraphBuilder
         GET_TEMPVAR,
         SET_TEMPVAR,
         SET_TEMPVAR_OBSERVABLE,
+        BIND_LAMBDA,
     }
 
     // The full value type set. A register names one of these, optionally with
@@ -613,7 +615,7 @@ internal sealed class PulseGraphBuilder
             case InstructionCode.RETURN_VOID or InstructionCode.RETURN_VALUE or InstructionCode.LOOP_BREAK
                 or InstructionCode.IMMEDIATE_HALT or InstructionCode.CHUNK_LEAP:
                 yield break;
-            case InstructionCode.CELL_INVOKE:
+            case InstructionCode.CELL_INVOKE or InstructionCode.BROADCAST_INVOKE:
                 var cellIdx = invokeBindings[instruction.GetInt32Property("m_nInvokeBindingIndex")].GetInt32Property("m_nCellIndex");
                 foreach (var outflow in GetCellOutflows(cellIdx))
                 {
@@ -712,7 +714,7 @@ internal sealed class PulseGraphBuilder
 
             var registerMap = GetInstructionType(instruction) switch
             {
-                InstructionCode.LIBRARY_INVOKE or InstructionCode.CELL_INVOKE
+                InstructionCode.LIBRARY_INVOKE or InstructionCode.CELL_INVOKE or InstructionCode.BROADCAST_INVOKE
                     => invokeBindings.ElementAtOrDefault(instruction.GetInt32Property("m_nInvokeBindingIndex"))?["m_RegisterMap"],
                 InstructionCode.PULSE_CALL_SYNC or InstructionCode.PULSE_CALL_ASYNC_FIRE
                     => callInfos.ElementAtOrDefault(instruction.GetInt32Property("m_nCallInfoIndex"))?["m_RegisterMap"],
@@ -1141,6 +1143,7 @@ internal sealed class PulseGraphBuilder
                     break;
                 }
                 case InstructionCode.CELL_INVOKE:
+                case InstructionCode.BROADCAST_INVOKE:
                 {
                     var binding = invokeBindings[instruction.GetInt32Property("m_nInvokeBindingIndex")];
                     var registerMap = binding["m_RegisterMap"];
