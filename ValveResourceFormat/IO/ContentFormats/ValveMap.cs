@@ -725,6 +725,18 @@ public class CMapMesh : MapNode
     public bool RenderWithDynamic { get; set; }
 
     /// <summary>
+    /// Whether the map compiler keeps the mesh out of merging with other meshes of its material.
+    /// </summary>
+    [DMProperty(name: "disablemerging")]
+    public bool DisableMerging { get; set; }
+
+    /// <summary>
+    /// Whether the compiled model keeps its vertex data in CPU memory once loaded.
+    /// </summary>
+    [DMProperty(name: "keep_vertices")]
+    public bool KeepVertices { get; set; }
+
+    /// <summary>
     /// Whether height displacement is skipped for this mesh.
     /// </summary>
     public bool DisableHeightDisplacement { get; set; }

@@ -97,17 +97,75 @@ public sealed partial class MapExtract
     }
 
     /// <summary>
-    /// Key of a Hammer mesh builder: the draw calls of one material with one tint and shadow mode. Geometry
-    /// only welds within a material, and a Hammer mesh has a single tint and shadow mode.
+    /// Key of a Hammer mesh builder: the draw calls of one material with one tint and one set of settings. Geometry
+    /// only welds within a material, and a Hammer mesh has a single tint and set of settings. Null settings keep the
+    /// Hammer defaults.
     /// </summary>
-    private readonly record struct HammerMeshGroup(string Material, Vector4 Tint, int DisableShadows);
+    private readonly record struct HammerMeshGroup(string Material, Vector4 Tint, HammerMeshSettings? Settings);
 
     /// <summary>
-    /// Gets the Hammer <c>disableShadows</c> mode of geometry compiled with <paramref name="flags"/>. No shadows and
-    /// only baked shadows compile to the same flags, which read as only baked.
+    /// Hammer mesh settings that the compiler keeps on the scene object or encodes in its model name.
     /// </summary>
-    private static int DisableShadowsFromFlags(ObjectTypeFlags flags)
-        => flags.HasFlag(ObjectTypeFlags.NoShadows) ? 3 : flags.HasFlag(ObjectTypeFlags.NeedsDynamicShadows) ? 2 : 0;
+    internal readonly record struct HammerMeshSettings(int DisableShadows, bool RenderWithDynamic, bool RenderToCubemaps)
+    {
+        public bool KeepVertices { get; init; }
+        public bool DisableMerging { get; init; }
+
+        // -1 never fades
+        public float FadeMinDist { get; init; } = -1;
+        public float FadeMaxDist { get; init; }
+
+        /// <summary>
+        /// Gets the settings of geometry compiled with <paramref name="flags"/>. No shadows and only baked shadows
+        /// compile to the same flags, which read as only baked.
+        /// </summary>
+        public static HammerMeshSettings FromFlags(ObjectTypeFlags flags) => new(
+            flags.HasFlag(ObjectTypeFlags.NoShadows) ? 3 : flags.HasFlag(ObjectTypeFlags.NeedsDynamicShadows) ? 2 : 0,
+            flags.HasFlag(ObjectTypeFlags.RenderWithDynamic),
+            flags.HasFlag(ObjectTypeFlags.RenderToCubemaps));
+
+        public void ApplyTo(CMapMesh mesh)
+        {
+            mesh.DisableShadows = DisableShadows;
+            mesh.RenderWithDynamic = RenderWithDynamic;
+            mesh.RenderToCubemaps = RenderToCubemaps;
+            mesh.KeepVertices = KeepVertices;
+            mesh.DisableMerging = DisableMerging;
+            mesh.FadeMinDist = FadeMinDist;
+            mesh.FadeMaxDist = FadeMaxDist;
+        }
+    }
+
+    private readonly Dictionary<string, bool> MaterialsThatPreventMerging = [];
+
+    /// <summary>
+    /// Gets whether the compiler keeps meshes of a material out of merging whatever the Hammer mesh sets: translucent
+    /// materials that are not overlays, <c>mapbuilder_donotcollapse</c> and <c>environmentmapped</c>.
+    /// </summary>
+    private bool MaterialPreventsMerging(string materialName)
+    {
+        if (MaterialsThatPreventMerging.TryGetValue(materialName, out var cached))
+        {
+            return cached;
+        }
+
+        var preventsMerging = false;
+
+        using (var materialResource = FileLoader.LoadFileCompiled(materialName))
+        {
+            if (materialResource?.DataBlock is Material material)
+            {
+                var attributes = new BasicShaderDataProvider().GetIntAttributes(material);
+
+                preventsMerging = (attributes.GetValueOrDefault("translucent") != 0 && attributes.GetValueOrDefault("overlay") == 0)
+                    || attributes.GetValueOrDefault("mapbuilder_donotcollapse") != 0
+                    || attributes.GetValueOrDefault("environmentmapped") != 0;
+            }
+        }
+
+        MaterialsThatPreventMerging[materialName] = preventsMerging;
+        return preventsMerging;
+    }
 
     // Builders for the hammer geometry of every world node. Filled while the world nodes are walked, welded and
     // split into meshes once all of them are in, so geometry connects across the aggregates the compiler split it into.
@@ -829,17 +887,17 @@ public sealed partial class MapExtract
     }
 
     /// <summary>
-    /// Adds the render meshes of a model to builders, one per material and tint.
+    /// Adds the render meshes of a model to builders, one per material, tint and settings.
     /// </summary>
     /// <param name="model">Model whose embedded meshes are added.</param>
     /// <param name="resource">Resource the model came from.</param>
     /// <param name="transform">Transform applied to the geometry.</param>
     /// <param name="drawCallTint">Tint (gamma space, 0-255, alpha in W) per draw call index, defaults to the draw call's own tint and alpha.</param>
-    /// <param name="drawCallShadows">Hammer <c>disableShadows</c> mode per draw call index, defaults to 0.</param>
+    /// <param name="drawCallSettings">Hammer mesh settings per draw call index, defaults to the Hammer defaults.</param>
     /// <param name="includeDrawCall">Whether to add the draw call at an index, defaults to every draw call.</param>
-    /// <param name="builders">Builders to add to, created per material, tint and shadow mode as needed.</param>
+    /// <param name="builders">Builders to add to, created per material, tint and settings as needed.</param>
     /// <returns>Number of draw calls added.</returns>
-    private int AddRenderMeshToBuilders(Model model, Resource resource, Matrix4x4 transform, Func<int, Vector4>? drawCallTint, Func<int, int>? drawCallShadows,
+    private int AddRenderMeshToBuilders(Model model, Resource resource, Matrix4x4 transform, Func<int, Vector4>? drawCallTint, Func<int, HammerMeshSettings>? drawCallSettings,
         Func<int, bool>? includeDrawCall, Dictionary<HammerMeshGroup, HammerMeshBuilder> builders)
     {
         var modelExtract = new ModelExtract(resource, FileLoader);
@@ -872,7 +930,15 @@ public sealed partial class MapExtract
 
                 var tint = drawCallTint?.Invoke(drawCallIndex) ?? GetDrawCallTint(drawCall);
                 var material = Mesh.GetMaterialName(drawCall) ?? string.Empty;
-                var group = new HammerMeshGroup(material, tint, drawCallShadows?.Invoke(drawCallIndex) ?? 0);
+                var settings = drawCallSettings?.Invoke(drawCallIndex);
+
+                // The material alone keeps these out of merging, the Hammer mesh did not ask for it
+                if (settings is { DisableMerging: true } mergeSettings && MaterialPreventsMerging(material))
+                {
+                    settings = mergeSettings with { DisableMerging = false };
+                }
+
+                var group = new HammerMeshGroup(material, tint, settings);
 
                 var builder = GetOrCreateHammerMeshBuilder(builders, group);
 
@@ -922,13 +988,15 @@ public sealed partial class MapExtract
             // compiler batched together come apart again
             foreach (var meshData in builder.GenerateMeshes(HammerMeshWeldDistance))
             {
-                hammerMeshes.Add(new CMapMesh()
+                var hammerMesh = new CMapMesh()
                 {
                     Name = $"{materialName}_{meshIndex++}",
                     MeshData = meshData,
                     TintColor = ConvertToColor32(group.Tint),
-                    DisableShadows = group.DisableShadows,
-                });
+                };
+
+                group.Settings?.ApplyTo(hammerMesh);
+                hammerMeshes.Add(hammerMesh);
             }
 
             meshIndexPerMaterial[materialName] = meshIndex;
@@ -944,15 +1012,19 @@ public sealed partial class MapExtract
     /// <param name="resource">Resource the model came from.</param>
     /// <param name="entityClassname">Class of the entity the meshes belong to, null for world geometry.</param>
     /// <param name="transform">Transform applied to the geometry.</param>
-    internal List<CMapMesh> RenderMeshToHammerMesh(Model model, Resource resource, string? entityClassname = null, Matrix4x4? transform = null)
+    /// <param name="settings">Settings of every mesh, null for the Hammer defaults.</param>
+    internal List<CMapMesh> RenderMeshToHammerMesh(Model model, Resource resource, string? entityClassname = null, Matrix4x4? transform = null,
+        HammerMeshSettings? settings = null)
     {
         if (resource is null)
         {
             return [];
         }
 
+        Func<int, HammerMeshSettings>? drawCallSettings = settings is { } meshSettings ? _ => meshSettings : null;
+
         var builders = new Dictionary<HammerMeshGroup, HammerMeshBuilder>();
-        var drawCallCount = AddRenderMeshToBuilders(model, resource, transform ?? Matrix4x4.Identity, null, null, null, builders);
+        var drawCallCount = AddRenderMeshToBuilders(model, resource, transform ?? Matrix4x4.Identity, null, drawCallSettings, null, builders);
         var hammerMeshesToReturn = GenerateHammerMeshes(builders);
 
         var hammerMeshEntitySelectionSet = new CMapSelectionSet();
@@ -1183,10 +1255,12 @@ public sealed partial class MapExtract
             ProcessSceneObject(sceneObject, sceneObjectModelNames[i], i, layerIndex, layerNodes, overrides);
         }
 
-        foreach (var aggregateSceneObject in node.AggregateSceneObjects)
+        var aggregateSceneObjects = node.AggregateSceneObjects;
+        var aggregateModelNames = node.AggregateSceneObjectModelNames;
+        for (var i = 0; i < aggregateSceneObjects.Count; i++)
         {
-            var layerIndex = aggregateSceneObject.GetInt32Property("m_nLayer");
-            ProcessAggregate(aggregateSceneObject, layerIndex, layerNodes);
+            var layerIndex = aggregateSceneObjects[i].GetInt32Property("m_nLayer");
+            ProcessAggregate(aggregateSceneObjects[i], aggregateModelNames[i], layerIndex, layerNodes);
         }
 
         foreach (var clutterSceneObject in node.ClutterSceneObjects)
@@ -1312,7 +1386,8 @@ public sealed partial class MapExtract
         // Model marks draw calls of props baked into the world node
         if (!objectFlags.HasFlag(ObjectTypeFlags.Model) && worldNodeModelName.Type != WorldNodeTypes.Unknown)
         {
-            var isConverted = TryConvertSceneObjectToHammerMesh(modelName!, objectTransform, objectFlags, GetWorldLayerNode(layerIndex, layerNodes), out drawCallTint);
+            var settings = GetSceneObjectHammerMeshSettings(sceneObject, objectFlags, worldNodeModelName);
+            var isConverted = TryConvertSceneObjectToHammerMesh(modelName!, objectTransform, settings, GetWorldLayerNode(layerIndex, layerNodes), out drawCallTint);
             if (isConverted)
             {
                 return;
@@ -1328,11 +1403,28 @@ public sealed partial class MapExtract
         StaticPropFinalize(propStatic, layerIndex, layerNodes, isEmbeddedModel);
     }
 
+    private static HammerMeshSettings GetSceneObjectHammerMeshSettings(KVObject sceneObject, ObjectTypeFlags objectFlags, WorldNodeModelName worldNodeModelName)
+    {
+        var fadeStartDistance = sceneObject.GetFloatProperty("m_flFadeStartDistance");
+        var fadeEndDistance = sceneObject.GetFloatProperty("m_flFadeEndDistance");
+        var fades = fadeEndDistance > 0;
+
+        return HammerMeshSettings.FromFlags(objectFlags) with
+        {
+            KeepVertices = worldNodeModelName.Flags.HasFlag(WorldNodeExtraFlags.KeepVertices),
+
+            // Fading meshes are never merged, whatever the Hammer mesh sets
+            DisableMerging = worldNodeModelName.Type == WorldNodeTypes.NoMerge && !fades,
+            FadeMinDist = fades ? fadeStartDistance : -1,
+            FadeMaxDist = fades ? fadeEndDistance : 0,
+        };
+    }
+
     /// <summary>
     /// Converts a scene object to hammer meshes. Returns false when the object is a prop that stays a model, and then
     /// sets <paramref name="drawCallTint"/> to the tint the compiler baked into the draw calls of that model.
     /// </summary>
-    private bool TryConvertSceneObjectToHammerMesh(string modelName, Matrix4x4 objectTransform, ObjectTypeFlags objectFlags, MapNode destNode, out Vector4? drawCallTint)
+    private bool TryConvertSceneObjectToHammerMesh(string modelName, Matrix4x4 objectTransform, HammerMeshSettings settings, MapNode destNode, out Vector4? drawCallTint)
     {
         drawCallTint = null;
 
@@ -1364,11 +1456,10 @@ public sealed partial class MapExtract
 
         if (!HasFoliageAnimationStreams(model))
         {
-            foreach (var hammermesh in RenderMeshToHammerMesh(model, mesh, transform: scaleTransform))
+            foreach (var hammermesh in RenderMeshToHammerMesh(model, mesh, transform: scaleTransform, settings: settings))
             {
                 hammermesh.Origin = meshOrigin;
                 hammermesh.Angles = meshAngles;
-                hammermesh.DisableShadows = DisableShadowsFromFlags(objectFlags);
                 destNode.Children.Add(hammermesh);
             }
 
@@ -1455,7 +1546,7 @@ public sealed partial class MapExtract
         return propStatic;
     }
 
-    private void ProcessAggregate(KVObject agg, int layerIndex, List<MapNode> layerNodes)
+    private void ProcessAggregate(KVObject agg, WorldNodeModelName aggregateModelName, int layerIndex, List<MapNode> layerNodes)
     {
         var modelName = agg.GetStringProperty("m_renderableModel");
         var allFlags = agg.GetEnumValue<ObjectTypeFlags>("m_allFlags", normalize: true);
@@ -1508,7 +1599,7 @@ public sealed partial class MapExtract
 
         if (hammerMeshDrawCalls.Count > 0)
         {
-            AddAggregateHammerMesh(model, modelRes, aggregateMeshes, drawCalls, allFlags, hammerMeshDrawCalls);
+            AddAggregateHammerMesh(model, modelRes, aggregateMeshes, drawCalls, allFlags, hammerMeshDrawCalls, aggregateModelName.Type == WorldNodeTypes.NoMerge);
         }
 
         if (propFragments.Count == 0)
@@ -1528,7 +1619,7 @@ public sealed partial class MapExtract
     }
 
     private void AddAggregateHammerMesh(Model model, Resource modelRes, IReadOnlyList<KVObject> aggregateMeshes, IReadOnlyList<KVObject> drawCalls, ObjectTypeFlags allFlags,
-        HashSet<int> hammerMeshDrawCalls)
+        HashSet<int> hammerMeshDrawCalls, bool disableMerging)
     {
         // the fragment tint multiplies the draw call tint, one fragment per draw call is expected here
         var fragmentTints = new Dictionary<int, Vector4>();
@@ -1559,11 +1650,11 @@ public sealed partial class MapExtract
             return tint;
         }
 
-        int HammerMeshShadows(int drawCallIndex)
-            => DisableShadowsFromFlags(fragmentFlags.GetValueOrDefault(drawCallIndex, allFlags));
+        HammerMeshSettings FragmentSettings(int drawCallIndex)
+            => HammerMeshSettings.FromFlags(fragmentFlags.GetValueOrDefault(drawCallIndex, allFlags)) with { DisableMerging = disableMerging };
 
         // world geometry is welded across all aggregates, the meshes are made once every world node is in
-        WorldHammerMeshDrawCalls += AddRenderMeshToBuilders(model, modelRes, Matrix4x4.Identity, HammerMeshTint, HammerMeshShadows, hammerMeshDrawCalls.Contains,
+        WorldHammerMeshDrawCalls += AddRenderMeshToBuilders(model, modelRes, Matrix4x4.Identity, HammerMeshTint, FragmentSettings, hammerMeshDrawCalls.Contains,
             WorldHammerMeshBuilders);
     }
 
