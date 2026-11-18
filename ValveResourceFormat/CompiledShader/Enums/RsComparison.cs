@@ -17,12 +17,12 @@ public enum RsComparison : byte
     GreaterEqual = 6,
     Always = 7,
 
-    // Low bits hold the forward-depth comparison, the flag swaps it when the device uses reverse depth
+    // client defined, currently using reverse-Z semantics
     CloserFartherFlag = 8,
-    Closer = CloserFartherFlag | Less,
-    CloserEqual = CloserFartherFlag | LessEqual,
-    Farther = CloserFartherFlag | Greater,
-    FartherEqual = CloserFartherFlag | GreaterEqual,
+    Closer = CloserFartherFlag | Greater,
+    CloserEqual = CloserFartherFlag | GreaterEqual,
+    Farther = CloserFartherFlag | Less,
+    FartherEqual = CloserFartherFlag | LessEqual,
 #pragma warning restore CS1591
 }
 #pragma warning restore CA1027
