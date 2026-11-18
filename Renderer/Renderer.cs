@@ -1230,6 +1230,28 @@ public class Renderer : ISceneHost
         }
     }
 
+    private void RenderSkyOccluders(in SceneView view, ref Scene.RenderContext renderContext, bool restoreDepth)
+    {
+        foreach (var state in view.States)
+        {
+            if (!state.HasSkyOccluders)
+            {
+                continue;
+            }
+
+            DrawThrough(view, state, ref renderContext);
+
+            if (restoreDepth)
+            {
+                state.RenderSkyOccluderDepth(renderContext, depthOnlyShader);
+            }
+            else
+            {
+                state.RenderSkyOccluderMask(renderContext, depthOnlyShader);
+            }
+        }
+    }
+
     /// <summary>Resolves the depth of the prepass that just drew and computes the occlusion from it. The opaque draws that follow sample the result.</summary>
     private void ComputeScreenSpaceAo(Framebuffer framebuffer)
     {
@@ -1530,6 +1552,13 @@ public class Renderer : ISceneHost
             RenderOpaqueLayer(mainView, ref renderContext, isMaterialPass ? depthOnlyShader : null, withScreenSpaceAo);
         }
 
+        var skyOccluders = isMaterialPass && !isWireframe && renderContext.Framebuffer.DepthFormat == ImageFormat.D32FS8;
+
+        if (skyOccluders)
+        {
+            RenderSkyOccluders(mainView, ref renderContext, restoreDepth: false);
+        }
+
         //using (new GLDebugGroup("Sky Render"))
         {
             GraphicsContext.RenderState.SetDepthRange(DepthRange.Sky);
@@ -1585,6 +1614,13 @@ public class Renderer : ISceneHost
                 {
                     RenderTranslucentLayer(skyTranslucent, ref renderContext);
                 }
+            }
+
+            if (skyOccluders)
+            {
+                using var sceneRange = GraphicsContext.RenderState.ScopeDynamic(depthRange: DepthRange.Scene);
+
+                RenderSkyOccluders(mainView, ref renderContext, restoreDepth: true);
             }
 
             if (isMainFramebuffer)

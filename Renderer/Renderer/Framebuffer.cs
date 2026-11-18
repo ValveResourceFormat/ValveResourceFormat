@@ -117,7 +117,7 @@ public class Framebuffer
     {
         Bind(targetState);
         GL.ClearColor(ClearColor);
-        GL.Clear(ClearMask);
+        GL.Clear(DepthFormat == ImageFormat.D32FS8 ? ClearMask | ClearBufferMask.StencilBufferBit : ClearMask);
     }
 
     /// <summary>
@@ -312,7 +312,7 @@ public class Framebuffer
             else
             {
                 Depth = CreateAttachment(depthFormat, width, height, $"{Name}Depth");
-                Depth.AttachToFramebuffer(this, FramebufferAttachment.DepthAttachment, 0);
+                Depth.AttachToFramebuffer(this, depthFormat == ImageFormat.D32FS8 ? FramebufferAttachment.DepthStencilAttachment : FramebufferAttachment.DepthAttachment, 0);
             }
 
             ApplyShadowDepthSamplerState();

@@ -1068,7 +1068,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             4, 4,
             NumSamples,
             ImageFormat.RGBA16161616F,
-            ImageFormat.D32
+            ImageFormat.D32FS8
         );
 
         MainFramebuffer.Initialize();

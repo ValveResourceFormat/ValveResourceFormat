@@ -163,6 +163,12 @@ namespace ValveResourceFormat.Renderer.Materials
         public bool IsCs2Water { get; private set; }
 
         /// <summary>
+        /// Gets a value indicating whether geometry using this material shows the sky in place of the world behind it,
+        /// see <see cref="SceneViewState.RenderSkyOccluderMask"/>.
+        /// </summary>
+        public bool IsSkyOccluder { get; private set; }
+
+        /// <summary>
         /// Whether this material's shader samples the scene color texture, so it must be drawn after the framebuffer
         /// grab in <see cref="RenderPass.OpaqueRefract"/> or <see cref="RenderPass.Water"/>. Queried live: shaders compile
         /// without blocking, so this only becomes true once the program is linked and reflected, one frame after the
@@ -356,6 +362,7 @@ namespace ValveResourceFormat.Renderer.Materials
             BlocksLight = attributes.GetValueOrDefault("mapbuilder.blocklight") != 0;
             DoNotCastShadows = attributes.GetValueOrDefault("DoNotCastShadows") == 1;
             IsCs2Water = attributes.GetValueOrDefault("bCsgoWater") == 1;
+            IsSkyOccluder = ShaderName == "sky_occluder.vfx";
             isRenderBackfaces = shaderDataProvider.GetRenderBackfaces(material, IntParams);
             disableDepthTest = IntParams.GetValueOrDefault("F_DISABLE_Z_BUFFERING") == 1;
 

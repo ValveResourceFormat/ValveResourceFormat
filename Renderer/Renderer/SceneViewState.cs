@@ -194,6 +194,12 @@ public sealed class SceneViewState
     /// <inheritdoc cref="unprimedOpaqueDraws"/>
     private readonly List<MeshBatchRenderer.Request> unprimedAggregateDraws = [];
 
+    /// <summary>Draws of hidden <see cref="RenderMaterial.IsSkyOccluder"/> materials.</summary>
+    private readonly List<MeshBatchRenderer.Request> skyOccluderDraws = [];
+
+    /// <summary>Gets whether a sky occluder is in view.</summary>
+    public bool HasSkyOccluders => skyOccluderDraws.Count > 0;
+
     /// <summary>The viewmodel draws of the depth prepass.</summary>
     private readonly Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> viewmodelDepthOnlyDraws = CreateDepthOnlyBuckets();
 
@@ -342,6 +348,11 @@ public sealed class SceneViewState
 
         if (!Scene.IsDrawn(request.Call.Material, request.Node))
         {
+            if (request.Call.Material.IsSkyOccluder && (renderPass != RenderPass.OpaqueFragments || !IsDrawnByAggregate(request.Node)))
+            {
+                skyOccluderDraws.Add(request);
+            }
+
             return;
         }
 
@@ -504,6 +515,7 @@ public sealed class SceneViewState
         unprimedOpaqueDraws.Clear();
         viewmodelUnprimedOpaqueDraws.Clear();
         unprimedAggregateDraws.Clear();
+        skyOccluderDraws.Clear();
         translucentDepthDraws.Clear();
 
         foreach (var bucket in depthOnlyDraws.Values)
@@ -1265,6 +1277,69 @@ public sealed class SceneViewState
 
         renderContext.RenderPass = RenderPass.Opaque;
         MeshBatchRenderer.Render(alphaTestOpaqueDraws, renderContext);
+    }
+
+    private const byte SkyOccluderStencilBit = 0x80;
+
+    /// <summary>
+    /// Marks the samples where a sky occluder is in front of what has been drawn, and moves their depth to the far
+    /// plane so the sky draws over the world there.
+    /// </summary>
+    /// <param name="renderContext">The render context for this pass, whose framebuffer has a stencil buffer.</param>
+    /// <param name="depthOnlyShader">The shared depth-only shader.</param>
+    public void RenderSkyOccluderMask(Scene.RenderContext renderContext, Shader depthOnlyShader)
+    {
+        using var group = new GLDebugGroup("Sky Occluder Mask");
+
+        var state = GraphicsContext.RenderState.CurrentPass;
+        state.ColorWriteMask = RsColorWriteEnableBits.None;
+        state.DepthStencil.DepthFunc = RsComparison.CloserEqual;
+        state.DepthStencil.DepthWriteEnable = false;
+        state.DepthStencil.StencilEnable = true;
+        state.DepthStencil.StencilReadMask = SkyOccluderStencilBit;
+        state.DepthStencil.StencilWriteMask = SkyOccluderStencilBit;
+        state.SetStencilFunc(RsComparison.Always, SkyOccluderStencilBit);
+        state.SetStencilPassOp(RsStencilOp.Replace);
+
+        DrawSkyOccluders(renderContext, depthOnlyShader, in state);
+
+        state.DepthStencil.DepthFunc = RsComparison.Always;
+        state.DepthStencil.DepthWriteEnable = true;
+        state.SetStencilFunc(RsComparison.Equal, SkyOccluderStencilBit);
+        state.SetStencilPassOp(RsStencilOp.Zero);
+
+        using var farPlane = GraphicsContext.RenderState.ScopeDynamic(depthRange: new Renderer.DepthRange(0f, 0f));
+
+        DrawSkyOccluders(renderContext, depthOnlyShader, in state);
+    }
+
+    /// <summary>
+    /// Writes the depth of the sky occluders once the sky has drawn, so what draws after it is hidden behind them.
+    /// </summary>
+    /// <param name="renderContext">The render context for this pass.</param>
+    /// <param name="depthOnlyShader">The shared depth-only shader.</param>
+    public void RenderSkyOccluderDepth(Scene.RenderContext renderContext, Shader depthOnlyShader)
+    {
+        using var group = new GLDebugGroup("Sky Occluder Depth");
+
+        var state = GraphicsContext.RenderState.CurrentPass;
+        state.ColorWriteMask = RsColorWriteEnableBits.None;
+        state.DepthStencil.DepthFunc = RsComparison.CloserEqual;
+
+        DrawSkyOccluders(renderContext, depthOnlyShader, in state);
+    }
+
+    private void DrawSkyOccluders(Scene.RenderContext renderContext, Shader depthOnlyShader, in RenderState state)
+    {
+        using var scope = GraphicsContext.RenderState.Scope(in state);
+
+        PerfStats.Active.SuspendTriangleCounter();
+
+        renderContext.RenderPass = RenderPass.DepthOnly;
+        renderContext.ReplacementShader = depthOnlyShader;
+        MeshBatchRenderer.Render(skyOccluderDraws, renderContext);
+
+        PerfStats.Active.ResumeTriangleCounter();
     }
 
     /// <summary>Renders all translucent draw calls collected during <see cref="CollectSceneDrawCalls"/>.</summary>
