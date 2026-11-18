@@ -151,7 +151,7 @@ public partial class GltfModelExporter
             // TODO: skybox/skydome
 
             var model = (VModel)modelResource.DataBlock!;
-            var skinName = GetSkinName(entity, "skin");
+            var skinName = GetSkinName(entity.GetStringProperty("skin"));
 
             // Add meshes and their skeletons
             LoadModel(exportedModel, scene, model, Path.GetFileNameWithoutExtension(modelName),
@@ -166,11 +166,8 @@ public partial class GltfModelExporter
         }
     }
 
-    private static string? GetSkinName(KVObject placement, string key)
-    {
-        var skinName = placement.GetStringProperty(key);
-        return skinName is "" or "0" or "default" ? null : skinName;
-    }
+    private static string? GetSkinName(string? skinName)
+        => skinName is "" or "0" or "default" ? null : skinName;
 
     /// <summary>
     /// Maps each material of the model's default material group to the one at the same index in the named group.
@@ -286,7 +283,7 @@ public partial class GltfModelExporter
                 tintColor = Vector4.One;
             }
 
-            LoadModel(exportedModel, scene, model, name, matrix, tintColor, GetSkinName(sceneObject, "m_skin"),
+            LoadModel(exportedModel, scene, model, name, matrix, tintColor, GetSkinName(sceneObject.GetStringProperty("m_skin")),
                 materialOverrides: [.. materialOverrides[(uint)sceneObjectIndex]]);
         }
 
