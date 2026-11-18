@@ -1312,7 +1312,7 @@ public sealed partial class MapExtract
         // Model marks draw calls of props baked into the world node
         if (!objectFlags.HasFlag(ObjectTypeFlags.Model) && worldNodeModelName.Type != WorldNodeTypes.Unknown)
         {
-            var isConverted = TryConvertSceneObjectToHammerMesh(modelName!, objectTransform, GetWorldLayerNode(layerIndex, layerNodes), out drawCallTint);
+            var isConverted = TryConvertSceneObjectToHammerMesh(modelName!, objectTransform, objectFlags, GetWorldLayerNode(layerIndex, layerNodes), out drawCallTint);
             if (isConverted)
             {
                 return;
@@ -1332,7 +1332,7 @@ public sealed partial class MapExtract
     /// Converts a scene object to hammer meshes. Returns false when the object is a prop that stays a model, and then
     /// sets <paramref name="drawCallTint"/> to the tint the compiler baked into the draw calls of that model.
     /// </summary>
-    private bool TryConvertSceneObjectToHammerMesh(string modelName, Matrix4x4 objectTransform, MapNode destNode, out Vector4? drawCallTint)
+    private bool TryConvertSceneObjectToHammerMesh(string modelName, Matrix4x4 objectTransform, ObjectTypeFlags objectFlags, MapNode destNode, out Vector4? drawCallTint)
     {
         drawCallTint = null;
 
@@ -1368,6 +1368,7 @@ public sealed partial class MapExtract
             {
                 hammermesh.Origin = meshOrigin;
                 hammermesh.Angles = meshAngles;
+                hammermesh.DisableShadows = DisableShadowsFromFlags(objectFlags);
                 destNode.Children.Add(hammermesh);
             }
 
