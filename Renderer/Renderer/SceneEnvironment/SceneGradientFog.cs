@@ -1,6 +1,7 @@
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.SceneEnvironment;
 
@@ -28,7 +29,7 @@ public class SceneGradientFog(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the exponent controlling the vertical fog density falloff.</summary>
     public float VerticalExponent { get; set; }
 
-    /// <summary>Gets or sets the base fog color.</summary>
+    /// <summary>Gets or sets the base fog color, in the color space the fog shader mixes it in.</summary>
     public Vector3 Color { get; set; }
 
     /// <summary>Gets or sets the strength multiplier applied to the fog color.</summary>
@@ -114,6 +115,12 @@ public class SceneGradientFog(Scene scene) : SceneNode(scene)
         var strength = entity.GetFloatProperty("fogstrength");
         var color = entity.GetColor32Property("fogcolor");
         var maxOpacity = entity.GetFloatProperty("fogmaxopacity");
+
+        // The VR forward pipeline mixes the fog color without linearizing it
+        if (!scene.RendererContext.FileLoader.GameInfo.TonemappingVrForward)
+        {
+            color = ColorSpace.SrgbGammaToLinear(color);
+        }
 
         if (!useHeightFog && entity.ContainsKey("heightfog"))
         {
