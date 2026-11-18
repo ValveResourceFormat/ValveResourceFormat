@@ -401,7 +401,7 @@ public abstract class EntityHelper
     /// <summary>Gets the entity key an argument of a declaration names. The editor keeps no more than 31 characters of it.</summary>
     /// <param name="argument">The argument.</param>
     /// <returns>The name of the key.</returns>
-    private protected static string ToTruncatedKey(string argument) => argument[..Math.Min(argument.Length, 31)].ToLowerInvariant();
+    private protected static string ToTruncatedKey(string argument) => argument[..Math.Min(argument.Length, 31)];
 }
 
 /// <summary>Whether the entity of a helper is selected, and whether it is the only thing selected.</summary>

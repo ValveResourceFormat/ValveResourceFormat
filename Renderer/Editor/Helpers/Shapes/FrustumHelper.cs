@@ -42,14 +42,14 @@ internal sealed class FrustumHelper : EntityHelper
         // The fifth argument is not read
         if (GetArgument(0) is { } fovKey)
         {
-            FovKey = fovKey.ToLowerInvariant();
+            FovKey = fovKey;
             IsVerticalFov = fovKey.Equals("VerticalFOV", StringComparison.OrdinalIgnoreCase);
         }
 
-        NearPlaneKey = GetArgument(1)?.ToLowerInvariant() ?? NearPlaneKey;
-        FarPlaneKey = GetArgument(2)?.ToLowerInvariant() ?? FarPlaneKey;
-        ColorKey = GetArgument(3)?.ToLowerInvariant() ?? ColorKey;
-        AspectRatioKey = GetArgument(5)?.ToLowerInvariant() ?? AspectRatioKey;
+        NearPlaneKey = GetArgument(1) ?? NearPlaneKey;
+        FarPlaneKey = GetArgument(2) ?? FarPlaneKey;
+        ColorKey = GetArgument(3) ?? ColorKey;
+        AspectRatioKey = GetArgument(5) ?? AspectRatioKey;
     }
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)

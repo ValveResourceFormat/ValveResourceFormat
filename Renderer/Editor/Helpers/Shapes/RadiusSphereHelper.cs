@@ -26,7 +26,7 @@ internal sealed class RadiusSphereHelper : EntityHelper
 
     public RadiusSphereHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
-        RadiusKey = GetArgument(0)?.ToLowerInvariant() ?? DefaultRadiusKey;
+        RadiusKey = GetArgument(0) ?? DefaultRadiusKey;
         Color = declaration.Name.Equals("viewer", StringComparison.OrdinalIgnoreCase) ? ViewerColor : OccluderColor;
     }
 

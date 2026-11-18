@@ -44,7 +44,7 @@ internal abstract class PointKeyHelper : EntityHelper
     /// <param name="isLocal">Whether the point is in the space of the entity, rather than in world space.</param>
     private protected PointKeyHelper(IHelperOwner owner, HelperDeclaration declaration, bool isLocal) : base(owner, declaration)
     {
-        PointKey = GetArgument(0)?.ToLowerInvariant() ?? DefaultPointKey;
+        PointKey = GetArgument(0) ?? DefaultPointKey;
         IsLocal = isLocal;
         DrawUnselected = HasArgument("draw_unselected");
         HideIfZero = HasArgument("hideifzero");

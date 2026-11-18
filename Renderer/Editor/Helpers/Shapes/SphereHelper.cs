@@ -55,8 +55,8 @@ internal sealed class SphereHelper : EntityHelper
 
         if (declaration.Metadata != null)
         {
-            RadiusKey = (GetMetadata("radius") ?? DefaultRadiusKey).ToLowerInvariant();
-            EdgeFadeKey = GetMetadata("edge_fade")?.ToLowerInvariant() ?? string.Empty;
+            RadiusKey = GetMetadata("radius") ?? DefaultRadiusKey;
+            EdgeFadeKey = GetMetadata("edge_fade") ?? string.Empty;
             Color = GetMetadataColor("color") ?? Color32.White;
             UnselectedColor = GetMetadataColor("unselectedColor") ?? DefaultUnselectedColor;
             SingleSelect = GetMetadataFlag("singleSelect");
@@ -64,7 +64,7 @@ internal sealed class SphereHelper : EntityHelper
             return;
         }
 
-        RadiusKey = (GetArgument(0) ?? DefaultRadiusKey).ToLowerInvariant();
+        RadiusKey = GetArgument(0) ?? DefaultRadiusKey;
         EdgeFadeKey = string.Empty;
         Color = GetColorArguments(1);
         UnselectedColor = DefaultUnselectedColor;
@@ -84,7 +84,7 @@ internal sealed class SphereHelper : EntityHelper
             }
             else if (argument.Equals("originKey", StringComparison.OrdinalIgnoreCase))
             {
-                OriginKey = GetArgument(i + 2)?.ToLowerInvariant();
+                OriginKey = GetArgument(i + 2);
                 i += 2;
             }
         }

@@ -27,7 +27,7 @@ internal sealed class AxisHelper : EntityHelper
 
     public AxisHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
-        AxisKey = (GetArgument(0) ?? DefaultAxisKey).ToLowerInvariant();
+        AxisKey = GetArgument(0) ?? DefaultAxisKey;
         IsLocal = declaration.Name.Equals("localaxis", StringComparison.OrdinalIgnoreCase);
     }
 
