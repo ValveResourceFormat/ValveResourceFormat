@@ -16,7 +16,7 @@ namespace Tests.Resources
 
             foreach (var (key, value) in properties)
             {
-                entity.Add(key, value);
+                entity[key] = value;
             }
 
             return entity;

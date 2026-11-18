@@ -56,7 +56,7 @@ public abstract partial class BaseModelEntity : BaseEntity
     /// <summary>Initializes a model entity from its keyvalues.</summary>
     protected BaseModelEntity(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
     {
-        Solid = KeyValues.ContainsKey("solid") ? KeyValues.GetEnumValue<SolidType>("solid") : SolidType.SOLID_NONE;
+        Solid = KeyValues.TryGetValue("solid", out var solid) ? solid.ToEnumValue<SolidType>() : SolidType.SOLID_NONE;
     }
 
     /// <summary>Returns <paramref name="value"/>, or <see langword="null"/> when it is null or empty.</summary>

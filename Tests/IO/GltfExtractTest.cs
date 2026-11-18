@@ -379,7 +379,7 @@ namespace Tests.IO
             await WithExportedGlb("default_ents_kv3_v4_zstd.vents_c", async root =>
             {
                 var entityNodes = root.LogicalNodes.Where(node => node.Extras?["classname"] != null).ToArray();
-                var uniqueIds = entityNodes.Select(node => node.Extras!["hammeruniqueid"]!.ToJsonString()).Distinct();
+                var uniqueIds = entityNodes.Select(node => node.Extras!["hammerUniqueId"]!.ToJsonString()).Distinct();
 
                 using (Assert.Multiple())
                 {

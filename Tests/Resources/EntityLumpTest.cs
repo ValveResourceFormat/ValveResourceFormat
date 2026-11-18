@@ -114,8 +114,8 @@ namespace Tests.Resources
             await Assert.That(entities).Count().IsEqualTo(23);
             using (Assert.Multiple())
             {
-                await Assert.That(entities[0]).Count().IsEqualTo(26);
-                await Assert.That(entities[22]).Count().IsEqualTo(56);
+                await Assert.That(entities[0].Count).IsEqualTo(26);
+                await Assert.That(entities[22].Count).IsEqualTo(56);
             }
 
             await Assert.That(entities[0].TryGetValue("classname", out var classname)).IsTrue();
