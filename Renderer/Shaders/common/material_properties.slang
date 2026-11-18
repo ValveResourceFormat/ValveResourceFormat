@@ -15,6 +15,7 @@ struct SnowGlint_t
     float SunMask; // Sun glint scale, 0 outside the disk
     float SkyMask; // Sky glint scale, 0 outside the disk
     vec3 Normal; // Jittered normal of the cell
+    float SpecularTurn; // How far the specular light reflects off Normal instead of the surface normal, 0 to 1
 };
 #endif
 
@@ -84,5 +85,15 @@ struct MaterialProperties_t
     vec3 AnisotropicBitangent;
 #endif
 };
+
+// The normal the specular light reflects off
+vec3 GetSpecularNormal(MaterialProperties_t mat, vec3 normal)
+{
+#if (SNOW_GLINT)
+    return normalize(mix(normal, mat.SnowGlint.Normal, mat.SnowGlint.SpecularTurn));
+#else
+    return normal;
+#endif
+}
 
 #endif

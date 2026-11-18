@@ -439,7 +439,7 @@ vec3 GetProbeReflection(MaterialProperties_t mat)
         return envData.Color;
     }
 
-    vec3 reflectionNormal = mat.AmbientNormal;
+    vec3 reflectionNormal = GetSpecularNormal(mat, mat.AmbientNormal);
 
     if (g_iRenderMode == renderMode_Cubemaps)
     {
@@ -486,7 +486,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
     #if (((F_ANISOTROPIC_GLOSS == 1) || (F_HIGH_QUALITY_GLOSS == 1)) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !ANISO_CUBEMAP_WARP_OPTIONAL))
         vec3 reflectionNormal = CalculateAnisoCubemapWarpVector(mat);
     #else
-        vec3 reflectionNormal = mat.AmbientNormal;
+        vec3 reflectionNormal = GetSpecularNormal(mat, mat.AmbientNormal);
     #endif
 
     float perceptualRoughness = saturate(mat.IsometricRoughness);

@@ -67,7 +67,7 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 Pos
     mat.IllumColor = vec3(0.0);
     mat.SnowAmount = 0.0;
 #if (SNOW_GLINT)
-    mat.SnowGlint = SnowGlint_t(0.0, 0.0, vec3(0.0, 0.0, 1.0));
+    mat.SnowGlint = SnowGlint_t(0.0, 0.0, vec3(0.0, 0.0, 1.0), 0.0);
 #endif
     mat.BloomAmount = 0.0;
 

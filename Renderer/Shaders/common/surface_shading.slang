@@ -63,6 +63,11 @@ void LightSurface(inout MaterialProperties_t mat, out LightingTerms_t lighting, 
 {
     lighting = CalculateLighting(mat);
 
+#if (SNOW_GLINT)
+    // Before the snow tints the indirect light
+    vec3 snowGlint = GetSnowGlintLighting(mat, lighting.DiffuseIndirect * mat.DiffuseAO);
+#endif
+
     if (!options.DirectSpecular)
     {
         lighting.SpecularDirect = vec3(0.0);
@@ -91,6 +96,10 @@ void LightSurface(inout MaterialProperties_t mat, out LightingTerms_t lighting, 
     {
         specularLighting = (mat.Roughness == vec2(1.0)) ? vec3(0) : specularLighting;
     }
+
+#if (SNOW_GLINT)
+    specularLighting += snowGlint;
+#endif
 }
 
 // Lights the material and combines the light with its color.
@@ -112,10 +121,6 @@ vec4 ShadeSurface(inout MaterialProperties_t mat, out LightingTerms_t lighting, 
     }
 
     vec3 combinedLighting = mat.DiffuseColor * diffuseLighting + specularLighting + lighting.TransmissiveDirect + mat.IllumColor;
-
-#if (SNOW_GLINT)
-    combinedLighting += GetSnowGlintLighting(mat, lighting.DiffuseIndirect);
-#endif
 
     return vec4(combinedLighting, mat.Opacity);
 }

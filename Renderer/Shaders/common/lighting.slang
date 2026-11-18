@@ -105,6 +105,22 @@ void CalculateShadingGated(inout LightingTerms_t lighting, vec3 lightVector, vec
     lighting.TransmissiveDirect = mix(previousTransmissive, lighting.TransmissiveDirect, vRenderGates.z);
 }
 
+#if (SNOW_GLINT)
+// What snow adds to the Lambert term of the sun. The light wraps past the terminator, where it turns blue,
+// and scatters forward to a viewer who faces the sun.
+vec3 GetSnowSunDiffuse(MaterialProperties_t mat, vec3 sunDirection)
+{
+    float NoL = dot(sunDirection, mat.Normal);
+    float lambert = saturate(NoL);
+    float wrap = saturate((NoL + 0.25) * 0.8) * 0.8;
+    vec3 wrapped = vec3(min(wrap, lambert)) + vec3(0.6, 1.0, 4.0) * max(wrap - lambert, 0.0);
+    float forwardScatter = 0.64 * pow(1.36 + 1.2 * dot(mat.ViewDir, sunDirection), -1.5);
+    float lambertShape = 1.3268 + lambert * (2.138 + lambert * (1.6777 - 0.3617 * lambert));
+
+    return wrapped * mix(1.0, forwardScatter * lambertShape, 0.3) - vec3(lambert);
+}
+#endif
+
 // The global sun, valid across all lightmap versions. bakedVisibility carries whatever shadowing
 // the lightmap already provides (the V2 shadow channel); the sun shadow map goes on top.
 void CalculateSunLighting(inout LightingTerms_t lighting, MaterialProperties_t mat, float bakedVisibility)
@@ -142,6 +158,13 @@ void CalculateSunLighting(inout LightingTerms_t lighting, MaterialProperties_t m
         {
             lighting.SpecularDirect = previousSpecular;
         }
+
+#if (SNOW_GLINT)
+        if (mat.SnowAmount > 0.0)
+        {
+            lighting.DiffuseDirect += vSunColor * (visibility * mat.SnowAmount) * GetSnowSunDiffuse(mat, GetSunDirection());
+        }
+#endif
     }
 }
 

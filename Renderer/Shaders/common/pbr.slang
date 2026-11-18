@@ -451,7 +451,7 @@ void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lig
     float sheenAlbedoScaling = GetSheenAlbedoScaling(mat, lightVector);
     diffuseLight *= sheenAlbedoScaling;
 
-    vec3 specularLight = SpecularLighting(lightVector, mat.Normal, mat, sheenAlbedoScaling);
+    vec3 specularLight = SpecularLighting(lightVector, GetSpecularNormal(mat, mat.Normal), mat, sheenAlbedoScaling);
 
 #if (LIGHT_GEOMETRIC_NORMAL_GATE) && (GLASS_BACKLIGHT)
     // A light behind the geometric normal passes through the surface, and only that light shows

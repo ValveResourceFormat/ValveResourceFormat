@@ -486,8 +486,8 @@ void BlendLayer2(inout LayerStack_t stack, BlendState_t blend, HeightLayer_t lay
             g_flUnderlyingHeightMapInfluence2, g_flMaskWithHeight2);
 
         weight2 = carry2.weight * snowMask2;
-        compositeWeight2 = weight2;
-        weightBase2 = 1.0 - weight2;
+        compositeWeight2 = (carry2.weight > 0.05) ? weight2 : 0.0;
+        weightBase2 = 1.0 - compositeWeight2;
     }
     else
     {
@@ -604,7 +604,7 @@ void BlendLayer3(inout LayerStack_t stack, BlendState_t blend, HeightLayer_t lay
             g_flUnderlyingHeightMapInfluence3, g_flMaskWithHeight3);
 
         weight3 = carry3.weight * snowMask3;
-        compositeWeight3 = weight3;
+        compositeWeight3 = (carry3.weight > 0.05) ? weight3 : 0.0;
     }
     else
     {
@@ -823,11 +823,11 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     float snow1 = float(g_bSnowLayer1);
     float snow2 = float(g_bSnowLayer2);
-    float snow = mix(snow1, snow2, weight2);
-    float snowGlintStrength = mix(snow1 * g_flSnowGlintStrength1, snow2 * g_flSnowGlintStrength2, weight2);
+    float snow = mix(snow1, snow2, (weight2 > 0.05) ? weight2 : 0.0);
+    float snowGlintStrength = mix(snow1 * g_flSnowGlintStrength1, snow2 * g_flSnowGlintStrength2, share2);
 #if (F_ENABLE_LAYER_3 == 1)
     float snow3 = float(g_bSnowLayer3);
-    snow = mix(snow, snow3, weight3);
+    snow = mix(snow, snow3, (weight3 > 0.05) ? weight3 : 0.0);
     snowGlintStrength = mix(snowGlintStrength, snow3 * g_flSnowGlintStrength3, weight3);
 #endif
     ApplySnowGlint(mat, snowGlintStrength, reflectance);

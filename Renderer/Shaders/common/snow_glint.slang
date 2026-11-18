@@ -76,7 +76,7 @@ void ApplySnowGlint(inout MaterialProperties_t mat, float strength, inout float 
     reflectance = mix(reflectance, min(0.3 * (max(cell, 1.0) * intensity), 0.9), amount);
 
     float disk = strength * cell * saturate(footprintScale);
-    mat.SnowGlint = SnowGlint_t(disk * smoothstep(1.0, 2.0, footprintScale), disk, glintNormal);
+    mat.SnowGlint = SnowGlint_t(disk * smoothstep(1.0, 2.0, footprintScale), disk, glintNormal, amount);
 }
 
 #if (S_MODE_DEPTH == 0)
