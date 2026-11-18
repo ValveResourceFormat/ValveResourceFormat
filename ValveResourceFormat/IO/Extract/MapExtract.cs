@@ -167,10 +167,32 @@ public sealed partial class MapExtract
         return preventsMerging;
     }
 
-    // Builders for the hammer geometry of every world node. Filled while the world nodes are walked, welded and
-    // split into meshes once all of them are in, so geometry connects across the aggregates the compiler split it into.
-    private readonly Dictionary<HammerMeshGroup, HammerMeshBuilder> WorldHammerMeshBuilders = [];
-    private int WorldHammerMeshDrawCalls;
+    /// <summary>
+    /// Builders for the Hammer geometry of one world layer, filled while the world nodes are walked and welded once
+    /// all of them are in, so geometry connects across the render clusters and aggregates the compiler split it into.
+    /// </summary>
+    private sealed class WeldedHammerMeshes(MapNode layer, bool overlays)
+    {
+        public MapNode Layer { get; } = layer;
+        public bool Overlays { get; } = overlays;
+        public Dictionary<HammerMeshGroup, HammerMeshBuilder> Builders { get; } = [];
+        public int DrawCalls { get; set; }
+    }
+
+    private readonly Dictionary<(MapNode Layer, bool Overlays), WeldedHammerMeshes> WeldedHammerMeshSets = [];
+
+    // Overlays weld apart from the geometry they lie on
+    private WeldedHammerMeshes GetWeldedHammerMeshes(MapNode layer, WorldNodeTypes type)
+    {
+        var overlays = type is WorldNodeTypes.Overlay or WorldNodeTypes.NoSplitOverlay;
+        if (!WeldedHammerMeshSets.TryGetValue((layer, overlays), out var welded))
+        {
+            welded = new WeldedHammerMeshes(layer, overlays);
+            WeldedHammerMeshSets.Add((layer, overlays), welded);
+        }
+
+        return welded;
+    }
 
     // Selection sets (for easy access)
     private CMapSelectionSet? S2VSelectionSet;
@@ -659,6 +681,29 @@ public sealed partial class MapExtract
         return $"{LumpFolder}_d.vmap";
     }
 
+    // Stages of ToValveMap, reported as [stage/StageCount]
+    private const int StageLoadPhysics = 1;
+    private const int StageWorldNodes = 2;
+    private const int StageWeldMeshes = 3;
+    private const int StageEntities = 4;
+    private const int StageWorldPhysics = 5;
+    private const int StageWriteMap = 6;
+    private const int StageCount = 6;
+
+    private void ReportStage(int stage, string message)
+        => ProgressReporter?.Report(string.Create(CultureInfo.InvariantCulture, $"[{stage}/{StageCount}] {message}"));
+
+    // Reports every tenth of a loop, so long loops do not flood line based logs
+    private void ReportItemProgress(int stage, string label, int done, int count)
+    {
+        if (ProgressReporter is null || (done % Math.Max(1, count / 10) != 0 && done != count))
+        {
+            return;
+        }
+
+        ReportStage(stage, string.Create(CultureInfo.InvariantCulture, $"{label} {done}/{count}"));
+    }
+
     /// <summary>
     /// Converts the map to a Valve map format as a byte array.
     /// </summary>
@@ -670,6 +715,8 @@ public sealed partial class MapExtract
         datamodel.Root = MapDocument = [];
 
         CreateSelectionSets(MapDocument.RootSelectionSet);
+
+        ReportStage(StageLoadPhysics, "Loading world physics");
 
         // Small scene maps can have world physics without any parts
         var phys = LoadWorldPhysics();
@@ -683,34 +730,59 @@ public sealed partial class MapExtract
             // TODO: physics spheres and capsules are ignored
         }
 
+        var worldNodeNumber = 0;
         foreach (var worldNodeName in WorldNodeNames)
         {
             var worldNodeCompiled = worldNodeName + ".vwnod_c";
             FolderExtractFilter.Add(worldNodeCompiled);
 
+            var worldNodeLabel = string.Create(CultureInfo.InvariantCulture, $"World node {++worldNodeNumber}/{WorldNodeNames.Count}");
+
             using var worldNode = FileLoader.LoadFile(worldNodeCompiled);
             if (worldNode != null && worldNode.DataBlock != null)
             {
-                HandleWorldNode((WorldNode)worldNode.DataBlock);
+                HandleWorldNode((WorldNode)worldNode.DataBlock, worldNodeLabel);
             }
         }
 
-        // the hammer geometry of all world nodes is welded together here, then split back into objects
-        var worldHammerMeshes = GenerateHammerMeshes(WorldHammerMeshBuilders);
-        if (worldHammerMeshes.Count > 0)
+        var builderCount = 0;
+        var drawCallCount = 0;
+        foreach (var welded in WeldedHammerMeshSets.Values)
         {
+            builderCount += welded.Builders.Count;
+            drawCallCount += welded.DrawCalls;
+        }
+
+        ReportStage(StageWeldMeshes, string.Create(CultureInfo.InvariantCulture, $"Welding {drawCallCount} draw calls into Hammer meshes"));
+
+        var buildersWelded = 0;
+        var weldedMeshCount = 0;
+
+        // the hammer geometry of all world nodes is welded together here, then split back into objects
+        foreach (var welded in WeldedHammerMeshSets.Values)
+        {
+            var hammerMeshes = GenerateHammerMeshes(welded.Builders, () => ReportItemProgress(StageWeldMeshes, "Welding Hammer meshes: material group", ++buildersWelded, builderCount));
+            if (hammerMeshes.Count == 0)
+            {
+                continue;
+            }
+
+            weldedMeshCount += hammerMeshes.Count;
+
             var selectionSet = new CMapSelectionSet
             {
-                SelectionSetName = $"hammer meshes ({WorldHammerMeshDrawCalls} welded draw calls, {worldHammerMeshes.Count} meshes)",
+                SelectionSetName = $"{(welded.Overlays ? "overlays" : "hammer meshes")} ({welded.DrawCalls} welded draw calls, {hammerMeshes.Count} meshes)",
             };
-            HammerMeshesSelectionSet?.Children.Add(selectionSet);
+            (welded.Overlays ? OverlaysSelectionSet : HammerMeshesSelectionSet)?.Children.Add(selectionSet);
 
-            foreach (var hammerMesh in worldHammerMeshes)
+            foreach (var hammerMesh in hammerMeshes)
             {
-                MapDocument.World.Children.Add(hammerMesh);
+                welded.Layer.Children.Add(hammerMesh);
                 selectionSet.ObjectSelection.SelectedObjects.Add(hammerMesh);
             }
         }
+
+        ReportStage(StageWeldMeshes, string.Create(CultureInfo.InvariantCulture, $"Welded {drawCallCount} draw calls into {weldedMeshCount} Hammer meshes"));
 
         AdditionalMapDocuments = SplitLargeMapDocument();
 
@@ -722,6 +794,8 @@ public sealed partial class MapExtract
                 TargetMapPath = GetMapOutputName(i++),
             });
         }
+
+        ReportStage(StageEntities, "Converting entities");
 
         foreach (var entityLumpName in EntityLumpNames)
         {
@@ -737,11 +811,15 @@ public sealed partial class MapExtract
 
         if (phys != null)
         {
+            ReportStage(StageWorldPhysics, "Converting world physics to Hammer meshes");
+
             foreach (var hammermesh in PhysToHammerMeshes(phys, Matrix4x4.Identity))
             {
                 MapDocument.World.Children.Add(hammermesh);
             }
         }
+
+        ReportStage(StageWriteMap, "Writing the map document");
 
         using var stream = new MemoryStream();
 
@@ -974,13 +1052,15 @@ public sealed partial class MapExtract
     /// Welds the geometry of each builder and splits it into one Hammer mesh per connected island, named after
     /// the material.
     /// </summary>
-    private static List<CMapMesh> GenerateHammerMeshes(Dictionary<HammerMeshGroup, HammerMeshBuilder> builders)
+    private static List<CMapMesh> GenerateHammerMeshes(Dictionary<HammerMeshGroup, HammerMeshBuilder> builders, Action? builderWelded = null)
     {
         List<CMapMesh> hammerMeshes = [];
         var meshIndexPerMaterial = new Dictionary<string, int>();
 
         foreach (var (group, builder) in builders)
         {
+            builderWelded?.Invoke();
+
             var materialName = Path.GetFileNameWithoutExtension(group.Material);
             var meshIndex = meshIndexPerMaterial.GetValueOrDefault(materialName);
 
@@ -1236,7 +1316,9 @@ public sealed partial class MapExtract
         return Datamodel.Color.FromBytes(color32);
     }
 
-    private void HandleWorldNode(WorldNode node)
+    /// <param name="node">The world node to convert.</param>
+    /// <param name="label">Name of the node in progress messages.</param>
+    private void HandleWorldNode(WorldNode node, string label)
     {
         var layerNodes = CreateWorldLayerNodes(node.LayerNames);
 
@@ -1246,21 +1328,29 @@ public sealed partial class MapExtract
         var overrides = new SceneObjectOverrides(extraVertexStreamOverrides, extraVertexStreams, materialOverrides);
 
         var sceneObjects = node.SceneObjects;
+        var aggregateSceneObjects = node.AggregateSceneObjects;
+
+        ReportStage(StageWorldNodes, string.Create(CultureInfo.InvariantCulture,
+            $"{label}: {sceneObjects.Count} scene objects, {aggregateSceneObjects.Count} aggregates"));
+
         var sceneObjectModelNames = node.SceneObjectModelNames;
         var sceneObjectLayerIndices = node.SceneObjectLayerIndices;
+        var sceneObjectLabel = label + ": scene object";
         for (var i = 0; i < sceneObjects.Count; i++)
         {
             var sceneObject = sceneObjects[i];
             var layerIndex = (int)(sceneObjectLayerIndices?[i] ?? -1);
             ProcessSceneObject(sceneObject, sceneObjectModelNames[i], i, layerIndex, layerNodes, overrides);
+            ReportItemProgress(StageWorldNodes, sceneObjectLabel, i + 1, sceneObjects.Count);
         }
 
-        var aggregateSceneObjects = node.AggregateSceneObjects;
         var aggregateModelNames = node.AggregateSceneObjectModelNames;
+        var aggregateLabel = label + ": aggregate";
         for (var i = 0; i < aggregateSceneObjects.Count; i++)
         {
             var layerIndex = aggregateSceneObjects[i].GetInt32Property("m_nLayer");
             ProcessAggregate(aggregateSceneObjects[i], aggregateModelNames[i], layerIndex, layerNodes);
+            ReportItemProgress(StageWorldNodes, aggregateLabel, i + 1, aggregateSceneObjects.Count);
         }
 
         foreach (var clutterSceneObject in node.ClutterSceneObjects)
@@ -1387,7 +1477,7 @@ public sealed partial class MapExtract
         if (!objectFlags.HasFlag(ObjectTypeFlags.Model) && worldNodeModelName.Type != WorldNodeTypes.Unknown)
         {
             var settings = GetSceneObjectHammerMeshSettings(sceneObject, objectFlags, worldNodeModelName);
-            var isConverted = TryConvertSceneObjectToHammerMesh(modelName!, objectTransform, settings, GetWorldLayerNode(layerIndex, layerNodes), out drawCallTint);
+            var isConverted = TryConvertSceneObjectToHammerMesh(modelName!, objectTransform, worldNodeModelName.Type, settings, GetWorldLayerNode(layerIndex, layerNodes), out drawCallTint);
             if (isConverted)
             {
                 return;
@@ -1397,7 +1487,7 @@ public sealed partial class MapExtract
         SceneObjectsToExtract.Add(modelName!);
         AssetReferences.Add(modelName!);
 
-        var propStatic = CreateStaticPropFromSceneObject(sceneObject, sceneObjectIndex, modelName!, objectFlags, objectTransform, drawCallTint, overrides);
+        var propStatic = CreateStaticPropFromSceneObject(sceneObject, worldNodeModelName, sceneObjectIndex, modelName!, objectFlags, objectTransform, drawCallTint, overrides);
         var isEmbeddedModel = !objectFlags.HasFlag(ObjectTypeFlags.Model);
 
         StaticPropFinalize(propStatic, layerIndex, layerNodes, isEmbeddedModel);
@@ -1424,7 +1514,8 @@ public sealed partial class MapExtract
     /// Converts a scene object to hammer meshes. Returns false when the object is a prop that stays a model, and then
     /// sets <paramref name="drawCallTint"/> to the tint the compiler baked into the draw calls of that model.
     /// </summary>
-    private bool TryConvertSceneObjectToHammerMesh(string modelName, Matrix4x4 objectTransform, HammerMeshSettings settings, MapNode destNode, out Vector4? drawCallTint)
+    private bool TryConvertSceneObjectToHammerMesh(string modelName, Matrix4x4 objectTransform, WorldNodeTypes type, HammerMeshSettings settings, MapNode destNode,
+        out Vector4? drawCallTint)
     {
         drawCallTint = null;
 
@@ -1438,41 +1529,41 @@ public sealed partial class MapExtract
 
         var model = (Model)mesh.DataBlock;
 
-        // Source 2 bakes a mesh's scale into its vertices, so bake it here and keep only origin/angles on the node.
-        var meshOrigin = Vector3.Zero;
-        var meshAngles = new Datamodel.QAngle();
-        var scaleTransform = Matrix4x4.Identity;
-        if (!objectTransform.IsIdentity)
+        if (HasFoliageAnimationStreams(model))
         {
-            if (!Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation))
-            {
-                throw new InvalidOperationException("Matrix decompose failed");
-            }
-
-            meshOrigin = translation;
-            meshAngles = EntityTransformHelper.ToEulerAngles(rotation);
-            scaleTransform = Matrix4x4.CreateScale(scales);
+            // the compiler bakes the tint of the prop into the draw calls of its model
+            drawCallTint = GetUniformDrawCallTint(model);
+            return false;
         }
 
-        if (!HasFoliageAnimationStreams(model))
+        // The compiler cuts world geometry along render cluster borders, welding with the other scene objects joins it back
+        if (objectTransform.IsIdentity)
         {
-            foreach (var hammermesh in RenderMeshToHammerMesh(model, mesh, transform: scaleTransform, settings: settings))
-            {
-                hammermesh.Origin = meshOrigin;
-                hammermesh.Angles = meshAngles;
-                destNode.Children.Add(hammermesh);
-            }
-
+            var welded = GetWeldedHammerMeshes(destNode, type);
+            welded.DrawCalls += AddRenderMeshToBuilders(model, mesh, Matrix4x4.Identity, null, _ => settings, null, welded.Builders);
             return true;
         }
 
-        // the compiler bakes the tint of the prop into the draw calls of its model
-        drawCallTint = GetUniformDrawCallTint(model);
+        // Source 2 bakes a mesh's scale into its vertices, so bake it here and keep only origin/angles on the node.
+        if (!Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation))
+        {
+            throw new InvalidOperationException("Matrix decompose failed");
+        }
 
-        return false;
+        var meshAngles = EntityTransformHelper.ToEulerAngles(rotation);
+
+        foreach (var hammermesh in RenderMeshToHammerMesh(model, mesh, transform: Matrix4x4.CreateScale(scales), settings: settings))
+        {
+            hammermesh.Origin = translation;
+            hammermesh.Angles = meshAngles;
+            destNode.Children.Add(hammermesh);
+        }
+
+        return true;
     }
 
-    private BaseEntity CreateStaticPropFromSceneObject(KVObject sceneObject, int sceneObjectIndex, string modelName, ObjectTypeFlags objectFlags, Matrix4x4 objectTransform, Vector4? drawCallTint, SceneObjectOverrides overrides)
+    private BaseEntity CreateStaticPropFromSceneObject(KVObject sceneObject, WorldNodeModelName worldNodeModelName, int sceneObjectIndex, string modelName, ObjectTypeFlags objectFlags,
+        Matrix4x4 objectTransform, Vector4? drawCallTint, SceneObjectOverrides overrides)
     {
         var propStatic = new CMapEntity()
             .WithClassName("prop_static")
@@ -1528,7 +1619,7 @@ public sealed partial class MapExtract
             ModelsToExtract.Add(modelName);
         }
 
-        if (Path.GetFileName(modelName).Contains("nomerge", StringComparison.Ordinal))
+        if (worldNodeModelName.Type == WorldNodeTypes.NoMerge)
         {
             propStatic.EntityProperties["disablemerging"] = StringBool(true);
         }
@@ -1599,7 +1690,8 @@ public sealed partial class MapExtract
 
         if (hammerMeshDrawCalls.Count > 0)
         {
-            AddAggregateHammerMesh(model, modelRes, aggregateMeshes, drawCalls, allFlags, hammerMeshDrawCalls, aggregateModelName.Type == WorldNodeTypes.NoMerge);
+            var welded = GetWeldedHammerMeshes(GetWorldLayerNode(layerIndex, layerNodes), aggregateModelName.Type);
+            AddAggregateHammerMesh(model, modelRes, aggregateMeshes, drawCalls, allFlags, hammerMeshDrawCalls, aggregateModelName.Type == WorldNodeTypes.NoMerge, welded);
         }
 
         if (propFragments.Count == 0)
@@ -1619,7 +1711,7 @@ public sealed partial class MapExtract
     }
 
     private void AddAggregateHammerMesh(Model model, Resource modelRes, IReadOnlyList<KVObject> aggregateMeshes, IReadOnlyList<KVObject> drawCalls, ObjectTypeFlags allFlags,
-        HashSet<int> hammerMeshDrawCalls, bool disableMerging)
+        HashSet<int> hammerMeshDrawCalls, bool disableMerging, WeldedHammerMeshes welded)
     {
         // the fragment tint multiplies the draw call tint, one fragment per draw call is expected here
         var fragmentTints = new Dictionary<int, Vector4>();
@@ -1653,9 +1745,7 @@ public sealed partial class MapExtract
         HammerMeshSettings FragmentSettings(int drawCallIndex)
             => HammerMeshSettings.FromFlags(fragmentFlags.GetValueOrDefault(drawCallIndex, allFlags)) with { DisableMerging = disableMerging };
 
-        // world geometry is welded across all aggregates, the meshes are made once every world node is in
-        WorldHammerMeshDrawCalls += AddRenderMeshToBuilders(model, modelRes, Matrix4x4.Identity, HammerMeshTint, FragmentSettings, hammerMeshDrawCalls.Contains,
-            WorldHammerMeshBuilders);
+        welded.DrawCalls += AddRenderMeshToBuilders(model, modelRes, Matrix4x4.Identity, HammerMeshTint, FragmentSettings, hammerMeshDrawCalls.Contains, welded.Builders);
     }
 
     private void AddAggregateFragmentProps(string modelName, IReadOnlyList<KVObject> aggregateMeshes, IReadOnlyList<KVObject> drawCalls, Vector3[] drawCenters, IReadOnlyList<KVObject> fragmentTransforms, int layerIndex, List<MapNode> layerNodes)
@@ -1826,8 +1916,13 @@ public sealed partial class MapExtract
         var entities = entityLump.GetEntities();
         var pathNodeEntities = GroupPathNodeEntities(entities);
 
+        var progressLabel = $"Entities of {entityLump.Name}: entity";
+        var entityNumber = 0;
+
         foreach (var compiledEntity in entities)
         {
+            ReportItemProgress(StageEntities, progressLabel, ++entityNumber, entities.Count);
+
             var className = compiledEntity.GetStringProperty("classname");
 
             if (className == null)
