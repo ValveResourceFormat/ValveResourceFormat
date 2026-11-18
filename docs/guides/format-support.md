@@ -203,10 +203,12 @@ Data that was already destroyed by the map compiler, and therefore cannot come b
 | Mesh subdivision levels       | Only the final tessellated mesh is stored; subdivided surfaces come back flat (non-subdivided).                                       |
 | Per-light "No Shadow" flag    | Not preserved in compiled CS2 maps.                                                                                                   |
 
-On cubemap and light probe entities, VRF also intentionally renames the baked
-`cubemaptexture`, `lightprobetexture` and `array_index` keys with a `vrf_stripped_` prefix:
-the baked data is present in the compiled map, but referencing it can crash newer engine
-branches, and it is regenerated on recompile anyway.
+VRF also leaves out the entity keys the map compiler writes from baking and compiling, which
+it regenerates on recompile anyway: `compile_source_id`, the precomputed light bounds and
+shadow indices, the baked texture, size, atlas and `array_index` keys of cubemaps and light
+probes, and the brightness units a light does not select with `brightness_units`. Baked
+textures referencing them can crash newer engine branches. A cubemap or light probe texture
+set in Hammer, outside the map's `lightmaps` folder, is kept.
 
 Not implemented yet:
 

@@ -1531,15 +1531,33 @@ public sealed partial class MapExtract
         }
 
         entity.EntityProperties["rendercolor"] = $"{color32.R} {color32.G} {color32.B}";
-        entity.EntityProperties["renderamt"] = color32.A.ToString(CultureInfo.InvariantCulture);
+
+        // Only written when it differs from the default, some games remove the key from prop_static
+        if (color32.A != 255)
+        {
+            entity.EntityProperties["renderamt"] = color32.A.ToString(CultureInfo.InvariantCulture);
+        }
     }
 
+    // Only the settings that differ from the defaults are written, as not every game declares all of them on props
     private static void SetPropertiesFromFlags(BaseEntity prop, ObjectTypeFlags objectFlags)
     {
         var properties = prop.EntityProperties;
-        properties["renderwithdynamic"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.RenderWithDynamic));
-        properties["rendertocubemaps"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.RenderToCubemaps));
-        properties["disableinlowquality"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.DisabledInLowQuality));
+
+        if (objectFlags.HasFlag(ObjectTypeFlags.RenderWithDynamic))
+        {
+            properties["renderwithdynamic"] = StringBool(true);
+        }
+
+        if (!objectFlags.HasFlag(ObjectTypeFlags.RenderToCubemaps))
+        {
+            properties["rendertocubemaps"] = StringBool(false);
+        }
+
+        if (objectFlags.HasFlag(ObjectTypeFlags.DisabledInLowQuality))
+        {
+            properties["disableinlowquality"] = StringBool(true);
+        }
     }
 
     private void ProcessSceneObject(KVObject sceneObject, WorldNodeModelName worldNodeModelName, int sceneObjectIndex, int layerIndex, List<MapNode> layerNodes, SceneObjectOverrides overrides)
@@ -2162,7 +2180,11 @@ public sealed partial class MapExtract
                         $"model = {modelName} {className} != {otherClass}");
                 }
 
-                ExtractEntityModel(mapEntity, modelName, worldTransform);
+                // The model the compiler built from the entity's meshes, which come back as its children
+                if (ExtractEntityModel(mapEntity, modelName, worldTransform))
+                {
+                    mapEntity.EntityProperties.Remove("model");
+                }
 
                 ReadOnlySpan<char> entityIdFull = Path.GetFileNameWithoutExtension(modelName);
                 var nameCutoff = entityIdFull.Length;
@@ -2217,12 +2239,13 @@ public sealed partial class MapExtract
         return !TemplateChildEntities.Add(hammerUniqueId);
     }
 
-    private void ExtractEntityModel(CMapEntity mapEntity, string modelName, Matrix4x4 worldTransform)
+    // Returns whether the model became Hammer meshes of the entity
+    private bool ExtractEntityModel(CMapEntity mapEntity, string modelName, Matrix4x4 worldTransform)
     {
         using var model = FileLoader.LoadFileCompiled(modelName);
         if (model is null || model.DataBlock is null)
         {
-            return;
+            return false;
         }
 
         var EntitiesToHammerMesh = true;
@@ -2237,7 +2260,7 @@ public sealed partial class MapExtract
         if (EntitiesToHammerMesh)
         {
             AddEntityModelHammerMeshes(mapEntity, data, model, isJustPhysics, associatedEntityClass, worldTransform);
-            return;
+            return true;
         }
 
         var toolTexture = ToolsMaterials.GetForEntity(associatedEntityClass, FileLoader);
@@ -2253,6 +2276,7 @@ public sealed partial class MapExtract
 
         var vmdl = modelExtract.ToContentFile();
         EntityModels.Add(vmdl);
+        return false;
     }
 
     private void AddEntityModelHammerMeshes(CMapEntity mapEntity, Model data, Resource model, bool isJustPhysics, string? associatedEntityClass, Matrix4x4 worldTransform)
@@ -2289,7 +2313,7 @@ public sealed partial class MapExtract
                 continue;
             }
 
-            if (RemoveOrMutateCompilerGeneratedProperty(className, ref propertyKey))
+            if (IsCompilerOutputProperty(className, propertyKey, value, compiledEntity))
             {
                 continue;
             }
@@ -2382,22 +2406,6 @@ public sealed partial class MapExtract
 
             return true;
         }
-    }
-
-    // TODO: cubemaptexture may be set by artist, needs to be handled differently (reference: CS2 /ui/ maps)
-    private static bool RemoveOrMutateCompilerGeneratedProperty(string className, ref string propertyKey)
-    {
-        const string prefix = "vrf_stripped_";
-        if (className is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_cubemap_box" or "env_cubemap")
-        {
-            // in newer s2 engine branches having `array_index` present causes all sort of issues and crashes
-            if (propertyKey is "cubemaptexture" or "lightprobetexture" or "array_index")
-            {
-                propertyKey = prefix + propertyKey;
-            }
-        }
-
-        return false;
     }
 
     static string StringBool(bool value)
