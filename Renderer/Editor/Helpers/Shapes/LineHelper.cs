@@ -40,13 +40,13 @@ internal sealed class LineHelper : EntityHelper
     {
         IsSelectedOnly = declaration.Name.Equals("selected_line", StringComparison.OrdinalIgnoreCase);
 
-        startKey = GetArgument(3)!.ToLowerInvariant();
-        startValueKey = GetArgument(4)!.ToLowerInvariant();
+        startKey = GetArgument(3)!;
+        startValueKey = GetArgument(4)!;
 
         if (GetArgument(5) is { } key && GetArgument(6) is { } valueKey)
         {
-            endKey = key.ToLowerInvariant();
-            endValueKey = valueKey.ToLowerInvariant();
+            endKey = key;
+            endValueKey = valueKey;
         }
     }
 

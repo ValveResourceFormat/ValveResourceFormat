@@ -87,16 +87,16 @@ internal sealed class BoxHelper : EntityHelper
 
         if (size == BoxHelperSize.MinsMaxs)
         {
-            MinsKey = (GetMetadata("box_min") ?? GetArgument(0))?.ToLowerInvariant();
-            MaxsKey = (GetMetadata("box_max") ?? GetArgument(1))?.ToLowerInvariant();
+            MinsKey = GetMetadata("box_min") ?? GetArgument(0);
+            MaxsKey = GetMetadata("box_max") ?? GetArgument(1);
         }
         else
         {
-            SizeKey = (GetMetadata("box_size") ?? GetArgument(0))?.ToLowerInvariant();
+            SizeKey = GetMetadata("box_size") ?? GetArgument(0);
         }
 
-        EdgeFadesKey = GetMetadata("edge_fades")?.ToLowerInvariant();
-        EdgeFadeKey = GetMetadata("single_edge_fade")?.ToLowerInvariant();
+        EdgeFadesKey = GetMetadata("edge_fades");
+        EdgeFadeKey = GetMetadata("single_edge_fade");
         DrawUnselected = GetMetadataFlag("draw_unselected_box", true);
         OnlyVisibleHighlightEnabled = GetMetadataFlag("only_visible_highlight_enabled");
         IsLightProbeVolume = GetMetadataFlag("is_light_probe_volume");

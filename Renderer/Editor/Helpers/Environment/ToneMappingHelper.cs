@@ -32,5 +32,5 @@ internal sealed class ToneMappingHelper(IHelperOwner owner, HelperDeclaration de
     }
 
     private float? GetExposure(string key)
-        => Owner.KeyValues.GetNullableFloatProperty(key.ToLowerInvariant());
+        => Owner.KeyValues.GetNullableFloatProperty(key);
 }
