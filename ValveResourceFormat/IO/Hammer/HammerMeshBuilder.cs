@@ -34,13 +34,18 @@ namespace ValveResourceFormat.IO
             public Node[] PhysicsTree { get; }
             /// <summary>Gets the indices of the triangles render geometry covers.</summary>
             public HashSet<int> DeletedTriangles { get; }
+            /// <summary>Gets whether covered triangles are added to <see cref="DeletedTriangles"/>, or only counted.</summary>
+            public bool DeletesCovered { get; }
 
             /// <summary>
             /// Initializes a new instance of the <see cref="PhysMeshData"/> class.
             /// </summary>
-            public PhysMeshData(MeshDescriptor mesh)
+            /// <param name="mesh">The physics mesh.</param>
+            /// <param name="deletesCovered">Whether triangles render geometry covers are deleted, or only counted.</param>
+            public PhysMeshData(MeshDescriptor mesh, bool deletesCovered = true)
             {
                 Mesh = mesh;
+                DeletesCovered = deletesCovered;
 
                 VertexPositions = mesh.Shape.GetVertices().ToArray();
                 Triangles = mesh.Shape.GetTriangles().ToArray();
@@ -65,11 +70,13 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Initializes a new instance of the <see cref="PhysicsTriangleMatcher"/> class.
         /// </summary>
-        public PhysicsTriangleMatcher(MeshDescriptor[] meshes)
+        /// <param name="meshes">The physics meshes to match against.</param>
+        /// <param name="deletesCovered">Whether the covered triangles of a mesh are deleted, or only counted, defaults to deleting for every mesh.</param>
+        public PhysicsTriangleMatcher(MeshDescriptor[] meshes, Func<MeshDescriptor, bool>? deletesCovered = null)
         {
             for (var i = 0; i < meshes.Length; i++)
             {
-                var meshData = new PhysMeshData(meshes[i]);
+                var meshData = new PhysMeshData(meshes[i], deletesCovered?.Invoke(meshes[i]) ?? true);
                 PhysicsMeshes.Add(meshData);
                 PhysicsMeshByDescriptor.TryAdd(meshes[i], meshData);
             }
@@ -84,12 +91,13 @@ namespace ValveResourceFormat.IO
         record struct RnMeshNodeWithIndex(int Index, Node Node);
 
         /// <summary>
-        /// Marks the physics triangles the given render triangles cover.
+        /// Marks the physics triangles the given render triangles cover, in the meshes that delete covered triangles.
         /// </summary>
         /// <param name="positions">Render mesh positions, in world space.</param>
         /// <param name="indices">Three position indices per render triangle.</param>
         /// <param name="progressReporter">Receives a message with the number of covered triangles, in debug builds.</param>
-        public void MarkTrianglesCoveredBy(ReadOnlySpan<Vector3> positions, ReadOnlySpan<int> indices, IProgress<string>? progressReporter)
+        /// <returns>The number of physics triangles the render triangles cover in any mesh, including ones covered before.</returns>
+        public int MarkTrianglesCoveredBy(ReadOnlySpan<Vector3> positions, ReadOnlySpan<int> indices, IProgress<string>? progressReporter)
         {
             var stack = new Stack<RnMeshNodeWithIndex>(64);
             var covered = 0;
@@ -153,12 +161,6 @@ namespace ValveResourceFormat.IO
                         for (var k = 0; k < triangleCount; k++)
                         {
                             var triangleIndex = triangleOffset + k;
-
-                            if (meshData.DeletedTriangles.Contains(triangleIndex))
-                            {
-                                continue;
-                            }
-
                             var triangle = meshData.Triangles[triangleIndex];
                             var p0 = meshData.VertexPositions[triangle.X];
                             var p1 = meshData.VertexPositions[triangle.Y];
@@ -180,7 +182,11 @@ namespace ValveResourceFormat.IO
                                 continue;
                             }
 
-                            meshData.DeletedTriangles.Add(triangleIndex);
+                            if (meshData.DeletesCovered)
+                            {
+                                meshData.DeletedTriangles.Add(triangleIndex);
+                            }
+
                             covered++;
                         }
                     }
@@ -193,6 +199,8 @@ namespace ValveResourceFormat.IO
                 progressReporter?.Report($"{nameof(PhysicsTriangleMatcher)}: {covered} physics triangles covered by {indices.Length / 3} render triangles");
             }
 #endif
+
+            return covered;
         }
     }
 
@@ -855,7 +863,8 @@ namespace ValveResourceFormat.IO
         /// </summary>
         /// <param name="shape">Mesh to add.</param>
         /// <param name="transform">Transform applied to positions, normals and tangents.</param>
-        public void AddRenderMesh(DmeMesh shape, Matrix4x4 transform)
+        /// <returns>The number of physics triangles the mesh covers, see <see cref="PhysicsTriangleMatcher.MarkTrianglesCoveredBy"/>, 0 without a <see cref="PhysicsTriangleMatcher"/>.</returns>
+        public int AddRenderMesh(DmeMesh shape, Matrix4x4 transform)
         {
             var facesets = shape.FaceSets;
 
@@ -956,6 +965,7 @@ namespace ValveResourceFormat.IO
             }
 
             // the render triangles cover physics triangles, which the physics reconstruction then leaves out
+            var coveredPhysicsTriangles = 0;
             if (PhysicsTriangleMatcher != null)
             {
                 var triangleIndices = new List<int>(faceList.Count * 3);
@@ -970,7 +980,7 @@ namespace ValveResourceFormat.IO
                     }
                 }
 
-                PhysicsTriangleMatcher.MarkTrianglesCoveredBy(newPositions, CollectionsMarshal.AsSpan(triangleIndices), ProgressReporter);
+                coveredPhysicsTriangles = PhysicsTriangleMatcher.MarkTrianglesCoveredBy(newPositions, CollectionsMarshal.AsSpan(triangleIndices), ProgressReporter);
             }
 
             var baseVertex = AddVertices(newPositions);
@@ -987,6 +997,8 @@ namespace ValveResourceFormat.IO
 
                 AddFace(faceIndices, faceSet.Material.MaterialName, faceCorners[..faceIndices.Length]);
             }
+
+            return coveredPhysicsTriangles;
 
             static T? Get<T>(IList<T>? stream, int index) where T : struct
                 => stream is { Count: > 0 } ? stream[index] : null;

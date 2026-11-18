@@ -136,6 +136,70 @@ public sealed partial class MapExtract
         }
     }
 
+    // Collision attributes of the world physics, null without world physics
+    private IReadOnlyList<KVObject>? WorldCollisionAttributes;
+
+    // World physics triangles the draw calls of each material cover, for the world geometry only
+    private readonly Dictionary<string, int> MaterialCoveredPhysicsTriangles = [];
+
+    private readonly List<(CMapMesh Mesh, string Material)> WorldHammerMeshMaterials = [];
+
+    private readonly Dictionary<string, bool> MaterialsCompiledWithoutCollision = [];
+
+    /// <summary>
+    /// Gets whether the Hammer meshes of a material had physics turned off: the material compiles to collision, no
+    /// collision of that kind is in the world physics, and no draw call of the material lies on a physics triangle.
+    /// The last check guards against the guess of what the material compiles to.
+    /// </summary>
+    private bool MaterialCompiledWithoutCollision(string materialName)
+    {
+        if (!MaterialsCompiledWithoutCollision.TryGetValue(materialName, out var compiledWithoutCollision))
+        {
+            compiledWithoutCollision = LoadMaterialCompiledWithoutCollision(materialName);
+            MaterialsCompiledWithoutCollision[materialName] = compiledWithoutCollision;
+        }
+
+        return compiledWithoutCollision;
+    }
+
+    private bool LoadMaterialCompiledWithoutCollision(string materialName)
+    {
+        if (WorldCollisionAttributes is null
+            || !MaterialCoveredPhysicsTriangles.TryGetValue(materialName, out var coveredTriangles)
+            || coveredTriangles > 0)
+        {
+            return false;
+        }
+
+        var collision = ToolsMaterials.GetCollision(materialName);
+
+        if (collision is null)
+        {
+            using var materialResource = FileLoader.LoadFileCompiled(materialName);
+            if (materialResource?.DataBlock is not Material material)
+            {
+                return false;
+            }
+
+            collision = new MaterialCollision(new BasicShaderDataProvider().GetIntAttributes(material), material.StringAttributes);
+        }
+
+        if (!collision.IsSolid)
+        {
+            return false;
+        }
+
+        foreach (var collisionAttributes in WorldCollisionAttributes)
+        {
+            if (collision.CompilesTo(collisionAttributes))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private readonly Dictionary<string, bool> MaterialsThatPreventMerging = [];
 
     /// <summary>
@@ -723,9 +787,11 @@ public sealed partial class MapExtract
         if (phys is { Parts.Length: > 0 })
         {
             var collisionAttributes = phys.CollisionAttributes;
-            var worldPhysMeshes = phys.Parts[0].Shape.GetAllMeshes().Where(m => collisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
+            WorldCollisionAttributes = collisionAttributes;
 
-            PhysTriangleMatcher = new PhysicsTriangleMatcher([.. worldPhysMeshes]);
+            // Every mesh counts towards whether a material has collision, render geometry only replaces the default collision
+            PhysTriangleMatcher = new PhysicsTriangleMatcher([.. phys.Parts[0].Shape.GetAllMeshes()],
+                mesh => collisionAttributes[mesh.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
 
             // TODO: physics spheres and capsules are ignored
         }
@@ -783,6 +849,22 @@ public sealed partial class MapExtract
         }
 
         ReportStage(StageWeldMeshes, string.Create(CultureInfo.InvariantCulture, $"Welded {drawCallCount} draw calls into {weldedMeshCount} Hammer meshes"));
+
+        var meshesWithoutPhysics = 0;
+        foreach (var (hammerMesh, material) in WorldHammerMeshMaterials)
+        {
+            if (MaterialCompiledWithoutCollision(material))
+            {
+                hammerMesh.PhysicsType = "none";
+                meshesWithoutPhysics++;
+            }
+        }
+
+        if (meshesWithoutPhysics > 0)
+        {
+            ReportStage(StageWeldMeshes, string.Create(CultureInfo.InvariantCulture,
+                $"Turned physics off on {meshesWithoutPhysics} Hammer meshes whose material has no collision in the compiled map"));
+        }
 
         AdditionalMapDocuments = SplitLargeMapDocument();
 
@@ -1022,7 +1104,13 @@ public sealed partial class MapExtract
 
                 if (dag.Shape is DmeMesh meshShape)
                 {
-                    builder.AddRenderMesh(meshShape, transform);
+                    var coveredTriangles = builder.AddRenderMesh(meshShape, transform);
+
+                    // Settings are only given for world geometry, which the world physics belongs to
+                    if (settings is not null)
+                    {
+                        MaterialCoveredPhysicsTriangles[material] = MaterialCoveredPhysicsTriangles.GetValueOrDefault(material) + coveredTriangles;
+                    }
                 }
             }
         }
@@ -1052,7 +1140,7 @@ public sealed partial class MapExtract
     /// Welds the geometry of each builder and splits it into one Hammer mesh per connected island, named after
     /// the material.
     /// </summary>
-    private static List<CMapMesh> GenerateHammerMeshes(Dictionary<HammerMeshGroup, HammerMeshBuilder> builders, Action? builderWelded = null)
+    private List<CMapMesh> GenerateHammerMeshes(Dictionary<HammerMeshGroup, HammerMeshBuilder> builders, Action? builderWelded = null)
     {
         List<CMapMesh> hammerMeshes = [];
         var meshIndexPerMaterial = new Dictionary<string, int>();
@@ -1075,7 +1163,12 @@ public sealed partial class MapExtract
                     TintColor = ConvertToColor32(group.Tint),
                 };
 
-                group.Settings?.ApplyTo(hammerMesh);
+                if (group.Settings is { } settings)
+                {
+                    settings.ApplyTo(hammerMesh);
+                    WorldHammerMeshMaterials.Add((hammerMesh, group.Material));
+                }
+
                 hammerMeshes.Add(hammerMesh);
             }
 
