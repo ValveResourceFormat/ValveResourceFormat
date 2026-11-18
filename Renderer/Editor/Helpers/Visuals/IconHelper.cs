@@ -44,7 +44,7 @@ public class IconHelper : EntityHelper
     private IconHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         MaterialName = GetDeclaredMaterialName(declaration) ?? GetMaterialName(string.Empty);
-        TintKey = GetMetadata("tintKey")?.ToLowerInvariant();
+        TintKey = GetMetadata("tintKey");
     }
 
     /// <summary>Creates the icon a class declares.</summary>

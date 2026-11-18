@@ -63,11 +63,11 @@ internal sealed class ArcRangeHelper : EntityHelper
 
     public ArcRangeHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
-        IsEnabledKey = (GetMetadata("is_enabled_key") ?? "is_enabled").ToLowerInvariant();
-        AxisKey = (GetMetadata("axis_key") ?? "axis").ToLowerInvariant();
-        MinAngleKey = (GetMetadata("min_angle_key") ?? "min_angle").ToLowerInvariant();
-        MaxAngleKey = (GetMetadata("max_angle_key") ?? "max_angle").ToLowerInvariant();
-        FovKey = (GetMetadata("fov_key") ?? "fov").ToLowerInvariant();
+        IsEnabledKey = GetMetadata("is_enabled_key") ?? "is_enabled";
+        AxisKey = GetMetadata("axis_key") ?? "axis";
+        MinAngleKey = GetMetadata("min_angle_key") ?? "min_angle";
+        MaxAngleKey = GetMetadata("max_angle_key") ?? "max_angle";
+        FovKey = GetMetadata("fov_key") ?? "fov";
         IsLocalAxis = GetMetadataFlag("is_local_axis", true);
         AlignPieToLocalForward = GetMetadataFlag("align_pie_to_local_forward");
         AlignPieToLocalUp = GetMetadataFlag("align_pie_to_local_up");

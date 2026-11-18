@@ -34,9 +34,9 @@ internal sealed class LightConeHelper : EntityHelper
 
     public LightConeHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
-        InnerAngleKey = GetArgument(0)?.ToLowerInvariant() ?? "innerconeangle";
-        OuterAngleKey = GetArgument(1)?.ToLowerInvariant() ?? "outerconeangle";
-        ColorKey = GetArgument(2)?.ToLowerInvariant() ?? "color";
+        InnerAngleKey = GetArgument(0) ?? "innerconeangle";
+        OuterAngleKey = GetArgument(1) ?? "outerconeangle";
+        ColorKey = GetArgument(2) ?? "color";
         PitchScale = GetArgument(3) is { } scale ? ValueParsing.ParseFloat(scale) : 1f;
     }
 
