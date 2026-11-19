@@ -180,7 +180,7 @@ internal sealed partial class McpTools
             SpawnGroup = entity.Group?.MapName,
             Sky = Flag(entity.Group?.WorldGroup != null),
             entity.Position,
-            Fields = fields == null ? null : data.Children.Where(pair => fields.Contains(pair.Key)).ToDictionary(static pair => pair.Key, static pair => KeyValueText(pair.Value)),
+            Fields = fields == null ? null : data.Properties.Where(pair => fields.Contains(pair.Key, StringComparer.OrdinalIgnoreCase)).ToDictionary(static pair => pair.Key, static pair => KeyValueText(pair.Value)),
         };
     }
 
@@ -286,9 +286,9 @@ internal sealed partial class McpTools
     /// <summary>Whether an entity has a keyvalue with this key, or any key when null, whose value matches.</summary>
     private static bool HasKeyValue(EntityLump.Entity data, string? key, Regex? valuePattern)
     {
-        foreach (var pair in data.Children)
+        foreach (var pair in data.Properties)
         {
-            if (key != null && pair.Key != key)
+            if (key != null && !pair.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -333,7 +333,7 @@ internal sealed partial class McpTools
             SpawnGroup = row.Group?.MapName,
             Sky = Flag(row.Group?.WorldGroup != null),
             row.Position,
-            Keyvalues = data.Children.Where(pair => pair.Key is not ("classname" or "targetname") && Matches(keysPattern, pair.Key)).ToDictionary(static pair => pair.Key, static pair => KeyValueText(pair.Value)),
+            Keyvalues = data.Properties.Where(pair => !pair.Key.Equals("classname", StringComparison.OrdinalIgnoreCase) && !pair.Key.Equals("targetname", StringComparison.OrdinalIgnoreCase) && Matches(keysPattern, pair.Key)).ToDictionary(static pair => pair.Key, static pair => KeyValueText(pair.Value)),
             Outputs = data.Connections?.Select(DescribeConnection).ToList(),
 
             Spawned = instance == null ? null : new

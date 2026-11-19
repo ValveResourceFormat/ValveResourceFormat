@@ -262,14 +262,35 @@ public abstract class BaseEntity : MapNode
     public EditGameClassProps EntityProperties { get; init; } = [];
 
     /// <summary>
-    /// Sets one entity key value and returns this entity.
+    /// Sets one entity key value and returns this entity. A key of the same name in another casing is replaced.
     /// </summary>
     /// <param name="name">Key to set.</param>
     /// <param name="value">Value to set it to.</param>
     public BaseEntity WithProperty(string name, string value)
     {
-        EntityProperties[name] = value;
+        EntityProperties[FindProperty(name) ?? name] = value;
         return this;
+    }
+
+    /// <summary>
+    /// Removes one entity key value, whatever its casing.
+    /// </summary>
+    /// <param name="name">Key to remove.</param>
+    /// <returns>Whether the key existed.</returns>
+    public bool RemoveProperty(string name)
+        => FindProperty(name) is { } key && EntityProperties.Remove(key);
+
+    private string? FindProperty(string name)
+    {
+        foreach (var property in EntityProperties)
+        {
+            if (property.Key.Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                return property.Key;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -280,7 +301,7 @@ public abstract class BaseEntity : MapNode
     {
         foreach (var (name, value) in properties)
         {
-            EntityProperties[name] = value;
+            WithProperty(name, value);
         }
 
         return this;

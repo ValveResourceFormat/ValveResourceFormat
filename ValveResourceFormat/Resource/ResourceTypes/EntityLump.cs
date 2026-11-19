@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -16,8 +17,10 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Represents a single entity with its properties and connections.
         /// </summary>
-        public class Entity : KVObject
+        public class Entity
         {
+            private readonly Dictionary<uint, (string? Name, KVObject Value)> PropertyTable = [];
+
             /// <summary>
             /// Gets the entity connections (outputs that fire inputs on other entities, part of the entity I/O system).
             /// </summary>
@@ -30,11 +33,113 @@ namespace ValveResourceFormat.ResourceTypes
             /// <summary>
             /// Gets the target name of the entity.
             /// </summary>
-            public string? TargetName => this.GetStringProperty("targetname");
+            public string? TargetName => GetStringProperty("targetname");
             /// <summary>
             /// Gets the target name of the entity with its name fixup markers removed, as the map spawns it.
             /// </summary>
             public string? FriendlyTargetName => TargetName is { } targetName ? ApplyNameFixup(targetName, string.Empty, string.Empty) : null;
+
+            /// <summary>
+            /// Gets the number of properties.
+            /// </summary>
+            public int Count => PropertyTable.Count;
+
+            /// <summary>
+            /// Gets the properties as name and value pairs. A property read from a hash is named by <see cref="StringToken.GetKnownString"/>.
+            /// </summary>
+            public IEnumerable<KeyValuePair<string, KVObject>> Properties
+            {
+                get
+                {
+                    foreach (var (token, (name, value)) in PropertyTable)
+                    {
+                        yield return new(name ?? StringToken.GetKnownString(token), value);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Gets or sets a property value. Names are case insensitive.
+            /// </summary>
+            /// <param name="name">The property name.</param>
+            public KVObject this[string name]
+            {
+                get => PropertyTable[StringToken.Get(name)].Value;
+                set => PropertyTable[StringToken.Get(name)] = (name, value);
+            }
+
+            internal void Set(uint token, string? name, KVObject value) => PropertyTable[token] = (name, value);
+
+            /// <summary>
+            /// Checks whether a property exists.
+            /// </summary>
+            /// <param name="name">The property name.</param>
+            public bool ContainsKey(string name) => PropertyTable.ContainsKey(StringToken.Get(name));
+
+            /// <summary>
+            /// Gets a property value.
+            /// </summary>
+            /// <param name="name">The property name.</param>
+            /// <param name="value">The value when the property exists.</param>
+            /// <returns>Whether the property exists.</returns>
+            public bool TryGetValue(string name, [MaybeNullWhen(false)] out KVObject value)
+            {
+                if (PropertyTable.TryGetValue(StringToken.Get(name), out var property))
+                {
+                    value = property.Value;
+                    return true;
+                }
+
+                value = null;
+                return false;
+            }
+
+            private bool TryGetScalar(string name, [MaybeNullWhen(false)] out KVObject value)
+                => TryGetValue(name, out value) && !KVObjectExtensions.IsBlankText(value);
+
+            /// <inheritdoc cref="KVObjectExtensions.GetStringProperty"/>
+            public string GetStringProperty(string name, string? defaultValue = null)
+                => TryGetValue(name, out var value) ? value.ToStringOrDefault(defaultValue) : defaultValue!;
+
+            /// <inheritdoc cref="KVObjectExtensions.GetNonEmptyStringProperty"/>
+            public string? GetNonEmptyStringProperty(string name)
+                => GetStringProperty(name) is { Length: > 0 } value ? value : null;
+
+            /// <inheritdoc cref="KVObjectExtensions.GetInt32Property"/>
+            public int GetInt32Property(string name, int defaultValue = 0)
+                => TryGetValue(name, out var value) ? value.ToInt32OrDefault(defaultValue) : defaultValue;
+
+            /// <inheritdoc cref="KVObjectExtensions.GetIntegerProperty"/>
+            public long GetIntegerProperty(string name, long defaultValue = 0)
+                => TryGetValue(name, out var value) ? value.ToInt64OrDefault(defaultValue) : defaultValue;
+
+            /// <inheritdoc cref="KVObjectExtensions.GetUInt32Property"/>
+            public uint GetUInt32Property(string name, uint defaultValue = 0)
+                => TryGetScalar(name, out var value) ? (uint)value : defaultValue;
+
+            /// <inheritdoc cref="KVObjectExtensions.GetFloatProperty"/>
+            public float GetFloatProperty(string name, float defaultValue = 0)
+                => TryGetValue(name, out var value) ? value.ToFloatOrDefault(defaultValue) : defaultValue;
+
+            /// <inheritdoc cref="KVObjectExtensions.GetNullableFloatProperty"/>
+            public float? GetNullableFloatProperty(string name)
+                => TryGetScalar(name, out var value) ? value.ToFloatOrDefault() : null;
+
+            /// <inheritdoc cref="KVObjectExtensions.GetDoubleProperty"/>
+            public double GetDoubleProperty(string name, double defaultValue = 0)
+                => TryGetScalar(name, out var value) ? (double)value : defaultValue;
+
+            /// <inheritdoc cref="KVObjectExtensions.GetBooleanProperty"/>
+            public bool GetBooleanProperty(string name, bool defaultValue = false)
+                => TryGetValue(name, out var value) ? value.ToBooleanOrDefault(defaultValue) : defaultValue;
+
+            /// <inheritdoc cref="KVObjectExtensions.GetVector2Property"/>
+            public Vector2 GetVector2Property(string name, Vector2 defaultValue = default)
+                => TryGetValue(name, out var value) ? value.ToVector2OrDefault(defaultValue) : defaultValue;
+
+            /// <inheritdoc cref="KVObjectExtensions.GetVector3Property"/>
+            public Vector3 GetVector3Property(string name, Vector3 defaultValue = default)
+                => TryGetValue(name, out var value) ? value.ToVector3OrDefault(defaultValue) : defaultValue;
 
             /// <summary>
             /// Gets a Color32 property value.
@@ -79,7 +184,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 // A fourth rendercolor component is ignored, opacity only comes from renderamt
                 var color = GetColor32Property("rendercolor");
-                var amount = unchecked((byte)this.GetInt32Property("renderamt", byte.MaxValue));
+                var amount = unchecked((byte)GetInt32Property("renderamt", byte.MaxValue));
 
                 return new Vector4(color, amount / 255f);
             }
@@ -253,9 +358,6 @@ namespace ValveResourceFormat.ResourceTypes
             return entity;
         }
 
-        // TODO: Keep the original casing once entity property lookups are case-insensitive
-        private static string ToPropertyKey(string name) => name.ToLowerInvariant();
-
         private static KVObject MakeColor32(byte[] bytes)
             => KVObject.PackedArray(Array.ConvertAll(bytes, static b => (long)b));
 
@@ -273,8 +375,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var child in values.Children)
             {
-                StringToken.Store(child.Key);
-                entity.Add(ToPropertyKey(child.Key), child.Value);
+                entity.Set(StringToken.Store(child.Key), child.Key, child.Value);
             }
         }
 
@@ -316,8 +417,7 @@ namespace ValveResourceFormat.ResourceTypes
                 // ignore CEntityKeyValues attributes
                 if (keyName == null)
                 {
-                    keyName = ToPropertyKey(StringToken.GetKnownString(keyHash));
-                    entity.Add(keyName, entityProperty);
+                    entity.Set(keyHash, null, entityProperty);
                 }
                 else
                 {
@@ -366,7 +466,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 builder.AppendLine(CultureInfo.InvariantCulture, $"===={index++}====");
 
-                foreach (var property in entity.Children)
+                foreach (var property in entity.Properties)
                 {
                     var value = StringifyValue(property.Value, valueStream);
 
@@ -452,9 +552,9 @@ namespace ValveResourceFormat.ResourceTypes
                     uniqueEntityProperties.Add(classname, entityProperties);
                 }
 
-                foreach (var property in entity.Children)
+                foreach (var property in entity.Properties)
                 {
-                    var key = property.Key;
+                    var key = property.Key.ToLowerInvariant();
 
                     if (key is "hammeruniqueid" or "classname" or "angles" or "scales" or "origin")
                     {

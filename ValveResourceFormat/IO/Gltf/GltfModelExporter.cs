@@ -559,7 +559,7 @@ namespace ValveResourceFormat.IO
             {
                 entityExtras = new JsonObject();
 
-                foreach (var (key, value) in entity.Children)
+                foreach (var (key, value) in entity.Properties)
                 {
                     entityExtras[key] = KeyValueToJson(value);
                 }

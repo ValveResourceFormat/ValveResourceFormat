@@ -1745,7 +1745,7 @@ public sealed partial class MapExtract
             if (className == "worldspawn")
             {
                 AddProperties(className, compiledEntity, MapDocument.World);
-                MapDocument.World.EntityProperties["description"] = $"Decompiled with {StringToken.VRF_GENERATOR}";
+                MapDocument.World.WithProperty("description", $"Decompiled with {StringToken.VRF_GENERATOR}");
                 var mapType = compiledEntity.GetStringProperty("mapusagetype");
                 if (mapType != null)
                 {
@@ -1864,7 +1864,7 @@ public sealed partial class MapExtract
                     RecoverCableAttributes(cable, className, compiledEntity, modelName, pathNodes);
                 }
 
-                mapEntity.EntityProperties.Remove("model");
+                mapEntity.RemoveProperty("model");
             }
             else if (modelName != null && PathIsSubPath(modelName, LumpFolder))
             {
@@ -1994,11 +1994,11 @@ public sealed partial class MapExtract
     private static int[] AddProperties(string className, Entity compiledEntity, BaseEntity mapEntity)
     {
         var entityLineage = Array.Empty<int>();
-        foreach (var (key, value) in compiledEntity.Children)
+        foreach (var (key, value) in compiledEntity.Properties)
         {
-            var propertyKey = key.ToLowerInvariant();
+            var propertyKey = key;
 
-            if (TryHandleSpecialProperty(propertyKey, compiledEntity, mapEntity, ref entityLineage))
+            if (TryHandleSpecialProperty(key.ToLowerInvariant(), compiledEntity, mapEntity, ref entityLineage))
             {
                 continue;
             }
@@ -2010,7 +2010,7 @@ public sealed partial class MapExtract
 
             var editString = ApplyNameFixup(ToEditString(value) ?? string.Empty, string.Empty, string.Empty);
 
-            mapEntity.EntityProperties.Add(propertyKey, editString);
+            mapEntity.WithProperty(propertyKey, editString);
         }
 
         if (compiledEntity.Connections != null)
@@ -2105,9 +2105,11 @@ public sealed partial class MapExtract
         if (className is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_cubemap_box" or "env_cubemap")
         {
             // in newer s2 engine branches having `array_index` present causes all sort of issues and crashes
-            if (propertyKey is "cubemaptexture" or "lightprobetexture" or "array_index")
+            var key = propertyKey.ToLowerInvariant();
+
+            if (key is "cubemaptexture" or "lightprobetexture" or "array_index")
             {
-                propertyKey = prefix + propertyKey;
+                propertyKey = prefix + key;
             }
         }
 

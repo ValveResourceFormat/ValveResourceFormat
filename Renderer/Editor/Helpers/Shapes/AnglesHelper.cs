@@ -40,7 +40,7 @@ internal sealed class AnglesHelper : EntityHelper
     public AnglesHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         IsLocal = declaration.Name.Equals("drawangles_local", StringComparison.OrdinalIgnoreCase);
-        AnglesKey = GetMetadata("angles_key")?.ToLowerInvariant();
+        AnglesKey = GetMetadata("angles_key");
         DrawBasisVectors = GetMetadataFlag("draw_basis_vectors", true);
         Color = GetMetadataColor("forward_color") ?? Color32.White;
     }
