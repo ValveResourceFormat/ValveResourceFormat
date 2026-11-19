@@ -5,6 +5,10 @@
 *.ico binary
 *.ttf binary
 *.bin binary
+*.webp binary
+*.vcs binary
+*.vpk binary
+*_c binary
 
 #For KeyValues3 Tests, keep intended line endings to test parser
 *_CRLF.kv3 eol=crlf
