@@ -305,41 +305,43 @@ namespace ValveResourceFormat.Blocks
 
         private static byte[] DecompressData(OnDiskBufferData buffer, ReadOnlySpan<byte> span, int decompressedSize, bool isVertex, bool isZstdCompressed, bool isZ3Compressed, bool isMeshoptCompressed)
         {
+            var isCompressed = isZstdCompressed || isZ3Compressed;
+
+            if (!isMeshoptCompressed)
+            {
+                var written = span.Length;
+                var data = new byte[decompressedSize];
+
+                if (isCompressed)
+                {
+                    written = Decompress(span, data, isZstdCompressed);
+                }
+
+                if (written != decompressedSize)
+                {
+                    throw new InvalidDataException($"Decompressed buffer is {written} bytes, expected {decompressedSize}.");
+                }
+
+                if (!isCompressed)
+                {
+                    span.CopyTo(data);
+                }
+
+                return data;
+            }
+
             byte[]? tempDecompressed = null;
 
             try
             {
-                if (isZstdCompressed || isZ3Compressed)
+                if (isCompressed)
                 {
                     // There is no expected decompressed size, so we just use buffer size for fully decoded vertex buffer
                     // and then use the return value of decompress to pass into the vertex decoder as the buffer size
                     tempDecompressed = ArrayPool<byte>.Shared.Rent(decompressedSize);
 
-                    var destination = tempDecompressed.AsSpan(0, decompressedSize);
-                    var written = 0;
-
-                    if (isZ3Compressed)
-                    {
-                        written = Z3Decoder.Decompress(span, destination);
-                    }
-                    else if (!span.IsEmpty && !ZstandardDecoder.TryDecompress(span, destination, out written))
-                    {
-                        throw new InvalidDataException("Failed to decompress ZSTD.");
-                    }
-
+                    var written = Decompress(span, tempDecompressed.AsSpan(0, decompressedSize), isZstdCompressed);
                     span = tempDecompressed.AsSpan(0, written);
-                }
-
-                if (!isMeshoptCompressed)
-                {
-                    if (span.Length != decompressedSize)
-                    {
-                        throw new InvalidDataException($"Decompressed buffer is {span.Length} bytes, expected {decompressedSize}.");
-                    }
-
-                    var data = new byte[decompressedSize];
-                    span.CopyTo(data);
-                    return data;
                 }
 
                 if (isVertex)
@@ -358,6 +360,27 @@ namespace ValveResourceFormat.Blocks
                     ArrayPool<byte>.Shared.Return(tempDecompressed);
                 }
             }
+        }
+
+        // ZSTD takes priority when both compression flags are set
+        private static int Decompress(ReadOnlySpan<byte> span, Span<byte> destination, bool isZstdCompressed)
+        {
+            if (!isZstdCompressed)
+            {
+                return Z3Decoder.Decompress(span, destination);
+            }
+
+            if (span.IsEmpty)
+            {
+                return 0;
+            }
+
+            if (!ZstandardDecoder.TryDecompress(span, destination, out var written))
+            {
+                throw new InvalidDataException("Failed to decompress ZSTD.");
+            }
+
+            return written;
         }
 
         private OnDiskBufferData BufferDataFromDATA(KVObject data, bool isVertex)
