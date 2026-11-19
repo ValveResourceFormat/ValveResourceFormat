@@ -45,7 +45,7 @@ namespace Tests.Formats
         [MatrixDataSource]
         public async Task TestBinaryKV3Serialization(
             [Matrix(4, 5)] int version,
-            [Matrix] KV3BinaryCompressionMethod compressionMethod)
+            [Matrix(KV3BinaryCompressionMethod.Uncompressed, KV3BinaryCompressionMethod.Lz4, KV3BinaryCompressionMethod.Zstd)] KV3BinaryCompressionMethod compressionMethod)
         {
             var originalFile = KVDocumentExtensions.ParseKV3(TestFixtures.Path("KeyValues", "KeyValues3_LF.kv3"));
             var smallBlob = new byte[100];
@@ -708,6 +708,11 @@ namespace Tests.Formats
                 {
                     foreach (var compressionMethod in Enum.GetValues<KV3BinaryCompressionMethod>())
                     {
+                        if (compressionMethod == KV3BinaryCompressionMethod.Z3)
+                        {
+                            continue;
+                        }
+
                         yield return (fileName, blockType, blobCount, blobBytes, version, compressionMethod);
                     }
                 }

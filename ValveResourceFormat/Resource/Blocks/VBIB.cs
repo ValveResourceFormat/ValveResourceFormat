@@ -416,6 +416,11 @@ namespace ValveResourceFormat.Blocks
                 var isZstdCompressed = data.GetByteProperty("m_bCompressedZSTD") == 1;
                 var compressedSize = (int)dataBlock.Size;
 
+                if (data.GetByteProperty("m_bCompressedZ3") == 1)
+                {
+                    throw new NotSupportedException("Mesh buffers compressed with z3 are not supported yet.");
+                }
+
                 using var temp = new RentedBuffer<byte>(compressedSize);
                 var span = temp.Span;
 

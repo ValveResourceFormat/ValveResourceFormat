@@ -98,6 +98,11 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new NotSupportedException($"Unsupported binary KV3 version: {SerializationVersion}");
             }
 
+            if (SerializationCompressionMethod == KV3BinaryCompressionMethod.Z3)
+            {
+                throw new NotSupportedException("Writing binary KV3 compressed with z3 is not supported.");
+            }
+
             if (!Enum.IsDefined(SerializationCompressionMethod))
             {
                 throw new NotSupportedException($"Unsupported binary KV3 compression method: {(int)SerializationCompressionMethod}");

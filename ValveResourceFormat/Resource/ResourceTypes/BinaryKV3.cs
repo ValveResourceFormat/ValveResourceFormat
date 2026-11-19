@@ -18,6 +18,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Compression methods supported for binary KV3 serialization.
     /// </summary>
+#pragma warning disable CA1027
     public enum KV3BinaryCompressionMethod
     {
         /// <summary>Do not compress the serialized data.</summary>
@@ -28,7 +29,11 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>Compress the serialized data with Zstandard.</summary>
         Zstd = 2,
+
+        /// <summary>Compressed with z3. Neither reading nor writing is supported.</summary>
+        Z3 = 4,
     }
+#pragma warning restore CA1027
 
     /// <summary>
     /// Represents a binary KeyValues3 data block.
@@ -428,6 +433,16 @@ namespace ValveResourceFormat.ResourceTypes
             if (!Enum.IsDefined(header.CompressionMethod))
             {
                 throw new UnexpectedMagicException("Unknown compression method", (uint)header.CompressionMethod, nameof(header.CompressionMethod));
+            }
+
+            if (header.CompressionMethod == KV3BinaryCompressionMethod.Z3 && version < 5)
+            {
+                throw new UnexpectedMagicException("Z3 compression requires version 5 or newer", (uint)version, nameof(version));
+            }
+
+            if (header.CompressionMethod == KV3BinaryCompressionMethod.Z3)
+            {
+                throw new NotSupportedException("Binary KV3 compressed with z3 is not supported yet.");
             }
 
             if (version == 1)
