@@ -1,6 +1,8 @@
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using ValveResourceFormat;
+using ValveResourceFormat.ResourceTypes;
 
 namespace Tests.Resources
 {
@@ -19,6 +21,16 @@ namespace Tests.Resources
                 try
                 {
                     resourceOnDisk.Read(file);
+
+                    // Writing z3 is not supported, re-encode those blocks with zstd
+                    foreach (var binaryKV3 in resourceOnDisk.Blocks.OfType<BinaryKV3>())
+                    {
+                        if (binaryKV3.SerializationCompressionMethod == KV3BinaryCompressionMethod.Z3)
+                        {
+                            binaryKV3.SerializationCompressionMethod = KV3BinaryCompressionMethod.Zstd;
+                        }
+                    }
+
                     resourceOnDisk.Serialize(ms);
                 }
                 catch (NotImplementedException)

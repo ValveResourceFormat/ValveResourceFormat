@@ -291,7 +291,7 @@ namespace ValveResourceFormat.Blocks
                 var span = temp.Span;
                 reader.ReadExactly(span);
 
-                buffer.Data = DecompressData(buffer, span, decompressedSize, isVertex, isZstdCompressed, isMeshoptCompressed);
+                buffer.Data = DecompressData(buffer, span, decompressedSize, isVertex, isZstdCompressed, isZ3Compressed: false, isMeshoptCompressed);
             }
             else
             {
@@ -303,26 +303,31 @@ namespace ValveResourceFormat.Blocks
             return buffer;
         }
 
-        private static byte[] DecompressData(OnDiskBufferData buffer, ReadOnlySpan<byte> span, int decompressedSize, bool isVertex, bool isZstdCompressed, bool isMeshoptCompressed)
+        private static byte[] DecompressData(OnDiskBufferData buffer, ReadOnlySpan<byte> span, int decompressedSize, bool isVertex, bool isZstdCompressed, bool isZ3Compressed, bool isMeshoptCompressed)
         {
-            byte[]? tempZstd = null;
+            byte[]? tempDecompressed = null;
 
             try
             {
-                if (isZstdCompressed)
+                if (isZstdCompressed || isZ3Compressed)
                 {
                     // There is no expected decompressed size, so we just use buffer size for fully decoded vertex buffer
-                    // and then use the return value of zstd decompress to pass into the vertex decoder as the buffer size
-                    tempZstd = ArrayPool<byte>.Shared.Rent(decompressedSize);
+                    // and then use the return value of decompress to pass into the vertex decoder as the buffer size
+                    tempDecompressed = ArrayPool<byte>.Shared.Rent(decompressedSize);
 
+                    var destination = tempDecompressed.AsSpan(0, decompressedSize);
                     var written = 0;
 
-                    if (!span.IsEmpty && !ZstandardDecoder.TryDecompress(span, tempZstd, out written))
+                    if (isZ3Compressed)
+                    {
+                        written = Z3Decoder.Decompress(span, destination);
+                    }
+                    else if (!span.IsEmpty && !ZstandardDecoder.TryDecompress(span, destination, out written))
                     {
                         throw new InvalidDataException("Failed to decompress ZSTD.");
                     }
 
-                    span = tempZstd.AsSpan(0, written);
+                    span = tempDecompressed.AsSpan(0, written);
                 }
 
                 if (!isMeshoptCompressed)
@@ -348,9 +353,9 @@ namespace ValveResourceFormat.Blocks
             }
             finally
             {
-                if (tempZstd != null)
+                if (tempDecompressed != null)
                 {
-                    ArrayPool<byte>.Shared.Return(tempZstd);
+                    ArrayPool<byte>.Shared.Return(tempDecompressed);
                 }
             }
         }
@@ -406,7 +411,7 @@ namespace ValveResourceFormat.Blocks
 
                 buffer.Data = bufferData.Length == decompressedSize
                     ? bufferData
-                    : DecompressData(buffer, bufferData, decompressedSize, isVertex, isZstdCompressed: false, isMeshoptCompressed: true);
+                    : DecompressData(buffer, bufferData, decompressedSize, isVertex, isZstdCompressed: false, isZ3Compressed: false, isMeshoptCompressed: true);
             }
             else // MVTX MIDX update
             {
@@ -414,12 +419,8 @@ namespace ValveResourceFormat.Blocks
                 var dataBlock = Resource.GetBlockByIndex(blockIndex);
                 var isMeshoptCompressed = data.GetByteProperty("m_bMeshoptCompressed") == 1;
                 var isZstdCompressed = data.GetByteProperty("m_bCompressedZSTD") == 1;
+                var isZ3Compressed = data.GetByteProperty("m_bCompressedZ3") == 1;
                 var compressedSize = (int)dataBlock.Size;
-
-                if (data.GetByteProperty("m_bCompressedZ3") == 1)
-                {
-                    throw new NotSupportedException("Mesh buffers compressed with z3 are not supported yet.");
-                }
 
                 using var temp = new RentedBuffer<byte>(compressedSize);
                 var span = temp.Span;
@@ -432,9 +433,9 @@ namespace ValveResourceFormat.Blocks
                     Resource.Reader.ReadExactly(span);
                 }
 
-                if (isZstdCompressed || isMeshoptCompressed)
+                if (isZstdCompressed || isZ3Compressed || isMeshoptCompressed)
                 {
-                    buffer.Data = DecompressData(buffer, span, (int)buffer.TotalSizeInBytes, isVertex, isZstdCompressed, isMeshoptCompressed);
+                    buffer.Data = DecompressData(buffer, span, (int)buffer.TotalSizeInBytes, isVertex, isZstdCompressed, isZ3Compressed, isMeshoptCompressed);
                 }
                 else
                 {

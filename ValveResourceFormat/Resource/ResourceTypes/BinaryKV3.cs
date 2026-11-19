@@ -11,6 +11,7 @@ using K4os.Compression.LZ4;
 using K4os.Compression.LZ4.Encoders;
 using ValveKeyValue;
 using ValveKeyValue.KeyValues3;
+using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -30,7 +31,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>Compress the serialized data with Zstandard.</summary>
         Zstd = 2,
 
-        /// <summary>Compressed with z3. Neither reading nor writing is supported.</summary>
+        /// <summary>Compress the serialized data with z3. Can be read, but not written.</summary>
         Z3 = 4,
     }
 #pragma warning restore CA1027
@@ -297,6 +298,25 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        private static void DecompressZ3(BinaryReader reader, Span<byte> output, int compressedSize)
+        {
+            if (compressedSize < 0 || compressedSize > reader.BaseStream.Length - reader.BaseStream.Position)
+            {
+                throw new InvalidDataException($"Z3 compressed size {compressedSize} is out of range");
+            }
+
+            using var inputBuf = new RentedBuffer<byte>(compressedSize);
+            var input = inputBuf.Span;
+            reader.BaseStream.ReadExactly(input);
+
+            var written = Z3Decoder.Decompress(input, output);
+
+            if (written != output.Length)
+            {
+                throw new InvalidDataException($"Failed to decompress Z3 (expected {output.Length} bytes, got {written})");
+            }
+        }
+
         // Streams the compressed blobs in chunks straight into each blob, so neither side needs one large buffer
         private static void DecompressZSTDBinaryBlobs(BinaryReader reader, byte[][] blobs, int compressedSize)
         {
@@ -440,11 +460,6 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new UnexpectedMagicException("Z3 compression requires version 5 or newer", (uint)version, nameof(version));
             }
 
-            if (header.CompressionMethod == KV3BinaryCompressionMethod.Z3)
-            {
-                throw new NotSupportedException("Binary KV3 compressed with z3 is not supported yet.");
-            }
-
             if (version == 1)
             {
                 // Version 1 did not have extra compression data
@@ -529,6 +544,9 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case KV3BinaryCompressionMethod.Zstd:
                     DecompressZSTD(reader, output, compressedSize);
+                    break;
+                case KV3BinaryCompressionMethod.Z3:
+                    DecompressZ3(reader, output, compressedSize);
                     break;
             }
         }
@@ -817,6 +835,25 @@ namespace ValveResourceFormat.ResourceTypes
                                 buffer1Raw.AsSpan(blobOffset, blob.Length).CopyTo(blob);
                                 blobOffset += blob.Length;
                             }
+                        }
+                    }
+                    else if (header.CompressionMethod == KV3BinaryCompressionMethod.Z3)
+                    {
+                        UnexpectedMagicException.Assert(header.SizeBlockCompressedSizesBytes == 0, header.SizeBlockCompressedSizesBytes);
+
+                        var sizeCompressedBinaryBlobs = header.SizeCompressedTotal - header.SizeCompressedBuffer1 - header.SizeCompressedBuffer2;
+
+                        // All blobs are one frame, sliced by the blob lengths afterwards
+                        using var blobBuffer = new RentedBuffer<byte>(header.SizeBinaryBlobsBytes);
+                        var blobSpan = blobBuffer.Span;
+                        DecompressZ3(reader, blobSpan, sizeCompressedBinaryBlobs);
+
+                        var blobOffset = 0;
+
+                        foreach (var blob in context.BinaryBlobs)
+                        {
+                            blobSpan.Slice(blobOffset, blob.Length).CopyTo(blob);
+                            blobOffset += blob.Length;
                         }
                     }
                     {

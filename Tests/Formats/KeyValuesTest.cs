@@ -287,6 +287,30 @@ namespace Tests.Formats
             binaryKV3.SerializationVersion = 5;
             binaryKV3.SerializationCompressionMethod = (KV3BinaryCompressionMethod)99;
             await Assert.That(() => binaryKV3.Serialize(new MemoryStream())).ThrowsExactly<NotSupportedException>();
+
+            binaryKV3.SerializationCompressionMethod = KV3BinaryCompressionMethod.Z3;
+            await Assert.That(() => binaryKV3.Serialize(new MemoryStream())).ThrowsExactly<NotSupportedException>();
+        }
+
+        [Test]
+        public async Task TestBinaryKV3Version5Z3WithBlobs()
+        {
+            using var resource = TestFixtures.Load("blob_kv3_v5_z3.vdata_c");
+            var binaryKV3 = (BinaryKV3)resource.DataBlock!;
+            var root = binaryKV3.Data.Root;
+            var blobA = root["blob_a"]!.AsBlob();
+            var blobB = root["blob_b"]!.AsBlob();
+            var expectedBlobB = Enumerable.Range(0, 3000).Select(static i => (byte)(i * 7)).ToArray();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(binaryKV3.SerializationVersion).IsEqualTo(5);
+                await Assert.That(binaryKV3.SerializationCompressionMethod).IsEqualTo(KV3BinaryCompressionMethod.Z3);
+                await Assert.That(root["name"]!.ToString()).IsEqualTo("z3 sample");
+                await Assert.That(root["entries"]!.Count()).IsEqualTo(40);
+                await Assert.That(blobA.Length).IsEqualTo(6000);
+                await Assert.That(blobB).IsEquivalentTo(expectedBlobB, EqualityComparer<byte>.Default, CollectionOrdering.Matching);
+            }
         }
 
         [Test]

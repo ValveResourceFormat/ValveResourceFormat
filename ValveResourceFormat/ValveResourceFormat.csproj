@@ -15,6 +15,7 @@
       <EmbeddedResource Include="Utils\ManropeAscii.ttf" />
       <EmbeddedResource Include="Utils\vfx_zstd_2bc2fa87.bin" />
       <EmbeddedResource Include="Utils\vfx_zstd_255df362.bin" />
+      <EmbeddedResource Include="Utils\z3_presets.bin" />
       <EmbeddedResource Include="IO\Fgd\entity_classes.kv3" />
       <EmbeddedResource Include="IO\Fgd\entity_classes_extra.kv3" />
   </ItemGroup>
