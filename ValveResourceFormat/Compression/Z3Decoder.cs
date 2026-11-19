@@ -623,29 +623,47 @@ namespace ValveResourceFormat.Compression
                     }
 
                     var length = (int)matchLength;
-                    var distance = (int)offset;
-
-                    if (distance >= 16 && length <= 16 && outputPosition + 16 <= output.Length)
-                    {
-                        Vector128.Create<byte>(output[(outputPosition - distance)..]).CopyTo(output[outputPosition..]);
-                    }
-                    else if (distance >= length)
-                    {
-                        output.Slice(outputPosition - distance, length).CopyTo(output.Slice(outputPosition, length));
-                    }
-                    else
-                    {
-                        for (var j = 0; j < length; j++)
-                        {
-                            output[outputPosition + j] = output[outputPosition + j - distance];
-                        }
-                    }
-
+                    CopyMatch(output, outputPosition, (int)offset, length);
                     outputPosition += length;
                 }
 
                 var trailing = literalCount - literalIndex;
                 WriteLiterals(trailing, delta, output, ref outputPosition, ref literalIndex);
+            }
+
+            private static void CopyMatch(Span<byte> output, int position, int distance, int length)
+            {
+                if (distance >= 16 && length <= 16 && position + 16 <= output.Length)
+                {
+                    Vector128.Create<byte>(output[(position - distance)..]).CopyTo(output[position..]);
+                }
+                else if (distance >= length)
+                {
+                    output.Slice(position - distance, length).CopyTo(output.Slice(position, length));
+                }
+                else if (distance == 1)
+                {
+                    output.Slice(position, length).Fill(output[position - 1]);
+                }
+                else if (length >= 32)
+                {
+                    // Each copy doubles the repeating pattern that starts at position - distance
+                    var written = 0;
+
+                    while (written < length)
+                    {
+                        var chunk = Math.Min(distance + written, length - written);
+                        output.Slice(position - distance, chunk).CopyTo(output.Slice(position + written, chunk));
+                        written += chunk;
+                    }
+                }
+                else
+                {
+                    for (var j = 0; j < length; j++)
+                    {
+                        output[position + j] = output[position + j - distance];
+                    }
+                }
             }
 
             // Delta adds the byte rep0 behind the position, which is zero before the frame start
@@ -668,11 +686,19 @@ namespace ValveResourceFormat.Compression
                 {
                     var rep0 = Rep0;
 
-                    for (var j = 0; j < length; j++)
+                    if (rep0 >= 16 && position >= rep0 && length <= 16 && literalIndex + 16 <= Literals.Length && position + 16 <= output.Length)
                     {
-                        var source = position + j - rep0;
-                        var previous = source >= 0 ? output[(int)source] : (byte)0;
-                        output[position + j] = (byte)(Literals[literalIndex + j] + previous);
+                        var sum = Vector128.Create<byte>(Literals[literalIndex..]) + Vector128.Create<byte>(output[(position - (int)rep0)..]);
+                        sum.CopyTo(output[position..]);
+                    }
+                    else
+                    {
+                        for (var j = 0; j < length; j++)
+                        {
+                            var source = position + j - rep0;
+                            var previous = source >= 0 ? output[(int)source] : (byte)0;
+                            output[position + j] = (byte)(Literals[literalIndex + j] + previous);
+                        }
                     }
                 }
 

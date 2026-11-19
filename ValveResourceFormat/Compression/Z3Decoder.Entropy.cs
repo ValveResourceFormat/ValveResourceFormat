@@ -347,7 +347,8 @@ namespace ValveResourceFormat.Compression
 
             private void ParseSparse(ref long bitPosition, int alphabet, scoped Span<byte> lengths)
             {
-                Span<bool> present = stackalloc bool[256];
+                // Bit j of byte g marks symbol 8 * g + j as present
+                Span<byte> present = stackalloc byte[32];
 
                 var last = 0;
 
@@ -372,43 +373,32 @@ namespace ValveResourceFormat.Compression
                 if (alphabet == 256)
                 {
                     var groups = ReadBits(ref bitPosition, 32);
-                    Span<byte> masks = stackalloc byte[32];
 
                     for (var g = 0; g < 32; g++)
                     {
                         if (((groups >> g) & 1) != 0)
                         {
-                            masks[g] = (byte)ReadBits(ref bitPosition, 8);
-                        }
-                    }
-
-                    for (var g = 0; g < 32; g++)
-                    {
-                        for (var j = 0; j < 8; j++)
-                        {
-                            present[(8 * g) + j] = ((masks[g] >> j) & 1) != 0;
+                            present[g] = (byte)ReadBits(ref bitPosition, 8);
                         }
                     }
                 }
                 else
                 {
-                    for (var i = 0; i <= last; i += 32)
+                    for (var i = 0; i <= last; i += 8)
                     {
-                        var chunk = Math.Min(32, last + 1 - i);
-                        var bits = ReadBits(ref bitPosition, chunk);
-
-                        for (var j = 0; j < chunk; j++)
-                        {
-                            present[i + j] = ((bits >> j) & 1) != 0;
-                        }
+                        present[i / 8] = (byte)ReadBits(ref bitPosition, Math.Min(8, last + 1 - i));
                     }
                 }
 
-                for (var s = 0; s < alphabet; s++)
+                for (var g = 0; g < present.Length; g++)
                 {
-                    if (present[s])
+                    var bits = (uint)present[g];
+
+                    while (bits != 0)
                     {
-                        lengths[s] = (byte)(baseLength + ReadBits(ref bitPosition, widthBits));
+                        var symbol = (8 * g) + BitOperations.TrailingZeroCount(bits);
+                        lengths[symbol] = (byte)(baseLength + ReadBits(ref bitPosition, widthBits));
+                        bits &= bits - 1;
                     }
                 }
             }
