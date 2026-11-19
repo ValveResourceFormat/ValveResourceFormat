@@ -65,9 +65,19 @@ var gameTables = new List<KVObject>();
 
 var installed = games.ToDictionary(static game => game.AppID);
 var appIds = installed.Keys.Union(previousTables.Keys).Order();
+var gamesWithTable = new HashSet<Game>();
 
 foreach (var appId in appIds)
 {
+    // Apps of one game share the table of the lowest app id
+    var detectedGame = GameInfo.GetGame(appId);
+
+    if (detectedGame != Game.Unknown && !gamesWithTable.Add(detectedGame))
+    {
+        Console.WriteLine($"Skipping {appId}, a lower app id of {detectedGame} has the table");
+        continue;
+    }
+
     var table = installed.TryGetValue(appId, out var game) ? ParseGame(game) : null;
 
     // A game not installed with its FGD files keeps its previous table

@@ -177,7 +177,10 @@ namespace ValveResourceFormat.IO
 
         internal static GameInfo Read(string filePath) => new(filePath, ReadLayered(filePath, depth: 0));
 
-        internal static Game GetGame(int steamAppId) => GamesBySteamAppId.GetValueOrDefault(steamAppId);
+        /// <summary>Gets the game of a Steam app, <see cref="Game.Unknown"/> for an app that is not known.</summary>
+        /// <param name="steamAppId">The Steam app id.</param>
+        /// <returns>The game the app belongs to.</returns>
+        public static Game GetGame(int steamAppId) => GamesBySteamAppId.GetValueOrDefault(steamAppId);
 
         internal static IEnumerable<int> GetSteamAppIds(Game game)
         {
