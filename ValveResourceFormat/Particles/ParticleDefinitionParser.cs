@@ -310,6 +310,8 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, S
                     return new SnapshotCountNumberProvider(parse);
                 case "PF_TYPE_CONTROL_POINT_DISTANCE":
                     return new ControlPointDistanceNumberProvider(parse);
+                case "PF_TYPE_CONTROL_POINT_PLANE_DISTANCE":
+                    return new ControlPointPlaneDistanceNumberProvider(parse);
                 case "PF_TYPE_PARTICLE_NOISE":
                     return new NoiseNumberProvider(parse);
                 case "PF_TYPE_PARTICLE_ROPE_SEGMENT":

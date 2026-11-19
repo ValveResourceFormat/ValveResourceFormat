@@ -872,4 +872,47 @@ namespace ValveResourceFormat.Particles
             attributeMapping.ApplyMapping(values);
         }
     }
+
+    /// <summary>
+    /// PF_TYPE_CONTROL_POINT_PLANE_DISTANCE. Signed distance from the particle to the plane through the
+    /// control point with its forward axis as the normal, made absolute by <c>m_bAbsoluteValue</c>.
+    /// </summary>
+    class ControlPointPlaneDistanceNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+        private readonly int cp;
+        private readonly bool absoluteValue;
+
+        public ControlPointPlaneDistanceNumberProvider(ParticleDefinitionParser parse)
+        {
+            attributeMapping = new AttributeMapping(parse);
+            cp = parse.Int32("m_nControlPoint");
+            absoluteValue = parse.Boolean("m_bAbsoluteValue");
+        }
+
+        public float NextNumber(ParticleSystemState renderState) => 0f;
+
+        public bool IsPerParticle => true;
+
+        public void Fill(ParticleSpan particles, ParticleSystemState renderState, Span<float> values)
+        {
+            var point = renderState.GetControlPoint(cp);
+            var normal = Vector3.Normalize(point.Forward);
+            var positions = particles.ReadVectors(ParticleField.Position);
+
+            for (var i = 0; i < values.Length; i++)
+            {
+                var distance = Vector3.Dot(normal, positions[i] - point.Position);
+
+                if (absoluteValue)
+                {
+                    distance = MathF.Abs(distance);
+                }
+
+                values[i] = distance;
+            }
+
+            attributeMapping.ApplyMapping(values);
+        }
+    }
 }

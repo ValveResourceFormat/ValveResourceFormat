@@ -50,6 +50,7 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_SetControlPointRotation"] = preEmissionOperatorInfo => new SetControlPointRotation(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointToCenter"] = preEmissionOperatorInfo => new SetControlPointToCenter(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointFromObjectScale"] = preEmissionOperatorInfo => new SetControlPointFromObjectScale(preEmissionOperatorInfo),
+                ["C_OP_SetControlPointFromRenderAttribute"] = preEmissionOperatorInfo => new SetControlPointFromRenderAttribute(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointToImpactPoint"] = preEmissionOperatorInfo => new SetControlPointToImpactPoint(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointToPlayer"] = preEmissionOperatorInfo => new SetControlPointToPlayer(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointToVectorExpression"] = preEmissionOperatorInfo => new SetControlPointToVectorExpression(preEmissionOperatorInfo),
