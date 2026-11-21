@@ -1320,11 +1320,6 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.Texture:
                 {
-                    if (FileExtract.IsChildResource(resource))
-                    {
-                        break;
-                    }
-
                     var textureExtract = new TextureExtract(resource);
                     ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vtex", new ViewerContent.Text(textureExtract.ToValveTexture()));
 
