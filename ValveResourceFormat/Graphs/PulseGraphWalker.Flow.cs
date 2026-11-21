@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -6,14 +7,11 @@ namespace ValveResourceFormat.Graphs;
 
 internal sealed partial class PulseGraphWalker
 {
-    /// <summary>One cursor flow being followed through a chunk.</summary>
     private sealed class FlowPath
     {
         public required int Chunk { get; set; }
         public required int Instruction { get; set; }
         public required Dictionary<int, ValueRef> Registers { get; set; }
-
-        // The editor node the instructions currently being walked belong to
         public required int CurrentNode { get; set; }
 
         public string? LastSequencePoint { get; set; }
@@ -33,18 +31,16 @@ internal sealed partial class PulseGraphWalker
     }
 
     private readonly Queue<FlowPath> pathQueue = [];
-    private readonly HashSet<int> enteredFlowNodes = [];
-    private readonly Dictionary<int, HashSet<string>> arrivalSequencePoints = [];
+
+    // Flow nodes the walk entered, with the sequence point the cursor arrived at
+    private readonly Dictionary<int, string?> enteredFlowNodes = [];
     private readonly HashSet<int> fireAndForgetNodes = [];
 
     // Instructions that fork the flow, followed once no matter how many paths reach them, e.g. through a loop's back edge
     private readonly HashSet<(int Chunk, int Instruction)> forkingInstructions = [];
 
-    // Loop nodes whose body reads the loop index from this register
-    private readonly Dictionary<int, int> loopIndexRegisters = [];
-
-    // Outflows each node runs through calls, which is all a simultaneous outflow compiles to
-    private readonly Dictionary<int, List<string>> outflowCallPorts = [];
+    // Number of outflows each node runs through calls, which is all a simultaneous outflow compiles to
+    private readonly Dictionary<int, int> outflowCallCounts = [];
 
     // Registers of entry nodes with several outparams, which the compiler numbers in the order of the connections reading them
     private readonly Dictionary<int, Dictionary<string, int>> entryOutparamRegisters = [];
@@ -58,9 +54,6 @@ internal sealed partial class PulseGraphWalker
     // First node writing each temporary variable that has no editor node, by temp var bank and index
     private readonly Dictionary<(int Bank, int Index), int> undeclaredTempVarWriters = [];
 
-    // Nodes standing for instructions the document has no class for, by the instruction they stand for
-    private readonly Dictionary<(int Chunk, int Instruction), int> instructionNodes = [];
-
     private void AddEntryNode(int cellIndex)
     {
         var cell = Definition.Cells[cellIndex];
@@ -71,7 +64,7 @@ internal sealed partial class PulseGraphWalker
         switch (className)
         {
             case "CPulseCell_Inflow_Method":
-                node = AddNode(id, "Inflow_Method", isFlow: true);
+                node = AddNode(id, "Inflow_Method");
                 node.Name = cell.GetStringProperty("m_MethodName", string.Empty);
                 node.Fields.Add("m_bIsPublic", cell.GetBooleanProperty("m_bIsPublic"));
                 node.Fields.Add("m_Description", cell.GetStringProperty("m_Description", string.Empty));
@@ -88,7 +81,7 @@ internal sealed partial class PulseGraphWalker
                 break;
 
             case "CPulseCell_Inflow_EntOutputHandler":
-                node = AddNode(id, "Inflow_EntOutput", isFlow: true);
+                node = AddNode(id, "Inflow_EntOutput");
                 node.Fields.Add("m_SourceEntity", cell.GetStringProperty("m_SourceEntity", string.Empty));
                 node.Fields.Add("m_SourceOutput", cell.GetStringProperty("m_SourceOutput", string.Empty));
                 node.Fields.Add("m_CachedOutputType", cell.GetStringProperty("m_ExpectedParamType", "PVAL_VOID"));
@@ -100,34 +93,27 @@ internal sealed partial class PulseGraphWalker
                 break;
         }
 
-        node.IsEntry = true;
         node.CellClass = className;
 
         var entryChunk = cell.GetInt32Property("m_EntryChunk");
         var registerMap = PulseRegisterMap.Read(cell, "m_RegisterMap");
-        var registers = new Dictionary<int, ValueRef>();
-        AddOutparamRegisters(registers, entryChunk, registerMap, id);
-
-        var outparamRegisters = new Dictionary<string, int>();
-
-        foreach (var (name, register) in registerMap.OutParams)
-        {
-            outparamRegisters[name] = register;
-        }
-
-        if (outparamRegisters.Count > 1)
-        {
-            entryOutparamRegisters[id] = outparamRegisters;
-        }
-
-        enteredFlowNodes.Add(id);
-        pathQueue.Enqueue(new FlowPath
+        var path = new FlowPath
         {
             Chunk = entryChunk,
             Instruction = 0,
-            Registers = registers,
+            Registers = [],
             CurrentNode = id,
-        });
+        };
+
+        AddOutparamRegisters(path, registerMap, id);
+
+        if (registerMap.OutParams.Count > 1)
+        {
+            entryOutparamRegisters[id] = registerMap.OutParams.ToDictionary(param => param.Name, param => param.Register);
+        }
+
+        enteredFlowNodes.Add(id, null);
+        pathQueue.Enqueue(path);
     }
 
     /// <summary>The arguments or return values of a method, as the document declares them.</summary>
@@ -149,16 +135,12 @@ internal sealed partial class PulseGraphWalker
 
     private PulseEditorNode AddGenericNode(int id, string nodeType, bool isFlow)
     {
-        var node = AddNode(id, isFlow ? "Flow_Generic" : "Value_Generic", isFlow);
+        var node = AddNode(id, isFlow ? "Flow_Generic" : "Value_Generic");
         node.Fields.Add("m_GenericNodeType", nodeType);
         node.Fields.Add("m_GenericPorts", KVObject.Collection());
         return node;
     }
 
-    // Cell settings the editor keeps as a custom attribute, a table holding the setting under the same name
-    private static readonly HashSet<string> CustomAttributeKeys = ["m_strEntityOutput"];
-
-    // The settings of a cell, leaving out the bookkeeping the compiler fills in
     private KVObject GetGenericKeys(int cellIndex)
     {
         var keys = KVObject.Collection();
@@ -170,7 +152,8 @@ internal sealed partial class PulseGraphWalker
                 continue;
             }
 
-            if (CustomAttributeKeys.Contains(key))
+            // The editor keeps this setting as a custom attribute, a table holding it under the same name
+            if (key == "m_strEntityOutput")
             {
                 var attribute = KVObject.Collection();
                 attribute.Add(key, value);
@@ -184,12 +167,11 @@ internal sealed partial class PulseGraphWalker
         return keys;
     }
 
-    private void AddOutparamRegisters(Dictionary<int, ValueRef> registers, int chunk, PulseRegisterMap registerMap, int nodeId)
+    private void AddOutparamRegisters(FlowPath path, PulseRegisterMap registerMap, int nodeId)
     {
         foreach (var (name, register) in registerMap.OutParams)
         {
-            registers[register] = new NodeOutput(nodeId, name);
-            RecordOutputType(chunk, register, nodeId, name);
+            SetRegister(path, register, new NodeOutput(nodeId, name));
         }
     }
 
@@ -197,37 +179,10 @@ internal sealed partial class PulseGraphWalker
     {
         path.Registers[register] = value;
 
-        if (value is NodeOutput output)
+        if (value is NodeOutput output && Definition.Chunks[path.Chunk].Register(register) is { } info)
         {
-            RecordOutputType(path.Chunk, register, output.NodeId, output.Port);
+            outputTypes.TryAdd((output.NodeId, output.Port), info.ValueType);
         }
-    }
-
-    private void RecordOutputType(int chunk, int register, int nodeId, string port)
-    {
-        if (chunk >= 0 && chunk < Definition.Chunks.Count && Definition.Chunks[chunk].Register(register) is { } info)
-        {
-            outputTypes.TryAdd((nodeId, port), info.ValueType);
-        }
-    }
-
-    private void WalkAllPaths()
-    {
-        while (pathQueue.TryDequeue(out var path))
-        {
-            WalkPath(path);
-        }
-
-        foreach (var (nodeId, ports) in outflowCallPorts)
-        {
-            if (!nodes.ContainsKey(nodeId))
-            {
-                var node = AddNode(nodeId, "Outflow_Simultaneous", isFlow: true);
-                node.Fields.Add("m_nNumExits", ports.Count);
-            }
-        }
-
-        ResolvePendingFlowConnections();
     }
 
     private void WalkPath(FlowPath path)
@@ -236,16 +191,11 @@ internal sealed partial class PulseGraphWalker
 
         while (true)
         {
-            if (path.Chunk < 0 || path.Chunk >= Definition.Chunks.Count)
-            {
-                return;
-            }
-
             var chunk = Definition.Chunks[path.Chunk];
 
             if (!chunk.HasDebugInfo)
             {
-                unwalkedFlows.Add(new PulseUnwalkedFlow(path.CurrentNode, GetLeavingOutflow(path), path.Chunk));
+                unwalkedFlows.Add((path.CurrentNode, GetLeavingOutflow(path), path.Chunk));
                 return;
             }
 
@@ -254,24 +204,19 @@ internal sealed partial class PulseGraphWalker
                 return;
             }
 
-            var (flowNode, valueNode, sequencePoint) = chunk.DebugInfo(path.Instruction);
+            var (flowNode, valueNode, sequencePoint) = chunk.DebugInfos[path.Instruction];
 
             if (flowNode >= 0 && flowNode != path.CurrentNode)
             {
                 ConnectFlow(path.CurrentNode, GetLeavingOutflow(path), flowNode, sequencePoint);
 
-                if (!enteredFlowNodes.Add(flowNode))
+                if (!enteredFlowNodes.TryAdd(flowNode, sequencePoint))
                 {
                     return;
                 }
 
                 path.CurrentNode = flowNode;
                 path.DefaultOutflow = null;
-
-                if (!IsSequencePointName(sequencePoint))
-                {
-                    GetArrivalSequencePoints(flowNode).Add(sequencePoint);
-                }
             }
 
             path.LastSequencePoint = sequencePoint;
@@ -283,22 +228,11 @@ internal sealed partial class PulseGraphWalker
         }
     }
 
-    private HashSet<string> GetArrivalSequencePoints(int nodeId)
-    {
-        if (!arrivalSequencePoints.TryGetValue(nodeId, out var points))
-        {
-            points = [];
-            arrivalSequencePoints[nodeId] = points;
-        }
-
-        return points;
-    }
-
     private string GetLeavingOutflow(FlowPath path)
     {
         var last = path.LastSequencePoint;
 
-        if (!IsSequencePointName(last) && !GetArrivalSequencePoints(path.CurrentNode).Contains(last!))
+        if (!IsSequencePointName(last) && enteredFlowNodes.GetValueOrDefault(path.CurrentNode) != last)
         {
             return last!;
         }
@@ -317,7 +251,7 @@ internal sealed partial class PulseGraphWalker
         return new UnknownValue();
     }
 
-    /// <returns>Whether the flow continues past this instruction.</returns>
+    // Returns whether the flow continues past this instruction
     private bool ExecuteInstruction(FlowPath path, PulseInstruction instruction, int valueNode, string sequencePoint)
     {
         var code = instruction.Code;
@@ -355,7 +289,22 @@ internal sealed partial class PulseGraphWalker
             case PulseInstructionCode.GET_CONST:
             {
                 var constant = Definition.Constants[instruction.ConstIdx];
-                SetRegister(path, instruction.Reg0, new LiteralValue(constant["m_Value"], constant.GetStringProperty("m_Type", "PVAL_INVALID")));
+                var type = constant.GetStringProperty("m_Type", "PVAL_INVALID");
+
+                if (Definition.Chunks[path.Chunk].Register(instruction.Reg0)?.OriginPort == "__empty_array")
+                {
+                    if (!nodes.ContainsKey(valueNode))
+                    {
+                        var node = AddNode(valueNode, "Value_MakeArray");
+                        node.Fields.Add("m_UnifiedElementType", type[(type.IndexOf(':', StringComparison.Ordinal) + 1)..]);
+                        node.Fields.Add("m_In_Elements", KVObject.Collection());
+                    }
+
+                    SetRegister(path, instruction.Reg0, new NodeOutput(valueNode, "retval"));
+                    break;
+                }
+
+                SetRegister(path, instruction.Reg0, new LiteralValue(constant["m_Value"], type));
                 break;
             }
 
@@ -401,6 +350,12 @@ internal sealed partial class PulseGraphWalker
                 AddCellInvoke(path, instruction, valueNode);
                 break;
 
+            // Invokes the cell for every element of reg0, each passed in reg1
+            case PulseInstructionCode.BROADCAST_INVOKE:
+                SetRegister(path, instruction.Reg1, GetRegister(path, instruction.Reg0));
+                AddCellInvoke(path, instruction, valueNode);
+                break;
+
             case PulseInstructionCode.PULSE_CALL_SYNC:
             case PulseInstructionCode.PULSE_CALL_ASYNC_FIRE:
                 AddMethodCall(path, instruction, code == PulseInstructionCode.PULSE_CALL_ASYNC_FIRE);
@@ -417,9 +372,15 @@ internal sealed partial class PulseGraphWalker
 
             case PulseInstructionCode.GET_TEMPVAR:
             {
-                var tempVar = GetTempVar(path.Chunk, instruction);
-                var name = tempVar?.GetStringProperty("m_Name", string.Empty) ?? string.Empty;
-                SetRegister(path, instruction.Reg0, new LocalNameValue(name, TempVarDeclaringNode(path.Chunk, instruction, tempVar)));
+                // Temporary variables with no editor node are declared by every node writing them, reads link to the first
+                var tempVar = Definition.TempVar(path.Chunk, instruction.TempVarIdx);
+                var declaringNode = tempVar.GetInt32Property("m_nEditorNodeID", -1);
+                if (declaringNode < 0)
+                {
+                    declaringNode = undeclaredTempVarWriters.GetValueOrDefault((Definition.Chunks[path.Chunk].TempVarBank, instruction.TempVarIdx), -1);
+                }
+
+                SetRegister(path, instruction.Reg0, new LocalNameValue(tempVar.GetStringProperty("m_Name", string.Empty), declaringNode));
                 break;
             }
 
@@ -428,49 +389,35 @@ internal sealed partial class PulseGraphWalker
                 AddSetTempVar(path, instruction);
                 break;
 
+            // Writes reg0 into the element reg2 indexes, reg1 is unused
             case PulseInstructionCode.SET_VAR_ARRAY_ELEMENT_1D:
-            {
-                // Writes reg0 into the element reg2 indexes, reg1 is unused
-                var node = AddInstructionNode(path, instruction, valueNode, isFlow: true);
-                node?.Fields.Add("m_VarDefID", variableNodeIds[instruction.Var]);
-                SetInstructionPort(path, node, "m_Index", instruction.Reg2);
-                SetInstructionPort(path, node, "m_Value", instruction.Reg0);
-                node?.AddVariableWrite(PulseVariableKind.Variable, variableNodeIds[instruction.Var]);
+                if (AddSetVariable(path, instruction, notifiesListeners: true) is { } arraySet)
+                {
+                    var indexPorts = KVObject.Collection();
+                    arraySet.Fields.Add("m_nArrayIndexDimension", 1);
+                    arraySet.Fields.Add("m_ArrayIndexPorts", indexPorts);
+                    SetInputPort(arraySet, indexPorts, "ArrayIndex0", "ArrayIndex0", GetRegister(path, instruction.Reg2));
+                }
+
                 break;
-            }
 
             case PulseInstructionCode.GET_ARRAY_ELEMENT:
             case PulseInstructionCode.ELEMENT_ACCESS:
-            {
-                var node = AddInstructionNode(path, instruction, valueNode, isFlow: false);
-                SetInstructionPort(path, node, "arg1", instruction.Reg1);
-                SetInstructionPort(path, node, "arg2", instruction.Reg2);
-                SetRegister(path, instruction.Reg0, new NodeOutput(instructionNodes[(path.Chunk, path.Instruction)], "retval"));
+                AddElementRead(path, instruction, valueNode);
                 break;
-            }
 
             case PulseInstructionCode.GET_BLACKBOARD_REFERENCE:
-            {
-                var node = AddInstructionNode(path, instruction, valueNode, isFlow: false);
-                node?.Fields.Add("m_nBlackboardReferenceIdx", instruction.BlackboardReferenceIdx);
-                node?.AddVariableRead(PulseVariableKind.BlackboardReference, instruction.BlackboardReferenceIdx, "var");
-                SetRegister(path, instruction.Reg0, new NodeOutput(instructionNodes[(path.Chunk, path.Instruction)], "retval"));
+                SetRegister(path, instruction.Reg0, new BlackboardValue(instruction.BlackboardReferenceIdx, Definition.Chunks[path.Chunk].RegisterType(instruction.Reg0)));
                 break;
-            }
 
             case PulseInstructionCode.SET_BLACKBOARD_REFERENCE:
-            {
-                var node = AddInstructionNode(path, instruction, valueNode, isFlow: true);
-                node?.Fields.Add("m_nBlackboardReferenceIdx", instruction.BlackboardReferenceIdx);
-                SetInstructionPort(path, node, "m_Value", instruction.Reg0);
-                node?.AddVariableWrite(PulseVariableKind.BlackboardReference, instruction.BlackboardReferenceIdx);
+                AddSetBlackboardReference(path, instruction);
                 break;
-            }
 
             case PulseInstructionCode.LOOP_BREAK:
                 if (!nodes.ContainsKey(path.CurrentNode))
                 {
-                    AddNode(path.CurrentNode, "Outflow_Break", isFlow: true);
+                    AddNode(path.CurrentNode, "Outflow_Break");
                 }
 
                 return false;
@@ -488,36 +435,35 @@ internal sealed partial class PulseGraphWalker
         return true;
     }
 
-    /// <summary>
-    /// Adds the node standing for an instruction the document has no class for, once per instruction.
-    /// </summary>
-    /// <returns>The new node, or null when an earlier path already added it.</returns>
-    private PulseEditorNode? AddInstructionNode(FlowPath path, PulseInstruction instruction, int valueNode, bool isFlow)
+    // Reads reg2 of reg1: an array element by index, or a component whose name the index register keeps
+    private void AddElementRead(FlowPath path, PulseInstruction instruction, int valueNode)
     {
-        if (instructionNodes.ContainsKey((path.Chunk, path.Instruction)))
+        var isArray = instruction.Code == PulseInstructionCode.GET_ARRAY_ELEMENT;
+
+        // A for-each loop reads the element of each iteration itself
+        if (valueNode < 0)
         {
-            return null;
+            SetRegister(path, instruction.Reg0, new NodeOutput(path.CurrentNode, "element"));
+            return;
         }
 
-        var nodeId = isFlow ? path.CurrentNode : valueNode >= 0 && valueNode != path.CurrentNode ? valueNode : -1;
-        if (nodeId < 0 || nodes.ContainsKey(nodeId))
+        if (!nodes.ContainsKey(valueNode))
         {
-            nodeId = AllocateNodeId();
+            if (isArray)
+            {
+                var node = AddNode(valueNode, "Value_ArrayElement");
+                SetInputPort(node, node.Fields, "m_In_Array", "Array", GetRegister(path, instruction.Reg1));
+                SetInputPort(node, node.Fields, "m_In_Index", "Index", GetRegister(path, instruction.Reg2));
+            }
+            else
+            {
+                var node = AddNode(valueNode, "ExprGetProperty");
+                SetInputPort(node, node.Fields, "m_ObjectParam", "_Target", GetRegister(path, instruction.Reg1));
+                node.Fields.Add("m_PropertyName", Definition.Chunks[path.Chunk].Register(instruction.Reg2)?.OriginPort ?? string.Empty);
+            }
         }
 
-        instructionNodes[(path.Chunk, path.Instruction)] = nodeId;
-
-        var node = AddNode(nodeId, instruction.CodeName, isFlow);
-        node.Instruction = instruction.Code;
-        return node;
-    }
-
-    private void SetInstructionPort(FlowPath path, PulseEditorNode? node, string port, int register)
-    {
-        if (node != null && register >= 0)
-        {
-            SetInputPort(node, node.Fields, port, port, GetRegister(path, register));
-        }
+        SetRegister(path, instruction.Reg0, new NodeOutput(valueNode, isArray ? "element" : "retval"));
     }
 
     // A variable read through its own Var Reference node, rather than inline on the port, compiles under that node's id
@@ -530,7 +476,7 @@ internal sealed partial class PulseGraphWalker
 
         if (!nodes.ContainsKey(valueNode))
         {
-            var node = AddNode(valueNode, "Value_VarReference", isFlow: false);
+            var node = AddNode(valueNode, "Value_VarReference");
             node.Fields.Add("m_SourceID", variableNodeId);
             node.AddVariableRead(PulseVariableKind.Variable, variableNodeId, "var");
         }
@@ -548,7 +494,7 @@ internal sealed partial class PulseGraphWalker
 
             for (var index = 0; index < chunk.Instructions.Count; index++)
             {
-                var valueNode = chunk.DebugInfo(index).ValueNode;
+                var valueNode = chunk.DebugInfos[index].ValueNode;
 
                 if (valueNode >= 0 && chunk.Instructions[index].Code is not (PulseInstructionCode.GET_VAR or PulseInstructionCode.GET_VAR_DETACH))
                 {
@@ -587,25 +533,26 @@ internal sealed partial class PulseGraphWalker
         var (reg0, reg1, reg2) = (instruction.Reg0, instruction.Reg1, instruction.Reg2);
 
         var origin = chunk.Register(reg0);
-        var hasOrigin = origin is { OriginNode: >= 0 };
         var nodeId = origin?.OriginNode ?? -1;
         var port = origin?.OriginPort ?? string.Empty;
 
         // Flow nodes such as loops and switches compute their own conditions
-        if (hasOrigin && nodeId == path.CurrentNode)
+        if (nodeId == path.CurrentNode)
         {
             ValueRef value = (code, port) switch
             {
                 (PulseInstructionCode.NOT, "not_condition") => new InvertedValue(GetRegister(path, reg1)),
                 (PulseInstructionCode.EQ, "__case_cond") => new CaseCondition(GetRegister(path, reg1), GetRegister(path, reg2), chunk.RegisterValueType(reg1)),
-                _ => new InternalValue(port, reg1 >= 0 ? GetRegister(path, reg1) : null, reg2 >= 0 ? GetRegister(path, reg2) : null),
+                (PulseInstructionCode.ADD, "start + (index * delta)") => new NodeOutput(nodeId, "value"),
+                (PulseInstructionCode.DIV, "(end - start) / (count - 1)") => new NodeOutput(nodeId, "step"),
+                _ => new InternalValue(port, reg2 >= 0 ? GetRegister(path, reg2) : null),
             };
 
             SetRegister(path, reg0, value);
             return;
         }
 
-        if (!hasOrigin)
+        if (nodeId < 0)
         {
             nodeId = valueNode >= 0 && valueNode != path.CurrentNode ? valueNode : AllocateNodeId();
             port = "retval";
@@ -640,7 +587,7 @@ internal sealed partial class PulseGraphWalker
                 (reg1, reg2) = (reg2, reg1);
             }
 
-            var node = AddNode(nodeId, className, isFlow: false);
+            var node = AddNode(nodeId, className);
             expressionOwners[nodeId] = valueNode;
 
             if (code is PulseInstructionCode.NOT or PulseInstructionCode.NEGATE)
@@ -676,13 +623,51 @@ internal sealed partial class PulseGraphWalker
         var isValue = valueNode >= 0 && valueNode != path.CurrentNode;
         var nodeId = isValue ? valueNode : path.CurrentNode;
 
+        // A for-each loop counts its array before the first iteration
+        if (!isValue && binding.FuncName == "CPulseArraylib::ArrayCount")
+        {
+            SetRegister(path, binding.RegisterMap.OutParams[0].Register, new InternalValue(ArrayCountPort, GetRegister(path, binding.RegisterMap.InParams[0].Register)));
+            return;
+        }
+
+        // An array node appends its elements one by one to an empty array
+        if (binding.FuncName == "CPulseArraylib::ArrayAppend" && nodes.TryGetValue(nodeId, out var array) && array.ClassName == "Value_MakeArray")
+        {
+            AddArrayElement(path, array, binding.RegisterMap);
+            AddOutparamRegisters(path, binding.RegisterMap, nodeId);
+            return;
+        }
+
         if (!nodes.ContainsKey(nodeId))
         {
             var node = AddGenericNode(nodeId, binding.FuncName, !isValue);
             SetRegisterMapPorts(path, node, node.Fields["m_GenericPorts"], binding.RegisterMap);
         }
 
-        AddOutparamRegisters(path.Registers, path.Chunk, binding.RegisterMap, nodeId);
+        AddOutparamRegisters(path, binding.RegisterMap, nodeId);
+    }
+
+    private void AddArrayElement(FlowPath path, PulseEditorNode array, PulseRegisterMap registerMap)
+    {
+        var chunk = Definition.Chunks[path.Chunk];
+        var elements = array.Fields["m_In_Elements"];
+        var position = 0;
+
+        for (var index = 0; index < path.Instruction; index++)
+        {
+            if (chunk.Instructions[index].Code == PulseInstructionCode.LIBRARY_INVOKE && chunk.DebugInfos[index].ValueNode == array.Id)
+            {
+                position++;
+            }
+        }
+
+        if (position < elements.Count || !registerMap.TryGetInParam("element", out var register))
+        {
+            return;
+        }
+
+        var name = position.ToString(CultureInfo.InvariantCulture);
+        SetInputPort(array, elements, name, name, GetRegister(path, register));
     }
 
     private void AddCellInvoke(FlowPath path, PulseInstruction instruction, int valueNode)
@@ -694,7 +679,7 @@ internal sealed partial class PulseGraphWalker
 
         if (!nodes.ContainsKey(nodeId))
         {
-            AddCellNode(path, cellIndex, nodeId, binding, isValue);
+            AddCellNode(path, cellIndex, nodeId, binding, isValue, instruction.Code == PulseInstructionCode.BROADCAST_INVOKE ? instruction.Reg0 : -1);
 
             if (!isValue)
             {
@@ -702,10 +687,10 @@ internal sealed partial class PulseGraphWalker
             }
         }
 
-        AddOutparamRegisters(path.Registers, path.Chunk, binding.RegisterMap, nodeId);
+        AddOutparamRegisters(path, binding.RegisterMap, nodeId);
     }
 
-    private void AddCellNode(FlowPath path, int cellIndex, int nodeId, PulseInvokeBinding binding, bool isValue)
+    private void AddCellNode(FlowPath path, int cellIndex, int nodeId, PulseInvokeBinding binding, bool isValue, int broadcastRegister)
     {
         var cell = Definition.Cells[cellIndex];
         var className = Definition.CellClass(cellIndex);
@@ -713,14 +698,17 @@ internal sealed partial class PulseGraphWalker
         var chunk = Definition.Chunks[path.Chunk];
         PulseEditorNode node;
 
-        ValueRef InParam(string name) => registerMap.TryGetInParam(name, out var register) ? GetRegister(path, register) : new UnknownValue();
-
         switch (className)
         {
             case "CPulseCell_Step_EntFire":
-                node = AddNode(nodeId, "Step_EntFire", isFlow: true);
+                node = AddNode(nodeId, "Step_EntFire");
 
-                if (registerMap.TryGetInParam("hTarget", out var targetRegister))
+                // Firing at an entity name is broadcast to every entity of that name
+                if (chunk.RegisterValueType(broadcastRegister) == PulseValueType.PVAL_ENTITY_NAME)
+                {
+                    SetInputPort(node, node.Fields, "m_TargetName", "TargetName", GetRegister(path, broadcastRegister));
+                }
+                else if (registerMap.TryGetInParam("hTarget", out var targetRegister))
                 {
                     node.Fields.Add("m_nFireMode", "PulseEntFireMode_t::HANDLE");
                     SetInputPort(node, node.Fields, "m_TargetHandle", "hTarget", GetRegister(path, targetRegister));
@@ -742,15 +730,14 @@ internal sealed partial class PulseGraphWalker
                 break;
 
             case "CPulseCell_Step_DebugLog":
-                node = AddNode(nodeId, "Step_DebugLog", isFlow: true);
-                SetInputPort(node, node.Fields, "m_Message", "pMessage", InParam("pMessage"));
+                node = AddNode(nodeId, "Step_DebugLog");
+                SetInputPort(node, node.Fields, "m_Message", "pMessage", registerMap.TryGetInParam("pMessage", out var messageRegister) ? GetRegister(path, messageRegister) : new UnknownValue());
                 break;
 
             case "CPulseCell_Step_PublicOutput":
             {
-                node = AddNode(nodeId, "Step_PublicOutput", isFlow: true);
-                var outputIndex = cell.GetInt32Property("m_OutputIndex", -1);
-                node.Fields.Add("m_OutputDefID", outputIndex >= 0 && outputIndex < publicOutputNodeIds.Length ? publicOutputNodeIds[outputIndex] : -1);
+                node = AddNode(nodeId, "Step_PublicOutput");
+                node.Fields.Add("m_OutputDefID", publicOutputNodeIds[cell.GetInt32Property("m_OutputIndex")]);
                 var argList = KVObject.Collection();
                 node.Fields.Add("m_ArgList", argList);
                 SetRegisterMapPorts(path, node, argList, registerMap);
@@ -759,7 +746,7 @@ internal sealed partial class PulseGraphWalker
 
             case "CPulseCell_ReturnValues":
             {
-                node = AddNode(nodeId, "Outflow_Return", isFlow: true);
+                node = AddNode(nodeId, "Outflow_Return");
                 var returnValues = KVObject.Collection();
                 node.Fields.Add("m_ReturnValues", returnValues);
                 SetRegisterMapPorts(path, node, returnValues, registerMap);
@@ -767,7 +754,7 @@ internal sealed partial class PulseGraphWalker
             }
 
             case "CPulseCell_FireCursors":
-                node = AddNode(nodeId, "Step_FireCursors", isFlow: true);
+                node = AddNode(nodeId, "Step_FireCursors");
                 node.Fields.Add("m_nChildCursors", cell.GetInt32Property("m_nChildCursors"));
                 node.InflowName = "Start";
 
@@ -779,7 +766,7 @@ internal sealed partial class PulseGraphWalker
 
             case "CPulseCell_Timeline":
             {
-                node = AddNode(nodeId, "Step_Timeline", isFlow: true);
+                node = AddNode(nodeId, "Step_Timeline");
                 node.InflowName = "Start";
 
                 // Events left unconnected lose their port name, the editor names them by position
@@ -805,7 +792,7 @@ internal sealed partial class PulseGraphWalker
             case "CPulseCell_Outflow_CycleOrdered":
             case "CPulseCell_Outflow_CycleShuffled":
             case "CPulseCell_Outflow_CycleRandom":
-                node = AddNode(nodeId, "Outflow_Cycle", isFlow: true);
+                node = AddNode(nodeId, "Outflow_Cycle");
                 node.Fields.Add("m_nNumExits", cell.GetArray("m_Outputs")?.Count ?? 0);
                 node.Fields.Add("m_nCycleMode", className switch
                 {
@@ -846,7 +833,7 @@ internal sealed partial class PulseGraphWalker
 
             var outflowPath = path.Fork(outflow.DestChunk, outflow.DestInstruction, outflow.Name);
             outflowPath.CurrentNode = nodeId;
-            AddOutparamRegisters(outflowPath.Registers, outflow.DestChunk, outflow.RegisterMap, nodeId);
+            AddOutparamRegisters(outflowPath, outflow.RegisterMap, nodeId);
             pathQueue.Enqueue(outflowPath);
         }
     }
@@ -874,35 +861,20 @@ internal sealed partial class PulseGraphWalker
             body.CurrentNode = ownerId;
             body.LastSequencePoint = null;
 
-            if (targetChunk == path.Chunk && loopIndexRegisters.TryGetValue(ownerId, out var indexRegister))
-            {
-                SetRegister(body, indexRegister, new NodeOutput(ownerId, "Index"));
-            }
-
             if (!isPortless)
             {
-                if (!outflowCallPorts.TryGetValue(ownerId, out var ports))
-                {
-                    ports = [];
-                    outflowCallPorts[ownerId] = ports;
-                }
-
-                ports.Add(portName);
+                outflowCallCounts[ownerId] = outflowCallCounts.GetValueOrDefault(ownerId) + 1;
             }
 
             pathQueue.Enqueue(body);
             return;
         }
 
-        var nodeId = callInfo.EditorNode;
-        if (nodeId < 0)
-        {
-            nodeId = path.CurrentNode >= 0 ? path.CurrentNode : AllocateNodeId();
-        }
+        var nodeId = callInfo.EditorNode >= 0 ? callInfo.EditorNode : path.CurrentNode;
 
         if (!nodes.ContainsKey(nodeId))
         {
-            var node = AddNode(nodeId, "Step_CallMethod", isFlow: true);
+            var node = AddNode(nodeId, "Step_CallMethod");
             node.Fields.Add("m_MethodID", callInfo.CallMethodId);
 
             if (isAsync)
@@ -915,7 +887,7 @@ internal sealed partial class PulseGraphWalker
             SetRegisterMapPorts(path, node, argList, callInfo.RegisterMap);
         }
 
-        AddOutparamRegisters(path.Registers, path.Chunk, callInfo.RegisterMap, nodeId);
+        AddOutparamRegisters(path, callInfo.RegisterMap, nodeId);
     }
 
     // A yielding node set to not wait for completion runs in a child cursor while the flow carries on past it
@@ -944,15 +916,15 @@ internal sealed partial class PulseGraphWalker
         pathQueue.Enqueue(child);
     }
 
-    private void AddSetVariable(FlowPath path, PulseInstruction instruction, bool notifiesListeners)
+    // Null when an earlier path already added the node
+    private PulseEditorNode? AddSetVariable(FlowPath path, PulseInstruction instruction, bool notifiesListeners)
     {
-        var nodeId = path.CurrentNode >= 0 ? path.CurrentNode : AllocateNodeId();
-        if (nodes.ContainsKey(nodeId))
+        if (nodes.ContainsKey(path.CurrentNode))
         {
-            return;
+            return null;
         }
 
-        var node = AddNode(nodeId, "Step_SetVar", isFlow: true);
+        var node = AddNode(path.CurrentNode, "Step_SetVar");
         node.Fields.Add("m_VarDefID", variableNodeIds[instruction.Var]);
         SetInputPort(node, node.Fields, "m_Value", "m_Value", GetRegister(path, instruction.Reg0));
         node.AddVariableWrite(PulseVariableKind.Variable, variableNodeIds[instruction.Var]);
@@ -962,18 +934,23 @@ internal sealed partial class PulseGraphWalker
         {
             node.Fields.Add("m_bDoNotNotifyListeners", true);
         }
+
+        return node;
     }
 
-    private KVObject? GetTempVar(int chunk, PulseInstruction instruction)
+    // A Set Variable that targets a variable of another graph instead of one of its own
+    private void AddSetBlackboardReference(FlowPath path, PulseInstruction instruction)
     {
-        var tempVar = Definition.TempVar(chunk, instruction.TempVarIdx);
-
-        if (tempVar == null)
+        if (nodes.ContainsKey(path.CurrentNode))
         {
-            Report($"Could not find temporary variable {instruction.TempVarIdx} of chunk {chunk}.");
+            return;
         }
 
-        return tempVar;
+        var node = AddNode(path.CurrentNode, "Step_SetVar");
+        node.Fields.Add("m_VarDefID", -1);
+        SetInputPort(node, node.Fields, "m_Value", "m_Value", GetRegister(path, instruction.Reg0));
+        node.Fields.Add("m_BlackboardReference", BuildBlackboardReference(instruction.BlackboardReferenceIdx, Definition.Chunks[path.Chunk].RegisterType(instruction.Reg0)));
+        node.AddVariableWrite(PulseVariableKind.BlackboardReference, instruction.BlackboardReferenceIdx);
     }
 
     // The node that declares a temporary variable writes its initial value, any other write is a Set Variable
@@ -984,15 +961,15 @@ internal sealed partial class PulseGraphWalker
             return;
         }
 
-        var tempVar = GetTempVar(path.Chunk, instruction);
-        var declaringNode = tempVar?.GetInt32Property("m_nEditorNodeID", -1) ?? -1;
+        var tempVar = Definition.TempVar(path.Chunk, instruction.TempVarIdx);
+        var declaringNode = tempVar.GetInt32Property("m_nEditorNodeID", -1);
         var value = GetRegister(path, instruction.Reg0);
 
         if (declaringNode == path.CurrentNode || declaringNode < 0)
         {
-            var node = AddNode(path.CurrentNode, "Step_CreateTempVar", isFlow: true);
-            node.Fields.Add("m_VarName", tempVar?.GetStringProperty("m_Name", string.Empty) ?? string.Empty);
-            node.Fields.Add("m_ValueType", tempVar?.GetStringProperty("m_Type", "PVAL_INVALID") ?? "PVAL_INVALID");
+            var node = AddNode(path.CurrentNode, "Step_CreateTempVar");
+            node.Fields.Add("m_VarName", tempVar.GetStringProperty("m_Name", string.Empty));
+            node.Fields.Add("m_ValueType", tempVar.GetStringProperty("m_Type", "PVAL_INVALID"));
             SetInputPort(node, node.Fields, "m_Value", "m_Value", value);
 
             if (declaringNode < 0)
@@ -1002,23 +979,13 @@ internal sealed partial class PulseGraphWalker
         }
         else
         {
-            var node = AddNode(path.CurrentNode, "Step_SetVar", isFlow: true);
+            var node = AddNode(path.CurrentNode, "Step_SetVar");
             node.Fields.Add("m_VarDefID", declaringNode);
             SetInputPort(node, node.Fields, "m_Value", "m_Value", value);
             node.AddVariableWrite(PulseVariableKind.TempVar, declaringNode);
         }
     }
 
-    // Temporary variables with no editor node are declared by every node writing them, reads link to the first
-    private int TempVarDeclaringNode(int chunk, PulseInstruction instruction, KVObject? tempVar)
-    {
-        var editorNode = tempVar?.GetInt32Property("m_nEditorNodeID", -1) ?? -1;
-        return editorNode >= 0
-            ? editorNode
-            : undeclaredTempVarWriters.GetValueOrDefault((Definition.Chunks[chunk].TempVarBank, instruction.TempVarIdx), -1);
-    }
-
-    /// <returns>Whether the flow continues past this instruction.</returns>
     private bool AddBranch(FlowPath path, PulseInstruction instruction, int valueNode, string sequencePoint, bool isChunkLeap)
     {
         if (!forkingInstructions.Add((path.Chunk, path.Instruction)))
@@ -1038,7 +1005,7 @@ internal sealed partial class PulseGraphWalker
 
         if (sequencePoint == "m_LoopHeader")
         {
-            AddLoop(path, condition);
+            AddLoop(path, takenPath, condition);
             takenPath.DefaultOutflow = "m_Outflow_Loop";
             path.DefaultOutflow = "m_Outflow_Completed";
         }
@@ -1072,7 +1039,7 @@ internal sealed partial class PulseGraphWalker
             return;
         }
 
-        var node = AddNode(path.CurrentNode, "Outflow_If", isFlow: true);
+        var node = AddNode(path.CurrentNode, "Outflow_If");
         SetInputPort(node, node.Fields, "m_Condition", "m_bCondition", UnwrapNotCondition(node, condition));
     }
 
@@ -1088,7 +1055,10 @@ internal sealed partial class PulseGraphWalker
         return inverted.Inner;
     }
 
-    private void AddLoop(FlowPath path, ValueRef condition)
+    // Marks the element count a for-each loop reads from its array
+    private const string ArrayCountPort = "array count";
+
+    private void AddLoop(FlowPath path, FlowPath body, ValueRef condition)
     {
         var nodeId = path.CurrentNode;
         if (nodes.ContainsKey(nodeId))
@@ -1096,47 +1066,51 @@ internal sealed partial class PulseGraphWalker
             return;
         }
 
-        if (condition is InternalValue { Port: "__loop_cond" })
+        var chunk = Definition.Chunks[path.Chunk];
+
+        if (condition is InternalValue { Port: "__loop_cond" }
+            && chunk.FindWriter(nodeId, "index < stop") is { } stopTest && chunk.FindWriter(nodeId, "step > 0") is { } stepTest)
         {
-            AddRangeLoop(path, nodeId);
+            // The index lives in the register the start value was loaded into, a range including its endpoint tests it with LTE
+            var range = AddNode(nodeId, "Outflow_LoopIntegerRange");
+            range.InflowName = "m_Inflow_Start";
+            SetInputPort(range, range.Fields, "m_Start", "m_Start", GetRegister(path, stopTest.Reg1));
+            SetInputPort(range, range.Fields, "m_Stop", "m_Stop", GetRegister(path, stopTest.Reg2));
+            SetInputPort(range, range.Fields, "m_Step", "m_Step", GetRegister(path, stepTest.Reg2));
+
+            if (stopTest.Code == PulseInstructionCode.LTE)
+            {
+                range.Fields.Add("m_bRangeIncludesEndpoint", true);
+            }
+
+            SetRegister(body, stopTest.Reg1, new NodeOutput(nodeId, "index"));
             return;
         }
 
-        var node = AddNode(nodeId, "Outflow_LoopWhile", isFlow: true);
+        if (condition is InternalValue { Port: "__loop_cond", Second: InternalValue { Port: ArrayCountPort, Second: { } array } }
+            && chunk.FindWriter(nodeId, "__loop_cond") is { } countTest)
+        {
+            var forEach = AddNode(nodeId, "Outflow_LoopForEach");
+            forEach.InflowName = "m_Inflow_Start";
+            SetInputPort(forEach, forEach.Fields, "m_In_Array", "Array", array);
+            SetRegister(body, countTest.Reg1, new NodeOutput(nodeId, "index"));
+            return;
+        }
+
+        if (condition is InternalValue { Port: "index < stop", Second: { } count } && chunk.FindWriter(nodeId, "end - start") is { } span)
+        {
+            // A float range counts its steps up to m_Count and derives each value from the span between both ends
+            var range = AddNode(nodeId, "Outflow_LoopFloatRange");
+            range.InflowName = "m_Inflow_Start";
+            SetInputPort(range, range.Fields, "m_Start", "m_Start", GetRegister(path, span.Reg2));
+            SetInputPort(range, range.Fields, "m_Stop", "m_Stop", GetRegister(path, span.Reg1));
+            SetInputPort(range, range.Fields, "m_Count", "m_Count", count);
+            return;
+        }
+
+        var node = AddNode(nodeId, "Outflow_LoopWhile");
         node.InflowName = "m_Inflow_Start";
         SetInputPort(node, node.Fields, "m_Condition", "m_Condition", UnwrapNotCondition(node, condition));
-    }
-
-    // A range loop keeps its index in the register its start value was loaded into, and tests it against the stop value
-    private void AddRangeLoop(FlowPath path, int nodeId)
-    {
-        var chunk = Definition.Chunks[path.Chunk];
-        var indexRegister = chunk.FindRegister(nodeId, "m_Start");
-        var stepRegister = chunk.FindRegister(nodeId, "m_Step");
-        var includesEndpoint = chunk.FindRegister(nodeId, "index <= stop") >= 0;
-        var stopTestRegister = chunk.FindRegister(nodeId, includesEndpoint ? "index <= stop" : "index < stop");
-
-        var stop = stopTestRegister >= 0 && path.Registers.GetValueOrDefault(stopTestRegister) is InternalValue { Second: { } stopValue }
-            ? stopValue
-            : new UnknownValue();
-
-        var isFloat = chunk.RegisterValueType(indexRegister) == PulseValueType.PVAL_FLOAT;
-
-        var node = AddNode(nodeId, isFloat ? "Outflow_LoopFloatRange" : "Outflow_LoopIntegerRange", isFlow: true);
-        node.InflowName = "m_Inflow_Start";
-        SetInputPort(node, node.Fields, "m_Start", "m_Start", indexRegister >= 0 ? GetRegister(path, indexRegister) : new UnknownValue());
-        SetInputPort(node, node.Fields, "m_Stop", "m_Stop", stop);
-        SetInputPort(node, node.Fields, "m_Step", "m_Step", stepRegister >= 0 ? GetRegister(path, stepRegister) : new UnknownValue());
-
-        if (includesEndpoint)
-        {
-            node.Fields.Add("m_bRangeIncludesEndpoint", true);
-        }
-
-        if (indexRegister >= 0)
-        {
-            loopIndexRegisters[nodeId] = indexRegister;
-        }
     }
 
     // Switches test each case in turn, the outflow of a case is named after its value
@@ -1151,7 +1125,7 @@ internal sealed partial class PulseGraphWalker
                 _ => ("Outflow_IntSwitch", "nSwitchValue"),
             };
 
-            node = AddNode(path.CurrentNode, className, isFlow: true);
+            node = AddNode(path.CurrentNode, className);
             SetInputPort(node, node.Fields, "m_SwitchValue", portName, condition.SwitchValue);
             node.Fields.Add("m_Cases", KVObject.Array());
         }
@@ -1166,11 +1140,7 @@ internal sealed partial class PulseGraphWalker
         return caseValue.Value.ToString(CultureInfo.InvariantCulture);
     }
 
-    /// <summary>
-    /// A ternary compiles to a branch inside a value: each side copies its value into the result register, then both
-    /// meet again. Both sides are evaluated here and the flow continues where they meet.
-    /// </summary>
-    /// <returns>Whether the flow continues past this instruction.</returns>
+    // A ternary compiles to a branch inside a value: each side copies its value into the result register, then both meet again
     private bool AddTernary(FlowPath path, FlowPath truePath, ValueRef condition, int nodeId)
     {
         var falsePath = path.Fork(path.Chunk, path.Instruction + 1, null);
@@ -1184,7 +1154,7 @@ internal sealed partial class PulseGraphWalker
 
         if (!nodes.ContainsKey(nodeId))
         {
-            var node = AddNode(nodeId, "ExprTernaryConditional", isFlow: false);
+            var node = AddNode(nodeId, "ExprTernaryConditional");
             SetInputPort(node, node.Fields, "m_Condition", "cond", condition);
             SetInputPort(node, node.Fields, "m_TrueVal", "true_val", trueValue, refineLiteralType: true);
             SetInputPort(node, node.Fields, "m_FalseVal", "false_val", falseValue, refineLiteralType: true);
@@ -1218,7 +1188,7 @@ internal sealed partial class PulseGraphWalker
                 return true;
             }
 
-            var debugInfo = chunk.DebugInfo(branch.Instruction);
+            var debugInfo = chunk.DebugInfos[branch.Instruction];
             if (!ExecuteInstruction(branch, instruction, debugInfo.ValueNode, debugInfo.SequencePoint))
             {
                 break;

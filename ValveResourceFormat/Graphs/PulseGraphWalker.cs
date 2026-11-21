@@ -4,12 +4,6 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Graphs;
 
-/// <summary>A flow into a chunk the walk could not follow, because the chunk lacks debug info.</summary>
-/// <param name="SourceNode">Editor node the flow leaves.</param>
-/// <param name="Outflow">Outflow of <paramref name="SourceNode"/> the flow leaves through.</param>
-/// <param name="Chunk">The chunk the flow enters.</param>
-internal readonly record struct PulseUnwalkedFlow(int SourceNode, string Outflow, int Chunk);
-
 /// <summary>
 /// Rebuilds the editor nodes of a compiled Pulse graph. Every instruction keeps the editor node it came from and the
 /// sequence point it ran at, so each chunk is walked the way the cursor would, creating one node per editor node and
@@ -31,10 +25,10 @@ internal sealed partial class PulseGraphWalker
     /// <summary>Editor node id of the document root, allocated after every other node.</summary>
     public int RootNodeId { get; private set; }
 
-    public IReadOnlyList<PulseUnwalkedFlow> UnwalkedFlows => unwalkedFlows;
+    /// <summary>Flows into chunks the walk could not follow, because they lack debug info.</summary>
+    public IReadOnlyList<(int SourceNode, string Outflow, int Chunk)> UnwalkedFlows => unwalkedFlows;
 
-    // Editor node ids already present in the compiled graph, fresh ids are allocated past them
-    private readonly HashSet<int> usedNodeIds = [];
+    // Past every editor node id present in the compiled graph
     private int nextNodeId = 1;
 
     private readonly int[] cellNodeIds;
@@ -44,7 +38,7 @@ internal sealed partial class PulseGraphWalker
     private readonly Dictionary<int, PulseEditorNode> nodes = [];
     private readonly List<PulseEditorNode> nodeOrder = [];
     private readonly Dictionary<(int Node, string Port), PulseValueType> outputTypes = [];
-    private readonly List<PulseUnwalkedFlow> unwalkedFlows = [];
+    private readonly List<(int SourceNode, string Outflow, int Chunk)> unwalkedFlows = [];
 
     public PulseGraphWalker(PulseGraphDefinition definition)
     {
@@ -76,7 +70,20 @@ internal sealed partial class PulseGraphWalker
             }
         }
 
-        WalkAllPaths();
+        while (pathQueue.TryDequeue(out var path))
+        {
+            WalkPath(path);
+        }
+
+        foreach (var (nodeId, exits) in outflowCallCounts)
+        {
+            if (!nodes.ContainsKey(nodeId))
+            {
+                AddNode(nodeId, "Outflow_Simultaneous").Fields.Add("m_nNumExits", exits);
+            }
+        }
+
+        ResolvePendingFlowConnections();
 
         foreach (var nodeId in fireAndForgetNodes)
         {
@@ -94,13 +101,7 @@ internal sealed partial class PulseGraphWalker
 
     private void CollectUsedNodeIds()
     {
-        void Use(int id)
-        {
-            if (id >= 0)
-            {
-                usedNodeIds.Add(id);
-            }
-        }
+        void Use(int id) => nextNodeId = Math.Max(nextNodeId, id + 1);
 
         foreach (var cell in Definition.Cells)
         {
@@ -132,18 +133,13 @@ internal sealed partial class PulseGraphWalker
             }
         }
 
-        nextNodeId = usedNodeIds.Count > 0 ? usedNodeIds.Max() + 1 : 1;
-    }
-
-    private int AllocateNodeId()
-    {
-        while (!usedNodeIds.Add(nextNodeId))
+        foreach (var connection in Definition.OutputConnections)
         {
-            nextNodeId++;
+            Use(connection.EntFireNode);
         }
-
-        return nextNodeId++;
     }
+
+    private int AllocateNodeId() => nextNodeId++;
 
     private int KnownOrFreshNodeId(int id) => id >= 0 ? id : AllocateNodeId();
 
@@ -153,6 +149,7 @@ internal sealed partial class PulseGraphWalker
         foreach (var (sourceNode, registers) in entryOutparamRegisters)
         {
             var connections = new List<PulseInparamLink>();
+            var ids = new List<int>();
 
             foreach (var node in nodeOrder)
             {
@@ -161,11 +158,12 @@ internal sealed partial class PulseGraphWalker
                     if (inparam.SourceNode == sourceNode)
                     {
                         connections.Add(inparam);
+                        ids.Add(inparam.Id);
                     }
                 }
             }
 
-            var ids = connections.Select(connection => connection.Id).Order().ToList();
+            ids.Sort();
 
             connections.Sort((a, b) =>
             {
@@ -187,7 +185,6 @@ internal sealed partial class PulseGraphWalker
         }
     }
 
-    /// <summary>What a register holds at some point of the flow, as the document would express it.</summary>
     private abstract record ValueRef;
 
     private sealed record LiteralValue(KVObject Value, string Type) : ValueRef;
@@ -201,27 +198,21 @@ internal sealed partial class PulseGraphWalker
     // A temporary variable, read by its name, with the node declaring it or -1
     private sealed record LocalNameValue(string Name, int DeclaringNode) : ValueRef;
 
+    // A variable of another graph, by its index into m_BlackboardReferences and the type it is read as
+    private sealed record BlackboardValue(int Reference, string Type) : ValueRef;
+
     // A branch condition the node inverts itself rather than reading from a separate Not node
     private sealed record InvertedValue(ValueRef Inner) : ValueRef;
 
     // Bookkeeping a flow node computes for itself, such as a loop's bounds checks
-    private sealed record InternalValue(string Port, ValueRef? First, ValueRef? Second) : ValueRef;
+    private sealed record InternalValue(string Port, ValueRef? Second) : ValueRef;
 
     // One case test of a switch: the switched on value against a case value
     private sealed record CaseCondition(ValueRef SwitchValue, ValueRef CaseValue, PulseValueType SwitchType) : ValueRef;
 
     private sealed record UnknownValue : ValueRef;
 
-    /// <summary>
-    /// Writes an input port onto <paramref name="container"/>. Values produced by other nodes are wired with an inparam
-    /// connection on the consuming node, everything else is stored inline on the port.
-    /// </summary>
-    /// <param name="node">The node owning the port.</param>
-    /// <param name="container">Where the port is stored, the node's fields or a table of ports.</param>
-    /// <param name="key">The key of the port in <paramref name="container"/>.</param>
-    /// <param name="portName">The port's name, as connections refer to it.</param>
-    /// <param name="value">The value the port reads.</param>
-    /// <param name="refineLiteralType">Whether a literal must state its type, for ports that take any type.</param>
+    // Values produced by other nodes become inparam connections, everything else is stored inline on the port
     private void SetInputPort(PulseEditorNode node, KVObject container, string key, string portName, ValueRef value, bool refineLiteralType = false)
     {
         var port = KVObject.Collection();
@@ -261,6 +252,12 @@ internal sealed partial class PulseGraphWalker
 
                 break;
 
+            case BlackboardValue blackboard:
+                port.Add("m_ValueSource", "blackboard_ref");
+                port.Add("m_BlackboardReference", BuildBlackboardReference(blackboard.Reference, blackboard.Type));
+                node.AddVariableRead(PulseVariableKind.BlackboardReference, blackboard.Reference, key);
+                break;
+
             case NodeOutput output:
                 port.Add("m_ValueSource", "port");
                 node.AddInparamConnection(AllocateNodeId(), output.NodeId, output.Port, portName);
@@ -280,12 +277,23 @@ internal sealed partial class PulseGraphWalker
         container[key] = port;
     }
 
-    private PulseEditorNode AddNode(int id, string className, bool isFlow)
+    // The compiled reference keeps everything but the type, which the document caches from the variable
+    private KVObject BuildBlackboardReference(int index, string type)
     {
-        var node = new PulseEditorNode(id, className) { IsFlow = isFlow };
+        var compiled = Definition.BlackboardReferences[index];
+        var reference = KVObject.Collection();
+        reference.Add("m_hBlackboardResource", compiled.GetStringProperty("m_BlackboardResource", string.Empty));
+        reference.Add("m_nNodeID", compiled.GetInt32Property("m_nNodeID", -1));
+        reference.Add("m_NodeName", compiled.GetStringProperty("m_NodeName", string.Empty));
+        reference.Add("m_CachedType", type);
+        return reference;
+    }
+
+    private PulseEditorNode AddNode(int id, string className)
+    {
+        var node = new PulseEditorNode(id, className);
         nodes.Add(id, node);
         nodeOrder.Add(node);
-        usedNodeIds.Add(id);
         return node;
     }
 
@@ -306,13 +314,10 @@ internal sealed partial class PulseGraphWalker
 
     private void ResolvePendingFlowConnections()
     {
-        var pending = pendingFlowConnections.ToList();
-        pendingFlowConnections.Clear();
-
         AddSkippedEntFires();
 
         // A node that compiled to nothing, such as a skipped one, is left out and the flow through it is joined up
-        var passedThrough = pending.Where(connection => !nodes.ContainsKey(connection.Source)).ToLookup(connection => connection.Source);
+        var passedThrough = pendingFlowConnections.Where(connection => !nodes.ContainsKey(connection.Source)).ToLookup(connection => connection.Source);
 
         IEnumerable<(int Target, string Arrival)> ResolveTargets(int target, string arrival, HashSet<int> seen)
         {
@@ -330,7 +335,7 @@ internal sealed partial class PulseGraphWalker
             return passedThrough[target].SelectMany(next => ResolveTargets(next.Target, next.ArrivalSequencePoint, seen)).ToList();
         }
 
-        foreach (var (source, outflow, target, arrival) in pending)
+        foreach (var (source, outflow, target, arrival) in pendingFlowConnections)
         {
             if (!nodes.ContainsKey(source))
             {
@@ -349,38 +354,31 @@ internal sealed partial class PulseGraphWalker
     {
         foreach (var connection in Definition.OutputConnections)
         {
-            if (connection.EntFireNode >= 0 && !nodes.ContainsKey(connection.EntFireNode))
+            if (connection.EntFireNode < 0 || nodes.ContainsKey(connection.EntFireNode) || cellNodeIds.Contains(connection.EntFireNode))
             {
-                AddSkippedEntFire(connection);
+                continue;
             }
+
+            // The only sequence point left of the node is its outflow, so the cursor seems to arrive there
+            var node = AddNode(connection.EntFireNode, "Step_EntFire");
+            node.InflowName = "InDefault";
+            node.CellClass = "CPulseCell_Step_EntFire";
+
+            SetInputPort(node, node.Fields, "m_TargetName", "TargetName", new DomainValue(connection.TargetEntity));
+            node.Fields.Add("m_Input", connection.TargetInput);
+
+            if (!string.IsNullOrEmpty(connection.Param))
+            {
+                SetInputPort(node, node.Fields, "m_Param", "pParam", new LiteralValue(string.Empty, "PVAL_STRING"));
+                node.Fields.Add("m_SingleParamType", "PVAL_STRING");
+                Report($"Node {node.Id} is a skipped entity fire, its parameter value is not kept.");
+            }
+
+            node.Fields.Add("m_bNodeSkip", true);
         }
     }
 
-    private void AddSkippedEntFire(PulseOutputConnection connection)
-    {
-        // The only sequence point left of the node is its outflow, so the cursor seems to arrive there
-        var node = AddNode(connection.EntFireNode, "Step_EntFire", isFlow: true);
-        node.InflowName = "InDefault";
-        node.CellClass = "CPulseCell_Step_EntFire";
-
-        SetInputPort(node, node.Fields, "m_TargetName", "TargetName", new DomainValue(connection.TargetEntity));
-        node.Fields.Add("m_Input", connection.TargetInput);
-
-        if (!string.IsNullOrEmpty(connection.Param))
-        {
-            SetInputPort(node, node.Fields, "m_Param", "pParam", new LiteralValue(string.Empty, "PVAL_STRING"));
-            node.Fields.Add("m_SingleParamType", "PVAL_STRING");
-            Report($"Node {node.Id} is a skipped entity fire, its parameter value is not kept.");
-        }
-
-        node.Fields.Add("m_bNodeSkip", true);
-    }
-
-    /// <summary>
-    /// Sequence points mark where in a node the cursor is, as opposed to the named outflows it leaves through. They are
-    /// matched by the <c>m_&lt;name&gt;Point</c> shape most of them have. <c>InDefault</c> is the default inflow, which
-    /// generic cells name after their method.
-    /// </summary>
+    // Sequence points mark where in a node the cursor is, most are named m_<name>Point
     private static bool IsSequencePointName(string? name)
         => string.IsNullOrEmpty(name)
             || name is "InDefault" or "m_OptionalRequirementsCheckPointForInlineSkip"

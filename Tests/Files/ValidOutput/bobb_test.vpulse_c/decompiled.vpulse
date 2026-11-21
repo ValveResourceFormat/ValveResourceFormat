@@ -20,7 +20,7 @@
 		{
 			_class = "Flow_Generic"
 			m_NodeID = 320105419
-			m_vPosition = [ 489.0, 4.0 ]
+			m_vPosition = [ 0.0, 0.0 ]
 			m_GenericNodeType = "CPulseGraphInstance_ServerEntity::GraphStart"
 			m_GenericPorts = 
 			{
@@ -39,7 +39,7 @@
 		{
 			_class = "Flow_Generic"
 			m_NodeID = 9371199
-			m_vPosition = [ 1262.0, 0.0 ]
+			m_vPosition = [ 520.0, 0.0 ]
 			m_GenericNodeType = "CPulseCell_Outflow_ListenForEntityOutput"
 			m_GenericPorts = 
 			{
@@ -71,7 +71,7 @@
 		{
 			_class = "Value_Generic"
 			m_NodeID = 795571218
-			m_vPosition = [ 489.0, 118.0 ]
+			m_vPosition = [ 0.0, 140.0 ]
 			m_GenericNodeType = "CPulseServerFuncs::GetGameTime"
 			m_GenericPorts = 
 			{
@@ -80,7 +80,7 @@
 		{
 			_class = "ExprAdd"
 			m_NodeID = 707584581
-			m_vPosition = [ 489.0, 240.0 ]
+			m_vPosition = [ 0.0, 280.0 ]
 			m_FirstArg = 
 			{
 				m_ValueSource = "var"
@@ -96,7 +96,7 @@
 		{
 			_class = "ExprGreater"
 			m_NodeID = 741620542
-			m_vPosition = [ 1262.0, 210.0 ]
+			m_vPosition = [ 520.0, 140.0 ]
 			m_FirstArg = 
 			{
 				m_ValueSource = "port"
@@ -126,7 +126,7 @@
 		{
 			_class = "Outflow_If"
 			m_NodeID = 572053695
-			m_vPosition = [ 1962.0, 188.0 ]
+			m_vPosition = [ 1040.0, 140.0 ]
 			m_Condition = 
 			{
 				m_ValueSource = "port"
@@ -152,7 +152,7 @@
 		{
 			_class = "Value_Generic"
 			m_NodeID = 148400045
-			m_vPosition = [ 1262.0, 354.0 ]
+			m_vPosition = [ 520.0, 280.0 ]
 			m_GenericNodeType = "CCitadelPointPulseAPI::GetFastCooldownsEnabled"
 			m_GenericPorts = 
 			{
@@ -161,7 +161,7 @@
 		{
 			_class = "ExprNot"
 			m_NodeID = 354679943
-			m_vPosition = [ 1962.0, 354.0 ]
+			m_vPosition = [ 1040.0, 280.0 ]
 			m_Arg = 
 			{
 				m_ValueSource = "port"
@@ -180,7 +180,7 @@
 		{
 			_class = "Flow_Generic"
 			m_NodeID = 125737783
-			m_vPosition = [ 2442.0, 266.0 ]
+			m_vPosition = [ 1560.0, 140.0 ]
 			m_GenericNodeType = "CCitadelPointPulseAPI::SetFastCooldownsEnabled"
 			m_GenericPorts = 
 			{
@@ -210,7 +210,7 @@
 		{
 			_class = "Value_Generic"
 			m_NodeID = 958271551
-			m_vPosition = [ 2442.0, 402.0 ]
+			m_vPosition = [ 1560.0, 280.0 ]
 			m_GenericNodeType = "CPulseServerFuncs::GetGameTime"
 			m_GenericPorts = 
 			{
@@ -219,7 +219,7 @@
 		{
 			_class = "Step_SetVar"
 			m_NodeID = 821604097
-			m_vPosition = [ 3140.0, 262.0 ]
+			m_vPosition = [ 2080.0, 140.0 ]
 			m_VarDefID = 233111767
 			m_Value = 
 			{

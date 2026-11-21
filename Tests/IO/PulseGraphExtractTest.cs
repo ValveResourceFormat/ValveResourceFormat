@@ -33,6 +33,7 @@ namespace Tests.IO
         [Test]
         [Arguments("pulse_native_nodes.vpulse_c")]
         [Arguments("bobb_test.vpulse_c")]
+        [Arguments("pulse_loops_arrays_blackboard.vpulse_c")]
         public async Task DecompilesPulseGraph(string name)
         {
             var (text, messages) = Decompile(name);

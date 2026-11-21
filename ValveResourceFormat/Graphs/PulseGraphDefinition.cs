@@ -1,7 +1,6 @@
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Graphs;
 
@@ -24,6 +23,7 @@ internal enum PulseInstructionCode
     CREATE_CHILD_CURSOR_OUTFLOW,
     CELL_INVOKE,
     LIBRARY_INVOKE,
+    BROADCAST_INVOKE,
     SET_VAR,
     GET_VAR,
     GET_VAR_DETACH,
@@ -57,6 +57,7 @@ internal enum PulseInstructionCode
     GET_TEMPVAR,
     SET_TEMPVAR,
     SET_TEMPVAR_OBSERVABLE,
+    BIND_LAMBDA,
 }
 
 /// <summary>The value types a register or variable can hold.</summary>
@@ -101,6 +102,7 @@ internal enum PulseValueType
     PVAL_UNKNOWN,
     PVAL_ANIM_SEQUENCE,
     PVAL_VDATA_CHOICE,
+    PVAL_LAMBDA,
     PVAL_COUNT,
 }
 
@@ -147,7 +149,7 @@ internal sealed class PulseInstruction
 }
 
 /// <summary>A register of a chunk and the node port it was compiled from.</summary>
-/// <param name="Index">The register number, <c>m_nReg</c>.</param>
+/// <param name="Index">The register number, <c>m_nReg</c> or its position in <c>m_Registers</c>.</param>
 /// <param name="Type">The type name, with an optional ":subtype" such as PVAL_EHANDLE:func_button.</param>
 /// <param name="ValueType">The type without its subtype.</param>
 /// <param name="OriginNode">Editor node id from <c>m_OriginName</c>, -1 for compiler generated registers.</param>
@@ -276,13 +278,16 @@ internal sealed class PulseChunk
 
         HasDebugInfo = debugInfos.Length >= Instructions.Count;
 
-        foreach (var info in data.GetArray("m_Registers") ?? [])
+        var registerData = data.GetArray("m_Registers") ?? [];
+
+        for (var i = 0; i < registerData.Count; i++)
         {
+            var info = registerData[i];
             var type = info.GetStringProperty("m_Type", "PVAL_INVALID");
             var hasOrigin = TryParseOriginName(info.GetStringProperty("m_OriginName", string.Empty), out var originNode, out var originPort);
 
             var register = new PulseRegister(
-                info.GetInt32Property("m_nReg", -1),
+                info.GetInt32Property("m_nReg", i),
                 type,
                 parseValueType(type),
                 originNode,
@@ -302,10 +307,6 @@ internal sealed class PulseChunk
 
     public IEnumerable<PulseRegister> Registers => registers.Values;
 
-    /// <summary>The debug info of an instruction, or an empty one past the end of <c>m_InstructionDebugInfos</c>.</summary>
-    public PulseInstructionDebug DebugInfo(int instruction)
-        => instruction >= 0 && instruction < debugInfos.Length ? debugInfos[instruction] : new PulseInstructionDebug(-1, -1, string.Empty);
-
     public PulseRegister? Register(int register) => registers.GetValueOrDefault(register);
 
     public string RegisterType(int register) => Register(register)?.Type ?? "PVAL_INVALID";
@@ -314,11 +315,12 @@ internal sealed class PulseChunk
 
     public int RegisterWriteInstruction(int register) => Register(register)?.WrittenByInstruction ?? -1;
 
-    /// <summary>The register an editor node port was compiled to, or -1.</summary>
-    public int FindRegister(int node, string port) => registersByOrigin.TryGetValue((node, port), out var register) ? register.Index : -1;
+    /// <summary>The instruction writing the register an editor node port was compiled to.</summary>
+    public PulseInstruction? FindWriter(int node, string port)
+        => registersByOrigin.TryGetValue((node, port), out var register) && register.WrittenByInstruction >= 0 ? Instructions[register.WrittenByInstruction] : null;
 
     /// <summary>Reads <c>m_OriginName</c>, "&lt;node id&gt;:&lt;port&gt;". Compiler generated registers such as casts have no node.</summary>
-    public static bool TryParseOriginName(string originName, out int nodeId, out string port)
+    private static bool TryParseOriginName(string originName, out int nodeId, out string port)
     {
         var separator = originName.IndexOf(':', StringComparison.Ordinal);
         if (separator > 0 && ValueParsing.TryParseInt(originName.AsSpan(0, separator), out nodeId))
@@ -398,18 +400,8 @@ internal sealed class PulseGraphDefinition
     /// <summary>Whether a top level key of a cell holds any of its outflows.</summary>
     public bool IsOutflowKey(int cell, string key) => GetCellOutflows(cell).Keys.Contains(key);
 
-    /// <summary>A temporary variable of the bank a chunk uses, or null.</summary>
-    public KVObject? TempVar(int chunk, int index)
-    {
-        var bank = Chunks[chunk].TempVarBank;
-        if (bank < 0 || bank >= TempVarBanks.Count)
-        {
-            return null;
-        }
-
-        var tempVars = TempVarBanks[bank].GetArray("m_TempVars") ?? [];
-        return index >= 0 && index < tempVars.Count ? tempVars[index] : null;
-    }
+    /// <summary>A temporary variable of the bank a chunk uses.</summary>
+    public KVObject TempVar(int chunk, int index) => TempVarBanks[Chunks[chunk].TempVarBank].GetArray("m_TempVars")[index];
 
     /// <summary>
     /// Reads a type name. Handle and enum types name their subject after a colon (PVAL_EHANDLE:func_button),
