@@ -40,7 +40,7 @@ internal sealed class PulseEditorNode(int id, string className)
 {
     public int Id { get; } = id;
 
-    /// <summary>The document class, or the instruction code for a node <see cref="Instruction"/> is set on.</summary>
+    /// <summary>The document class.</summary>
     public string ClassName { get; } = className;
 
     public string? Name { get; set; }
@@ -48,14 +48,8 @@ internal sealed class PulseEditorNode(int id, string className)
     /// <summary>The node's own document keys, with input ports as <c>m_ValueSource</c> tables.</summary>
     public KVObject Fields { get; } = KVObject.Collection();
 
-    public bool IsFlow { get; init; } = true;
-    public bool IsEntry { get; set; }
-
     /// <summary>The cell class the node was compiled to, null for nodes with no cell.</summary>
     public string? CellClass { get; set; }
-
-    /// <summary>The instruction of a node the document has no class for, null for every other node.</summary>
-    public PulseInstructionCode? Instruction { get; set; }
 
     /// <summary>Top-left corner in the document.</summary>
     public Vector2 Position { get; set; }

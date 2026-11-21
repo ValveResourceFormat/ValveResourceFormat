@@ -1,0 +1,880 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:vpulse17:version{ad8ba504-a08c-43af-8d5f-63b5d13e157a} -->
+{
+	_class = "Root"
+	m_NodeID = 6092
+	m_Children = 
+	[
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 1001
+			m_Name = "fraction_1"
+			m_Value = 
+			{
+				m_Type = "PVAL_FLOAT"
+				m_Value = 0.0
+			}
+			m_Description = ""
+			m_nKeysSource = "PRIVATE"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 1002
+			m_Name = "spacing_1"
+			m_Value = 
+			{
+				m_Type = "PVAL_FLOAT"
+				m_Value = 0.0
+			}
+			m_Description = ""
+			m_nKeysSource = "PRIVATE"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 1003
+			m_Name = "counter_1"
+			m_Value = 
+			{
+				m_Type = "PVAL_INT"
+				m_Value = 7
+			}
+			m_Description = ""
+			m_nKeysSource = "PRIVATE"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 2005
+			m_Name = "copy_2"
+			m_Value = 
+			{
+				m_Type = "PVAL_INT"
+				m_Value = 0
+			}
+			m_Description = ""
+			m_nKeysSource = "PRIVATE"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 3001
+			m_Name = "values_3"
+			m_Value = 
+			{
+				m_Type = "PVAL_ARRAY:PVAL_INT"
+				m_Value = [ 10, 20, 30 ]
+			}
+			m_Description = ""
+			m_nKeysSource = "PRIVATE"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 3002
+			m_Name = "idx_3"
+			m_Value = 
+			{
+				m_Type = "PVAL_INT"
+				m_Value = 1
+			}
+			m_Description = ""
+			m_nKeysSource = "PRIVATE"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 3003
+			m_Name = "result_3"
+			m_Value = 
+			{
+				m_Type = "PVAL_INT"
+				m_Value = 0
+			}
+			m_Description = ""
+			m_nKeysSource = "PRIVATE"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 4001
+			m_Name = "values_4"
+			m_Value = 
+			{
+				m_Type = "PVAL_ARRAY:PVAL_INT"
+				m_Value = [ 10, 20, 30 ]
+			}
+			m_Description = ""
+			m_nKeysSource = "PRIVATE"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 4002
+			m_Name = "idx_4"
+			m_Value = 
+			{
+				m_Type = "PVAL_INT"
+				m_Value = 1
+			}
+			m_Description = ""
+			m_nKeysSource = "PRIVATE"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 4003
+			m_Name = "val_4"
+			m_Value = 
+			{
+				m_Type = "PVAL_INT"
+				m_Value = 55
+			}
+			m_Description = ""
+			m_nKeysSource = "PRIVATE"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 5001
+			m_Name = "pos_5"
+			m_Value = 
+			{
+				m_Type = "PVAL_VEC3"
+				m_Value = [ 1.0, 2.0, 3.0 ]
+			}
+			m_Description = ""
+			m_nKeysSource = "PRIVATE"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 5003
+			m_Name = "result_5"
+			m_Value = 
+			{
+				m_Type = "PVAL_FLOAT"
+				m_Value = 0.0
+			}
+			m_Description = ""
+			m_nKeysSource = "PRIVATE"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 6001
+			m_Name = "values_6"
+			m_Value = 
+			{
+				m_Type = "PVAL_ARRAY:PVAL_INT"
+				m_Value = [ 10, 20, 30 ]
+			}
+			m_Description = ""
+			m_nKeysSource = "PRIVATE"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 6002
+			m_Name = "idx_6"
+			m_Value = 
+			{
+				m_Type = "PVAL_INT"
+				m_Value = 1
+			}
+			m_Description = ""
+			m_nKeysSource = "PRIVATE"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "VariableDefinition"
+			m_NodeID = 6003
+			m_Name = "result_6"
+			m_Value = 
+			{
+				m_Type = "PVAL_INT"
+				m_Value = 0
+			}
+			m_Description = ""
+			m_nKeysSource = "PRIVATE"
+			m_bIsPublicBlackboardVariable = false
+		},
+		{
+			_class = "Inflow_Method"
+			m_NodeID = 1010
+			m_Name = "Run_1"
+			m_vPosition = [ 1390.0, 140.0 ]
+			m_bIsPublic = true
+			m_Description = ""
+			m_Args = [  ]
+			m_ReturnValues = [  ]
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 6076
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "m_Inflow_Start"
+					m_DestFlowNodeID = 1020
+				},
+			]
+		},
+		{
+			_class = "Inflow_Method"
+			m_NodeID = 2010
+			m_Name = "Run_2"
+			m_vPosition = [ 0.0, 1497.0 ]
+			m_bIsPublic = true
+			m_Description = ""
+			m_Args = [  ]
+			m_ReturnValues = [  ]
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 6078
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 2020
+				},
+			]
+		},
+		{
+			_class = "Inflow_Method"
+			m_NodeID = 3010
+			m_Name = "Run_3"
+			m_vPosition = [ 0.0, 0.0 ]
+			m_bIsPublic = true
+			m_Description = ""
+			m_Args = [  ]
+			m_ReturnValues = [  ]
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 6081
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 3020
+				},
+			]
+		},
+		{
+			_class = "Inflow_Method"
+			m_NodeID = 4010
+			m_Name = "Run_4"
+			m_vPosition = [ 0.0, 1127.0 ]
+			m_bIsPublic = true
+			m_Description = ""
+			m_Args = [  ]
+			m_ReturnValues = [  ]
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 6083
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 4020
+				},
+			]
+		},
+		{
+			_class = "Inflow_Method"
+			m_NodeID = 5010
+			m_Name = "Run_5"
+			m_vPosition = [ 1910.0, 1127.0 ]
+			m_bIsPublic = true
+			m_Description = ""
+			m_Args = [  ]
+			m_ReturnValues = [  ]
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 6085
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 5020
+				},
+			]
+		},
+		{
+			_class = "Inflow_Method"
+			m_NodeID = 6010
+			m_Name = "Run_6"
+			m_vPosition = [ 520.0, 757.0 ]
+			m_bIsPublic = true
+			m_Description = ""
+			m_Args = [  ]
+			m_ReturnValues = [  ]
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 6086
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "m_Inflow_Start"
+					m_DestFlowNodeID = 6020
+				},
+			]
+		},
+		{
+			_class = "Outflow_LoopFloatRange"
+			m_NodeID = 1020
+			m_vPosition = [ 1910.0, 140.0 ]
+			m_Start = 
+			{
+				m_ValueSource = "literal"
+				m_LiteralValue = 0.25
+			}
+			m_Stop = 
+			{
+				m_ValueSource = "var"
+				m_nVarOrConstID = 1002
+			}
+			m_Count = 
+			{
+				m_ValueSource = "var"
+				m_nVarOrConstID = 1003
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 6077
+					m_SourceOutflowName = "m_Outflow_Completed"
+					m_DestInflowName = "m_Inflow_Start"
+					m_DestFlowNodeID = 1040
+				},
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 6087
+					m_SourceOutflowName = "m_Outflow_Loop"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 1030
+				},
+			]
+		},
+		{
+			_class = "Outflow_LoopIntegerRange"
+			m_NodeID = 1040
+			m_vPosition = [ 2430.0, 0.0 ]
+			m_Start = 
+			{
+				m_ValueSource = "literal"
+				m_LiteralValue = 1
+			}
+			m_Stop = 
+			{
+				m_ValueSource = "literal"
+				m_LiteralValue = 9
+			}
+			m_Step = 
+			{
+				m_ValueSource = "var"
+				m_nVarOrConstID = 1003
+			}
+			m_bRangeIncludesEndpoint = true
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 6089
+					m_SourceOutflowName = "m_Outflow_Loop"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 1050
+				},
+			]
+		},
+		{
+			_class = "Step_SetVar"
+			m_NodeID = 2020
+			m_vPosition = [ 520.0, 1497.0 ]
+			m_VarDefID = -1
+			m_Value = 
+			{
+				m_ValueSource = "literal"
+				m_LiteralValue = 7
+			}
+			m_BlackboardReference = 
+			{
+				m_hBlackboardResource = "pulse/bb_board.vpulse"
+				m_nNodeID = 1
+				m_NodeName = "score"
+				m_CachedType = "PVAL_INT"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 6079
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 2030
+				},
+			]
+		},
+		{
+			_class = "Step_DebugLog"
+			m_NodeID = 2030
+			m_vPosition = [ 1040.0, 1497.0 ]
+			m_Message = 
+			{
+				m_ValueSource = "blackboard_ref"
+				m_BlackboardReference = 
+				{
+					m_hBlackboardResource = "pulse/bb_board.vpulse"
+					m_nNodeID = 2
+					m_NodeName = "label"
+					m_CachedType = "PVAL_STRING"
+				}
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 6080
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 2040
+				},
+			]
+		},
+		{
+			_class = "Step_SetVar"
+			m_NodeID = 2040
+			m_vPosition = [ 1560.0, 1497.0 ]
+			m_VarDefID = 2005
+			m_Value = 
+			{
+				m_ValueSource = "blackboard_ref"
+				m_BlackboardReference = 
+				{
+					m_hBlackboardResource = "pulse/bb_board.vpulse"
+					m_nNodeID = 1
+					m_NodeName = "score"
+					m_CachedType = "PVAL_INT"
+				}
+			}
+		},
+		{
+			_class = "Value_ArrayElement"
+			m_NodeID = 3030
+			m_vPosition = [ 0.0, 140.0 ]
+			m_In_Array = 
+			{
+				m_ValueSource = "var"
+				m_nVarOrConstID = 3001
+			}
+			m_In_Index = 
+			{
+				m_ValueSource = "literal"
+				m_LiteralValue = 2
+			}
+		},
+		{
+			_class = "Step_SetVar"
+			m_NodeID = 3020
+			m_vPosition = [ 520.0, 140.0 ]
+			m_VarDefID = 3003
+			m_Value = 
+			{
+				m_ValueSource = "port"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 6082
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 3040
+				},
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 6062
+					m_SourceNode = 3030
+					m_SourceOutparamName = "element"
+					m_ThisInparamName = "m_Value"
+				},
+			]
+		},
+		{
+			_class = "Value_VarReference"
+			m_NodeID = 3070
+			m_vPosition = [ 0.0, 280.0 ]
+			m_SourceID = 3001
+		},
+		{
+			_class = "ExprAdd"
+			m_NodeID = 3060
+			m_vPosition = [ 0.0, 420.0 ]
+			m_FirstArg = 
+			{
+				m_ValueSource = "var"
+				m_nVarOrConstID = 3002
+			}
+			m_SecondArg = 
+			{
+				m_ValueSource = "literal"
+				m_LiteralValue = 1
+				m_UserRefinedType = "PVAL_INT"
+			}
+		},
+		{
+			_class = "Value_ArrayElement"
+			m_NodeID = 3050
+			m_vPosition = [ 520.0, 280.0 ]
+			m_In_Array = 
+			{
+				m_ValueSource = "port"
+			}
+			m_In_Index = 
+			{
+				m_ValueSource = "port"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 6063
+					m_SourceNode = 3070
+					m_SourceOutparamName = "value"
+					m_ThisInparamName = "Array"
+				},
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 6064
+					m_SourceNode = 3060
+					m_SourceOutparamName = "retval"
+					m_ThisInparamName = "Index"
+				},
+			]
+		},
+		{
+			_class = "Step_SetVar"
+			m_NodeID = 3040
+			m_vPosition = [ 1040.0, 140.0 ]
+			m_VarDefID = 3003
+			m_Value = 
+			{
+				m_ValueSource = "port"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 6065
+					m_SourceNode = 3050
+					m_SourceOutparamName = "element"
+					m_ThisInparamName = "m_Value"
+				},
+			]
+		},
+		{
+			_class = "Step_SetVar"
+			m_NodeID = 4020
+			m_vPosition = [ 520.0, 1127.0 ]
+			m_VarDefID = 4001
+			m_Value = 
+			{
+				m_ValueSource = "literal"
+				m_LiteralValue = 99
+			}
+			m_nArrayIndexDimension = 1
+			m_ArrayIndexPorts = 
+			{
+				ArrayIndex0 = 
+				{
+					m_ValueSource = "literal"
+					m_LiteralValue = 2
+				}
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 6084
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 4040
+				},
+			]
+		},
+		{
+			_class = "Value_VarReference"
+			m_NodeID = 4070
+			m_vPosition = [ 520.0, 1267.0 ]
+			m_SourceID = 4002
+		},
+		{
+			_class = "Step_SetVar"
+			m_NodeID = 4040
+			m_vPosition = [ 1040.0, 1127.0 ]
+			m_VarDefID = 4001
+			m_Value = 
+			{
+				m_ValueSource = "var"
+				m_nVarOrConstID = 4003
+			}
+			m_nArrayIndexDimension = 1
+			m_ArrayIndexPorts = 
+			{
+				ArrayIndex0 = 
+				{
+					m_ValueSource = "port"
+				}
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 6066
+					m_SourceNode = 4070
+					m_SourceOutparamName = "value"
+					m_ThisInparamName = "ArrayIndex0"
+				},
+			]
+		},
+		{
+			_class = "Value_VarReference"
+			m_NodeID = 5070
+			m_vPosition = [ 1390.0, 1267.0 ]
+			m_SourceID = 5001
+		},
+		{
+			_class = "ExprGetProperty"
+			m_NodeID = 5030
+			m_vPosition = [ 1910.0, 1267.0 ]
+			m_ObjectParam = 
+			{
+				m_ValueSource = "port"
+			}
+			m_PropertyName = "y"
+			m_Children = 
+			[
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 6067
+					m_SourceNode = 5070
+					m_SourceOutparamName = "value"
+					m_ThisInparamName = "_Target"
+				},
+			]
+		},
+		{
+			_class = "Step_SetVar"
+			m_NodeID = 5020
+			m_vPosition = [ 2430.0, 1127.0 ]
+			m_VarDefID = 5003
+			m_Value = 
+			{
+				m_ValueSource = "port"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 6068
+					m_SourceNode = 5030
+					m_SourceOutparamName = "retval"
+					m_ThisInparamName = "m_Value"
+				},
+			]
+		},
+		{
+			_class = "Value_MakeArray"
+			m_NodeID = 6061
+			m_vPosition = [ 520.0, 897.0 ]
+			m_UnifiedElementType = "PVAL_INT"
+			m_In_Elements = 
+			{
+				"0" = 
+				{
+					m_ValueSource = "literal"
+					m_LiteralValue = 4
+				}
+				"1" = 
+				{
+					m_ValueSource = "port"
+				}
+				"2" = 
+				{
+					m_ValueSource = "var"
+					m_nVarOrConstID = 6003
+				}
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 6069
+					m_SourceNode = 6060
+					m_SourceOutparamName = "retval"
+					m_ThisInparamName = "1"
+				},
+			]
+		},
+		{
+			_class = "ExprAdd"
+			m_NodeID = 6060
+			m_vPosition = [ 0.0, 897.0 ]
+			m_FirstArg = 
+			{
+				m_ValueSource = "var"
+				m_nVarOrConstID = 6002
+			}
+			m_SecondArg = 
+			{
+				m_ValueSource = "literal"
+				m_LiteralValue = 1
+				m_UserRefinedType = "PVAL_INT"
+			}
+		},
+		{
+			_class = "Outflow_LoopForEach"
+			m_NodeID = 6020
+			m_vPosition = [ 1040.0, 757.0 ]
+			m_In_Array = 
+			{
+				m_ValueSource = "port"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 6090
+					m_SourceOutflowName = "m_Outflow_Loop"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 6030
+				},
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 6070
+					m_SourceNode = 6061
+					m_SourceOutparamName = "retval"
+					m_ThisInparamName = "Array"
+				},
+			]
+		},
+		{
+			_class = "Step_SetVar"
+			m_NodeID = 1030
+			m_vPosition = [ 2430.0, 140.0 ]
+			m_VarDefID = 1001
+			m_Value = 
+			{
+				m_ValueSource = "port"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 6088
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 1035
+				},
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 6071
+					m_SourceNode = 1020
+					m_SourceOutparamName = "value"
+					m_ThisInparamName = "m_Value"
+				},
+			]
+		},
+		{
+			_class = "Step_SetVar"
+			m_NodeID = 1035
+			m_vPosition = [ 2950.0, 247.0 ]
+			m_VarDefID = 1002
+			m_Value = 
+			{
+				m_ValueSource = "port"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 6072
+					m_SourceNode = 1020
+					m_SourceOutparamName = "step"
+					m_ThisInparamName = "m_Value"
+				},
+			]
+		},
+		{
+			_class = "Step_SetVar"
+			m_NodeID = 1050
+			m_vPosition = [ 2950.0, 0.0 ]
+			m_VarDefID = 1003
+			m_Value = 
+			{
+				m_ValueSource = "port"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 6073
+					m_SourceNode = 1040
+					m_SourceOutparamName = "index"
+					m_ThisInparamName = "m_Value"
+				},
+			]
+		},
+		{
+			_class = "Step_SetVar"
+			m_NodeID = 6030
+			m_vPosition = [ 1560.0, 650.0 ]
+			m_VarDefID = 6003
+			m_Value = 
+			{
+				m_ValueSource = "port"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Outflow"
+					m_NodeID = 6091
+					m_SourceOutflowName = "OutDefault"
+					m_DestInflowName = "InDefault"
+					m_DestFlowNodeID = 6040
+				},
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 6074
+					m_SourceNode = 6020
+					m_SourceOutparamName = "element"
+					m_ThisInparamName = "m_Value"
+				},
+			]
+		},
+		{
+			_class = "Step_SetVar"
+			m_NodeID = 6040
+			m_vPosition = [ 2080.0, 757.0 ]
+			m_VarDefID = 6002
+			m_Value = 
+			{
+				m_ValueSource = "port"
+			}
+			m_Children = 
+			[
+				{
+					_class = "Connection_Inparam"
+					m_NodeID = 6075
+					m_SourceNode = 6020
+					m_SourceOutparamName = "index"
+					m_ThisInparamName = "m_Value"
+				},
+			]
+		},
+	]
+	m_DomainIdentifier = "ServerEntity"
+	m_DomainSubType = "PVAL_EHANDLE:point_pulse"
+	m_ParentMapName = ""
+	m_ParentXmlName = ""
+}

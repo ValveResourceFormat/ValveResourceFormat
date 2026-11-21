@@ -11,8 +11,7 @@ namespace ValveResourceFormat.IO;
 /// Decompiles a compiled Pulse graph back into an editable <c>.vpulse</c> document that resourcecompiler can build again.
 /// </summary>
 /// <remarks>
-/// The editor nodes are rebuilt from the debug info every instruction keeps, and laid out the way the graph viewer
-/// draws them.
+/// The editor nodes are rebuilt from the debug info every instruction keeps.
 /// </remarks>
 public sealed class PulseGraphExtract
 {
@@ -85,12 +84,6 @@ public sealed class PulseGraphExtract
 
         foreach (var node in walker.Nodes)
         {
-            if (node.Instruction != null)
-            {
-                ProgressReporter?.Report($"Node {node.Id} stands for instruction {node.ClassName}, which no document node expresses, it is left out.");
-                continue;
-            }
-
             children.Add(BuildNode(node, walker));
         }
 
@@ -103,19 +96,42 @@ public sealed class PulseGraphExtract
         return root;
     }
 
-    // Positions come from the graph viewer's layout, without a time limit so the output is stable
     private static void LayOut(PulseGraphWalker walker)
     {
-        var document = new GraphDocument();
-        document.LayoutOptions.LayoutBudgetMs = 0;
-        new PulseGraphBuilder(walker).Build(document);
+        var nodes = walker.Nodes;
+        var index = new Dictionary<int, int>(nodes.Count);
 
-        foreach (var node in document.Nodes)
+        for (var i = 0; i < nodes.Count; i++)
         {
-            if (node.Tag is PulseEditorNode editorNode)
+            index[nodes[i].Id] = i;
+        }
+
+        var edges = new List<GraphLayoutEdge>();
+
+        for (var i = 0; i < nodes.Count; i++)
+        {
+            foreach (var outflow in nodes[i].Outflows)
             {
-                editorNode.Position = new Vector2(MathF.Round(node.Position.X), MathF.Round(node.Position.Y));
+                if (index.TryGetValue(outflow.Target, out var target) && target != i)
+                {
+                    edges.Add(GraphPlacement.MakeEdge(i, target));
+                }
             }
+
+            foreach (var inparam in nodes[i].Inparams)
+            {
+                if (index.TryGetValue(inparam.SourceNode, out var source) && source != i)
+                {
+                    edges.Add(GraphPlacement.MakeEdge(source, i));
+                }
+            }
+        }
+
+        var positions = GraphPlacement.Layout(nodes.Count, [.. edges]);
+
+        for (var i = 0; i < nodes.Count; i++)
+        {
+            nodes[i].Position = new Vector2(MathF.Round(positions[i].X), MathF.Round(positions[i].Y));
         }
     }
 
@@ -137,7 +153,7 @@ public sealed class PulseGraphExtract
             node.Add(key, value);
         }
 
-        bool IsWritten(int nodeId) => walker.TryGetNode(nodeId, out var other) && other.Instruction == null;
+        bool IsWritten(int nodeId) => walker.TryGetNode(nodeId, out _);
 
         var children = KVObject.Array();
 
