@@ -1,3 +1,4 @@
+using System.Linq;
 using Datamodel.Format;
 using DMElement = Datamodel.Element;
 
@@ -65,87 +66,38 @@ public class CDmeVtex : DMElement
     //public bool HiddenAssetFlag { get; set; }
 
     /// <summary>
-    /// Creates a 2D texture configuration from input images.
+    /// Adds an input image.
     /// </summary>
-    public static CDmeVtex CreateTexture2D((string FileName, string Channels, string MipAlgorithm)[] images, string outputFormat = "DXT1")
-        => CreateTexture(images, outputFormat, "2D");
-
-    /// <summary>
-    /// Creates a 2D texture array configuration from the first slice image named <c>_z000</c>.
-    /// The compiler loads the following <c>_z001</c>, <c>_z002</c> slices next to it.
-    /// </summary>
-    public static CDmeVtex CreateTexture2DArray(string firstSliceFileName, string mipAlgorithm = "Box", string outputFormat = "DXT1")
-        => CreateTexture([(firstSliceFileName, "rgba", mipAlgorithm)], outputFormat, "2DARRAY");
-
-    /// <summary>
-    /// Creates a volume texture configuration from the first slice image named <c>_z000</c>.
-    /// The compiler loads the following <c>_z001</c>, <c>_z002</c> slices next to it.
-    /// </summary>
-    public static CDmeVtex CreateVolume(string firstSliceFileName, string mipAlgorithm = "Box", string outputFormat = "DXT1")
-        => CreateTexture([(firstSliceFileName, "rgba", mipAlgorithm)], outputFormat, "3D");
-
-    private static CDmeVtex CreateTexture((string FileName, string Channels, string MipAlgorithm)[] images, string outputFormat, string typeString)
+    /// <param name="name">Name the output channels refer to the input by.</param>
+    /// <param name="fileName">Content relative path of the image.</param>
+    /// <param name="typeString">Layout of the image, e.g. "2D", "CUBE", "2DARRAY" or "3D".</param>
+    /// <param name="colorSpace">Color space of the image, "srgb" or "linear".</param>
+    /// <param name="imageProcessors">Algorithms to run on the image, in order.</param>
+    public void AddInputTexture(string name, string fileName, string typeString, string colorSpace, IEnumerable<string> imageProcessors)
     {
-        var vtex = new CDmeVtex
+        var input = new CDmeInputTexture { Name = name, FileName = fileName, TypeString = typeString, ColorSpace = colorSpace };
+
+        foreach (var processor in imageProcessors.DefaultIfEmpty("None"))
         {
-            OutputTypeString = typeString,
-            OutputFormat = outputFormat,
-        };
-
-        var i = 0;
-        foreach (var image in images)
-        {
-            var inputImageId = "InputTexture" + i++;
-            var input = new CDmeInputTexture { Name = inputImageId, FileName = image.FileName, TypeString = typeString };
-            input.ImageProcessorArray.Add(new CDmeImageProcessor()); // Empty
-            vtex.InputTextureArray.Add(input);
-
-            var output = new CDmeTextureOutputChannel()
-            {
-                SrcChannels = "rgba"[..image.Channels.Length],
-                DstChannels = image.Channels,
-            };
-
-            output.InputTextureArray.Add(inputImageId);
-            output.MipAlgorithm.Algorithm = image.MipAlgorithm;
-            vtex.TextureOutputChannelArray.Add(output);
+            input.ImageProcessorArray.Add(new CDmeImageProcessor { Algorithm = processor });
         }
 
-        return vtex;
+        InputTextureArray.Add(input);
     }
 
     /// <summary>
-    /// Creates a cube texture configuration from input images, each holding the six faces in one layout.
+    /// Adds the output channels that are compiled from the named inputs.
     /// </summary>
-    public static CDmeVtex CreateCube((string FileName, string Channels, string MipAlgorithm)[] images, string outputFormat = "DXT1")
-        => CreateTexture(images, outputFormat, "CUBE");
-
-    /// <summary>
-    /// Creates a cube array texture configuration, with one input image for each cube of the array.
-    /// </summary>
-    public static CDmeVtex CreateCubeArray(string[] fileNames, string mipAlgorithm, string outputFormat)
+    /// <param name="inputNames">Names of the inputs, as given to <see cref="AddInputTexture"/>.</param>
+    /// <param name="channels">Channels to read and write, e.g. "rgb" or "a".</param>
+    /// <param name="colorSpace">Color space of the output, "srgb" or "linear".</param>
+    /// <param name="mipAlgorithm">Mipmap generation algorithm, "None" for a single mip.</param>
+    public void AddOutputChannel(IEnumerable<string> inputNames, string channels, string colorSpace, string mipAlgorithm)
     {
-        var vtex = new CDmeVtex
-        {
-            OutputTypeString = "CUBEARRAY",
-            OutputFormat = outputFormat,
-        };
-
-        var output = new CDmeTextureOutputChannel();
+        var output = new CDmeTextureOutputChannel { SrcChannels = channels, DstChannels = channels, OutputColorSpace = colorSpace };
+        output.InputTextureArray.AddRange(inputNames);
         output.MipAlgorithm.Algorithm = mipAlgorithm;
-
-        for (var i = 0; i < fileNames.Length; i++)
-        {
-            var inputImageId = "InputTexture" + i;
-            var input = new CDmeInputTexture { Name = inputImageId, FileName = fileNames[i], TypeString = "CUBE" };
-            input.ImageProcessorArray.Add(new CDmeImageProcessor()); // Empty
-            vtex.InputTextureArray.Add(input);
-            output.InputTextureArray.Add(inputImageId);
-        }
-
-        vtex.TextureOutputChannelArray.Add(output);
-
-        return vtex;
+        TextureOutputChannelArray.Add(output);
     }
 }
 

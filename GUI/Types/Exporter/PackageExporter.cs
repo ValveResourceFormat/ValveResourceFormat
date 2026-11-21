@@ -472,7 +472,9 @@ namespace GUI.Types.Exporter
                     flatSubfiles = false;
                 }
 
-                using var contentFile = FileExtract.Extract(resource, exportData.FileLoader, progress);
+                using var contentFile = outExtension == ".image" && resource.ResourceType == ResourceType.Texture
+                    ? new TextureExtract(resource) { IgnoreVtexFile = true }.ToContentFile()
+                    : FileExtract.Extract(resource, exportData.FileLoader, progress);
 
                 if (contentFile.Data != null)
                 {
