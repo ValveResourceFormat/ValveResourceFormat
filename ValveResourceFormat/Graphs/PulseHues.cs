@@ -121,6 +121,8 @@ internal static class PulseHues
         "CPulseCell_ApplyAnimGraphParam" or "CPulseCell_ApplyDynamicAttributeBase"
             or "CPulseCell_ApplyDynamicAttributeEHandle" or "CPulseCell_ApplyDynamicAttributeInt"
             or "CPulseCell_ApplyDynamicAttributeString" or "CPulseCell_ApplyEntityFlags"
+            or "CPulseCell_ApplyGaitOverride" or "CPulseCell_ApplyModifier"
+            or "CPulseCell_ApplyModifierBase" or "CPulseCell_ApplyModifierToMultiple"
             or "CPulseCell_ApplyParent"
             or "CPulseCell_BaseLerp" or "CPulseCell_BaseState" or "CPulseCell_BaseYieldingInflow"
             or "CPulseCell_BooleanSwitchState" or "CPulseCell_CursorQueue"
