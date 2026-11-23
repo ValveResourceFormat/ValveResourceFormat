@@ -70,6 +70,12 @@ internal sealed partial class PulseGraphWalker
                 node.Fields.Add("m_Description", cell.GetStringProperty("m_Description", string.Empty));
                 node.Fields.Add("m_Args", BuildMethodArgs(cell.GetArray("m_Args")));
                 node.Fields.Add("m_ReturnValues", BuildMethodArgs(cell.GetArray("m_ReturnValues")));
+
+                if (!cell.ContainsKey("m_ReturnValues") && cell.GetStringProperty("m_ReturnType", "PVAL_VOID") is var returnType and not "PVAL_VOID")
+                {
+                    node.Fields.Add("m_ReturnType", returnType);
+                }
+
                 break;
 
             case "CPulseCell_Inflow_EventHandler":
@@ -191,6 +197,11 @@ internal sealed partial class PulseGraphWalker
 
         while (true)
         {
+            if (path.Chunk < 0 || path.Chunk >= Definition.Chunks.Count)
+            {
+                return;
+            }
+
             var chunk = Definition.Chunks[path.Chunk];
 
             if (path.Instruction < 0 || path.Instruction >= chunk.Instructions.Count || !visited.Add((path.Chunk, path.Instruction)))
@@ -257,7 +268,10 @@ internal sealed partial class PulseGraphWalker
                 break;
 
             case PulseInstructionCode.IMMEDIATE_HALT:
+                return false;
+
             case PulseInstructionCode.RETURN_VALUE:
+                Report($"Node {path.CurrentNode} returns a value with RETURN_VALUE, which is not supported yet (chunk {path.Chunk}, instruction {path.Instruction}).");
                 return false;
 
             case PulseInstructionCode.RETURN_VOID:

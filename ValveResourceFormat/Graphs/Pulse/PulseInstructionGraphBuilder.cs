@@ -41,62 +41,6 @@ internal sealed class PulseInstructionGraphBuilder
 
     private readonly KVObject graphDefinition;
 
-    // Every serialized instruction code, in order. Typed variants such as ADD_INT only exist at runtime.
-    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/pulse_runtime_lib/PulseInstructionCode_t">PulseInstructionCode_t</seealso>
-    enum InstructionCode
-    {
-        INVALID,
-        IMMEDIATE_HALT,
-        RETURN_VOID,
-        RETURN_VALUE,
-        LOOP_BREAK,
-        NOP,
-        JUMP,
-        JUMP_COND,
-        CHUNK_LEAP,
-        CHUNK_LEAP_COND,
-        PULSE_CALL_SYNC,
-        PULSE_CALL_ASYNC_FIRE,
-        CREATE_CHILD_CURSOR_OUTFLOW,
-        CELL_INVOKE,
-        LIBRARY_INVOKE,
-        BROADCAST_INVOKE,
-        SET_VAR,
-        GET_VAR,
-        GET_VAR_DETACH,
-        DETACH_REGISTER,
-        SET_VAR_ARRAY_ELEMENT_1D,
-        SET_VAR_OBSERVABLE,
-        GET_CONST,
-        GET_ARRAY_ELEMENT,
-        GET_DOMAIN_VALUE,
-        COPY,
-        NOT,
-        NEGATE,
-        ADD,
-        SUB,
-        MUL,
-        DIV,
-        MOD,
-        LT,
-        LTE,
-        EQ,
-        NE,
-        AND,
-        OR,
-        SCALE,
-        SCALE_INV,
-        ELEMENT_ACCESS,
-        CONVERT_VALUE,
-        REINTERPRET_INSTANCE,
-        GET_BLACKBOARD_REFERENCE,
-        SET_BLACKBOARD_REFERENCE,
-        GET_TEMPVAR,
-        SET_TEMPVAR,
-        SET_TEMPVAR_OBSERVABLE,
-        BIND_LAMBDA,
-    }
-
     // The full value type set. A register names one of these, optionally with
     // a ":subtype" the parser strips. Drives socket/wire colour and is shown on variable nodes.
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/pulse_runtime_lib/PulseValueType_t">PulseValueType_t</seealso>
@@ -327,8 +271,8 @@ internal sealed class PulseInstructionGraphBuilder
         return index == -1 ? "Unknown" : className[(index + 1)..];
     }
 
-    private static InstructionCode GetInstructionType(KVObject instruction)
-        => Enum.TryParse(instruction.GetStringProperty("m_nCode"), out InstructionCode code) ? code : InstructionCode.INVALID;
+    private static PulseInstructionCode GetInstructionType(KVObject instruction)
+        => PulseInstruction.ParseCode(instruction.GetStringProperty("m_nCode"));
 
     private PulseValueType GetValueTypeFromRegister(int chunkIdx, int regIdx)
     {
@@ -605,17 +549,17 @@ internal sealed class PulseInstructionGraphBuilder
         var instruction = instructions[instructionIdx];
         switch (GetInstructionType(instruction))
         {
-            case InstructionCode.JUMP:
+            case PulseInstructionCode.JUMP:
                 yield return instruction.GetInt32Property("m_nDestInstruction");
                 yield break;
-            case InstructionCode.JUMP_COND:
+            case PulseInstructionCode.JUMP_COND:
                 yield return instruction.GetInt32Property("m_nDestInstruction");
                 yield return instructionIdx + 1;
                 yield break;
-            case InstructionCode.RETURN_VOID or InstructionCode.RETURN_VALUE or InstructionCode.LOOP_BREAK
-                or InstructionCode.IMMEDIATE_HALT or InstructionCode.CHUNK_LEAP:
+            case PulseInstructionCode.RETURN_VOID or PulseInstructionCode.RETURN_VALUE or PulseInstructionCode.LOOP_BREAK
+                or PulseInstructionCode.IMMEDIATE_HALT or PulseInstructionCode.CHUNK_LEAP:
                 yield break;
-            case InstructionCode.CELL_INVOKE or InstructionCode.BROADCAST_INVOKE:
+            case PulseInstructionCode.CELL_INVOKE or PulseInstructionCode.BROADCAST_INVOKE:
                 var cellIdx = invokeBindings[instruction.GetInt32Property("m_nInvokeBindingIndex")].GetInt32Property("m_nCellIndex");
                 foreach (var outflow in GetCellOutflows(cellIdx))
                 {
@@ -625,7 +569,7 @@ internal sealed class PulseInstructionGraphBuilder
                     }
                 }
                 break;
-            case InstructionCode.PULSE_CALL_SYNC or InstructionCode.PULSE_CALL_ASYNC_FIRE or InstructionCode.CREATE_CHILD_CURSOR_OUTFLOW:
+            case PulseInstructionCode.PULSE_CALL_SYNC or PulseInstructionCode.PULSE_CALL_ASYNC_FIRE or PulseInstructionCode.CREATE_CHILD_CURSOR_OUTFLOW:
                 if (instruction.GetInt32Property("m_nChunk") == chunkIdx)
                 {
                     yield return instruction.GetInt32Property("m_nDestInstruction");
@@ -714,9 +658,9 @@ internal sealed class PulseInstructionGraphBuilder
 
             var registerMap = GetInstructionType(instruction) switch
             {
-                InstructionCode.LIBRARY_INVOKE or InstructionCode.CELL_INVOKE or InstructionCode.BROADCAST_INVOKE
+                PulseInstructionCode.LIBRARY_INVOKE or PulseInstructionCode.CELL_INVOKE or PulseInstructionCode.BROADCAST_INVOKE
                     => invokeBindings.ElementAtOrDefault(instruction.GetInt32Property("m_nInvokeBindingIndex"))?["m_RegisterMap"],
-                InstructionCode.PULSE_CALL_SYNC or InstructionCode.PULSE_CALL_ASYNC_FIRE
+                PulseInstructionCode.PULSE_CALL_SYNC or PulseInstructionCode.PULSE_CALL_ASYNC_FIRE
                     => callInfos.ElementAtOrDefault(instruction.GetInt32Property("m_nCallInfoIndex"))?["m_RegisterMap"],
                 _ => null,
             };
@@ -830,7 +774,7 @@ internal sealed class PulseInstructionGraphBuilder
         var registers = chunk.GetArray("m_Registers");
         var loopEndInstr = instructions[loopEnd];
 
-        if (GetInstructionType(loopEndInstr) == InstructionCode.JUMP_COND)
+        if (GetInstructionType(loopEndInstr) == PulseInstructionCode.JUMP_COND)
         {
             var doWhileNode = CreateNode("Do-While Loop", "Flow control", PulseCategory.FlowControl);
             previousActionOutSocket = CreateSequentialActionSockets(document, doWhileNode, previousActionOutSocket);
@@ -847,7 +791,7 @@ internal sealed class PulseInstructionGraphBuilder
         var instrJumpCompIdx = -1;
         for (var i = loopStart; i <= loopEnd; i++)
         {
-            if (GetInstructionType(instructions[i]) == InstructionCode.JUMP_COND)
+            if (GetInstructionType(instructions[i]) == PulseInstructionCode.JUMP_COND)
             {
                 instrJumpCompIdx = i;
                 break;
@@ -864,7 +808,7 @@ internal sealed class PulseInstructionGraphBuilder
         var loopJumpOutInstructionIdx = instrJumpCompIdx + 1;
         var loopJumpOutInstruction = instructions[loopJumpOutInstructionIdx];
 
-        if (GetInstructionType(loopJumpOutInstruction) != InstructionCode.JUMP)
+        if (GetInstructionType(loopJumpOutInstruction) != PulseInstructionCode.JUMP)
         {
             ProgressReporter?.Report($"Could not find jump-out instruction for loop starting at instruction {loopStart} in chunk {chunkIndex}");
             instructionIdx = loopEnd + 1;
@@ -946,7 +890,7 @@ internal sealed class PulseInstructionGraphBuilder
         // and end. There is no greater-than instruction, it compiles to LT/LTE with swapped operands.
         if (regStop == -1 && regStart == -1)
         {
-            if (GetInstructionType(instrComp) is InstructionCode.LT or InstructionCode.LTE)
+            if (GetInstructionType(instrComp) is PulseInstructionCode.LT or PulseInstructionCode.LTE)
             {
                 regStart = instrComp.GetInt32Property("m_nReg1");
                 regStop = instrComp.GetInt32Property("m_nReg2");
@@ -987,7 +931,7 @@ internal sealed class PulseInstructionGraphBuilder
         {
             var instrLastInLoop = instructions[loopEnd - 1];
             // A bit crude, but otherwise we do not really have a good way of determining the increment
-            if (GetInstructionType(instrLastInLoop) is InstructionCode.ADD or InstructionCode.SUB or InstructionCode.MUL or InstructionCode.DIV)
+            if (GetInstructionType(instrLastInLoop) is PulseInstructionCode.ADD or PulseInstructionCode.SUB or PulseInstructionCode.MUL or PulseInstructionCode.DIV)
             {
                 // use the value that's not the output one, so the increment
                 var opReg0 = instrLastInLoop.GetInt32Property("m_nReg0");
@@ -1130,7 +1074,7 @@ internal sealed class PulseInstructionGraphBuilder
             var instrType = GetInstructionType(instruction);
             switch (instrType)
             {
-                case InstructionCode.LIBRARY_INVOKE:
+                case PulseInstructionCode.LIBRARY_INVOKE:
                 {
                     var binding = invokeBindings[instruction.GetInt32Property("m_nInvokeBindingIndex")];
                     var registerMap = binding["m_RegisterMap"];
@@ -1142,8 +1086,8 @@ internal sealed class PulseInstructionGraphBuilder
                     document.AddNode(node);
                     break;
                 }
-                case InstructionCode.CELL_INVOKE:
-                case InstructionCode.BROADCAST_INVOKE:
+                case PulseInstructionCode.CELL_INVOKE:
+                case PulseInstructionCode.BROADCAST_INVOKE:
                 {
                     var binding = invokeBindings[instruction.GetInt32Property("m_nInvokeBindingIndex")];
                     var registerMap = binding["m_RegisterMap"];
@@ -1162,7 +1106,7 @@ internal sealed class PulseInstructionGraphBuilder
                     document.AddNode(node);
                     break;
                 }
-                case InstructionCode.GET_CONST:
+                case PulseInstructionCode.GET_CONST:
                 {
                     var constIdx = instruction.GetInt32Property("m_nConstIdx");
                     var constant = constants.ElementAtOrDefault(constIdx);
@@ -1175,7 +1119,7 @@ internal sealed class PulseInstructionGraphBuilder
                     registerValues[instruction.GetInt32Property("m_nReg0")] = new(null, constant["m_Value"]);
                     break;
                 }
-                case InstructionCode.GET_DOMAIN_VALUE:
+                case PulseInstructionCode.GET_DOMAIN_VALUE:
                 {
                     var domainValIdx = instruction.GetInt32Property("m_nDomainValueIdx");
                     var domainValue = domainValues.ElementAtOrDefault(domainValIdx);
@@ -1188,22 +1132,22 @@ internal sealed class PulseInstructionGraphBuilder
                     registerValues[instruction.GetInt32Property("m_nReg0")] = new(null, domainValue["m_Value"]);
                     break;
                 }
-                case InstructionCode.GET_VAR:
-                case InstructionCode.GET_VAR_DETACH:
+                case PulseInstructionCode.GET_VAR:
+                case PulseInstructionCode.GET_VAR_DETACH:
                 {
                     var hub = VariableHubFromInstruction(document, instruction, out var name);
                     AddVariableRead(document, hub, "Get Variable", name, chunkIndex, instruction.GetInt32Property("m_nReg0"), registerValues);
                     break;
                 }
-                case InstructionCode.SET_VAR:
-                case InstructionCode.SET_VAR_OBSERVABLE:
+                case PulseInstructionCode.SET_VAR:
+                case PulseInstructionCode.SET_VAR_OBSERVABLE:
                 {
                     var hub = VariableHubFromInstruction(document, instruction, out var name);
                     previousActionOutSocket = AddVariableWrite(document, hub, "Set Variable", name, chunkIndex, instruction.GetInt32Property("m_nReg0"),
                         previousActionOutSocket, registerValues);
                     break;
                 }
-                case InstructionCode.SET_VAR_ARRAY_ELEMENT_1D:
+                case PulseInstructionCode.SET_VAR_ARRAY_ELEMENT_1D:
                 {
                     // Value comes from reg0 and the element index from reg2, reg1 is unused
                     var hub = VariableHubFromInstruction(document, instruction, out var name);
@@ -1211,46 +1155,46 @@ internal sealed class PulseInstructionGraphBuilder
                         previousActionOutSocket, registerValues, instruction.GetInt32Property("m_nReg2"));
                     break;
                 }
-                case InstructionCode.GET_TEMPVAR:
+                case PulseInstructionCode.GET_TEMPVAR:
                 {
                     var hub = TempVariableHubFromInstruction(document, chunkIndex, instruction, out var name);
                     AddVariableRead(document, hub, "Get Temporary Variable", name, chunkIndex, instruction.GetInt32Property("m_nReg0"), registerValues);
                     break;
                 }
-                case InstructionCode.SET_TEMPVAR:
-                case InstructionCode.SET_TEMPVAR_OBSERVABLE:
+                case PulseInstructionCode.SET_TEMPVAR:
+                case PulseInstructionCode.SET_TEMPVAR_OBSERVABLE:
                 {
                     var hub = TempVariableHubFromInstruction(document, chunkIndex, instruction, out var name);
                     previousActionOutSocket = AddVariableWrite(document, hub, "Set Temporary Variable", name, chunkIndex, instruction.GetInt32Property("m_nReg0"),
                         previousActionOutSocket, registerValues);
                     break;
                 }
-                case InstructionCode.GET_BLACKBOARD_REFERENCE:
+                case PulseInstructionCode.GET_BLACKBOARD_REFERENCE:
                 {
                     var hub = BlackboardReferenceHubFromInstruction(document, instruction, out var name);
                     AddVariableRead(document, hub, "Get Blackboard Reference", name, chunkIndex, instruction.GetInt32Property("m_nReg0"), registerValues);
                     break;
                 }
-                case InstructionCode.SET_BLACKBOARD_REFERENCE:
+                case PulseInstructionCode.SET_BLACKBOARD_REFERENCE:
                 {
                     var hub = BlackboardReferenceHubFromInstruction(document, instruction, out var name);
                     previousActionOutSocket = AddVariableWrite(document, hub, "Set Blackboard Reference", name, chunkIndex, instruction.GetInt32Property("m_nReg0"),
                         previousActionOutSocket, registerValues);
                     break;
                 }
-                case InstructionCode.NOP:
-                case InstructionCode.DETACH_REGISTER:
+                case PulseInstructionCode.NOP:
+                case PulseInstructionCode.DETACH_REGISTER:
                 {
                     // Detaching only changes how the register holds its value, nothing to show
                     break;
                 }
-                case InstructionCode.CREATE_CHILD_CURSOR_OUTFLOW:
+                case PulseInstructionCode.CREATE_CHILD_CURSOR_OUTFLOW:
                 {
                     previousActionOutSocket = AddChildCursorNode(document, "Start Child Cursor", PulseCategory.FlowControl, chunkIndex,
                         instruction.GetInt32Property("m_nChunk"), instruction.GetInt32Property("m_nDestInstruction"), previousActionOutSocket, registerValues);
                     break;
                 }
-                case InstructionCode.LOOP_BREAK:
+                case PulseInstructionCode.LOOP_BREAK:
                 {
                     // Leaves the nearest enclosing loop, resuming where the call into its body says to
                     var node = CreateNode("Break", "Flow", PulseCategory.FlowControl);
@@ -1266,14 +1210,14 @@ internal sealed class PulseInstructionGraphBuilder
                     document.AddNode(node);
                     return FlowContinuation.Break(node);
                 }
-                case InstructionCode.PULSE_CALL_SYNC:
-                case InstructionCode.PULSE_CALL_ASYNC_FIRE:
+                case PulseInstructionCode.PULSE_CALL_SYNC:
+                case PulseInstructionCode.PULSE_CALL_ASYNC_FIRE:
                 {
                     var callTargetChunk = instruction.GetInt32Property("m_nChunk");
                     var callDestInstructionIdx = instruction.GetInt32Property("m_nDestInstruction");
                     if (callTargetChunk == chunkIndex && callDestInstructionIdx > 0)
                     {
-                        if (instrType == InstructionCode.PULSE_CALL_ASYNC_FIRE)
+                        if (instrType == PulseInstructionCode.PULSE_CALL_ASYNC_FIRE)
                         {
                             previousActionOutSocket = AddChildCursorNode(document, "Call Asynchronously", PulseCategory.Call,
                                 chunkIndex, chunkIndex, callDestInstructionIdx, previousActionOutSocket, registerValues);
@@ -1304,7 +1248,7 @@ internal sealed class PulseInstructionGraphBuilder
                         break;
                     }
 
-                    var node = CreateNode(instrType == InstructionCode.PULSE_CALL_SYNC ? "Call" : "Call Asynchronously", "Flow", PulseCategory.Call);
+                    var node = CreateNode(instrType == PulseInstructionCode.PULSE_CALL_SYNC ? "Call" : "Call Asynchronously", "Flow", PulseCategory.Call);
                     previousActionOutSocket = CreateSequentialActionSockets(document, node, previousActionOutSocket);
 
                     var callInfoIndex = instruction.GetInt32Property("m_nCallInfoIndex");
@@ -1321,7 +1265,7 @@ internal sealed class PulseInstructionGraphBuilder
                     remoteNodesToResolve.Add(new(callTargetChunk, node, "Method: "));
                     break;
                 }
-                case InstructionCode.RETURN_VALUE:
+                case PulseInstructionCode.RETURN_VALUE:
                 {
                     var node = CreateNode("Return Value", "Flow", PulseCategory.FlowControl);
                     previousActionOutSocket = CreateSequentialActionSockets(document, node, previousActionOutSocket);
@@ -1329,12 +1273,12 @@ internal sealed class PulseInstructionGraphBuilder
                     document.AddNode(node);
                     break;
                 }
-                case InstructionCode.RETURN_VOID:
-                case InstructionCode.IMMEDIATE_HALT:
+                case PulseInstructionCode.RETURN_VOID:
+                case PulseInstructionCode.IMMEDIATE_HALT:
                 {
                     return previousActionOutSocket;
                 }
-                case InstructionCode.JUMP:
+                case PulseInstructionCode.JUMP:
                 {
                     var jumped = TraverseNodesForChunk(
                         document,
@@ -1345,7 +1289,7 @@ internal sealed class PulseInstructionGraphBuilder
                         finalEndingInstructionIdx);
                     return jumped.BreakNode != null ? jumped : previousActionOutSocket;
                 }
-                case InstructionCode.JUMP_COND:
+                case PulseInstructionCode.JUMP_COND:
                 {
                     var node = CreateIfNode(document, instruction, chunkIndex, previousActionOutSocket, registerValues);
 
@@ -1356,10 +1300,10 @@ internal sealed class PulseInstructionGraphBuilder
                     // is a return, which needs no handling.
                     var firstInstructionAfterBranches = -1;
                     var falseInstruction = instructions[destInstructionIdxFalse];
-                    if (GetInstructionType(falseInstruction) == InstructionCode.JUMP)
+                    if (GetInstructionType(falseInstruction) == PulseInstructionCode.JUMP)
                     {
                         var falseJumpTarget = falseInstruction.GetInt32Property("m_nDestInstruction");
-                        if (falseJumpTarget > 0 && GetInstructionType(instructions[falseJumpTarget - 1]) == InstructionCode.JUMP)
+                        if (falseJumpTarget > 0 && GetInstructionType(instructions[falseJumpTarget - 1]) == PulseInstructionCode.JUMP)
                         {
                             firstInstructionAfterBranches = instructions[falseJumpTarget - 1].GetInt32Property("m_nDestInstruction");
                         }
@@ -1382,7 +1326,7 @@ internal sealed class PulseInstructionGraphBuilder
                     instructionIdx = firstInstructionAfterBranches - 1; // next iteration will +1 this
                     break;
                 }
-                case InstructionCode.CHUNK_LEAP_COND:
+                case PulseInstructionCode.CHUNK_LEAP_COND:
                 {
                     var node = CreateIfNode(document, instruction, chunkIndex, previousActionOutSocket, registerValues);
                     AddChunkLeapNode(document, instruction, FlowContinuation.Of(node.CreateFlowOut("True")));
@@ -1394,7 +1338,7 @@ internal sealed class PulseInstructionGraphBuilder
                     document.AddNode(node);
                     break;
                 }
-                case InstructionCode.CHUNK_LEAP:
+                case PulseInstructionCode.CHUNK_LEAP:
                 {
                     // A leap replaces the current flow and never comes back
                     return AddChunkLeapNode(document, instruction, previousActionOutSocket);

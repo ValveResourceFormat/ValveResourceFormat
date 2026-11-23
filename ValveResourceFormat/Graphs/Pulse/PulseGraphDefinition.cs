@@ -4,7 +4,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Graphs;
 
-/// <summary>Every serialized instruction code, in order. Typed variants such as ADD_INT only exist at runtime.</summary>
+/// <summary>Every base instruction code, in order. Compiled files can also store typed variants such as LT_INT, see <see cref="PulseInstruction.ParseCode"/>.</summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/pulse_runtime_lib/PulseInstructionCode_t">PulseInstructionCode_t</seealso>
 internal enum PulseInstructionCode
 {
@@ -110,7 +110,7 @@ internal enum PulseValueType
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/pulse_runtime_lib/PGDInstruction_t">PGDInstruction_t</seealso>
 internal sealed class PulseInstruction
 {
-    /// <summary>The parsed code, <see cref="PulseInstructionCode.INVALID"/> for a code this reader does not know.</summary>
+    /// <summary>The parsed base code, <see cref="PulseInstructionCode.INVALID"/> for a code this reader does not know.</summary>
     public PulseInstructionCode Code { get; }
 
     /// <summary>The code as serialized.</summary>
@@ -132,7 +132,7 @@ internal sealed class PulseInstruction
     public PulseInstruction(KVObject data)
     {
         CodeName = data.GetStringProperty("m_nCode", string.Empty);
-        Code = Enum.TryParse<PulseInstructionCode>(CodeName, out var code) ? code : PulseInstructionCode.INVALID;
+        Code = ParseCode(CodeName);
         Reg0 = data.GetInt32Property("m_nReg0", -1);
         Reg1 = data.GetInt32Property("m_nReg1", -1);
         Reg2 = data.GetInt32Property("m_nReg2", -1);
@@ -145,6 +145,25 @@ internal sealed class PulseInstruction
         DomainValueIdx = data.GetInt32Property("m_nDomainValueIdx", -1);
         BlackboardReferenceIdx = data.GetInt32Property("m_nBlackboardReferenceIdx", -1);
         TempVarIdx = data.GetInt32Property("m_nTempVarIdx", -1);
+    }
+
+    /// <summary>Parses a serialized code, a typed variant such as LT_INT or SCALE_INV_VEC3 as its base code.</summary>
+    public static PulseInstructionCode ParseCode(string name)
+    {
+        PulseInstructionCode code;
+
+        while (!Enum.TryParse(name, out code))
+        {
+            var separator = name.LastIndexOf('_', StringComparison.Ordinal);
+            if (separator <= 0)
+            {
+                return PulseInstructionCode.INVALID;
+            }
+
+            name = name[..separator];
+        }
+
+        return code;
     }
 }
 
@@ -253,7 +272,7 @@ internal sealed class PulseChunk
     /// <summary>Index into <c>m_TempVarBanks</c>, or -1.</summary>
     public int TempVarBank { get; }
 
-    /// <summary>Whether every instruction has a debug info entry.</summary>
+    /// <summary>Whether every instruction has a debug info entry and the entries name editor nodes.</summary>
     public bool HasDebugInfo { get; }
 
     private readonly PulseInstructionDebug[] debugInfos;
@@ -276,7 +295,7 @@ internal sealed class PulseChunk
                 debugData[i].GetStringProperty("m_SequencePointName", string.Empty));
         }
 
-        HasDebugInfo = debugInfos.Length >= Instructions.Count;
+        HasDebugInfo = debugInfos.Length >= Instructions.Count && debugInfos.Any(static debug => debug.FlowNode >= 0 || debug.ValueNode >= 0);
 
         var registerData = data.GetArray("m_Registers") ?? [];
 
