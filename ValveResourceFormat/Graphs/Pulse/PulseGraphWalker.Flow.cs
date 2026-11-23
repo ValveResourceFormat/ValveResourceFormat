@@ -271,7 +271,7 @@ internal sealed partial class PulseGraphWalker
                 return false;
 
             case PulseInstructionCode.RETURN_VALUE:
-                Report($"Node {path.CurrentNode} returns a value with RETURN_VALUE, which is not supported yet (chunk {path.Chunk}, instruction {path.Instruction}).");
+                AddReturnValue(path, instruction);
                 return false;
 
             case PulseInstructionCode.RETURN_VOID:
@@ -623,6 +623,21 @@ internal sealed partial class PulseGraphWalker
 
             SetInputPort(node, container, name, name, GetRegister(path, register), refineLiteralType: takesAnyType);
         }
+    }
+
+    // Methods with an m_ReturnType return their single unnamed value from reg0
+    private void AddReturnValue(FlowPath path, PulseInstruction instruction)
+    {
+        if (nodes.ContainsKey(path.CurrentNode))
+        {
+            Report($"Node {path.CurrentNode} returns a value without a node of its own, the value is not kept (chunk {path.Chunk}, instruction {path.Instruction}).");
+            return;
+        }
+
+        var node = AddNode(path.CurrentNode, "Outflow_Return");
+        var returnValues = KVObject.Collection();
+        node.Fields.Add("m_ReturnValues", returnValues);
+        SetInputPort(node, returnValues, "retval", "retval", GetRegister(path, instruction.Reg0));
     }
 
     private void AddLibraryInvoke(FlowPath path, PulseInstruction instruction, int valueNode)
