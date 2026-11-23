@@ -25,9 +25,6 @@ internal sealed partial class PulseGraphWalker
     /// <summary>Editor node id of the document root, allocated after every other node.</summary>
     public int RootNodeId { get; private set; }
 
-    /// <summary>Flows into chunks the walk could not follow, because they lack debug info.</summary>
-    public IReadOnlyList<(int SourceNode, string Outflow, int Chunk)> UnwalkedFlows => unwalkedFlows;
-
     // Past every editor node id present in the compiled graph
     private int nextNodeId = 1;
 
@@ -38,7 +35,6 @@ internal sealed partial class PulseGraphWalker
     private readonly Dictionary<int, PulseEditorNode> nodes = [];
     private readonly List<PulseEditorNode> nodeOrder = [];
     private readonly Dictionary<(int Node, string Port), PulseValueType> outputTypes = [];
-    private readonly List<(int SourceNode, string Outflow, int Chunk)> unwalkedFlows = [];
 
     public PulseGraphWalker(PulseGraphDefinition definition)
     {

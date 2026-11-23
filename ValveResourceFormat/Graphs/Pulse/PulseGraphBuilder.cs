@@ -7,7 +7,8 @@ namespace ValveResourceFormat.Graphs;
 
 /// <summary>
 /// Builds the node graph of a compiled Pulse graph: one card per editor node, wired by its flow and value
-/// connections, with a hub per variable that reads and writes link to.
+/// connections, with a hub per variable that reads and writes link to. Graphs without debug info for every
+/// instruction are drawn by <see cref="PulseInstructionGraphBuilder"/> instead.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/pulse_runtime_lib/CPulseGraphDef">CPulseGraphDef</seealso>
 internal sealed class PulseGraphBuilder
@@ -38,10 +39,16 @@ internal sealed class PulseGraphBuilder
     {
         ArgumentNullException.ThrowIfNull(document);
 
-        walker = new PulseGraphWalker(new PulseGraphDefinition(data, ProgressReporter));
-        walker.Walk();
+        var definition = new PulseGraphDefinition(data, ProgressReporter);
 
-        var definition = walker.Definition;
+        if (!definition.Chunks.All(chunk => chunk.HasDebugInfo))
+        {
+            new PulseInstructionGraphBuilder(data) { ProgressReporter = ProgressReporter }.Build(document);
+            return;
+        }
+
+        walker = new PulseGraphWalker(definition);
+        walker.Walk();
 
         for (var i = 0; i < walker.VariableNodeIds.Count; i++)
         {
@@ -60,7 +67,6 @@ internal sealed class PulseGraphBuilder
             ConnectNode(document, node, cards[node.Id]);
         }
 
-        AddUnwalkedChunks(document);
         AddGraphInfo(document, definition.Data);
 
         document.LayoutNodesPacked();
@@ -371,61 +377,6 @@ internal sealed class PulseGraphBuilder
         hub = document.AddNode(CreateNode(name, BlackboardReferenceHubType, PulseCategory.Variable));
         blackboardReferenceHubs[index] = hub;
         return hub;
-    }
-
-    // Chunks without debug info have no editor nodes to rebuild, so their instructions are drawn in order
-    private void AddUnwalkedChunks(GraphDocument document)
-    {
-        var heads = new Dictionary<int, Node>();
-
-        foreach (var flow in walker.UnwalkedFlows)
-        {
-            if (!heads.TryGetValue(flow.Chunk, out var head))
-            {
-                head = AddInstructionList(document, flow.Chunk);
-                heads[flow.Chunk] = head;
-            }
-
-            if (cards.TryGetValue(flow.SourceNode, out var source))
-            {
-                document.Connect(source.FlowOut(flow.Outflow), head.FlowIn("InDefault"));
-            }
-        }
-    }
-
-    private Node AddInstructionList(GraphDocument document, int chunkIndex)
-    {
-        walker.Definition.Report($"Chunk {chunkIndex} has no debug info for some of its instructions, it is drawn as a list of instructions.");
-
-        var head = CreateNode(string.Create(CultureInfo.InvariantCulture, $"Chunk {chunkIndex}"), "Chunk", PulseCategory.FlowControl);
-        head.AddMessage("No debug info, the editor nodes are unknown");
-        document.AddNode(head);
-
-        var previous = head;
-
-        foreach (var instruction in walker.Definition.Chunks[chunkIndex].Instructions)
-        {
-            var card = CreateNode(instruction.CodeName, "Instruction", PulseCategory.Instruction);
-
-            foreach (var (name, value) in (ReadOnlySpan<(string, int)>)[
-                ("m_nReg0", instruction.Reg0), ("m_nReg1", instruction.Reg1), ("m_nReg2", instruction.Reg2),
-                ("m_nVar", instruction.Var), ("m_nChunk", instruction.Chunk), ("m_nDestInstruction", instruction.DestInstruction),
-                ("m_nInvokeBindingIndex", instruction.InvokeBindingIndex), ("m_nCallInfoIndex", instruction.CallInfoIndex),
-                ("m_nConstIdx", instruction.ConstIdx), ("m_nDomainValueIdx", instruction.DomainValueIdx),
-                ("m_nBlackboardReferenceIdx", instruction.BlackboardReferenceIdx), ("m_nTempVarIdx", instruction.TempVarIdx)])
-            {
-                if (value >= 0)
-                {
-                    card.AddText(string.Create(CultureInfo.InvariantCulture, $"{name} = {value}"));
-                }
-            }
-
-            document.AddNode(card);
-            document.Connect(previous.FlowOut("OutDefault"), card.FlowIn("InDefault"));
-            previous = card;
-        }
-
-        return head;
     }
 
     private static void AddGraphInfo(GraphDocument document, KVObject definition)

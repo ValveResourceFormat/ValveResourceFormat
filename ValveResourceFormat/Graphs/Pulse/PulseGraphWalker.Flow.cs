@@ -193,12 +193,6 @@ internal sealed partial class PulseGraphWalker
         {
             var chunk = Definition.Chunks[path.Chunk];
 
-            if (!chunk.HasDebugInfo)
-            {
-                unwalkedFlows.Add((path.CurrentNode, GetLeavingOutflow(path), path.Chunk));
-                return;
-            }
-
             if (path.Instruction < 0 || path.Instruction >= chunk.Instructions.Count || !visited.Add((path.Chunk, path.Instruction)))
             {
                 return;
