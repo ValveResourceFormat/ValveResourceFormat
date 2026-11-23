@@ -124,13 +124,6 @@ namespace ValveResourceFormat.ResourceTypes
             var headerSize = reader.BaseStream.Position - Offset;
 
             Data = reader.ReadBytes((int)Size - (int)headerSize);
-
-            // Valve seemingly screwed up when they started minifying vcss and the crc no longer matches
-            // See core/pak01 in Artifact Foundry for such files
-            if (Data.Length > 0 && !Resource.ContainsBlockType(BlockType.SrMa) && Crc32.HashToUInt32(Data) != CRC32)
-            {
-                throw new InvalidDataException("CRC32 mismatch for read data.");
-            }
         }
 
         /// <inheritdoc/>
