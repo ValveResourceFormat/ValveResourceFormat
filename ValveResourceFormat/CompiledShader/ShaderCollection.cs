@@ -1,8 +1,6 @@
 using System.Collections;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Threading;
 using ValvePak;
 using ValveResourceFormat.Utils;
 
@@ -59,15 +57,16 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
     {
         var variables = new Dictionary<StringToken, VfxVariableDescription>();
 
-        foreach (var variable in shaders.Values.SelectMany(program => program.VariableDescriptions))
+        foreach (var program in shaders.Values)
         {
-            variables.TryAdd(StringToken.Lookup(variable.Name), variable);
-
-            var prefix = VfxVariableDescription.TypePrefixes.FirstOrDefault(prefix => variable.Name.StartsWith(prefix, StringComparison.Ordinal));
-
-            if (prefix != null)
+            foreach (var variable in program.VariableDescriptions)
             {
-                variables.TryAdd(StringToken.Lookup(variable.Name.AsSpan(prefix.Length)), variable);
+                variables.TryAdd(StringToken.Lookup(variable.Name), variable);
+
+                if (VfxVariableDescription.GetNameWithoutTypePrefix(variable.Name) is { } unprefixedName)
+                {
+                    variables.TryAdd(StringToken.Lookup(unprefixedName), variable);
+                }
             }
         }
 
