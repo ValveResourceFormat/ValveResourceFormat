@@ -636,7 +636,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             return statements;
         }
 
-        // The local statements before a uniform's that its value reads, directly or through other locals
+        // Locals assigned before the uniform that it reads, directly or through other locals
         private static string GetLocalsReadBy(List<(string Name, string Value, int Line)> statements, int index, HashSet<string> uniforms)
         {
             HashSet<string> read = [];

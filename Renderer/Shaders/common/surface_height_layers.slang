@@ -111,7 +111,7 @@ vec3 LayerNormal(vec2 encoded, sampler2D normalTexture, int uvSet, vec2 scale, f
     if (uvSet != 0)
     {
         layerNormal = DecodeHemiOctahedronNormal(encoded);
-        // Turned with its coordinates by the transpose, as the decode's Y flip mirrors the authored angle
+        // Rotate by the transpose, because the decode flips Y and mirrors the angle
         layerNormal.xy = vec2(dot(normalXform.xz, layerNormal.xy), dot(normalXform.yw, layerNormal.xy));
     }
     else

@@ -174,7 +174,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             WriteOffset(jump);
         }
 
-        // Writes a branch whose first block follows it, and returns the offset of the second block's target
+        // Writes a branch to the block right after it, and returns where the other target goes
         private int WriteBranch(bool trueBlockFirst)
         {
             code.Add((byte)OpCode.Branch);

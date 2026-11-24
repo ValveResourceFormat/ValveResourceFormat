@@ -441,7 +441,7 @@ namespace ValveResourceFormat.Renderer.Materials
             public bool ExpressionsConstant { get; set; }
         }
 
-        // The material's own buffer, or the one baked with node attributes
+        // Own buffer, or one baked with node attributes
         private Globals EnsureGlobals(Shader shader, RenderAttributes? attributes = null)
         {
             var state = attributes == null
@@ -860,7 +860,7 @@ namespace ValveResourceFormat.Renderer.Materials
             // Whether everything evaluated since this was last set only depends on the material
             public bool IsConstant { get; set; } = true;
 
-            // Node render attributes of the buffer being filled, null for the material's own
+            // Node attributes being baked, null when filling the own buffer
             public RenderAttributes? Attributes { get; set; }
 
             public float Time => material.Context?.Uptime ?? 0f;

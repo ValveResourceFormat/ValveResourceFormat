@@ -231,7 +231,7 @@ float4 TexCoordXform1(float rotation, float2 scale, float2 center, float2 offset
     return float4(s * scale.x, c * scale.y, 0, center.y + offset.y - (s * center.x + c * center.y));
 }
 
-// Transform rows of the CS2 generic shaders, whose v row adds the center's x
+// Transform rows of CS2 generic shaders, where the v row also adds center x
 float4 SecondaryTexCoordXform0(float rotation, float2 scale, float2 center, float2 offset)
 {
     float r = radians(rotation);
@@ -274,7 +274,7 @@ float4 RotationMatrix2D(float rotation)
     return float4(c, -s, s, c);
 }
 
-// Tint after contrast, saturation and brightness about the texture's average color
+// Contrast, saturation and brightness around the average texture color, then tint
 float4x4 TextureColorAdjust(float3 tint, float3 contrastSaturationBrightness, float4 texture)
 {
     return MatrixMultiply(MatrixColorTint2(tint, 1), MatrixColorCorrect2(contrastSaturationBrightness, TextureAverageColor(texture)));

@@ -1035,7 +1035,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             Legs.AnimationController.EnableFirstPersonLegs = FirstPersonMode;
             Legs.Transform = PlayerTransform;
 
-            // Left unset in third person so the legs share the material's own buffer
+            // Unset in third person, so the legs use the shared material buffer
             if (FirstPersonMode)
             {
                 Legs.RenderAttributes["g_bFirstpersonLegsDistortion"] = true;
