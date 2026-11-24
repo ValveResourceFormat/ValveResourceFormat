@@ -52,6 +52,12 @@ public sealed partial class NmGraphExtract : IDisposable
     private readonly List<VariationGraph> _variationGraphs = [];
 
     /// <summary>
+    /// Gets the map of exported content paths to the paths they are written at, which references to them follow.
+    /// Null writes them as they are.
+    /// </summary>
+    public ContentPathMap? ReferenceMap { get; init; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="NmGraphExtract"/> class.
     /// </summary>
     public NmGraphExtract(Resource resource, IFileLoader? fileLoader = null)
@@ -91,7 +97,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
         return new ContentFile
         {
-            Data = document.ToKV3Bytes(),
+            Data = ReferenceMap.MapReferences(document).ToKV3Bytes(),
             FileName = _resource.FileName is not null && _resource.FileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal)
                 ? _resource.FileName[..^2]
                 : _resource.FileName ?? "graph.vnmgraph",

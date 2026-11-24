@@ -13,6 +13,12 @@ public class ChoreoExtract
     private readonly ChoreoSceneFileData choreoDataList;
 
     /// <summary>
+    /// Gets the map of exported content paths to the paths they are written at, which references to them follow.
+    /// Null writes them as they are.
+    /// </summary>
+    public ContentPathMap? ReferenceMap { get; init; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ChoreoExtract"/> class.
     /// </summary>
     /// <param name="vcdlistResource">Resource containing choreography scene data.</param>
@@ -43,7 +49,7 @@ public class ChoreoExtract
 
         foreach (var scene in choreoDataList.Scenes)
         {
-            var kv = scene.ToKeyValues();
+            var kv = ReferenceMap.MapReferences(scene.ToKeyValues());
 
             vcdlist.AddSubFile(
                 GetScenePath(scene.Name),

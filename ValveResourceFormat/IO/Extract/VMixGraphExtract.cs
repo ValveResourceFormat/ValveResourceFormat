@@ -36,6 +36,12 @@ public sealed partial class VMixGraphExtract
     public IReadOnlyList<string> Warnings { get; private set; } = [];
 
     /// <summary>
+    /// Gets the map of exported content paths to the paths they are written at, which references to them follow.
+    /// Null writes them as they are.
+    /// </summary>
+    public ContentPathMap? ReferenceMap { get; init; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="VMixGraphExtract"/> class.
     /// </summary>
     /// <param name="resource">A VMix resource, or a sound whose container is a mix graph.</param>
@@ -183,7 +189,7 @@ public sealed partial class VMixGraphExtract
         editor.Add("SelectedGraph", 0);
         document.Add("Editor", editor);
 
-        return document.ToKV3String();
+        return ReferenceMap.MapReferences(document).ToKV3String();
     }
 
     /// <summary>

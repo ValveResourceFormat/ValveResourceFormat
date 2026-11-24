@@ -38,6 +38,13 @@ public class NmClipExtract
     private ClipSources Sources => sources ??= LoadSources();
 
     /// <summary>
+    /// Gets the map of exported content paths to the paths they are written at, which references to them and the
+    /// animation written for the clip follow. An animation the clip was authored from that the map does not move is
+    /// written next to the clip instead, and not shared with other clips. Null writes them as they are.
+    /// </summary>
+    public ContentPathMap? ReferenceMap { get; init; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="NmClipExtract"/> class.
     /// </summary>
     public NmClipExtract(Resource resource, IFileLoader fileLoader)
@@ -61,7 +68,7 @@ public class NmClipExtract
 
         if (documentFileName == null || sourceFileName == null || separateFromSharedSource)
         {
-            sourceFileName = ContentPaths.ChangeExtension(resource.FileName!, ".dmx");
+            sourceFileName = ContentPaths.ChangeExtension(ReferenceMap.MapPath(resource.FileName!), ".dmx");
         }
 
         kv.Add("_class", "CNmClipDocument");
@@ -142,7 +149,7 @@ public class NmClipExtract
         }
 
         kv.Add("m_eventTracks", docEventTracks);
-        contentFile.Data = kv.ToKV3Bytes();
+        contentFile.Data = ReferenceMap.MapReferences(kv).ToKV3Bytes();
         return contentFile;
     }
 
@@ -338,6 +345,9 @@ public class NmClipExtract
         }
 
         var (documentFileName, sourceFileName) = FindAuthoredSourceFiles(skeletonSourceFiles, skeletonSourcesKnown);
+
+        sourceFileName = sourceFileName != null && ReferenceMap.TryMapSourceFile(sourceFileName, out var mappedSourceFileName) ? mappedSourceFileName : null;
+
         return new ClipSources(skeleton, secondaryAnimations, documentFileName, sourceFileName);
     }
 

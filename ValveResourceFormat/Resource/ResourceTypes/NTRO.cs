@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -473,5 +474,8 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Output.ToKV3Document().WriteKV3Text(writer);
         }
+
+        internal override byte[] ToUtf8Text(ContentPathMap? referenceMap)
+            => referenceMap == null ? base.ToUtf8Text(referenceMap) : referenceMap.MapReferences(Output).ToKV3Bytes();
     }
 }

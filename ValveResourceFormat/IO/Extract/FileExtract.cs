@@ -227,8 +227,9 @@ namespace ValveResourceFormat.IO
         public ShaderExtract.ShaderExtractParams ShaderParams { get; init; } = ShaderExtract.ShaderExtractParams.Export;
 
         /// <summary>
-        /// Gets where the files of the current export are written, for references to them to be rewritten. Null when
-        /// references are kept as they are.
+        /// Gets the map of the content paths of the files an export writes somewhere else to the paths they are
+        /// written at. References to them are rewritten, and so are the paths of the files written along with a
+        /// resource. Null writes both as they are.
         /// </summary>
         public ContentPathMap? ReferenceMap { get; init; }
     }
@@ -265,19 +266,41 @@ namespace ValveResourceFormat.IO
                 contentFile.FileName = ContentPaths.ChangeExtension(resource.FileName, GetExtension(resource));
             }
 
+            if (options.ReferenceMap != null)
+            {
+                MapFileNames(contentFile, options.ReferenceMap);
+            }
+
             return contentFile;
+        }
+
+        private static void MapFileNames(ContentFile contentFile, ContentPathMap referenceMap)
+        {
+            contentFile.FileName = referenceMap.Map(contentFile.FileName);
+
+            foreach (var subFile in contentFile.SubFiles)
+            {
+                subFile.FileName = referenceMap.Map(subFile.FileName);
+            }
+
+            foreach (var additionalFile in contentFile.AdditionalFiles)
+            {
+                MapFileNames(additionalFile, referenceMap);
+            }
         }
 
         private static ContentFile ExtractResource(Resource resource, IFileLoader fileLoader, IProgress<string>? progress, FileExtractOptions options)
         {
+            var referenceMap = options.ReferenceMap;
+
             switch (resource.ResourceType)
             {
                 case ResourceType.Map:
                 case ResourceType.World:
-                    return new MapExtract(resource, fileLoader) { ProgressReporter = progress, ReconstructSoftbody = options.ReconstructSoftbody }.ToContentFile();
+                    return new MapExtract(resource, fileLoader) { ProgressReporter = progress, ReconstructSoftbody = options.ReconstructSoftbody, ReferenceMap = referenceMap }.ToContentFile();
 
                 case ResourceType.Model:
-                    return new ModelExtract(resource, fileLoader)
+                    return new ModelExtract(resource, fileLoader, referenceMap)
                     {
                         ProgressReporter = progress,
                         ReconstructSoftbody = options.ReconstructSoftbody,
@@ -288,7 +311,7 @@ namespace ValveResourceFormat.IO
 
                 case ResourceType.AnimationGraph:
                 {
-                    using var animGraphExtract = new AnimationGraphExtract(resource, fileLoader);
+                    using var animGraphExtract = new AnimationGraphExtract(resource, fileLoader) { ReferenceMap = referenceMap };
                     return animGraphExtract.ToContentFile();
                 }
 
@@ -299,13 +322,13 @@ namespace ValveResourceFormat.IO
                     return ExtractPanorama(resource);
 
                 case ResourceType.VMix:
-                    return new VMixGraphExtract(resource, fileLoader).ToContentFile();
+                    return new VMixGraphExtract(resource, fileLoader) { ReferenceMap = referenceMap }.ToContentFile();
 
                 case ResourceType.Sound when VMixGraphExtract.GetGraphSound(resource) != null:
-                    return new VMixGraphExtract(resource, fileLoader).ToContentFile();
+                    return new VMixGraphExtract(resource, fileLoader) { ReferenceMap = referenceMap }.ToContentFile();
 
                 case ResourceType.Sound:
-                    return ExtractSound(resource);
+                    return ExtractSound(resource, referenceMap);
 
                 case ResourceType.Texture:
                     return new TextureExtract(resource)
@@ -316,13 +339,13 @@ namespace ValveResourceFormat.IO
                     }.ToContentFile();
 
                 case ResourceType.Particle:
-                    return CreateTextFile(resource.DataBlock!);
+                    return CreateTextFile(resource.DataBlock!, referenceMap);
 
                 case ResourceType.ParticleSnapshot:
                     return new SnapshotExtract(resource).ToContentFile();
 
                 case ResourceType.Material:
-                    return new MaterialExtract(resource, fileLoader).ToContentFile();
+                    return new MaterialExtract(resource, fileLoader) { ReferenceMap = referenceMap }.ToContentFile();
 
                 case ResourceType.EntityLump:
                     return CreateTextFile(((EntityLump)resource.DataBlock!).ToEntityDumpString());
@@ -331,16 +354,16 @@ namespace ValveResourceFormat.IO
                     return ExtractPostProcessing(resource);
 
                 case ResourceType.NmSkeleton:
-                    return new NmSkeletonExtract(resource).ToContentFile();
+                    return new NmSkeletonExtract(resource) { ReferenceMap = referenceMap }.ToContentFile();
 
                 case ResourceType.NmClip:
-                    return new NmClipExtract(resource, fileLoader).ToContentFile();
+                    return new NmClipExtract(resource, fileLoader) { ReferenceMap = referenceMap }.ToContentFile();
 
                 // A graph variation holds no nodes, only the graph it binds and the skeleton and
                 // clips bound to it; the base graph's document already carries every variation.
                 case ResourceType.NmGraph:
                 {
-                    using var nmGraphExtract = new NmGraphExtract(resource, fileLoader);
+                    using var nmGraphExtract = new NmGraphExtract(resource, fileLoader) { ReferenceMap = referenceMap };
                     return nmGraphExtract.ToContentFile();
                 }
 
@@ -349,18 +372,18 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaLayout:
                 case ResourceType.SoundEventScript:
                 case ResourceType.SoundStackScript:
-                    return CreateTextFile(resource.DataBlock!);
+                    return CreateTextFile(resource.DataBlock!, referenceMap);
 
                 case ResourceType.ChoreoSceneFileData:
-                    return new ChoreoExtract(resource).ToContentFile();
+                    return new ChoreoExtract(resource) { ReferenceMap = referenceMap }.ToContentFile();
 
                 case ResourceType.PulseGraphDef:
-                    return new PulseGraphExtract(resource) { ProgressReporter = progress }.ToContentFile();
+                    return new PulseGraphExtract(resource) { ProgressReporter = progress, ReferenceMap = referenceMap }.ToContentFile();
 
                 default:
                     if (resource.DataBlock is { } dataBlock)
                     {
-                        return CreateTextFile(dataBlock);
+                        return CreateTextFile(dataBlock, referenceMap);
                     }
 
                     return new ContentFile();
@@ -375,11 +398,11 @@ namespace ValveResourceFormat.IO
             };
         }
 
-        private static ContentFile CreateTextFile(Block block)
+        private static ContentFile CreateTextFile(Block block, ContentPathMap? referenceMap)
         {
             return new ContentFile
             {
-                Data = block.ToUtf8Text(),
+                Data = block.ToUtf8Text(referenceMap),
             };
         }
 
@@ -393,7 +416,7 @@ namespace ValveResourceFormat.IO
             };
         }
 
-        private static ContentFile ExtractSound(Resource resource)
+        private static ContentFile ExtractSound(Resource resource, ContentPathMap? referenceMap)
         {
             var contentFile = new ContentFile();
 
@@ -415,7 +438,7 @@ namespace ValveResourceFormat.IO
                 if (resource.GetBlockByType(BlockType.CTRL) is BinaryKV3 ctrlData)
                 {
                     var wrappedData = KVObject.Collection();
-                    wrappedData.Add("VrfExportedSound", ctrlData.Data);
+                    wrappedData.Add("VrfExportedSound", referenceMap.MapReferences(ctrlData.Data));
                     contentFile.AdditionalFiles.Add(new ContentFile
                     {
                         FileName = Path.ChangeExtension(resource.FileName, "vsnd") ?? "exported.vsnd",
@@ -427,7 +450,7 @@ namespace ValveResourceFormat.IO
             {
                 // TODO: We may want to cleanup m_vSound (recursively) since it contains random garbage if not actually used
                 var wrappedData = KVObject.Collection();
-                wrappedData.Add("VrfExportedSound", ctrlData.Data);
+                wrappedData.Add("VrfExportedSound", referenceMap.MapReferences(ctrlData.Data));
                 contentFile.Data = wrappedData.ToKV3Bytes();
             }
 

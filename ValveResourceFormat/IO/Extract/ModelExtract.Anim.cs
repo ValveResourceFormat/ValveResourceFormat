@@ -115,7 +115,7 @@ partial class ModelExtract
         {
             if (animation is ClipAnimation { Clip: var clip })
             {
-                clips.Add((animation.Name, new NmClipExtract(clip.Resource, fileLoader)));
+                clips.Add((animation.Name, new NmClipExtract(clip.Resource, fileLoader) { ReferenceMap = referenceMap }));
             }
         }
 

@@ -11,6 +11,7 @@ using K4os.Compression.LZ4;
 using K4os.Compression.LZ4.Encoders;
 using ValveKeyValue;
 using ValveKeyValue.KeyValues3;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -1163,7 +1164,8 @@ namespace ValveResourceFormat.ResourceTypes
             Data.WriteKV3Text(writer);
         }
 
-        internal override byte[] ToUtf8Text() => Data.ToKV3Bytes();
+        internal override byte[] ToUtf8Text(ContentPathMap? referenceMap)
+            => (referenceMap == null ? Data : new KVDocument(Data.Header, Data.Name, referenceMap.MapReferences(Data.Root))).ToKV3Bytes();
 
         private static int ReadStrings(ref ArraySegment<byte> buffer, string[] strings)
         {

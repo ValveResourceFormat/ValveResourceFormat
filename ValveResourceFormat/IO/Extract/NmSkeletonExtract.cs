@@ -13,6 +13,14 @@ public class NmSkeletonExtract
 {
     private readonly Resource resource;
     private readonly KVObject kvSkeleton;
+
+    /// <summary>
+    /// Gets the map of exported content paths to the paths they are written at, which references to them follow. A
+    /// mesh the skeleton was authored from that the map does not move is written next to the skeleton instead. Null
+    /// writes them as they are.
+    /// </summary>
+    public ContentPathMap? ReferenceMap { get; init; }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="NmSkeletonExtract"/> class.
     /// </summary>
@@ -32,7 +40,9 @@ public class NmSkeletonExtract
         var kv = KVObject.Collection();
         var skel = Skeleton.FromSkeletonData(kvSkeleton);
 
-        var sourceFileName = FindAuthoredSourceFile()?.SourceFileName ?? ContentPaths.ChangeExtension(resource.FileName!, "dmx");
+        var sourceFileName = FindAuthoredSourceFile()?.SourceFileName is { } authoredSourceFileName && ReferenceMap.TryMapSourceFile(authoredSourceFileName, out var mappedSourceFileName)
+            ? mappedSourceFileName
+            : ContentPaths.ChangeExtension(ReferenceMap.MapPath(resource.FileName!), "dmx");
 
         kv.Add("_class", "CNmSkeletonDocument");
         kv.Add("m_nVersion", 0L);
@@ -60,7 +70,7 @@ public class NmSkeletonExtract
 
         var contentFile = new ContentFile
         {
-            Data = kv.ToKV3Bytes()
+            Data = ReferenceMap.MapReferences(kv).ToKV3Bytes()
         };
         contentFile.AddSubFile(sourceFileName, () =>
         {

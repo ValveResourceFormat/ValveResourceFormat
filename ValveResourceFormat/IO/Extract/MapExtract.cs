@@ -160,6 +160,13 @@ public sealed partial class MapExtract
     /// <summary>Gets or sets whether the models extracted with the map reconstruct their soft-body (cloth) physics.</summary>
     public bool ReconstructSoftbody { get; set; } = true;
 
+    /// <summary>
+    /// Gets the map of exported content paths to the paths they are written at, which references to them and the
+    /// files written along with the map follow, the map files by an entry for <see cref="LumpFolder"/>. Null writes
+    /// them as they are.
+    /// </summary>
+    public ContentPathMap? ReferenceMap { get; init; }
+
     /// <summary>Gets the physics vertex matcher used for physics mesh processing.</summary>
     public PhysicsTriangleMatcher? PhysTriangleMatcher { get; private set; }
 
@@ -656,8 +663,8 @@ public sealed partial class MapExtract
 
             var sceneObjectExtract = sceneObject.ResourceType switch
             {
-                ResourceType.Model => new ModelExtract(sceneObject, FileLoader) { ReconstructSoftbody = ReconstructSoftbody },
-                ResourceType.Mesh => new ModelExtract((Mesh)sceneObject.DataBlock, sceneObjectResourceName),
+                ResourceType.Model => new ModelExtract(sceneObject, FileLoader, ReferenceMap) { ReconstructSoftbody = ReconstructSoftbody },
+                ResourceType.Mesh => new ModelExtract((Mesh)sceneObject.DataBlock, sceneObjectResourceName, ReferenceMap),
                 _ => throw new InvalidDataException($"Unhandled resource type: {sceneObject.ResourceType} as a scene object"),
             };
 
@@ -684,12 +691,14 @@ public sealed partial class MapExtract
 
     private string GetMapOutputName(int part = 1)
     {
+        var lumpFolder = ReferenceMap.MapPath(LumpFolder);
+
         if (part > 1)
         {
-            return $"{LumpFolder}_d_autosplit_part{part}.vmap";
+            return $"{lumpFolder}_d_autosplit_part{part}.vmap";
         }
 
-        return $"{LumpFolder}_d.vmap";
+        return $"{lumpFolder}_d.vmap";
     }
 
     /// <summary>
@@ -792,6 +801,8 @@ public sealed partial class MapExtract
             }
         }
 
+        ReferenceMap.MapReferences(datamodel);
+
         using var stream = new MemoryStream();
 
         // datamodel.Save(stream, "keyvalues2", 4)
@@ -800,10 +811,11 @@ public sealed partial class MapExtract
         return stream.ToArray();
     }
 
-    private static byte[] SaveMapDocument(CMapRootElement root)
+    private byte[] SaveMapDocument(CMapRootElement root)
     {
         using var datamodel = new Datamodel.Datamodel("vmap", 29);
         datamodel.Root = root;
+        ReferenceMap.MapReferences(datamodel);
 
         using var stream = new MemoryStream();
         datamodel.Save(stream, "binary", 9);
@@ -1628,7 +1640,7 @@ public sealed partial class MapExtract
             drawCenters = [.. (sceneObject.GetArray("m_drawBounds") ?? []).Select(aabb => (aabb.GetSubCollection("m_vMinBounds").ToVector3() + aabb.GetSubCollection("m_vMaxBounds").ToVector3()) / 2f)];
         }
 
-        var modelFiles = ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCenters, drawCalls.Count);
+        var modelFiles = ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCenters, drawCalls.Count, ReferenceMap);
         PreExportedFragments.AddRange(modelFiles);
 
         AddAggregateFragmentProps(modelName, aggregateMeshes, drawCalls, drawCenters, fragmentTransforms, layerIndex, layerNodes);
@@ -1754,7 +1766,7 @@ public sealed partial class MapExtract
         return materialName;
     }
 
-    private static ContentFile GeneratePhysicsTagMaterial(string materialName, string surfaceProperty)
+    private ContentFile GeneratePhysicsTagMaterial(string materialName, string surfaceProperty)
     {
         var textureName = Path.ChangeExtension(materialName, ".png");
 
@@ -1777,7 +1789,7 @@ public sealed partial class MapExtract
         root.Add("SystemAttributes", systemAttributes);
 
         using var ms = new MemoryStream();
-        var doc = new ValveKeyValue.KVDocument(new(), "Layer0", root);
+        var doc = new ValveKeyValue.KVDocument(new(), "Layer0", ReferenceMap.MapReferences(root));
         ValveKeyValue.KVSerializer.Create(ValveKeyValue.KVSerializationFormat.KeyValues1Text).Serialize(ms, doc);
 
         var vmat = new ContentFile()
@@ -2075,7 +2087,7 @@ public sealed partial class MapExtract
 
         var toolTexture = ToolsMaterials.GetForEntity(associatedEntityClass, FileLoader);
         Debug.Assert(toolTexture is not null);
-        var modelExtract = new ModelExtract(model, FileLoader)
+        var modelExtract = new ModelExtract(model, FileLoader, ReferenceMap)
         {
             Type = isJustPhysics
                 ? ModelExtract.ModelExtractType.Map_PhysicsToRenderMesh
@@ -2137,7 +2149,7 @@ public sealed partial class MapExtract
         }
     }
 
-    private static int[] AddProperties(string className, Entity compiledEntity, BaseEntity mapEntity)
+    private int[] AddProperties(string className, Entity compiledEntity, BaseEntity mapEntity)
     {
         var entityLineage = Array.Empty<int>();
         foreach (var (key, value) in compiledEntity.Properties)
@@ -2154,7 +2166,7 @@ public sealed partial class MapExtract
                 continue;
             }
 
-            var editString = ApplyNameFixup(ToEditString(value) ?? string.Empty, string.Empty, string.Empty);
+            var editString = ApplyNameFixup(ToEditString(value is KVObject kvValue ? ReferenceMap.MapReferences(kvValue) : value) ?? string.Empty, string.Empty, string.Empty);
 
             mapEntity.WithProperty(propertyKey, editString);
         }

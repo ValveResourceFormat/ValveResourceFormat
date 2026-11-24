@@ -16,6 +16,7 @@ public partial class ModelExtract
     private readonly Model? model;
     private readonly PhysAggregateData? physAggregateData;
     private readonly IFileLoader? fileLoader;
+    private readonly ContentPathMap? referenceMap;
     private readonly string fileName;
     private ClothExtract? cloth;
 
@@ -82,7 +83,13 @@ public partial class ModelExtract
     /// <summary>
     /// Initializes a new instance of the <see cref="ModelExtract"/> class.
     /// </summary>
-    public ModelExtract(Resource modelResource, IFileLoader fileLoader)
+    /// <param name="modelResource">The model resource.</param>
+    /// <param name="fileLoader">Loads the meshes, physics and animations the model references.</param>
+    /// <param name="referenceMap">
+    /// The map of exported content paths to the paths they are written at, which references to them and the files
+    /// written for referenced meshes follow. Null writes them as they are.
+    /// </param>
+    public ModelExtract(Resource modelResource, IFileLoader fileLoader, ContentPathMap? referenceMap = null)
     {
         ArgumentNullException.ThrowIfNull(fileLoader);
         ArgumentNullException.ThrowIfNull(modelResource);
@@ -93,6 +100,7 @@ public partial class ModelExtract
         }
 
         this.fileLoader = fileLoader;
+        this.referenceMap = referenceMap;
         this.modelResource = modelResource;
         model = modelData;
 
@@ -117,22 +125,25 @@ public partial class ModelExtract
         morphSetForControlNodes = new(FindMorphSetForControlNodes);
     }
 
-    /// <inheritdoc cref="ModelExtract(Resource, IFileLoader)"/>
+    /// <inheritdoc cref="ModelExtract(Resource, IFileLoader, ContentPathMap)"/>
     /// <summary>
     /// Extract a single mesh to vmdl+dmx.
     /// </summary>
     /// <param name="mesh">Mesh data</param>
     /// <param name="meshFileName">File name of the mesh e.g. "models/my_mesh.vmesh"</param>
-    public ModelExtract(Mesh mesh, string meshFileName)
+    /// <param name="referenceMap">The map of exported content paths to the paths they are written at, which references to them follow.</param>
+    public ModelExtract(Mesh mesh, string meshFileName, ContentPathMap? referenceMap = null)
     {
         ArgumentNullException.ThrowIfNull(mesh);
         ArgumentNullException.ThrowIfNull(meshFileName);
+
+        this.referenceMap = referenceMap;
 
         RenderMeshesToExtract.Add(new(mesh, "unnamed", 0, GetDmxFileName_ForReferenceMesh(meshFileName)));
         fileName = Path.ChangeExtension(meshFileName, ".vmdl");
     }
 
-    /// <inheritdoc cref="ModelExtract(Resource, IFileLoader)"/>
+    /// <inheritdoc cref="ModelExtract(Resource, IFileLoader, ContentPathMap)"/>
     public ModelExtract(PhysAggregateData physAggregateData, string physFileName)
     {
         ArgumentNullException.ThrowIfNull(physAggregateData);
@@ -179,6 +190,7 @@ public partial class ModelExtract
                 ClothSurface = Cloth.RenderBindingSurface,
                 ReconstructCloth = ReconstructsCloth,
                 SkipEmptyMorphSet = skipEmptyMorphSets,
+                ReferenceMap = referenceMap,
             };
 
             vmdl.AddSubFile(

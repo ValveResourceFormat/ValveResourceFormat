@@ -47,6 +47,12 @@ public sealed class MaterialExtract
     private readonly IShaderDataProvider shaderDataProvider;
 
     /// <summary>
+    /// Gets the map of exported content paths to the paths they are written at, which references to them and the
+    /// textures and images written along with the material follow. Null writes them as they are.
+    /// </summary>
+    public ContentPathMap? ReferenceMap { get; init; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="MaterialExtract"/> class.
     /// </summary>
     public MaterialExtract(Material material, ResourceEditInfo? editInfo, IFileLoader? fileLoader,
@@ -102,7 +108,7 @@ public sealed class MaterialExtract
 
         var handledTextures = vmat.AdditionalFiles.Select(static file => file.FileName).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var texturePath in material.TextureParams.Values)
+        foreach (var texturePath in material.TextureParams.Values.Select(ReferenceMap.MapPath))
         {
             if (handledTextures.Add(texturePath))
             {
@@ -123,7 +129,11 @@ public sealed class MaterialExtract
         var textures = material.TextureParams.Select(param =>
         {
             var texture = fileLoader?.LoadFileCompiled(param.Value);
-            return (Texture: texture, Images: GetTextureUnpackInfos(param.Key, param.Value, texture?.DataBlock as Texture).ToList());
+            var texturePath = ReferenceMap.MapPath(param.Value);
+
+            texture?.FileName = texturePath;
+
+            return (Texture: texture, Images: GetTextureUnpackInfos(param.Key, texturePath, texture?.DataBlock as Texture).ToList());
         }).ToList();
 
         var primaryKeys = textures.Where(static texture => texture.Images.Count > 0).Select(static texture => texture.Images[0].TextureType).ToHashSet();
@@ -225,12 +235,13 @@ public sealed class MaterialExtract
     /// Whether the compiler generated the texture from a constant, which names it
     /// <c>{material}_vmat_{parameter}_{hash}</c>.
     /// </summary>
-    private bool IsGeneratedFromConstant(string textureType, string texturePath)
+    private static bool IsGeneratedFromConstant(string textureType, string texturePath)
     {
-        var prefix = $"{Path.GetFileNameWithoutExtension(material.Resource?.FileName)}_vmat_{textureType.ToLowerInvariant()}_";
+        var infix = $"_vmat_{textureType.ToLowerInvariant()}_";
         var name = Path.GetFileNameWithoutExtension(texturePath);
+        var hashStart = name.LastIndexOf(infix, StringComparison.OrdinalIgnoreCase) + infix.Length;
 
-        return name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && name.Length > prefix.Length && name[prefix.Length..].All(char.IsAsciiHexDigit);
+        return hashStart > infix.Length && name.Length > hashStart && name[hashStart..].All(char.IsAsciiHexDigit);
     }
 
     /// <summary>
@@ -372,7 +383,7 @@ public sealed class MaterialExtract
         }
 
         using var ms = new MemoryStream();
-        KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, new KVDocument(new(), "Layer0", root));
+        KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, new KVDocument(new(), "Layer0", ReferenceMap.MapReferences(root)));
         return Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length);
     }
 

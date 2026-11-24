@@ -1,5 +1,6 @@
 using System.IO;
 using System.Runtime.ExceptionServices;
+using ValveResourceFormat.IO;
 
 namespace ValveResourceFormat
 {
@@ -132,7 +133,7 @@ namespace ValveResourceFormat
         /// <summary>
         /// Returns the text <see cref="ToString"/> returns, encoded as UTF-8.
         /// </summary>
-        internal virtual byte[] ToUtf8Text() => System.Text.Encoding.UTF8.GetBytes(ToString());
+        internal virtual byte[] ToUtf8Text(ContentPathMap? referenceMap) => System.Text.Encoding.UTF8.GetBytes(ToString());
 
         /// <summary>
         /// Writes a human readable text dump of the block contents.

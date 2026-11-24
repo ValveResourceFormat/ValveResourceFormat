@@ -124,7 +124,7 @@ partial class ModelExtract
 
         AddVsnapNodes(lists);
 
-        return kv.ToKV3String(format: KV3IDLookup.Get(writesClothStiffenSpeedInOut ? "modeldoc30" : "modeldoc28"));
+        return referenceMap.MapReferences(kv).ToKV3String(format: KV3IDLookup.Get(writesClothStiffenSpeedInOut ? "modeldoc30" : "modeldoc28"));
     }
 
     /// <summary>
