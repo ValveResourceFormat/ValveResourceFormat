@@ -89,7 +89,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
         }
 
         var consumed = settings.Dependencies != ContentExportDependencies.None || relocates
-            ? AddDependencies(queued, selected, parallelOptions)
+            ? AddDependencies(queued, selected, parallelOptions, includeWrittenResources: relocates)
             : [];
 
         if (rewritesReferences && ContentPaths.FindContentRoot(Exporter.TargetFolder ?? Exporter.OutputRoot) == null)
@@ -271,8 +271,12 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
     /// <param name="queued">The items to export, dependencies are added to them.</param>
     /// <param name="selected">Every item of the export, including those that are not exported again.</param>
     /// <param name="parallelOptions">How headers are read.</param>
+    /// <param name="includeWrittenResources">
+    /// Whether the resources whose files an item writes along with its own also count as consumed, from any source and
+    /// at any depth: the textures of a material and the clips of a model's animation graphs.
+    /// </param>
     /// <returns>The resources the items consume, and whether an item that is not a dependency consumes them.</returns>
-    private List<(string Key, bool FromMainItem)> AddDependencies(List<QueuedItem> queued, List<QueuedItem> selected, ParallelOptions parallelOptions)
+    private List<(string Key, bool FromMainItem)> AddDependencies(List<QueuedItem> queued, List<QueuedItem> selected, ParallelOptions parallelOptions, bool includeWrittenResources)
     {
         var depth = Exporter.Settings.Dependencies;
         var known = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -294,11 +298,35 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
                 return;
             }
 
+            var writesTextures = includeWrittenResources && header.Type == ResourceType.Material;
+
             foreach (var name in header.References)
             {
-                if (known.Add(GetDependencyKey(source, name)))
+                if (!known.Add(GetDependencyKey(source, name)))
+                {
+                    continue;
+                }
+
+                if (writesTextures && ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(name.AsSpan())) == ResourceType.Texture)
+                {
+                    consumed.Add((name, fromMainItem));
+                }
+                else
                 {
                     pending.Add(new Dependency(name, source, fileLoader, output, fromMainItem));
+                }
+            }
+
+            if (includeWrittenResources && header.Type == ResourceType.Model && output == ContentExportOutput.Decompile)
+            {
+                var graphs = header.References.Where(static name => ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(name.AsSpan())) == ResourceType.NmGraph);
+
+                foreach (var clip in AnimationGraphLoader.GetClipNames(graphs, fileLoader).Select(ContentExporter.GetHandledKey))
+                {
+                    if (known.Add(GetDependencyKey(source, clip)))
+                    {
+                        consumed.Add((clip, fromMainItem));
+                    }
                 }
             }
         }

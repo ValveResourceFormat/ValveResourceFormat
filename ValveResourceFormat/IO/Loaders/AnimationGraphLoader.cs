@@ -22,11 +22,18 @@ namespace ValveResourceFormat.IO
         /// preserves first-seen order.
         /// </summary>
         public static IReadOnlyList<string> GetClipNames(Model model, IFileLoader fileLoader)
+            => GetClipNames(model.AnimGraph2References.Select(static reference => reference.GraphPath), fileLoader);
+
+        /// <summary>
+        /// Gets the clip (.vnmclip) resource names referenced by the given animation graphs, see
+        /// <see cref="GetClipNames(Model, IFileLoader)"/>.
+        /// </summary>
+        internal static IReadOnlyList<string> GetClipNames(IEnumerable<string> graphPaths, IFileLoader fileLoader)
         {
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var clipNames = new List<string>();
 
-            foreach (var (_, graphPath) in model.AnimGraph2References)
+            foreach (var graphPath in graphPaths)
             {
                 CollectClips(graphPath, fileLoader, visited, clipNames);
             }
