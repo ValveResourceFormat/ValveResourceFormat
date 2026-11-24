@@ -1,7 +1,9 @@
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using ValveResourceFormat.Serialization.VfxEval;
+using ValveResourceFormat.Utils;
 
 namespace Tests.Formats
 {
@@ -1031,7 +1033,8 @@ namespace Tests.Formats
         [Arguments("(g_bA && g_flB>=1) ? -(-g_flC) : g_flD")]
         public async Task TestCompilerRoundTripsDecompiledText(string source)
         {
-            var decompiled = new VfxEval(VfxEvalCompiler.Compile(source), omitReturnStatement: true).DynamicExpressionResult;
+            var names = Regex.Matches(source, @"g_\w+").Select(match => match.Value);
+            var decompiled = new VfxEval(VfxEvalCompiler.Compile(source), [], omitReturnStatement: true, knownNames: names).DynamicExpressionResult;
 
             await Assert.That(decompiled.ReplaceLineEndings("\n")).IsEqualTo(source);
         }
