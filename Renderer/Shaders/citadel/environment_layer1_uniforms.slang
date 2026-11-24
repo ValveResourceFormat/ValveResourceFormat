@@ -25,4 +25,13 @@ uniform vec2 g_vLayerMetalnessContrastBrightness1 = vec2(1.0, 0.0);
     uniform float g_flOverrideBloomAmount1 = 0.0;
 #endif
 
+/* Expressions
+uniform vec3 g_vAlbedoContrastSaturationBrightness1 = vec3(1.0);
+uniform vec3 g_vColorTint1 = vec3(1.0);
+uniform int g_nTextureColorTintMode1 = 0;
+
+g_mAlbedoColorCorrect1 = MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness1, TextureAverageColor(g_tColor1));
+g_mTextureColorTint1 = MatrixColorTint3(SrgbGammaToLinear(g_vColorTint1), 0.85, g_nTextureColorTintMode1);
+*/
+
 #endif

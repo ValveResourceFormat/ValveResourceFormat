@@ -2,6 +2,7 @@ using System.Collections;
 using System.Diagnostics;
 using System.IO;
 using ValvePak;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -45,6 +46,32 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
         => Get(VcsProgramType.MeshShader);
 
     private readonly Dictionary<VcsProgramType, VfxProgramData> shaders = new((int)VcsProgramType.Undetermined);
+
+    private Dictionary<StringToken, VfxVariableDescription>? variablesByToken;
+
+    /// <summary>Gets the variables of all programs by the tokens dynamic expressions refer to them with.</summary>
+    public IReadOnlyDictionary<StringToken, VfxVariableDescription> VariablesByToken
+        => variablesByToken ??= CreateVariablesByToken();
+
+    private Dictionary<StringToken, VfxVariableDescription> CreateVariablesByToken()
+    {
+        var variables = new Dictionary<StringToken, VfxVariableDescription>();
+
+        foreach (var program in shaders.Values)
+        {
+            foreach (var variable in program.VariableDescriptions)
+            {
+                variables.TryAdd(StringToken.Lookup(variable.Name), variable);
+
+                if (VfxVariableDescription.GetNameWithoutTypePrefix(variable.Name) is { } unprefixedName)
+                {
+                    variables.TryAdd(StringToken.Lookup(unprefixedName), variable);
+                }
+            }
+        }
+
+        return variables;
+    }
 
     /// <summary>
     /// Loads all related shader files for a given shader.
@@ -123,6 +150,8 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
         {
             throw new ArgumentException($"Shader of type {program.VcsProgramType} already exists in this collection.");
         }
+
+        variablesByToken = null;
     }
 
     /// <summary>

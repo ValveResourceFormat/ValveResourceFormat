@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
@@ -56,6 +57,11 @@ namespace ValveResourceFormat.Renderer
                 Alpha = value.W;
             }
         }
+
+        private RenderAttributes? renderAttributes;
+        /// <summary>Gets render attributes for this node only. Created on first use.</summary>
+        public RenderAttributes RenderAttributes => renderAttributes ??= new();
+        internal RenderAttributes? RenderAttributesOrNull => renderAttributes is { IsEmpty: false } ? renderAttributes : null;
 
         /// <summary>
         /// Gets or sets the world transform. Setting this also updates <see cref="BoundingBox"/>.
@@ -479,6 +485,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public virtual void Delete()
         {
+            renderAttributes?.Delete();
         }
 
         /// <summary>

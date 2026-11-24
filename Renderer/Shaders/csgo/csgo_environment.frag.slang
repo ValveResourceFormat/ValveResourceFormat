@@ -33,7 +33,7 @@ uniform sampler2D g_tNormal1;
     uniform int g_nDetailUVSet1 = -1; // -1=Inherit, 0=Biplanar, 1=UV1, 2=UV2
     uniform vec2 g_vDetailTexCoordScale1 = vec2(1.0);
     uniform float g_fDetailTextureNormalContrast1 = 1.0; // -2 .. 2
-    uniform float g_flDetailTexCoordRotation1 = 0.0;
+    uniform vec4 g_vDetailNormalXform_1 = vec4(1.0, 0.0, 0.0, 1.0);
 #endif
 
 uniform bool g_bMetalness1 = true;
@@ -51,13 +51,28 @@ uniform mat4 g_mTextureAdjust1;
 
 uniform int g_nUVSet1 = 1; // 0=Biplanar, 1=UV1, 2=UV2
 uniform vec2 g_vTexCoordScale1 = vec2(1.0);
-uniform float g_flTexCoordRotation1 = 0.0;
+uniform vec4 g_vNormalXform_1 = vec4(1.0, 0.0, 0.0, 1.0);
 
 uniform bool g_bSnowLayer1 = false;
 uniform float g_flSnowGlintStrength1 = 1.0;
 
 // The dielectric reflectance the specular color is built from. Wetness pulls it toward water.
 uniform float g_flReflectance = 0.04;
+
+/* Expressions
+uniform float g_flDetailTexCoordRotation1 = 0.0;
+uniform float g_fTextureColorContrast1 = 1.0;
+uniform float g_fTextureColorSaturation1 = 1.0;
+uniform float g_fTextureColorBrightness1 = 1.0;
+uniform vec3 g_vTextureColorTint1 = vec3(1.0);
+uniform float g_flTexCoordRotation1 = 0.0;
+
+g_mTextureColorAdjust1 = F_MATERIAL_REFERENCE ? TextureColorAdjust(g_vTextureColorTint1, float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), g_tColor1) : MatrixIdentity();
+g_mTextureAdjust1 = MatrixColorCorrect2(float3(g_fTextureColorContrast1, g_fTextureColorSaturation1, g_fTextureColorBrightness1), TextureAverageColor(g_tColor1));
+
+g_vDetailNormalXform_1 = RotationMatrix2D(g_flDetailTexCoordRotation1);
+g_vNormalXform_1 = RotationMatrix2D(g_flTexCoordRotation1);
+*/
 
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 {
@@ -72,12 +87,12 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         vTintColor_ModelAmount, g_bModelTint1);
 
     vec3 normalTs = LayerNormal(layer.EncodedNormal, g_tNormal1, g_nUVSet1, g_vTexCoordScale1,
-        g_fTextureNormalContrast1, g_flTexCoordRotation1, biplanar, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
+        g_fTextureNormalContrast1, g_vNormalXform_1, biplanar, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
 
 #if (F_DETAIL_NORMAL == 1)
     normalTs = ApplyDetailNormal(normalTs, g_tNormalDetail1, DetailUvSet(g_nDetailUVSet1, g_nUVSet1),
         vDetailTexCoords, g_vDetailTexCoordScale1, g_fDetailTextureNormalContrast1,
-        g_flDetailTexCoordRotation1, biplanar,
+        g_vDetailNormalXform_1, biplanar,
         mat.GeometricNormal, mat.Tangent, mat.Bitangent);
 #endif
 

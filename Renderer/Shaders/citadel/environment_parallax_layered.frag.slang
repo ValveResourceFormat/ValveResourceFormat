@@ -81,6 +81,16 @@ uniform float g_flAlphaTestReference = 0.5;
     uniform float g_flOverrideBloomAmount1 = 1.0;
 #endif
 
+/* Expressions
+uniform vec3 g_vAlbedoContrastSaturationBrightness1 = vec3(1.0);
+uniform vec3 g_vAlbedoContrastSaturationBrightness2 = vec3(1.0);
+uniform vec3 g_vAlbedoContrastSaturationBrightness3 = vec3(1.0);
+
+g_mAlbedoColorCorrect = MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness1, TextureAverageColor(g_tColor));
+g_mAlbedoColorCorrect2 = MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness2, TextureAverageColor(g_tColor2));
+g_mAlbedoColorCorrect3 = MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness3, TextureAverageColor(g_tColor3));
+*/
+
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 {
     MaterialProperties_t mat;

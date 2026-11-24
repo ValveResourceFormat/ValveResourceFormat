@@ -201,6 +201,7 @@ namespace ValveResourceFormat.Renderer
             var vao = -1;
             Shader? shader = null;
             RenderMaterial? material = null;
+            RenderAttributes? attributes = null;
             Uniforms uniforms = new();
             Config config = new()
             {
@@ -240,6 +241,7 @@ namespace ValveResourceFormat.Renderer
                 var requestMaterial = request.Call.Material;
 
                 var requestShader = ResolveShader(context, request.Mesh, requestMaterial, request.Interior);
+                var requestAttributes = request.Node.RenderAttributesOrNull;
 
                 // Passes that swap the shader have no use for the back faces, the translucent draw covers them
                 if (request.Interior && !requestShader.IsInteriorVariant)
@@ -247,7 +249,7 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                if (material != requestMaterial || shader != requestShader)
+                if (material != requestMaterial || shader != requestShader || attributes != requestAttributes)
                 {
                     counters.Count(Counter.MaterialChange);
 
@@ -276,7 +278,8 @@ namespace ValveResourceFormat.Renderer
                     }
 
                     material = requestMaterial;
-                    material.Render(shader, depthPass: context.DepthOnlyShader != null);
+                    attributes = requestAttributes;
+                    material.Render(shader, depthPass: context.DepthOnlyShader != null, attributes);
                 }
 
                 var requestVao = request.Call.GetVertexArrayObject();

@@ -15,7 +15,7 @@
 #include "../common/surface_shading.slang"
 
 uniform float g_flOpacityScale = 1.0;
-uniform mat4 g_mTextureColorAdjust; // evaluated on the CPU from g_fTextureColor* params
+uniform mat4 g_mTextureColorAdjust;
 
 uniform float g_flAlphaTestReference = 0.5;
 
@@ -168,6 +168,15 @@ vec3 ToBlendModeColor(vec3 color)
     uniform float g_fTextureRoughnessBrightness = 1.0;
     uniform int F_AUTOMATIC_PBR_COLOR_FITTING;
     uniform bool g_bSnow = false;
+
+/* Expressions
+uniform float g_fTextureColorContrast = 1.0;
+uniform float g_fTextureColorSaturation = 1.0;
+uniform float g_fTextureColorBrightness = 1.0;
+uniform vec3 g_vTextureColorCorrectionTint = vec3(1.0);
+
+g_mTextureColorAdjust = TextureColorAdjust(g_vTextureColorCorrectionTint, float3(g_fTextureColorContrast, g_fTextureColorSaturation, g_fTextureColorBrightness), g_tColor);
+*/
 
     MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     {

@@ -19,7 +19,7 @@ uniform sampler2D g_tNormal; // Sampler(UserConfig)
 uniform sampler2D g_tTintMask;
 uniform sampler2D g_tAmbientOcclusion;
 
-uniform mat4 g_mTextureColorAdjust = mat4(1.0); // evaluated on the CPU from g_fTextureColor* params
+uniform mat4 g_mTextureColorAdjust = mat4(1.0);
 uniform float g_fTextureNormalContrast = 1.0;
 uniform float g_fTextureRoughnessContrast = 1.0;
 uniform float g_fTextureRoughnessBrightness = 1.0;
@@ -27,11 +27,21 @@ uniform float g_flHeightGradientAmount = 0.0;
 uniform float g_flHeightGradientPower = 1.0;
 
 #if (F_TRANSMISSIVE_BACKFACE_NDOTL == 1)
-    uniform mat4 g_mTransmissiveTextureColorAdjust = mat4(1.0); // evaluated on the CPU like g_mTextureColorAdjust
+    uniform mat4 g_mTransmissiveTextureColorAdjust = mat4(1.0);
     uniform bool g_bApplyColorCorrectionToTransmissiveColor = false;
 #endif
 
 uniform float g_flAlphaTestReference = 0.5;
+
+/* Expressions
+uniform float g_fTextureColorContrast = 1.0;
+uniform float g_fTextureColorSaturation = 1.0;
+uniform float g_fTextureColorBrightness = 1.0;
+uniform vec3 g_vTextureColorCorrectionTint = vec3(1.0);
+
+g_mTextureColorAdjust = TextureColorAdjust(g_vTextureColorCorrectionTint, float3(g_fTextureColorContrast, g_fTextureColorSaturation, g_fTextureColorBrightness), g_tColor);
+g_mTransmissiveTextureColorAdjust = TextureColorAdjust(g_vTextureColorCorrectionTint, float3(g_fTextureColorContrast, g_fTextureColorSaturation, g_fTextureColorBrightness), g_tTransmissiveColor);
+*/
 
 #if (F_ALPHA_TEST == 1)
     uniform float g_flGrazingAngleMask = 0.0;

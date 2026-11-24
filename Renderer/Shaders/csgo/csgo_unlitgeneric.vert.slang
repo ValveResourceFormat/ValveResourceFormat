@@ -12,13 +12,21 @@ uniform vec3 g_vColorTint = vec3(1.0); // SrgbRead(true)
 #endif
 
 #if (F_TWOTEXTURE == 1)
-    uniform vec2 g_vTex2CoordCenter = vec2(0.5);
-    uniform vec2 g_vTex2CoordScale = vec2(1.0);
-    uniform float g_flTex2CoordRotation = 0.0;
-    uniform vec2 g_vTex2CoordOffset = vec2(0.0);
+    uniform vec4 g_vTex2CoordXform0 = vec4(1.0, 0.0, 0.0, 0.0);
+    uniform vec4 g_vTex2CoordXform1 = vec4(0.0, 1.0, 0.0, 0.0);
 
     out vec2 vTexCoord2Out;
 #endif
+
+/* Expressions
+uniform vec2 g_vTex2CoordCenter = vec2(0.5);
+uniform vec2 g_vTex2CoordScale = vec2(1.0);
+uniform float g_flTex2CoordRotation = 0.0;
+uniform vec2 g_vTex2CoordOffset = vec2(0.0);
+
+g_vTex2CoordXform0 = SecondaryTexCoordXform0(g_flTex2CoordRotation, g_vTex2CoordScale, g_vTex2CoordCenter, g_vTex2CoordOffset);
+g_vTex2CoordXform1 = SecondaryTexCoordXform1(g_flTex2CoordRotation, g_vTex2CoordScale, g_vTex2CoordCenter, g_vTex2CoordOffset);
+*/
 
 void main()
 {
@@ -30,6 +38,6 @@ void main()
 
 #if (F_TWOTEXTURE == 1)
     // The second texture has its own transform of the mesh texcoords, and does not scroll or animate
-    vTexCoord2Out = TransformSecondaryTexCoord(vTEXCOORD.xy, g_flTex2CoordRotation, g_vTex2CoordScale, g_vTex2CoordOffset, g_vTex2CoordCenter);
+    vTexCoord2Out = ApplyTexCoordXform(vTEXCOORD.xy, g_vTex2CoordXform0, g_vTex2CoordXform1);
 #endif
 }

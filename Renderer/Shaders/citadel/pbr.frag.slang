@@ -55,18 +55,15 @@ uniform vec2 g_vNormalAndRoughnessScrollSpeed1 = vec2(0.0);
 uniform float g_flNormalAndRoughnessScrollQuantize1 = 0.0;
 
 #if (F_ENABLE_TEXTURE_TRANSFORMS == 1)
-    uniform vec2 g_vAlbedoTexcoordScale1 = vec2(1.0);
-    uniform float g_flAlbedoTexcoordRotation1 = 0.0;
-    uniform vec2 g_vAlbedoTexcoordOffset1 = vec2(0.0);
+    uniform vec4 g_vAlbedoTexcoordXform = vec4(1.0, 0.0, 0.0, 1.0);
+    uniform vec2 g_vAlbedoTexcoordXformOffset = vec2(0.0);
 
-    uniform vec2 g_vNormalTexcoordScale1 = vec2(1.0);
-    uniform float g_flNormalTexcoordRotation1 = 0.0;
-    uniform vec2 g_vNormalTexcoordOffset1 = vec2(0.0);
+    uniform vec4 g_vNormalTexcoordXform = vec4(1.0, 0.0, 0.0, 1.0);
+    uniform vec2 g_vNormalTexcoordXformOffset = vec2(0.0);
 
     #if (F_SELF_ILLUM == 1)
-        uniform vec2 g_vSelfIllumTexcoordScale1 = vec2(1.0);
-        uniform float g_flSelfIllumTexcoordRotation1 = 0.0;
-        uniform vec2 g_vSelfIllumTexcoordOffset1 = vec2(0.0);
+        uniform vec4 g_vSelfIllumTexcoordXform = vec4(1.0, 0.0, 0.0, 1.0);
+        uniform vec2 g_vSelfIllumTexcoordXformOffset = vec2(0.0);
     #endif
 #endif
 
@@ -101,12 +98,10 @@ uniform float g_flNormalAndRoughnessScrollQuantize1 = 0.0;
         uniform float g_flTranslucentScrollQuantize1_1 = 0.0;
 
         #if (F_ENABLE_TEXTURE_TRANSFORMS == 1)
-            uniform vec2 g_vTranslucentTexcoordScale0_1 = vec2(1.0);
-            uniform float g_flTranslucentTexcoordRotation0_1 = 0.0;
-            uniform vec2 g_vTranslucentTexcoordOffset0_1 = vec2(0.0);
-            uniform vec2 g_vTranslucentTexcoordScale1_1 = vec2(1.0);
-            uniform float g_flTranslucentTexcoordRotation1_1 = 0.0;
-            uniform vec2 g_vTranslucentTexcoordOffset1_1 = vec2(0.0);
+            uniform vec4 g_vTranslucentTexcoordXform0 = vec4(1.0, 0.0, 0.0, 1.0);
+            uniform vec2 g_vTranslucentTexcoordXformOffset0 = vec2(0.0);
+            uniform vec4 g_vTranslucentTexcoordXform1 = vec4(1.0, 0.0, 0.0, 1.0);
+            uniform vec2 g_vTranslucentTexcoordXformOffset1 = vec2(0.0);
         #endif
     #endif
 #endif
@@ -133,14 +128,15 @@ uniform float g_flNormalAndRoughnessScrollQuantize1 = 0.0;
     uniform float g_flDetailBlendFactor1 = 1.0;
     uniform vec2 g_vDetailTexCoordScale1 = vec2(1.0);
     uniform vec2 g_vDetailTexCoordOffset1 = vec2(0.0);
-    uniform float g_flDetailTexCoordRotation1 = 0.0;
+    uniform vec4 g_vDetailTexCoordXform = vec4(1.0, 0.0, 0.0, 1.0);
+    uniform vec2 g_vDetailTexCoordXformOffset = vec2(0.0);
     uniform bool g_bUseSecondaryUvForDetail1 = false;
     uniform int g_nDetailBlendMode = 0; // 0="Add to albedo", 1="Add to self illum", 2="Mod2x albedo"
 #endif
 
 #if (F_SHEEN == 1)
     uniform sampler2D g_tSheen; // SrgbRead(true)
-    uniform mat4 g_mSheenTextureColorTint = mat4(1.0); // currently unset
+    uniform mat4 g_mSheenTextureColorTint = mat4(1.0);
 
     uniform bool g_bSheenMaskColorTint1 = true;
     uniform bool g_bSheenMaskVertexColorTint1 = true;
@@ -165,12 +161,53 @@ uniform float g_flGradientFogAmount = 1.0;
 uniform float g_flCubmapFogAmount = 1.0;
 uniform float g_flVolumeFogAmount = 1.0;
 
+/* Expressions
+uniform vec3 g_vAlbedoContrastSaturationBrightness1 = vec3(1.0);
+uniform vec3 g_vColorTint1 = vec3(1.0);
+uniform int g_nTextureColorTintMode1 = 0;
+uniform vec2 g_vAlbedoTexcoordScale1 = vec2(1.0);
+uniform float g_flAlbedoTexcoordRotation1 = 0.0;
+uniform vec2 g_vAlbedoTexcoordOffset1 = vec2(0.0);
+uniform vec2 g_vNormalTexcoordScale1 = vec2(1.0);
+uniform float g_flNormalTexcoordRotation1 = 0.0;
+uniform vec2 g_vNormalTexcoordOffset1 = vec2(0.0);
+uniform vec2 g_vSelfIllumTexcoordScale1 = vec2(1.0);
+uniform float g_flSelfIllumTexcoordRotation1 = 0.0;
+uniform vec2 g_vSelfIllumTexcoordOffset1 = vec2(0.0);
+uniform vec2 g_vTranslucentTexcoordScale0_1 = vec2(1.0);
+uniform float g_flTranslucentTexcoordRotation0_1 = 0.0;
+uniform vec2 g_vTranslucentTexcoordOffset0_1 = vec2(0.0);
+uniform vec2 g_vTranslucentTexcoordScale1_1 = vec2(1.0);
+uniform float g_flTranslucentTexcoordRotation1_1 = 0.0;
+uniform vec2 g_vTranslucentTexcoordOffset1_1 = vec2(0.0);
+uniform float g_flDetailTexCoordRotation1 = 0.0;
+uniform vec3 g_vSheenColorTint1 = vec3(1.0);
+uniform int g_nSheenTextureColorTintMode1 = 0;
+
+g_mAlbedoColorCorrect = MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness1, TextureAverageColor(g_tColor));
+g_mTextureColorTint = MatrixColorTint3(SrgbGammaToLinear(g_vColorTint1), 0.85, g_nTextureColorTintMode1);
+g_mSheenTextureColorTint = MatrixColorTint3(SrgbGammaToLinear(g_vSheenColorTint1), 0.85, g_nSheenTextureColorTintMode1);
+
+g_vAlbedoTexcoordXform = TexCoordMatrix(g_flAlbedoTexcoordRotation1, g_vAlbedoTexcoordScale1);
+g_vAlbedoTexcoordXformOffset = TexCoordMatrixOffset(g_flAlbedoTexcoordRotation1, g_vAlbedoTexcoordScale1, g_vAlbedoTexcoordOffset1);
+g_vNormalTexcoordXform = TexCoordMatrix(g_flNormalTexcoordRotation1, g_vNormalTexcoordScale1);
+g_vNormalTexcoordXformOffset = TexCoordMatrixOffset(g_flNormalTexcoordRotation1, g_vNormalTexcoordScale1, g_vNormalTexcoordOffset1);
+g_vSelfIllumTexcoordXform = TexCoordMatrix(g_flSelfIllumTexcoordRotation1, g_vSelfIllumTexcoordScale1);
+g_vSelfIllumTexcoordXformOffset = TexCoordMatrixOffset(g_flSelfIllumTexcoordRotation1, g_vSelfIllumTexcoordScale1, g_vSelfIllumTexcoordOffset1);
+g_vTranslucentTexcoordXform0 = TexCoordMatrix(g_flTranslucentTexcoordRotation0_1, g_vTranslucentTexcoordScale0_1);
+g_vTranslucentTexcoordXformOffset0 = TexCoordMatrixOffset(g_flTranslucentTexcoordRotation0_1, g_vTranslucentTexcoordScale0_1, g_vTranslucentTexcoordOffset0_1);
+g_vTranslucentTexcoordXform1 = TexCoordMatrix(g_flTranslucentTexcoordRotation1_1, g_vTranslucentTexcoordScale1_1);
+g_vTranslucentTexcoordXformOffset1 = TexCoordMatrixOffset(g_flTranslucentTexcoordRotation1_1, g_vTranslucentTexcoordScale1_1, g_vTranslucentTexcoordOffset1_1);
+g_vDetailTexCoordXform = TexCoordMatrix(g_flDetailTexCoordRotation1, g_vDetailTexCoordScale1);
+g_vDetailTexCoordXformOffset = TexCoordMatrixOffset(g_flDetailTexCoordRotation1, g_vDetailTexCoordScale1, g_vDetailTexCoordOffset1);
+*/
+
 vec2 GetAlbedoTexCoord(vec2 texCoord)
 {
     vec2 albedoTexCoord = ScrollTexCoord(texCoord, g_vAlbedoScrollSpeed1, g_flAlbedoScrollQuantize1);
 
 #if (F_ENABLE_TEXTURE_TRANSFORMS == 1)
-    albedoTexCoord = RotateVector2D(albedoTexCoord, g_flAlbedoTexcoordRotation1, g_vAlbedoTexcoordScale1, g_vAlbedoTexcoordOffset1);
+    albedoTexCoord = ApplyTexCoordXform(albedoTexCoord, g_vAlbedoTexcoordXform, g_vAlbedoTexcoordXformOffset);
 #endif
 
     return albedoTexCoord;
@@ -181,7 +218,7 @@ vec2 GetNormalTexCoord(vec2 texCoord)
     vec2 normalTexCoord = ScrollTexCoord(texCoord, g_vNormalAndRoughnessScrollSpeed1, g_flNormalAndRoughnessScrollQuantize1);
 
 #if (F_ENABLE_TEXTURE_TRANSFORMS == 1)
-    normalTexCoord = RotateVector2D(normalTexCoord, g_flNormalTexcoordRotation1, g_vNormalTexcoordScale1, g_vNormalTexcoordOffset1);
+    normalTexCoord = ApplyTexCoordXform(normalTexCoord, g_vNormalTexcoordXform, g_vNormalTexcoordXformOffset);
 #endif
 
     return normalTexCoord;
@@ -232,7 +269,7 @@ void SampleSelfIllum(vec2 texCoord, vec3 albedo, out vec3 illumTint, out float i
 #if (F_SELF_ILLUM == 1)
     vec2 selfIllumTexCoord = ScrollTexCoord(GetUvSet(texCoord, g_bUseSecondaryUvForSelfIllum1), g_vSelfIllumScrollSpeed1, g_flSelfIllumScrollQuantize1);
     #if (F_ENABLE_TEXTURE_TRANSFORMS == 1)
-        selfIllumTexCoord = RotateVector2D(selfIllumTexCoord, g_flSelfIllumTexcoordRotation1, g_vSelfIllumTexcoordScale1, g_vSelfIllumTexcoordOffset1);
+        selfIllumTexCoord = ApplyTexCoordXform(selfIllumTexCoord, g_vSelfIllumTexcoordXform, g_vSelfIllumTexcoordXformOffset);
     #endif
 
     illumMask = texture(g_tSelfIllumMask, selfIllumTexCoord).x;
@@ -263,7 +300,7 @@ void ApplyDetailBlend(vec2 texCoord, vec2 albedoTexCoord, inout vec3 albedo, ino
 #if (F_DETAIL == 1)
     vec2 detailBase = GetUvSet(texCoord, g_bUseSecondaryUvForDetail1);
     #if (F_ENABLE_TEXTURE_TRANSFORMS == 1)
-        vec2 detailTexCoord = RotateVector2D(detailBase, g_flDetailTexCoordRotation1, g_vDetailTexCoordScale1, g_vDetailTexCoordOffset1);
+        vec2 detailTexCoord = ApplyTexCoordXform(detailBase, g_vDetailTexCoordXform, g_vDetailTexCoordXformOffset);
     #else
         vec2 detailTexCoord = detailBase * g_vDetailTexCoordScale1 + g_vDetailTexCoordOffset1;
     #endif
@@ -305,8 +342,8 @@ float GetTranslucencyAlpha(vec2 texCoord, float colorAlpha)
     vec2 altTranslucencyTexCoord = ScrollTexCoord(GetUvSet(texCoord, g_bUseSecondaryUvForAltTranslucency), g_vTranslucentScrollSpeed1_1, g_flTranslucentScrollQuantize1_1);
 
     #if (F_ENABLE_TEXTURE_TRANSFORMS == 1)
-        translucencyTexCoord = RotateVector2D(translucencyTexCoord, g_flTranslucentTexcoordRotation0_1, g_vTranslucentTexcoordScale0_1, g_vTranslucentTexcoordOffset0_1);
-        altTranslucencyTexCoord = RotateVector2D(altTranslucencyTexCoord, g_flTranslucentTexcoordRotation1_1, g_vTranslucentTexcoordScale1_1, g_vTranslucentTexcoordOffset1_1);
+        translucencyTexCoord = ApplyTexCoordXform(translucencyTexCoord, g_vTranslucentTexcoordXform0, g_vTranslucentTexcoordXformOffset0);
+        altTranslucencyTexCoord = ApplyTexCoordXform(altTranslucencyTexCoord, g_vTranslucentTexcoordXform1, g_vTranslucentTexcoordXformOffset1);
     #endif
 
     float translucency = texture(g_tColor, translucencyTexCoord).a;

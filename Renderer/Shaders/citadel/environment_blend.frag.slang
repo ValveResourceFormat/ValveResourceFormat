@@ -187,6 +187,20 @@ uniform float g_flBorderRoughness2 = 0.5;
     #endif
 #endif
 
+/* Expressions
+uniform vec3 g_vAlbedoContrastSaturationBrightness2 = vec3(1.0);
+uniform vec3 g_vColorTint2 = vec3(1.0);
+uniform int g_nTextureColorTintMode2 = 0;
+uniform vec3 g_vAlbedoContrastSaturationBrightness3 = vec3(1.0);
+uniform vec3 g_vColorTint3 = vec3(1.0);
+uniform int g_nTextureColorTintMode3 = 0;
+
+g_mAlbedoColorCorrect2 = MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness2, TextureAverageColor(g_tColor2));
+g_mTextureColorTint2 = MatrixColorTint3(SrgbGammaToLinear(g_vColorTint2), 0.85, g_nTextureColorTintMode2);
+g_mAlbedoColorCorrect3 = MatrixColorCorrect2(g_vAlbedoContrastSaturationBrightness3, TextureAverageColor(g_tColor3));
+g_mTextureColorTint3 = MatrixColorTint3(SrgbGammaToLinear(g_vColorTint3), 0.85, g_nTextureColorTintMode3);
+*/
+
 // Every layer above the first is revealed by its own mask weighed against a channel of
 // the vertex paint.
 void GetPaintBlends(out float blend2, out float blend3)

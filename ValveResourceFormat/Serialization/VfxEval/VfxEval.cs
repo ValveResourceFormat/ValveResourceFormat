@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.Serialization.VfxEval
@@ -24,108 +25,211 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // the decompiled expression, one statement per line
         private readonly List<string> DynamicExpressionList = [];
 
-        // function reference, name and number of arguments
-        private static readonly (string Name, int ArgumentCount)[] FUNCTION_REF = [
-#pragma warning disable format
-            ("sin",        1),     // 00
-            ("cos",        1),     // 01
-            ("tan",        1),     // 02
-            ("frac",       1),     // 03
-            ("floor",      1),     // 04
-            ("ceil",       1),     // 05
-            ("saturate",   1),     // 06
-            ("clamp",      3),     // 07
-            ("lerp",       3),     // 08
-            ("dot4",       2),     // 09
-            ("dot3",       2),     // 0A
-            ("dot2",       2),     // 0B
-            ("log",        1),     // 0C
-            ("log2",       1),     // 0D
-            ("log10",      1),     // 0E
-            ("exp",        1),     // 0F
-            ("exp2",       1),     // 10
-            ("sqrt",       1),     // 11
-            ("rsqrt",      1),     // 12
-            ("sign",       1),     // 13
-            ("abs",        1),     // 14
-            ("pow",        2),     // 15
-            ("step",       2),     // 16
-            ("smoothstep", 3),     // 17
-            ("float4",     4),     // 18
-            ("float3",     3),     // 19
-            ("float2",     2),     // 1A
-            ("time",       0),     // 1B
-            ("min",        2),     // 1C
-            ("max",        2),     // 1D
-            ("SrgbLinearToGamma",1), // 1E
-            ("SrgbGammaToLinear",1), // 1F
-            ("random",     2),     // 20
-            ("normalize",  1),     // 21
-            ("length",     1),     // 22
-            ("sqr",        1),     // 23
-            ("rotation2d", 1),     // 24
-            ("rotate2d",   2),     // 25
-            ("sincos",     1),     // 26
-            ("TextureSize",1),     // 27
-            ("TextureAverageColor", 1), // 28
-            ("MatrixIdentity",      0), // 29
-            ("MatrixScale",         1), // 2A
-            ("MatrixTranslate",     1), // 2B
-            ("MatrixAxisAngle",     1), // 2C
-            ("MatrixAxisToAxis",    2), // 2D
-            ("MatrixMultiply",      2), // 2E
-            ("MatrixColorCorrect",  1), // 2F
-            ("MatrixColorCorrect2", 2), // 30
-            ("MatrixColorTint",     1), // 31
-            ("normalize_safe",      1), // 32
-            ("Remap01ScaleOffset",  1), // 33
-            ("radians",             1), // 34
-            ("degrees",             1), // 35
-            ("MatrixColorTint2",    2), // 36
-            ("MatrixColorTint3",    3), // 37
-            ("RemapVal",            5), // 38
-            ("RemapValClamped",     5), // 39
-#pragma warning restore format
-        ];
+        /// <summary>Gets the functions expressions call, indexed by <see cref="ExpressionFunction"/>.</summary>
+        public static IReadOnlyList<FunctionAttribute> Functions { get; } = CreateFunctionTable();
 
-        private enum OPCODE
+        private static FunctionAttribute[] CreateFunctionTable()
         {
-            RETURN,             // 00
-            NOP,                // 01
-            JUMP,               // 02
-            CALL,               // 03
-            BRANCH,             // 04
-            RET,                // 05
-            FUNC,               // 06
-            FLOAT,              // 07
-            STORE,              // 08
-            LOAD,               // 09
-            OR,                 // 0A
-            AND,                // 0B
-            NOT,                // 0C
-            EQUALS,             // 0D
-            NEQUALS,            // 0E
-            GT,                 // 0F
-            GTE,                // 10
-            LT,                 // 11
-            LTE,                // 12
-            ADD,                // 13
-            SUB,                // 14
-            MUL,                // 15
-            DIV,                // 16
-            MODULO,             // 17
-            NEGATE,             // 18
-            ATTRIBUTE,          // 19
-            FEATURE,            // 1A
-            FEATURE2,           // 1B
-            FEATURE3,           // 1C
-            MATERIAL_PARAM,     // 1D
-            SWIZZLE,            // 1E
-            EXISTS,             // 1F
-            MATERIAL_PARAM_IDX, // 20
-            FLOAT4,             // 21
-            SYSTEM_VALUE,       // 22
-        };
+            var functions = new FunctionAttribute[Enum.GetValues<ExpressionFunction>().Length];
+
+            foreach (var field in typeof(ExpressionFunction).GetFields(BindingFlags.Public | BindingFlags.Static))
+            {
+                functions[(ushort)field.GetValue(null)!] = field.GetCustomAttribute<FunctionAttribute>()
+                    ?? throw new InvalidOperationException($"{field.Name} has no {nameof(FunctionAttribute)}");
+            }
+
+            return functions;
+        }
+
+        /// <summary>Instructions of compiled dynamic expressions, each followed by its operands.</summary>
+        public enum OpCode : byte
+        {
+            /// <summary>Ends the expression, its result on the stack.</summary>
+            Return = 0x00,
+
+            /// <summary>Does nothing.</summary>
+            Nop = 0x01,
+
+            /// <summary>Continues at the ushort offset that follows.</summary>
+            Jump = 0x02,
+
+            /// <summary>Calls the subroutine at the ushort offset that follows.</summary>
+            Call = 0x03,
+
+            /// <summary>Pops a condition and continues at the first ushort offset that follows when it is nonzero, else at the second.</summary>
+            Branch = 0x04,
+
+            /// <summary>Returns from a subroutine.</summary>
+            Ret = 0x05,
+
+            /// <summary>Calls the <see cref="ExpressionFunction"/> whose ushort index follows.</summary>
+            Function = 0x06,
+
+            /// <summary>Pushes the float that follows into every component.</summary>
+            Float = 0x07,
+
+            /// <summary>Pops a value into the local whose byte index follows.</summary>
+            Store = 0x08,
+
+            /// <summary>Pushes the local whose byte index follows.</summary>
+            Load = 0x09,
+
+            /// <summary>Pops two values and pushes 1 per component where either is nonzero, else 0.</summary>
+            Or = 0x0A,
+
+            /// <summary>Pops two values and pushes 1 per component where both are nonzero, else 0.</summary>
+            And = 0x0B,
+
+            /// <summary>Pops a value and pushes 1 per component where it is zero, else 0.</summary>
+            Not = 0x0C,
+
+            /// <summary>Pops two values and pushes 1 per equal component, else 0.</summary>
+            Equal = 0x0D,
+
+            /// <summary>Pops two values and pushes 1 per differing component, else 0.</summary>
+            NotEqual = 0x0E,
+
+            /// <summary>Pops b, then a, and pushes 1 per component where a &gt; b, else 0.</summary>
+            Greater = 0x0F,
+
+            /// <summary>Pops b, then a, and pushes 1 per component where a &gt;= b, else 0.</summary>
+            GreaterOrEqual = 0x10,
+
+            /// <summary>Pops b, then a, and pushes 1 per component where a &lt; b, else 0.</summary>
+            Less = 0x11,
+
+            /// <summary>Pops b, then a, and pushes 1 per component where a &lt;= b, else 0.</summary>
+            LessOrEqual = 0x12,
+
+            /// <summary>Pops b, then a, and pushes a + b.</summary>
+            Add = 0x13,
+
+            /// <summary>Pops b, then a, and pushes a - b.</summary>
+            Subtract = 0x14,
+
+            /// <summary>Pops b, then a, and pushes a * b.</summary>
+            Multiply = 0x15,
+
+            /// <summary>Pops b, then a, and pushes a / b.</summary>
+            Divide = 0x16,
+
+            /// <summary>Pops b, then a, and pushes a % b.</summary>
+            Modulo = 0x17,
+
+            /// <summary>Pops a value and pushes its negation.</summary>
+            Negate = 0x18,
+
+            /// <summary>Pushes the render attribute whose uint token follows.</summary>
+            Attribute = 0x19,
+
+            /// <summary>Pushes the feature whose byte index follows.</summary>
+            Feature = 0x1A,
+
+            /// <summary>Pushes the value at the byte index that follows in the second feature table.</summary>
+            Feature2 = 0x1B,
+
+            /// <summary>Pushes the value at the byte index that follows in the third feature table, not constant.</summary>
+            Feature3 = 0x1C,
+
+            /// <summary>Pushes the material parameter whose uint token follows.</summary>
+            MaterialParam = 0x1D,
+
+            /// <summary>Pops a value and pushes the components the byte that follows selects, two bits each.</summary>
+            Swizzle = 0x1E,
+
+            /// <summary>Pushes 1 when the render attribute whose uint token follows is set, else 0.</summary>
+            Exists = 0x1F,
+
+            /// <summary>Pushes the material parameter whose int index follows.</summary>
+            MaterialParamByIndex = 0x20,
+
+            /// <summary>Pushes the four floats that follow.</summary>
+            Float4 = 0x21,
+
+            /// <summary>Pushes the system value whose byte index follows.</summary>
+            SystemValue = 0x22,
+        }
+
+        /// <summary>Functions an expression calls, by the index the bytecode refers to them with.</summary>
+        public enum ExpressionFunction : ushort
+        {
+            // Named by their FunctionAttribute
+#pragma warning disable format, CS1591
+            [Function("sin", 1)]        Sin = 0x00,
+            [Function("cos", 1)]        Cos = 0x01,
+            [Function("tan", 1)]        Tan = 0x02,
+            [Function("frac", 1)]       Frac = 0x03,
+            [Function("floor", 1)]      Floor = 0x04,
+            [Function("ceil", 1)]       Ceil = 0x05,
+            [Function("saturate", 1)]   Saturate = 0x06,
+            [Function("clamp", 3)]      Clamp = 0x07,
+            [Function("lerp", 3)]       Lerp = 0x08,
+            [Function("dot4", 2)]       Dot4 = 0x09,
+            [Function("dot3", 2)]       Dot3 = 0x0A,
+            [Function("dot2", 2)]       Dot2 = 0x0B,
+            [Function("log", 1)]        Log = 0x0C,
+            [Function("log2", 1)]       Log2 = 0x0D,
+            [Function("log10", 1)]      Log10 = 0x0E,
+            [Function("exp", 1)]        Exp = 0x0F,
+            [Function("exp2", 1)]       Exp2 = 0x10,
+            [Function("sqrt", 1)]       Sqrt = 0x11,
+            [Function("rsqrt", 1)]      Rsqrt = 0x12,
+            [Function("sign", 1)]       Sign = 0x13,
+            [Function("abs", 1)]        Abs = 0x14,
+            [Function("pow", 2)]        Pow = 0x15,
+            [Function("step", 2)]       Step = 0x16,
+            [Function("smoothstep", 3)] SmoothStep = 0x17,
+            [Function("float4", 4)]     Float4 = 0x18,
+            [Function("float3", 3)]     Float3 = 0x19,
+            [Function("float2", 2)]     Float2 = 0x1A,
+            [Function("time", 0)]       Time = 0x1B,
+            [Function("min", 2)]        Min = 0x1C,
+            [Function("max", 2)]        Max = 0x1D,
+            [Function("SrgbLinearToGamma", 1)]      SrgbLinearToGamma = 0x1E,
+            [Function("SrgbGammaToLinear", 1)]      SrgbGammaToLinear = 0x1F,
+            [Function("random", 2)]                 Random = 0x20,
+            [Function("normalize", 1)]              Normalize = 0x21,
+            [Function("length", 1)]                 Length = 0x22,
+            [Function("sqr", 1)]                    Sqr = 0x23,
+            [Function("rotation2d", 1)]             Rotation2d = 0x24,
+            [Function("rotate2d", 2)]               Rotate2d = 0x25,
+            [Function("sincos", 1)]                 SinCos = 0x26,
+            [Function("TextureSize", 1)]            TextureSize = 0x27,
+            [Function("TextureAverageColor", 1)]    TextureAverageColor = 0x28,
+            [Function("MatrixIdentity", 0)]         MatrixIdentity = 0x29,
+            [Function("MatrixScale", 1)]            MatrixScale = 0x2A,
+            [Function("MatrixTranslate", 1)]        MatrixTranslate = 0x2B,
+            [Function("MatrixAxisAngle", 1)]        MatrixAxisAngle = 0x2C,
+            [Function("MatrixAxisToAxis", 2)]       MatrixAxisToAxis = 0x2D,
+            [Function("MatrixMultiply", 2)]         MatrixMultiply = 0x2E,
+            [Function("MatrixColorCorrect", 1)]     MatrixColorCorrect = 0x2F,
+            [Function("MatrixColorCorrect2", 2)]    MatrixColorCorrect2 = 0x30,
+            [Function("MatrixColorTint", 1)]        MatrixColorTint = 0x31,
+            [Function("normalize_safe", 1)]         NormalizeSafe = 0x32,
+            [Function("Remap01ScaleOffset", 1)]     Remap01ScaleOffset = 0x33,
+            [Function("radians", 1)]                Radians = 0x34,
+            [Function("degrees", 1)]                Degrees = 0x35,
+            [Function("MatrixColorTint2", 2)]       MatrixColorTint2 = 0x36,
+            [Function("MatrixColorTint3", 3)]       MatrixColorTint3 = 0x37,
+            [Function("RemapVal", 5)]               RemapVal = 0x38,
+            [Function("RemapValClamped", 5)]        RemapValClamped = 0x39,
+            [Function("MakeOrthonormalRight", 1)]   MakeOrthonormalRight = 0x3A,
+            [Function("MakeOrthonormalForward", 1)] MakeOrthonormalForward = 0x3B,
+#pragma warning restore format, CS1591
+        }
+
+        /// <summary>Names an <see cref="ExpressionFunction"/> as expressions write it, with its number of arguments.</summary>
+        /// <param name="name">The function name.</param>
+        /// <param name="argumentCount">The number of arguments.</param>
+        [AttributeUsage(AttributeTargets.Field)]
+        public sealed class FunctionAttribute(string name, int argumentCount) : Attribute
+        {
+            /// <summary>Gets the function name.</summary>
+            public string Name { get; } = name;
+
+            /// <summary>Gets the number of arguments.</summary>
+            public int ArgumentCount { get; } = argumentCount;
+        }
 
         // Binding strength, loosest first. An operand is bracketed only where it binds looser than
         // the operator using it, so the output has no brackets the reader would infer anyway.
@@ -147,21 +251,23 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // (a==b) ? x : y rather than a==b ? x : y, and (a==b)!=(c>=d) rather than a==b!=c>=d.
         private const Precedence AboveBoolean = Precedence.Additive;
 
-        private static (string Symbol, Precedence Precedence) GetOperator(OPCODE op) => op switch
+        private static (string Symbol, Precedence Precedence) GetOperator(OpCode op) => op switch
         {
-            OPCODE.EQUALS => ("==", Precedence.Equality),
-            OPCODE.NEQUALS => ("!=", Precedence.Equality),
-            OPCODE.GT => (">", Precedence.Relational),
-            OPCODE.GTE => (">=", Precedence.Relational),
-            OPCODE.LT => ("<", Precedence.Relational),
-            OPCODE.LTE => ("<=", Precedence.Relational),
-            OPCODE.ADD => ("+", Precedence.Additive),
-            OPCODE.SUB => ("-", Precedence.Additive),
-            OPCODE.MUL => ("*", Precedence.Multiplicative),
-            OPCODE.DIV => ("/", Precedence.Multiplicative),
-            OPCODE.MODULO => ("%", Precedence.Multiplicative),
-            OPCODE.NOT => ("!", Precedence.Unary),
-            OPCODE.NEGATE => ("-", Precedence.Unary),
+            OpCode.Or => ("||", Precedence.Or),
+            OpCode.And => ("&&", Precedence.And),
+            OpCode.Equal => ("==", Precedence.Equality),
+            OpCode.NotEqual => ("!=", Precedence.Equality),
+            OpCode.Greater => (">", Precedence.Relational),
+            OpCode.GreaterOrEqual => (">=", Precedence.Relational),
+            OpCode.Less => ("<", Precedence.Relational),
+            OpCode.LessOrEqual => ("<=", Precedence.Relational),
+            OpCode.Add => ("+", Precedence.Additive),
+            OpCode.Subtract => ("-", Precedence.Additive),
+            OpCode.Multiply => ("*", Precedence.Multiplicative),
+            OpCode.Divide => ("/", Precedence.Multiplicative),
+            OpCode.Modulo => ("%", Precedence.Multiplicative),
+            OpCode.Not => ("!", Precedence.Unary),
+            OpCode.Negate => ("-", Precedence.Unary),
             _ => throw new ArgumentOutOfRangeException(nameof(op)),
         };
 
@@ -266,25 +372,25 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
             while (dataReader.BaseStream.Position < binaryBlob.Length)
             {
-                ProcessOps((OPCODE)dataReader.ReadByte(), dataReader);
+                ProcessOps((OpCode)dataReader.ReadByte(), dataReader);
             }
 
             DynamicExpressionResult = string.Join("\n", DynamicExpressionList);
         }
 
-        private void ProcessOps(OPCODE op, BinaryReader dataReader)
+        private void ProcessOps(OpCode op, BinaryReader dataReader)
         {
             CombineFinishedBranches(dataReader);
 
             switch (op)
             {
-                case OPCODE.JUMP:
+                case OpCode.Jump:
                     // the jump terminating the first block of a branch reveals where the branch exits
                     OffsetAtBranchExits.Push(dataReader.ReadUInt16() + 1u);
                     return;
 
                 // Version 58 shaders compile both branch blocks as subroutines after the main code, called by BRANCH and ending in RET
-                case OPCODE.BRANCH:
+                case OpCode.Branch:
                 {
                     var pointerWhenTrue = dataReader.ReadUInt16();
                     dataReader.ReadUInt16(); // pointer taken when the condition fails
@@ -293,12 +399,12 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     return;
                 }
 
-                case OPCODE.FUNC:
+                case OpCode.Function:
                 {
                     var funcId = dataReader.ReadByte();
                     var funcCheckByte = dataReader.ReadByte();
 
-                    if (funcId >= FUNCTION_REF.Length)
+                    if (funcId >= Functions.Count)
                     {
                         throw new InvalidDataException($"Error parsing dynamic expression, invalid function Id = 0x{funcId:x} (position: {dataReader.BaseStream.Position})");
                     }
@@ -308,7 +414,9 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         throw new InvalidDataException($"Error parsing dynamic expression, malformed function signature (position: {dataReader.BaseStream.Position})");
                     }
 
-                    var (funcName, nrArguments) = FUNCTION_REF[funcId];
+                    var function = Functions[funcId];
+                    var funcName = function.Name;
+                    var nrArguments = function.ArgumentCount;
                     var arguments = new string[nrArguments];
 
                     for (var i = nrArguments - 1; i >= 0; i--)
@@ -320,7 +428,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     return;
                 }
 
-                case OPCODE.FLOAT:
+                case OpCode.Float:
                 {
                     var floatLiteral = dataReader.ReadSingle().ToString("g", CultureInfo.InvariantCulture);
 
@@ -331,24 +439,24 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 }
 
                 // assignment is always to a local variable, and it terminates the line
-                case OPCODE.STORE:
+                case OpCode.Store:
                 {
                     var locVarname = GetLocalVarName(dataReader.ReadByte());
                     DynamicExpressionList.Add($"{locVarname} = {PopExpression(dataReader).Text};");
                     return;
                 }
 
-                case OPCODE.LOAD:
+                case OpCode.Load:
                     Push(GetLocalVarName(dataReader.ReadByte()));
                     return;
 
-                case OPCODE.NOT:
-                case OPCODE.NEGATE:
+                case OpCode.Not:
+                case OpCode.Negate:
                 {
                     var operand = PopExpression(dataReader).Operand(Precedence.Unary);
 
                     // Negating a negative operand would otherwise print as a decrement
-                    if (op == OPCODE.NEGATE && operand.StartsWith('-', StringComparison.Ordinal))
+                    if (op == OpCode.Negate && operand.StartsWith('-', StringComparison.Ordinal))
                     {
                         operand = $"({operand})";
                     }
@@ -357,7 +465,17 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     return;
                 }
 
-                case >= OPCODE.EQUALS and <= OPCODE.MODULO:
+                case OpCode.Or or OpCode.And:
+                {
+                    var (symbol, precedence) = GetOperator(op);
+                    var exp2 = PopExpression(dataReader);
+                    var exp1 = PopExpression(dataReader);
+
+                    Push($"{exp1.Operand(precedence)} {symbol} {exp2.Operand(precedence + 1)}", precedence);
+                    return;
+                }
+
+                case >= OpCode.Equal and <= OpCode.Modulo:
                 {
                     var (symbol, precedence) = GetOperator(op);
                     var exp2 = PopExpression(dataReader);
@@ -373,19 +491,19 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     return;
                 }
 
-                case OPCODE.ATTRIBUTE:
+                case OpCode.Attribute:
                     Push(ReadTokenName(dataReader, "ATTRIBUTE"));
                     return;
 
-                case OPCODE.MATERIAL_PARAM:
+                case OpCode.MaterialParam:
                     Push(ReadTokenName(dataReader, "MATERIAL_PARAM"));
                     return;
 
-                case OPCODE.EXISTS:
+                case OpCode.Exists:
                     Push($"exists({ReadTokenName(dataReader, "ATTRIBUTE")})");
                     return;
 
-                case OPCODE.FEATURE:
+                case OpCode.Feature:
                 {
                     uint featureId = dataReader.ReadByte();
                     Push(Features is not null && featureId < Features.Count
@@ -394,7 +512,19 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     return;
                 }
 
-                case OPCODE.SYSTEM_VALUE:
+                case OpCode.Feature2:
+                    Push($"FEAT2[{dataReader.ReadByte()}]");
+                    return;
+
+                case OpCode.Feature3:
+                    Push($"FEAT3[{dataReader.ReadByte()}]");
+                    return;
+
+                case OpCode.MaterialParamByIndex:
+                    Push($"MATERIAL_PARAM[{dataReader.ReadInt32()}]");
+                    return;
+
+                case OpCode.SystemValue:
                 {
                     var index = dataReader.ReadByte();
                     var sourceType = (VfxStaticComboSourceType)VfxCombo.NormalizeStaticComboSourceType(index);
@@ -402,7 +532,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     return;
                 }
 
-                case OPCODE.SWIZZLE:
+                case OpCode.Swizzle:
                 {
                     var exp = PopExpression(dataReader).Operand(Precedence.Atom);
                     Push($"{exp}.{GetSwizzle(dataReader.ReadByte())}");
@@ -410,7 +540,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 }
 
                 // parser terminates here
-                case OPCODE.RETURN:
+                case OpCode.Return:
                 {
                     if (dataReader.BaseStream.Position < dataReader.BaseStream.Length)
                     {

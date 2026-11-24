@@ -47,8 +47,8 @@ out vec2 vTexCoordOut;
 uniform vec2 g_vTexCoordOffset;
 uniform vec2 g_vTexCoordScale = vec2(1.0);
 uniform vec2 g_vTexCoordScrollSpeed;
-uniform vec2 g_vTexCoordCenter = vec2(0.5);
-uniform float g_flTexCoordRotation = 0.0;
+uniform vec4 g_vTexCoordXform0 = vec4(1.0, 0.0, 0.0, 0.0);
+uniform vec4 g_vTexCoordXform1 = vec4(0.0, 1.0, 0.0, 0.0);
 
 uniform vec2 g_vAnimationGrid = vec2(1, 1);
 uniform int g_nNumAnimationCells = 1;
@@ -112,9 +112,7 @@ vec2 ApplyTextureAnimation(vec2 texCoords, bool scrollsAnimatedAtlas)
 
 vec2 GetAnimatedUVs(vec2 texCoords, bool scrollsAnimatedAtlas)
 {
-    // The scale applies around the UV origin, only the rotation pivots on the center
-    vec2 scaledTexCoords = g_vTexCoordScale.xy * texCoords;
-    texCoords = RotateVector2D(scaledTexCoords - g_vTexCoordCenter.xy, g_flTexCoordRotation) + g_vTexCoordCenter.xy + g_vTexCoordOffset.xy;
+    texCoords = ApplyTexCoordXform(texCoords, g_vTexCoordXform0, g_vTexCoordXform1);
 
     return ApplyTextureAnimation(texCoords, scrollsAnimatedAtlas);
 }
@@ -131,6 +129,14 @@ vec4 GetTintColorLinear(vec4 vTint, float modelTintAmount, float fadeExponent)
 }
 
 uniform int g_bFirstpersonLegsDistortion = 0;
+
+/* Expressions
+uniform vec2 g_vTexCoordCenter = vec2(0.5);
+uniform float g_flTexCoordRotation = 0.0;
+
+g_vTexCoordXform0 = TexCoordXform0(g_flTexCoordRotation, g_vTexCoordScale, g_vTexCoordCenter, g_vTexCoordOffset);
+g_vTexCoordXform1 = TexCoordXform1(g_flTexCoordRotation, g_vTexCoordScale, g_vTexCoordCenter, g_vTexCoordOffset);
+*/
 
 // Fish-eye warp of first-person legs, applied to clip space position and normal.
 // Scales outward and pulls back so legs do not clip when looking down.

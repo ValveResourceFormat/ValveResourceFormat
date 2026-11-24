@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer;
@@ -87,6 +88,12 @@ public class RendererContext : IDisposable
     /// Whether scene nodes simulate across the thread pool, published by the renderer each frame.
     /// </summary>
     public bool ParallelSimulation { get; set; } = true;
+
+    /// <summary>Gets or sets the seconds the renderer has been running.</summary>
+    public float Uptime { get; set; }
+
+    /// <summary>Gets the global render attributes.</summary>
+    public RenderAttributes GlobalRenderAttributes { get; } = new();
 
     /// <summary>
     /// Initializes a new renderer context.

@@ -11,31 +11,27 @@ out vec4 vTexCoord2;
 
 // Material 2
 uniform int g_nUVSet2 = 1;
-uniform float g_flTexCoordRotation2 = 0.0;
-uniform vec2 g_vTexCoordCenter2 = vec2(0.5);
-uniform vec2 g_vTexCoordOffset2 = vec2(0.0);
+uniform vec4 g_vTexCoordXform0_2 = vec4(1.0, 0.0, 0.0, 0.0);
+uniform vec4 g_vTexCoordXform1_2 = vec4(0.0, 1.0, 0.0, 0.0);
 uniform vec2 g_vTexCoordScale2 = vec2(1.0);
 
 #if (F_DETAIL_NORMAL == 1)
     uniform int g_nDetailUVSet2 = -1;
-    uniform float g_flDetailTexCoordRotation2 = 0.0;
-    uniform vec2 g_vDetailTexCoordCenter2 = vec2(0.5);
-    uniform vec2 g_vDetailTexCoordOffset2 = vec2(0.0);
+    uniform vec4 g_vDetailTexCoordXform0_2 = vec4(1.0, 0.0, 0.0, 0.0);
+    uniform vec4 g_vDetailTexCoordXform1_2 = vec4(0.0, 1.0, 0.0, 0.0);
     uniform vec2 g_vDetailTexCoordScale2 = vec2(1.0);
 #endif
 
 #if (F_ENABLE_LAYER_3 == 1)
     uniform int g_nUVSet3 = 1;
-    uniform float g_flTexCoordRotation3 = 0.0;
-    uniform vec2 g_vTexCoordCenter3 = vec2(0.5);
-    uniform vec2 g_vTexCoordOffset3 = vec2(0.0);
+    uniform vec4 g_vTexCoordXform0_3 = vec4(1.0, 0.0, 0.0, 0.0);
+    uniform vec4 g_vTexCoordXform1_3 = vec4(0.0, 1.0, 0.0, 0.0);
     uniform vec2 g_vTexCoordScale3 = vec2(1.0);
 
     #if (F_DETAIL_NORMAL == 1)
         uniform int g_nDetailUVSet3 = -1;
-        uniform float g_flDetailTexCoordRotation3 = 0.0;
-        uniform vec2 g_vDetailTexCoordCenter3 = vec2(0.5);
-        uniform vec2 g_vDetailTexCoordOffset3 = vec2(0.0);
+        uniform vec4 g_vDetailTexCoordXform0_3 = vec4(1.0, 0.0, 0.0, 0.0);
+        uniform vec4 g_vDetailTexCoordXform1_3 = vec4(0.0, 1.0, 0.0, 0.0);
         uniform vec2 g_vDetailTexCoordScale3 = vec2(1.0);
     #endif
 
@@ -44,10 +40,38 @@ uniform vec2 g_vTexCoordScale2 = vec2(1.0);
 
 #if (F_SHARED_COLOR_OVERLAY == 1)
     uniform int g_nColorOverlayUVSet = 2;
-    uniform float g_flOverlayTexCoordRotation = 0.0;
-    uniform vec2 g_vOverlayTexCoordCenter = vec2(0.5);
-    uniform vec2 g_vOverlayTexCoordOffset = vec2(0.0);
+    uniform vec4 g_vOverlayTexCoordXform0 = vec4(1.0, 0.0, 0.0, 0.0);
+    uniform vec4 g_vOverlayTexCoordXform1 = vec4(0.0, 1.0, 0.0, 0.0);
     uniform vec2 g_vOverlayTexCoordScale = vec2(1.0);
+
+/* Expressions
+uniform float g_flTexCoordRotation2 = 0.0;
+uniform vec2 g_vTexCoordCenter2 = vec2(0.5);
+uniform vec2 g_vTexCoordOffset2 = vec2(0.0);
+uniform float g_flDetailTexCoordRotation2 = 0.0;
+uniform vec2 g_vDetailTexCoordCenter2 = vec2(0.5);
+uniform vec2 g_vDetailTexCoordOffset2 = vec2(0.0);
+uniform float g_flTexCoordRotation3 = 0.0;
+uniform vec2 g_vTexCoordCenter3 = vec2(0.5);
+uniform vec2 g_vTexCoordOffset3 = vec2(0.0);
+uniform float g_flDetailTexCoordRotation3 = 0.0;
+uniform vec2 g_vDetailTexCoordCenter3 = vec2(0.5);
+uniform vec2 g_vDetailTexCoordOffset3 = vec2(0.0);
+uniform float g_flOverlayTexCoordRotation = 0.0;
+uniform vec2 g_vOverlayTexCoordCenter = vec2(0.5);
+uniform vec2 g_vOverlayTexCoordOffset = vec2(0.0);
+
+g_vTexCoordXform0_2 = TexCoordXform0(g_flTexCoordRotation2, g_vTexCoordScale2, g_vTexCoordCenter2, g_vTexCoordOffset2);
+g_vTexCoordXform1_2 = TexCoordXform1(g_flTexCoordRotation2, g_vTexCoordScale2, g_vTexCoordCenter2, g_vTexCoordOffset2);
+g_vDetailTexCoordXform0_2 = TexCoordXform0(g_flDetailTexCoordRotation2, g_vDetailTexCoordScale2, g_vDetailTexCoordCenter2, g_vDetailTexCoordOffset2);
+g_vDetailTexCoordXform1_2 = TexCoordXform1(g_flDetailTexCoordRotation2, g_vDetailTexCoordScale2, g_vDetailTexCoordCenter2, g_vDetailTexCoordOffset2);
+g_vTexCoordXform0_3 = TexCoordXform0(g_flTexCoordRotation3, g_vTexCoordScale3, g_vTexCoordCenter3, g_vTexCoordOffset3);
+g_vTexCoordXform1_3 = TexCoordXform1(g_flTexCoordRotation3, g_vTexCoordScale3, g_vTexCoordCenter3, g_vTexCoordOffset3);
+g_vDetailTexCoordXform0_3 = TexCoordXform0(g_flDetailTexCoordRotation3, g_vDetailTexCoordScale3, g_vDetailTexCoordCenter3, g_vDetailTexCoordOffset3);
+g_vDetailTexCoordXform1_3 = TexCoordXform1(g_flDetailTexCoordRotation3, g_vDetailTexCoordScale3, g_vDetailTexCoordCenter3, g_vDetailTexCoordOffset3);
+g_vOverlayTexCoordXform0 = TexCoordXform0(g_flOverlayTexCoordRotation, g_vOverlayTexCoordScale, g_vOverlayTexCoordCenter, g_vOverlayTexCoordOffset);
+g_vOverlayTexCoordXform1 = TexCoordXform1(g_flOverlayTexCoordRotation, g_vOverlayTexCoordScale, g_vOverlayTexCoordCenter, g_vOverlayTexCoordOffset);
+*/
 
     out vec2 vOverlayTexCoord;
 #endif
@@ -56,26 +80,26 @@ void main()
 {
     vec4 baseUvs = WriteHeightLayerVertex();
 
-    vTexCoord2.xy = GetLayerTexCoord(g_nUVSet2, baseUvs, g_flTexCoordRotation2, g_vTexCoordScale2, g_vTexCoordOffset2, g_vTexCoordCenter2);
+    vTexCoord2.xy = GetLayerTexCoord(g_nUVSet2, baseUvs, g_vTexCoordXform0_2, g_vTexCoordXform1_2);
     vTexCoord2.zw = baseUvs.zw;
 
     #if (F_ENABLE_LAYER_3 == 1)
-        vTexCoord3.xy = GetLayerTexCoord(g_nUVSet3, baseUvs, g_flTexCoordRotation3, g_vTexCoordScale3, g_vTexCoordOffset3, g_vTexCoordCenter3);
+        vTexCoord3.xy = GetLayerTexCoord(g_nUVSet3, baseUvs, g_vTexCoordXform0_3, g_vTexCoordXform1_3);
         vTexCoord3.zw = baseUvs.xy;
     #endif
 
     #if (F_SHARED_COLOR_OVERLAY == 1)
         if (g_nColorOverlayUVSet > 0)
         {
-            vOverlayTexCoord = GetLayerTexCoord(g_nColorOverlayUVSet, baseUvs, g_flOverlayTexCoordRotation, g_vOverlayTexCoordScale, g_vOverlayTexCoordOffset, g_vOverlayTexCoordCenter);
+            vOverlayTexCoord = GetLayerTexCoord(g_nColorOverlayUVSet, baseUvs, g_vOverlayTexCoordXform0, g_vOverlayTexCoordXform1);
         }
     #endif
 
     #if (F_DETAIL_NORMAL == 1)
-        vTexCoord2.zw = GetDetailTexCoord(g_nDetailUVSet2, g_nUVSet2, baseUvs, g_flDetailTexCoordRotation2, g_vDetailTexCoordScale2, g_vDetailTexCoordOffset2, g_vDetailTexCoordCenter2);
+        vTexCoord2.zw = GetDetailTexCoord(g_nDetailUVSet2, g_nUVSet2, baseUvs, g_vDetailTexCoordXform0_2, g_vDetailTexCoordXform1_2);
 
         #if (F_ENABLE_LAYER_3 == 1)
-            vTexCoord3.zw = GetDetailTexCoord(g_nDetailUVSet3, g_nUVSet3, baseUvs, g_flDetailTexCoordRotation3, g_vDetailTexCoordScale3, g_vDetailTexCoordOffset3, g_vDetailTexCoordCenter3);
+            vTexCoord3.zw = GetDetailTexCoord(g_nDetailUVSet3, g_nUVSet3, baseUvs, g_vDetailTexCoordXform0_3, g_vDetailTexCoordXform1_3);
         #endif
     #endif
 }

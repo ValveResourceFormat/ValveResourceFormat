@@ -104,15 +104,15 @@ vec3 ProjectedLayerNormal(sampler2D normalTexture, vec2 scale, BiplanarFrame_t f
 }
 
 vec3 LayerNormal(vec2 encoded, sampler2D normalTexture, int uvSet, vec2 scale, float contrast,
-                 float rotation, BiplanarFrame_t frame, vec3 geometricNormal, vec3 tangent, vec3 bitangent)
+                 vec4 normalXform, BiplanarFrame_t frame, vec3 geometricNormal, vec3 tangent, vec3 bitangent)
 {
     vec3 layerNormal;
 
     if (uvSet != 0)
     {
         layerNormal = DecodeHemiOctahedronNormal(encoded);
-        // Turned with its coordinates; negated because the decode's Y flip mirrors the authored angle
-        layerNormal.xy = RotateVector2D(layerNormal.xy, -rotation);
+        // Rotate by the transpose, because the decode flips Y and mirrors the angle
+        layerNormal.xy = vec2(dot(normalXform.xz, layerNormal.xy), dot(normalXform.yw, layerNormal.xy));
     }
     else
     {
@@ -133,7 +133,7 @@ int DetailUvSet(int detailUvSet, int layerUvSet)
 // The layer's detail normal, folded in after its own contrast. Same fold the layers use on each
 // other: add the two and take flat back out, so each keeps its deviation from flat.
 vec3 ApplyDetailNormal(vec3 layerNormal, sampler2D detailTexture, int detailUvSet, vec2 meshTexCoord,
-                       vec2 scale, float contrast, float rotation, BiplanarFrame_t frame,
+                       vec2 scale, float contrast, vec4 normalXform, BiplanarFrame_t frame,
                        vec3 geometricNormal, vec3 tangent, vec3 bitangent)
 {
     vec3 detail;
@@ -142,7 +142,7 @@ vec3 ApplyDetailNormal(vec3 layerNormal, sampler2D detailTexture, int detailUvSe
     {
         vec2 encoded = texture(detailTexture, meshTexCoord).rg;
 
-        detail = LayerNormal(encoded, detailTexture, detailUvSet, scale, contrast, rotation, frame,
+        detail = LayerNormal(encoded, detailTexture, detailUvSet, scale, contrast, normalXform, frame,
             geometricNormal, tangent, bitangent);
     }
     else
