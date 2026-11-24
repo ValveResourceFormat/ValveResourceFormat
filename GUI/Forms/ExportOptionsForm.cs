@@ -22,8 +22,10 @@ namespace GUI.Forms
         private readonly TableLayoutPanel typesTable;
         private readonly FlowLayoutPanel optionsPanel;
         private readonly ThemedComboBox placementComboBox;
+        private readonly ThemedTextBox suffixTextBox;
         private readonly CheckBox doNotShowAgainCheckBox;
         private readonly ToolTip toolTip = new();
+        private bool placementPicked;
 
         /// <summary>Occurs when the output type of a file type changes, the sender is its combo box with the type as its tag.</summary>
         public event EventHandler? ChangeTypeEvent;
@@ -92,7 +94,11 @@ namespace GUI.Forms
             content.Controls.Add(MakeHeading("Files"));
             content.Controls.Add(MakeChoiceRow(ContentExportSettings.DependenciesOption, out _));
             content.Controls.Add(MakeChoiceRow(ContentExportSettings.DependencyPlacementOption, out placementComboBox));
+            content.Controls.Add(MakeTextRow(ContentExportSettings.DependencySuffixOption, out suffixTextBox));
             content.Controls.Add(MakeChoiceRow(ContentExportSettings.ExistingFilesOption, out _));
+
+            placementComboBox.SelectionChangeCommitted += (_, _) => placementPicked = true;
+            placementComboBox.SelectedIndexChanged += (_, _) => UpdatePlacementEnabled();
 
             optionsPanel = new FlowLayoutPanel
             {
@@ -194,6 +200,7 @@ namespace GUI.Forms
                 typesTable.Dispose();
                 optionsPanel.Dispose();
                 placementComboBox.Dispose();
+                suffixTextBox.Dispose();
                 doNotShowAgainCheckBox.Dispose();
                 toolTip.Dispose();
             }
@@ -219,11 +226,22 @@ namespace GUI.Forms
                 };
                 radioButton.CheckedChanged += (_, _) =>
                 {
-                    if (radioButton.Checked)
+                    if (!radioButton.Checked)
                     {
-                        option.TrySetValue(settings, value);
-                        UpdatePlacementEnabled();
+                        return;
                     }
+
+                    option.TrySetValue(settings, value);
+
+                    if (!placementPicked)
+                    {
+                        settings.DependencyPlacement = null;
+
+                        var placement = ContentExportSettings.DependencyPlacementOption.GetValue(settings);
+                        placementComboBox.SelectedIndex = ContentExportSettings.DependencyPlacementOption.Choices.ToList().FindIndex(choice => choice.Value == placement);
+                    }
+
+                    UpdatePlacementEnabled();
                 };
 
                 content.Controls.Add(radioButton);
@@ -234,6 +252,8 @@ namespace GUI.Forms
         private void UpdatePlacementEnabled()
         {
             placementComboBox.Enabled = settings.Layout != ContentExportLayout.ContentPaths;
+            suffixTextBox.Enabled = placementComboBox.Enabled
+                && settings.ResolvedDependencyPlacement == ContentDependencyPlacement.Suffix;
         }
 
         /// <summary>
@@ -265,6 +285,7 @@ namespace GUI.Forms
                     {
                         ContentExportOptionKind.Toggle => MakeCheckBox(option),
                         ContentExportOptionKind.Choice => MakeChoiceRow(option, out _),
+                        ContentExportOptionKind.Text => MakeTextRow(option, out _),
                         _ => MakeDescription(option.Description, new Padding(0, 2, 0, 4)),
                     });
                 }
@@ -322,6 +343,36 @@ namespace GUI.Forms
                 toolTip.SetToolTip(dropdown, option.Choices[dropdown.SelectedIndex].Description);
             }
 
+            comboBox = dropdown;
+            return MakeRow(option, dropdown);
+        }
+
+        private FlowLayoutPanel MakeTextRow(ContentExportOption option, out ThemedTextBox textBox)
+        {
+            var input = new ThemedTextBox
+            {
+                Multiline = false,
+                Width = 240,
+                Anchor = AnchorStyles.Left,
+                Text = option.GetValue(settings),
+            };
+
+            input.TextChanged += (_, _) =>
+            {
+                if (!option.TrySetValue(settings, input.Text))
+                {
+                    input.Text = option.GetValue(settings);
+                    input.SelectionStart = input.Text.Length;
+                }
+            };
+            toolTip.SetToolTip(input, option.Description);
+
+            textBox = input;
+            return MakeRow(option, input);
+        }
+
+        private FlowLayoutPanel MakeRow(ContentExportOption option, Control input)
+        {
             var label = MakeLabel(option.Label);
             label.Width = 200;
             label.AutoSize = false;
@@ -336,9 +387,8 @@ namespace GUI.Forms
                 Margin = new Padding(0, 2, 0, 2),
             };
             row.Controls.Add(label);
-            row.Controls.Add(dropdown);
+            row.Controls.Add(input);
 
-            comboBox = dropdown;
             return row;
         }
 

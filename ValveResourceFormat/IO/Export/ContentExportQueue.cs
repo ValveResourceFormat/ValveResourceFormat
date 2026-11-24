@@ -72,6 +72,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
         }
 
         var settings = Exporter.Settings;
+        var relocates = settings.Layout != ContentExportLayout.ContentPaths;
         var rewritesReferences = settings.Layout == ContentExportLayout.TargetFolderRewriteReferences;
 
         Exporter.MainFolder = ContentPaths.GetCommonDirectory(selected.Select(static queuedItem => queuedItem.Item.ContentPath));
@@ -87,18 +88,18 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
             }
         }
 
-        var consumed = settings.Dependencies != ContentExportDependencies.None || rewritesReferences
+        var consumed = settings.Dependencies != ContentExportDependencies.None || relocates
             ? AddDependencies(queued, selected, parallelOptions)
             : [];
 
-        if (rewritesReferences)
+        if (rewritesReferences && ContentPaths.FindContentRoot(Exporter.TargetFolder ?? Exporter.OutputRoot) == null)
         {
-            if (ContentPaths.FindContentRoot(Exporter.TargetFolder ?? Exporter.OutputRoot) == null)
-            {
-                Exporter.Warning?.Invoke($"\"{Exporter.TargetFolder ?? Exporter.OutputRoot}\" is not in an addon or mod folder, rewritten references are relative to \"{Exporter.OutputRoot}\".");
-            }
+            Exporter.Warning?.Invoke($"\"{Exporter.TargetFolder ?? Exporter.OutputRoot}\" is not in an addon or mod folder, rewritten references are relative to \"{Exporter.OutputRoot}\".");
+        }
 
-            Exporter.SetReferenceMap(CreateReferenceMap([.. selected.Union(queued)], consumed));
+        if (relocates)
+        {
+            Exporter.SetReferenceMap(CreateReferenceMap([.. selected.Union(queued)], consumed, rewritesReferences));
         }
 
         Exporter.AddNonGltfItems(queued
@@ -361,39 +362,76 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
 
     /// <summary>
     /// Maps the content path of every item, every resource they consume and the folder of every map to where it is
-    /// written, see <see cref="ContentPaths.Relocate"/>. A main file with a target file takes its name.
+    /// written, see <see cref="ContentPaths.Relocate"/>. A main file with a target file takes its name. A file in the
+    /// folder of a map follows the folder.
     /// </summary>
-    private ContentPathMap CreateReferenceMap(List<QueuedItem> exported, List<(string Key, bool FromMainItem)> consumed)
+    private ContentPathMap CreateReferenceMap(List<QueuedItem> exported, List<(string Key, bool FromMainItem)> consumed, bool rewritesReferences)
     {
-        var map = new ContentPathMap();
-        var settings = Exporter.Settings;
+        var map = new ContentPathMap { RewritesReferences = rewritesReferences };
+        var placement = Exporter.Settings.ResolvedDependencyPlacement;
+        var dependencySuffix = placement == ContentDependencyPlacement.Suffix ? GetDependencySuffix(exported) : string.Empty;
+        var relocatedItems = exported.Select(queuedItem => (queuedItem, Relocated: queuedItem.Item.TargetFile != null
+            ? ContentPaths.ChangeExtension(Path.GetRelativePath(Exporter.OutputRoot, queuedItem.Item.TargetFile), Path.GetExtension(queuedItem.Key))
+            : Relocate(queuedItem.Key, queuedItem.Item.IsDependency))).ToList();
 
         string Relocate(string contentPath, bool isDependency)
-            => ContentPaths.Relocate(contentPath, Exporter.MainFolder, Exporter.TargetContentFolder, isDependency, settings.DependencyPlacement);
+            => ContentPaths.Relocate(contentPath, Exporter.MainFolder, Exporter.TargetContentFolder, isDependency, placement, dependencySuffix);
 
-        foreach (var queuedItem in exported)
+        foreach (var (queuedItem, relocated) in relocatedItems)
         {
-            var item = queuedItem.Item;
-            var relocated = item.TargetFile != null
-                ? ContentPaths.ChangeExtension(Path.GetRelativePath(Exporter.OutputRoot, item.TargetFile), Path.GetExtension(queuedItem.Key))
-                : Relocate(queuedItem.Key, item.IsDependency);
-
-            map.Add(queuedItem.Key, relocated);
-
             if (queuedItem.Header?.LumpFolder is { } lumpFolder)
             {
                 map.AddFolder(lumpFolder, lumpFolder.Equals(ContentPaths.ChangeExtension(queuedItem.Key, null), StringComparison.OrdinalIgnoreCase)
                     ? ContentPaths.ChangeExtension(relocated, null)
-                    : Relocate(lumpFolder, item.IsDependency));
+                    : Relocate(lumpFolder, queuedItem.Item.IsDependency));
+            }
+        }
+
+        foreach (var (queuedItem, relocated) in relocatedItems)
+        {
+            if (!map.TryMap(queuedItem.Key, out _))
+            {
+                map.Add(queuedItem.Key, relocated);
             }
         }
 
         foreach (var (key, fromMainItem) in consumed)
         {
-            map.Add(key, Relocate(key, !fromMainItem));
+            if (!map.TryMap(key, out _))
+            {
+                map.Add(key, Relocate(key, !fromMainItem));
+            }
         }
 
         return map;
+    }
+
+    /// <summary>
+    /// Gets <see cref="ContentExportSettings.DependencySuffix"/>, or when it is empty the text the target file name of a
+    /// main item adds to its name, or else <c>_copy</c>.
+    /// </summary>
+    private string GetDependencySuffix(List<QueuedItem> exported)
+    {
+        var suffix = Exporter.Settings.DependencySuffix;
+
+        if (suffix.Length == 0)
+        {
+            suffix = "_copy";
+
+            if (exported.Find(static queuedItem => queuedItem.Item.TargetFile != null) is { } renamed)
+            {
+                var name = Path.GetFileNameWithoutExtension(renamed.Key);
+                var newName = Path.GetFileNameWithoutExtension(renamed.Item.TargetFile)!;
+
+                if (newName.Length > name.Length && newName.StartsWith(name, StringComparison.OrdinalIgnoreCase))
+                {
+                    suffix = newName[name.Length..];
+                }
+            }
+        }
+
+        Exporter.Progress?.Report($"Dependencies are renamed with the suffix \"{suffix}\".");
+        return suffix;
     }
 
     /// <summary>
@@ -574,7 +612,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
 
                 try
                 {
-                    Exporter.SetCurrentItem(next.Rank, next.Item.IsDependency);
+                    Exporter.SetCurrentItem(next.Rank);
                     Export(next.Item, cancellationToken);
                 }
                 finally

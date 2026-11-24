@@ -177,12 +177,15 @@ namespace Tests.IO
                     continue;
                 }
 
-                var other = option.Kind == ContentExportOptionKind.Toggle
-                    ? (option.DefaultValue == "true" ? "FALSE" : "True")
-                    : option.Choices[^1].Value;
+                var other = option.Kind switch
+                {
+                    ContentExportOptionKind.Toggle => option.DefaultValue == "true" ? "FALSE" : "True",
+                    ContentExportOptionKind.Text => "_orig",
+                    _ => option.Choices[^1].Value,
+                };
 
                 await Assert.That(option.TrySetValue(changed, other)).IsTrue();
-                await Assert.That(option.TrySetValue(changed, "not a value")).IsFalse();
+                await Assert.That(option.TrySetValue(changed, "not/a value")).IsFalse();
             }
 
             var restored = new ContentExportSettings();

@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace ValveResourceFormat.IO;
 
@@ -7,7 +8,7 @@ namespace ValveResourceFormat.IO;
 /// Maps between content paths, such as <c>models/props/crate.vmdl</c>, and folders on disk.
 /// A content path is relative to a mod or addon root, uses forward slashes and never leaves that root.
 /// </summary>
-public static class ContentPaths
+public static partial class ContentPaths
 {
     private const string AddonsSuffix = "_addons";
 
@@ -72,20 +73,32 @@ public static class ContentPaths
     /// Gets the content path a file of an export with a <see cref="ContentExportLayout.TargetFolder"/> layout is
     /// written at. A file of an exported item loses the folder the exported items share and goes into the target
     /// folder, a file outside of that folder keeps its full path below the target folder. A dependency goes below the
-    /// target folder at its full path, or stays where it is with <see cref="ContentDependencyPlacement.OriginalPaths"/>.
+    /// target folder at its full path, stays where it is with <see cref="ContentDependencyPlacement.OriginalPaths"/>,
+    /// or gets the suffix with <see cref="ContentDependencyPlacement.Suffix"/>.
     /// </summary>
-    /// <param name="contentPath">The content path of the file.</param>
+    /// <remarks>
+    /// The suffix goes before the extension, before the <c>+</c> of a resource the compiler generated from another one,
+    /// and before the <c>_&lt;extension&gt;_&lt;hash&gt;</c> or <c>_vmat_&lt;parameter&gt;_&lt;hash&gt;</c> the compiler
+    /// names textures with, so <c>materials/wood_color_png_1a2b3c4d.vtex</c> becomes <c>materials/wood_color_orig_png_1a2b3c4d.vtex</c>.
+    /// </remarks>
+    /// <param name="contentPath">The content path of the file or folder.</param>
     /// <param name="mainFolder">The content folder the exported items share.</param>
     /// <param name="targetFolder">The content path of the target folder, empty for the output root.</param>
     /// <param name="isDependency">Whether the file belongs to a dependency of the exported items.</param>
     /// <param name="placement">Where dependencies are written.</param>
-    public static string Relocate(string contentPath, string mainFolder, string targetFolder, bool isDependency, ContentDependencyPlacement placement)
+    /// <param name="dependencySuffix">The text added to the names of dependencies with <see cref="ContentDependencyPlacement.Suffix"/>.</param>
+    public static string Relocate(string contentPath, string mainFolder, string targetFolder, bool isDependency, ContentDependencyPlacement placement, string dependencySuffix)
     {
         contentPath = Normalize(contentPath);
 
         if (isDependency)
         {
-            return placement == ContentDependencyPlacement.OriginalPaths ? contentPath : Join(targetFolder, contentPath);
+            return placement switch
+            {
+                ContentDependencyPlacement.OriginalPaths => contentPath,
+                ContentDependencyPlacement.Suffix => AppendToCompiledName(contentPath, dependencySuffix),
+                _ => Join(targetFolder, contentPath),
+            };
         }
 
         mainFolder = Normalize(mainFolder);
@@ -335,6 +348,27 @@ public static class ContentPaths
 
         return string.Concat(path.AsSpan(0, extensionStart), suffix, extension ?? path.AsSpan(extensionStart));
     }
+
+    private static string AppendToCompiledName(string contentPath, string suffix)
+    {
+        if (ContentExporter.GetGeneratingResource(contentPath) is { } generatingResource)
+        {
+            return AppendToCompiledName(generatingResource, suffix) + contentPath[generatingResource.Length..];
+        }
+
+        var extension = Path.GetExtension(contentPath.AsSpan());
+
+        if (ResourceTypeExtensions.DetermineByFileExtension(extension) == ResourceType.Texture
+            && CompiledTextureNameTail().Match(contentPath, 0, contentPath.Length - extension.Length) is { Success: true } tail)
+        {
+            return contentPath.Insert(tail.Index, suffix);
+        }
+
+        return AppendToFileName(contentPath, suffix);
+    }
+
+    [GeneratedRegex(@"_(?:vmat_[^/]+|[a-z0-9]+)_[0-9a-f]{8,}$", RegexOptions.IgnoreCase)]
+    private static partial Regex CompiledTextureNameTail();
 
     private static string? StripTrailingFolders(string folder, ReadOnlySpan<string> trailingFolders)
     {

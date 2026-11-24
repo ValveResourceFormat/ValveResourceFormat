@@ -476,6 +476,6 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         internal override byte[] ToUtf8Text(ContentPathMap? referenceMap)
-            => referenceMap == null ? base.ToUtf8Text(referenceMap) : referenceMap.MapReferences(Output).ToKV3Bytes();
+            => referenceMap is not { RewritesReferences: true } ? base.ToUtf8Text(referenceMap) : referenceMap.MapReferences(Output).ToKV3Bytes();
     }
 }

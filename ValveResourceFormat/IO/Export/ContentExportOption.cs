@@ -16,6 +16,9 @@ public enum ContentExportOptionKind
 
     /// <summary>Text to show, without a value.</summary>
     Notice,
+
+    /// <summary>Text, which may be empty.</summary>
+    Text,
 }
 
 /// <summary>
@@ -126,6 +129,7 @@ public sealed class ContentExportOption
     {
         ContentExportOptionKind.Toggle => "true/false",
         ContentExportOptionKind.Choice => string.Join('/', Choices.Select(static choice => choice.Value)),
+        ContentExportOptionKind.Text => "text",
         _ => string.Empty,
     };
 
@@ -175,6 +179,22 @@ public sealed class ContentExportOption
         {
             Choices = [.. choices.Select(static choice => (choice.Name, choice.Label, choice.Description))],
         };
+    }
+
+    internal static ContentExportOption Text(string id, string label, string category, string description, string[] fileExtensions,
+        Func<ContentExportSettings, string> get, Action<ContentExportSettings, string> set, Func<string, bool> isValid)
+    {
+        return new ContentExportOption(id, label, category, description, fileExtensions, ContentExportOptionKind.Text, get,
+            (settings, value) =>
+            {
+                if (!isValid(value))
+                {
+                    return false;
+                }
+
+                set(settings, value);
+                return true;
+            });
     }
 
     internal static ContentExportOption Notice(string id, string label, string category, string text, string[] fileExtensions)

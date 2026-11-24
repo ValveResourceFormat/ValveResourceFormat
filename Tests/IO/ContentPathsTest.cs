@@ -100,14 +100,30 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(ContentPaths.Relocate("models/heroes/haze/haze_body.dmx", Main, Target, false, ContentDependencyPlacement.WithMain)).IsEqualTo("models/heroes/haze_orig/haze_body.dmx");
-                await Assert.That(ContentPaths.Relocate("models/heroes/haze/anims/idle.dmx", Main, Target, false, ContentDependencyPlacement.WithMain)).IsEqualTo("models/heroes/haze_orig/anims/idle.dmx");
-                await Assert.That(ContentPaths.Relocate("models/heroes/haze_other/a.dmx", Main, Target, false, ContentDependencyPlacement.WithMain)).IsEqualTo("models/heroes/haze_orig/models/heroes/haze_other/a.dmx");
-                await Assert.That(ContentPaths.Relocate("Models/Heroes/Haze/haze.vmdl", Main, Target, false, ContentDependencyPlacement.OriginalPaths)).IsEqualTo("models/heroes/haze_orig/haze.vmdl");
-                await Assert.That(ContentPaths.Relocate("materials/haze.vmat", Main, Target, true, ContentDependencyPlacement.WithMain)).IsEqualTo("models/heroes/haze_orig/materials/haze.vmat");
-                await Assert.That(ContentPaths.Relocate("materials/haze.vmat", Main, Target, true, ContentDependencyPlacement.OriginalPaths)).IsEqualTo("materials/haze.vmat");
-                await Assert.That(ContentPaths.Relocate("models/heroes/haze/haze.vmdl", Main, string.Empty, false, ContentDependencyPlacement.WithMain)).IsEqualTo("haze.vmdl");
-                await Assert.That(ContentPaths.Relocate("models/heroes/haze/haze.vmdl", string.Empty, Target, false, ContentDependencyPlacement.WithMain)).IsEqualTo("models/heroes/haze_orig/models/heroes/haze/haze.vmdl");
+                await Assert.That(ContentPaths.Relocate("models/heroes/haze/haze_body.dmx", Main, Target, false, ContentDependencyPlacement.WithMain, string.Empty)).IsEqualTo("models/heroes/haze_orig/haze_body.dmx");
+                await Assert.That(ContentPaths.Relocate("models/heroes/haze/anims/idle.dmx", Main, Target, false, ContentDependencyPlacement.WithMain, string.Empty)).IsEqualTo("models/heroes/haze_orig/anims/idle.dmx");
+                await Assert.That(ContentPaths.Relocate("models/heroes/haze_other/a.dmx", Main, Target, false, ContentDependencyPlacement.WithMain, string.Empty)).IsEqualTo("models/heroes/haze_orig/models/heroes/haze_other/a.dmx");
+                await Assert.That(ContentPaths.Relocate("Models/Heroes/Haze/haze.vmdl", Main, Target, false, ContentDependencyPlacement.OriginalPaths, string.Empty)).IsEqualTo("models/heroes/haze_orig/haze.vmdl");
+                await Assert.That(ContentPaths.Relocate("materials/haze.vmat", Main, Target, true, ContentDependencyPlacement.WithMain, string.Empty)).IsEqualTo("models/heroes/haze_orig/materials/haze.vmat");
+                await Assert.That(ContentPaths.Relocate("materials/haze.vmat", Main, Target, true, ContentDependencyPlacement.OriginalPaths, string.Empty)).IsEqualTo("materials/haze.vmat");
+                await Assert.That(ContentPaths.Relocate("models/heroes/haze/haze.vmdl", Main, string.Empty, false, ContentDependencyPlacement.WithMain, string.Empty)).IsEqualTo("haze.vmdl");
+                await Assert.That(ContentPaths.Relocate("models/heroes/haze/haze.vmdl", string.Empty, Target, false, ContentDependencyPlacement.WithMain, string.Empty)).IsEqualTo("models/heroes/haze_orig/models/heroes/haze/haze.vmdl");
+            }
+        }
+
+        [Test]
+        public async Task SuffixPlacementRenamesDependenciesWhereTheyAre()
+        {
+            static string Rename(string contentPath) => ContentPaths.Relocate(contentPath, "models/heroes/haze", "models/heroes/haze_orig", true, ContentDependencyPlacement.Suffix, "_orig");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(Rename("materials/models/heroes/haze/body.vmat")).IsEqualTo("materials/models/heroes/haze/body_orig.vmat");
+                await Assert.That(Rename("materials/haze/body_color_psd_43e62a4b.vtex")).IsEqualTo("materials/haze/body_color_orig_psd_43e62a4b.vtex");
+                await Assert.That(Rename("materials/haze/body_vmat_g_tcolor_43e62a4b.vtex")).IsEqualTo("materials/haze/body_orig_vmat_g_tcolor_43e62a4b.vtex");
+                await Assert.That(Rename("materials/haze/body_color.vtex")).IsEqualTo("materials/haze/body_color_orig.vtex");
+                await Assert.That(Rename("models/heroes/haze/haze.vnmgraph+haze_variation.vnmgraph")).IsEqualTo("models/heroes/haze/haze_orig.vnmgraph+haze_variation.vnmgraph");
+                await Assert.That(Rename("maps/de_dust2")).IsEqualTo("maps/de_dust2_orig");
             }
         }
 

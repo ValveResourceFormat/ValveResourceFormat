@@ -5,8 +5,8 @@ using ValveKeyValue;
 namespace ValveResourceFormat.IO;
 
 /// <summary>
-/// Maps the content paths of files an export writes somewhere else to the paths they are written at, so references
-/// to them can be rewritten.
+/// Maps the content paths of files an export writes somewhere else to the paths they are written at, so the files
+/// written along with them take their new names and references to them can be rewritten.
 /// </summary>
 /// <remarks>
 /// A value is mapped only when all of it is a mapped path, never a part of it. Matching ignores case, treats <c>\</c>
@@ -23,6 +23,12 @@ public sealed class ContentPathMap
     /// Gets whether the map has no entries.
     /// </summary>
     public bool IsEmpty => Files.Count == 0 && Folders.Count == 0;
+
+    /// <summary>
+    /// Gets whether references to mapped files are rewritten. When false, only the names of the files written along
+    /// with a mapped file follow it.
+    /// </summary>
+    public bool RewritesReferences { get; init; } = true;
 
     /// <summary>
     /// Maps a file, such as <c>models/heroes/haze/haze.vmdl</c> to <c>models/heroes/haze_orig/haze_orig.vmdl</c>.
@@ -123,7 +129,7 @@ internal static class ContentPathMapExtensions
     /// <returns>The tree itself when nothing is mapped, otherwise a copy of it with the mapped strings.</returns>
     public static KVObject MapReferences(this ContentPathMap? map, KVObject value)
     {
-        if (map == null)
+        if (map is not { RewritesReferences: true })
         {
             return value;
         }
@@ -185,7 +191,7 @@ internal static class ContentPathMapExtensions
     /// </summary>
     public static void MapReferences(this ContentPathMap? map, Datamodel.Datamodel datamodel)
     {
-        if (map == null)
+        if (map is not { RewritesReferences: true })
         {
             return;
         }

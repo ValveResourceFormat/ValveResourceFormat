@@ -78,6 +78,8 @@ The **Models** options of the dialog leave the animations, the physics or the lo
 
 To copy a model under a new name, choose **Target folder** as the output layout. You then pick the new `.vmdl` file, and the meshes are written next to it. With **Target folder with rewritten references** (experimental), the files the export writes refer to each other at their new paths.
 
+**Dependency placement** sets where the dependencies of such a copy go: into the target folder at their full game path, at their game path, or at their game path renamed with **Dependency suffix**, such as `materials/models/heroes/haze/body_orig.vmat`, so they do not replace the original files. Renaming is the default with rewritten references. An empty suffix takes what the new file name adds to the model's name, such as `_orig` for `haze.vmdl` saved as `haze_orig.vmdl`, or else `_copy`.
+
 ## Importing into Blender
 
 If you want the animations, set the frame rate first, as described in [Preparing the Scene](./characters-in-blender.md#preparing-the-scene). Most of Roshan's animations run at 30 frames per second, and Blender's default is 24.

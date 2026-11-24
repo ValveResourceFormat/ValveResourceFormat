@@ -86,7 +86,6 @@ public sealed class ContentExporter
     private readonly HashSet<string> ReservedPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, Lock> PathLocks = new(StringComparer.OrdinalIgnoreCase);
     private readonly AsyncLocal<int> CurrentItemOrder = new();
-    private readonly AsyncLocal<bool> CurrentItemIsDependency = new();
     private readonly HashSet<string> HandledFiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> NonGltfItems = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<IFileLoader, GltfModelExporter> GltfExporters = new(ReferenceEqualityComparer.Instance);
@@ -138,14 +137,14 @@ public sealed class ContentExporter
     internal FileExtractOptions ExtractOptions => extractOptions ?? Settings.ExtractOptions;
 
     /// <summary>
-    /// Gets where the files of the running export are written, with a
-    /// <see cref="ContentExportLayout.TargetFolderRewriteReferences"/> layout.
+    /// Gets where the files of the running export are written, with a target folder
+    /// <see cref="ContentExportSettings.Layout"/>.
     /// </summary>
     internal ContentPathMap? ReferenceMap { get; private set; }
 
     /// <summary>
-    /// Gets or sets the content folder the items of the running export share, which a
-    /// <see cref="ContentExportLayout.TargetFolder"/> layout removes from their paths.
+    /// Gets or sets the content folder the items of the running export share, which a target folder
+    /// <see cref="ContentExportSettings.Layout"/> removes from their paths.
     /// </summary>
     internal string MainFolder { get; set; } = string.Empty;
 
@@ -271,27 +270,15 @@ public sealed class ContentExporter
     }
 
     /// <summary>
-    /// Gets the full path a content path is written at, following the layout of <see cref="Settings"/>.
+    /// Gets the full path a content path is written at.
     /// </summary>
     public string GetOutputPath(string contentPath) => GetFullPath(NormalizeContentPath(contentPath));
 
-    /// <summary>
-    /// Gets the full path a normalized content path is written at. A <see cref="ContentExportLayout.TargetFolder"/>
-    /// layout relocates it, see <see cref="ContentPaths.Relocate"/>.
-    /// </summary>
-    private string GetFullPath(string contentPath)
-    {
-        if (Settings.Layout == ContentExportLayout.TargetFolder)
-        {
-            contentPath = ContentPaths.Relocate(contentPath, MainFolder, TargetContentFolder, CurrentItemIsDependency.Value, Settings.DependencyPlacement);
-        }
-
-        return Path.Join(OutputRoot, contentPath);
-    }
+    private string GetFullPath(string contentPath) => Path.Join(OutputRoot, contentPath);
 
     /// <summary>
-    /// Gets the content path a file is written at with a <see cref="ContentExportLayout.TargetFolderRewriteReferences"/>
-    /// layout, or the path itself.
+    /// Gets the content path a file is written at with a target folder <see cref="ContentExportSettings.Layout"/>, or
+    /// the path itself.
     /// </summary>
     internal string MapContentPath(string contentPath) => ReferenceMap?.Map(contentPath) ?? contentPath;
 
@@ -348,9 +335,10 @@ public sealed class ContentExporter
     /// exported.
     /// </para>
     /// <para>
-    /// With a <see cref="ContentExportLayout.TargetFolderRewriteReferences"/> layout, every resource is decompiled with
-    /// its <see cref="Resource.FileName"/> set to where it is written, and with a <see cref="FileExtractOptions.ReferenceMap"/>
-    /// of every file of the export.
+    /// With a target folder layout, every resource is decompiled with its <see cref="Resource.FileName"/> set to where
+    /// it is written, see <see cref="ContentPaths.Relocate"/>, and with a <see cref="FileExtractOptions.ReferenceMap"/>
+    /// of every file of the export, which rewrites references only with a
+    /// <see cref="ContentExportLayout.TargetFolderRewriteReferences"/> layout.
     /// </para>
     /// <para>
     /// The files of a compiled shader in a package or a folder are decompiled together once, from the file of the highest
@@ -728,12 +716,11 @@ public sealed class ContentExporter
 
     /// <summary>
     /// Sets the position in export order of the item that the files written on this thread, and the tasks it starts,
-    /// belong to, and whether it is a dependency.
+    /// belong to.
     /// </summary>
-    internal void SetCurrentItem(int order, bool isDependency)
+    internal void SetCurrentItem(int order)
     {
         CurrentItemOrder.Value = order;
-        CurrentItemIsDependency.Value = isDependency;
     }
 
     internal void ThrowIfCancelled(CancellationToken cancellationToken)

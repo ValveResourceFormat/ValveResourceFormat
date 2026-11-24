@@ -1,3 +1,4 @@
+using System.IO;
 using System.Linq;
 
 namespace ValveResourceFormat.IO;
@@ -15,8 +16,9 @@ public enum ContentExportLayout
 
     /// <summary>
     /// The exported files are written to <see cref="ContentExporter.TargetFolder"/> without the content folder they
-    /// share, and their dependencies as <see cref="ContentExportSettings.DependencyPlacement"/> says. References inside
-    /// the files are not changed, see <see cref="ContentPaths.Relocate"/>.
+    /// share, and their dependencies as <see cref="ContentExportSettings.DependencyPlacement"/> says, see
+    /// <see cref="ContentPaths.Relocate"/>. The files a decompiled file names after itself take its new name, references
+    /// to other files are not changed.
     /// </summary>
     TargetFolder,
 
@@ -55,6 +57,12 @@ public enum ContentDependencyPlacement
 
     /// <summary>At their content path below <see cref="ContentExporter.OutputRoot"/>, as with <see cref="ContentExportLayout.ContentPaths"/>.</summary>
     OriginalPaths,
+
+    /// <summary>
+    /// At their content path below <see cref="ContentExporter.OutputRoot"/>, with <see cref="ContentExportSettings.DependencySuffix"/>
+    /// added to their file name.
+    /// </summary>
+    Suffix,
 }
 
 /// <summary>
@@ -72,8 +80,19 @@ public sealed class ContentExportSettings
     /// <summary>Gets or sets which resources the exported files use are exported too, from the same package, addon or mod only.</summary>
     public ContentExportDependencies Dependencies { get; set; }
 
-    /// <summary>Gets or sets where dependencies are written with a target folder layout.</summary>
-    public ContentDependencyPlacement DependencyPlacement { get; set; }
+    /// <summary>
+    /// Gets or sets where dependencies are written with a target folder layout. Null renames them with
+    /// <see cref="DependencySuffix"/> with a <see cref="ContentExportLayout.TargetFolderRewriteReferences"/> layout, and
+    /// places them below the target folder otherwise.
+    /// </summary>
+    public ContentDependencyPlacement? DependencyPlacement { get; set; }
+
+    /// <summary>
+    /// Gets or sets the text added to the file names of dependencies with <see cref="ContentDependencyPlacement.Suffix"/>.
+    /// Empty takes the text the target file name adds to the name of the main file, such as <c>_orig</c> for
+    /// <c>haze.vmdl</c> saved as <c>haze_orig.vmdl</c>, or else <c>_copy</c>.
+    /// </summary>
+    public string DependencySuffix { get; set; } = string.Empty;
 
     /// <summary>Gets or sets what to do with files that existed before the export.</summary>
     public ExistingFileAction ExistingFiles { get; set; }
@@ -129,9 +148,17 @@ public sealed class ContentExportSettings
     public static ContentExportOption DependencyPlacementOption { get; } = ContentExportOption.Choice(
         "dependency_placement", "Dependency placement", GeneralCategory,
         "Where dependencies go with a target folder layout.", [],
-        static settings => settings.DependencyPlacement, static (settings, value) => settings.DependencyPlacement = value,
+        static settings => settings.ResolvedDependencyPlacement, static (settings, value) => settings.DependencyPlacement = value,
         (ContentDependencyPlacement.WithMain, "with_main", "In the target folder", "Below the target folder, at their full game path."),
-        (ContentDependencyPlacement.OriginalPaths, "original", "At their game paths", "At their game path below the addon or mod folder."));
+        (ContentDependencyPlacement.OriginalPaths, "original", "At their game paths", "At their game path below the addon or mod folder."),
+        (ContentDependencyPlacement.Suffix, "suffix", "At their game paths, renamed", "At their game path below the addon or mod folder, with the dependency suffix added to their file name."));
+
+    /// <summary>Gets the option for <see cref="DependencySuffix"/>.</summary>
+    public static ContentExportOption DependencySuffixOption { get; } = ContentExportOption.Text(
+        "dependency_suffix", "Dependency suffix", GeneralCategory,
+        "Added to the file names of renamed dependencies. Empty takes the text the new file name adds to the name of the chosen file, such as _orig for haze saved as haze_orig, or else _copy.", [],
+        static settings => settings.DependencySuffix, static (settings, value) => settings.DependencySuffix = value,
+        static value => value.AsSpan().IndexOfAny([.. Path.GetInvalidFileNameChars(), '/', '\\']) < 0);
 
     /// <summary>Gets the option for <see cref="ExistingFiles"/>.</summary>
     public static ContentExportOption ExistingFilesOption { get; } = ContentExportOption.Choice(
@@ -142,7 +169,11 @@ public sealed class ContentExportSettings
         (ExistingFileAction.Skip, "skip", "Skip", "Keep existing files."));
 
     /// <summary>Gets the options every export has.</summary>
-    public static IReadOnlyList<ContentExportOption> Options { get; } = [LayoutOption, DependenciesOption, DependencyPlacementOption, ExistingFilesOption];
+    public static IReadOnlyList<ContentExportOption> Options { get; } = [LayoutOption, DependenciesOption, DependencyPlacementOption, DependencySuffixOption, ExistingFilesOption];
+
+    /// <summary>Gets where dependencies are written, see <see cref="DependencyPlacement"/>.</summary>
+    public ContentDependencyPlacement ResolvedDependencyPlacement
+        => DependencyPlacement ?? (Layout == ContentExportLayout.TargetFolderRewriteReferences ? ContentDependencyPlacement.Suffix : ContentDependencyPlacement.WithMain);
 
     /// <summary>Sets the glTF options of an exporter from these settings.</summary>
     internal void ApplyTo(GltfModelExporter exporter)
