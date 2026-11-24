@@ -69,6 +69,37 @@ public static class ContentPaths
     }
 
     /// <summary>
+    /// Gets the content path a file of an export with a <see cref="ContentExportLayout.TargetFolder"/> layout is
+    /// written at. A file of an exported item loses the folder the exported items share and goes into the target
+    /// folder, a file outside of that folder keeps its full path below the target folder. A dependency goes below the
+    /// target folder at its full path, or stays where it is with <see cref="ContentDependencyPlacement.OriginalPaths"/>.
+    /// </summary>
+    /// <param name="contentPath">The content path of the file.</param>
+    /// <param name="mainFolder">The content folder the exported items share.</param>
+    /// <param name="targetFolder">The content path of the target folder, empty for the output root.</param>
+    /// <param name="isDependency">Whether the file belongs to a dependency of the exported items.</param>
+    /// <param name="placement">Where dependencies are written.</param>
+    public static string Relocate(string contentPath, string mainFolder, string targetFolder, bool isDependency, ContentDependencyPlacement placement)
+    {
+        contentPath = Normalize(contentPath);
+
+        if (isDependency)
+        {
+            return placement == ContentDependencyPlacement.OriginalPaths ? contentPath : Join(targetFolder, contentPath);
+        }
+
+        mainFolder = Normalize(mainFolder);
+
+        if (mainFolder.Length > 0 && contentPath.Length > mainFolder.Length && contentPath[mainFolder.Length] == '/'
+            && contentPath.StartsWith(mainFolder, StringComparison.OrdinalIgnoreCase))
+        {
+            contentPath = contentPath[(mainFolder.Length + 1)..];
+        }
+
+        return Join(targetFolder, contentPath);
+    }
+
+    /// <summary>
     /// Whether a folder is the root of an addon (<c>game/&lt;game&gt;_addons/&lt;addon&gt;</c> or <c>content/&lt;game&gt;_addons/&lt;addon&gt;</c>)
     /// or of a mod (a folder with a gameinfo.gi, or the <c>content/&lt;mod&gt;</c> next to <c>game/&lt;mod&gt;</c> with one).
     /// </summary>

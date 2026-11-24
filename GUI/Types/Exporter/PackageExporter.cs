@@ -38,7 +38,7 @@ namespace GUI.Types.Exporter
         private int processed;
         private ContentExporter? exporter;
         private (string FileName, Exception Exception)? firstFailure;
-        private bool includeDependencies;
+        private ContentExportSettings exportSettings = new();
         private GenericProgressForm? progress;
 
         private int FailedFileCount => exporter?.FailedFileCount ?? 0;
@@ -92,9 +92,10 @@ namespace GUI.Types.Exporter
         }
 
         /// <summary>
-        /// Asks for output types and a destination folder, then extracts all queued files behind a modal progress dialog.
+        /// Asks for the export options and a destination folder, then extracts all queued files behind a modal progress
+        /// dialog.
         /// </summary>
-        public async Task ExecuteMultipleFileExtractAsync()
+        public void ExecuteMultipleFileExtract()
         {
             if (filesToExtract.Count == 0)
             {
@@ -102,13 +103,7 @@ namespace GUI.Types.Exporter
                 return;
             }
 
-            if (decompile && ShowTypesDialog(canSkip: true) != DialogResult.Continue)
-            {
-                return;
-            }
-
-            if (decompile && fileTypesToExtract.TryGetValue("vmap_c", out var mapType) && mapType.OutputFormat != null
-                && !await ExportFile.PreExportDisclaimer(".vmap_c").ConfigureAwait(true))
+            if (decompile && !AskForExportOptions(canSkip: true))
             {
                 return;
             }
@@ -125,9 +120,9 @@ namespace GUI.Types.Exporter
         }
 
         /// <summary>
-        /// Asks for the output type of a file, when it has a choice, and where to write it, then exports it behind a
-        /// modal progress dialog. glTF goes to a picked file, everything else under a picked root folder at its content
-        /// path.
+        /// Asks for the export options and where to write a file, then exports it behind a modal progress dialog. glTF,
+        /// and every output with a target folder layout, goes to a picked file, everything else under a picked root
+        /// folder at its content path.
         /// </summary>
         /// <param name="item">The file, its output and loader are chosen here.</param>
         public Task ExecuteSingleFileExtractAsync(ContentExportItem item)
@@ -136,53 +131,67 @@ namespace GUI.Types.Exporter
             var typeName = Path.GetExtension(contentPath).TrimStart('.');
             fileTypesToExtract[typeName] = new FileTypeToExtract();
 
-            if ((ContentPaths.HasCompiledSuffix(contentPath) || ContentExporter.CanExportGltf(contentPath))
-                && ShowTypesDialog(canSkip: false) != DialogResult.Continue)
+            if (!AskForExportOptions(canSkip: false))
             {
                 return Task.CompletedTask;
             }
 
             var outputFormat = fileTypesToExtract[typeName].OutputFormat;
             var output = GetOutput(outputFormat);
-            string outputRoot;
-            string? gltfPath = null;
+            string folder;
+            string? targetFile = null;
 
-            if (output is ContentExportOutput.Gltf or ContentExportOutput.Glb)
+            if (output is ContentExportOutput.Gltf or ContentExportOutput.Glb || exportSettings.Layout != ContentExportLayout.ContentPaths)
             {
-                var filter = output == ContentExportOutput.Gltf ? "glTF|*.gltf" : "glTF Binary|*.glb";
-                gltfPath = AppFileDialogs.SaveFile("Choose where to save the file", Path.GetFileNameWithoutExtension(contentPath), outputFormat, filter);
+                var extension = output switch
+                {
+                    ContentExportOutput.Gltf => "gltf",
+                    ContentExportOutput.Glb => "glb",
+                    _ when outputFormat == ImageOutputType => "png",
+                    _ => ContentExporter.GetDecompiledExtension(contentPath),
+                };
 
-                if (gltfPath == null)
+                var filter = output switch
+                {
+                    ContentExportOutput.Gltf => "glTF|*.gltf",
+                    ContentExportOutput.Glb => "glTF Binary|*.glb",
+                    _ => $"{extension}|*.{extension}|All files (*.*)|*.*",
+                };
+
+                var fileName = Path.GetFileNameWithoutExtension(ContentPaths.TrimCompiledSuffix(contentPath));
+                targetFile = AppFileDialogs.SaveFile("Choose where to save the file", fileName, extension, filter, AppFileDialogs.RememberIn.DecompileDirectory);
+
+                if (targetFile == null)
                 {
                     return Task.CompletedTask;
                 }
 
-                outputRoot = ContentPaths.ResolveOutputRoot(Path.GetDirectoryName(gltfPath)!, [contentPath]);
+                folder = Path.GetDirectoryName(targetFile)!;
             }
             else
             {
-                var folder = AppFileDialogs.PickFolder("Choose which folder to extract files to", AppFileDialogs.RememberIn.DecompileDirectory);
+                var pickedFolder = AppFileDialogs.PickFolder("Choose which folder to extract files to", AppFileDialogs.RememberIn.DecompileDirectory);
 
-                if (folder == null)
+                if (pickedFolder == null)
                 {
                     return Task.CompletedTask;
                 }
 
-                outputRoot = ContentPaths.ResolveOutputRoot(folder, [contentPath]);
+                folder = pickedFolder;
             }
 
             var exportItem = new ContentExportItem(item)
             {
                 FileLoader = guiContext.FileLoaderNoCache,
                 Output = output,
-                TargetFile = gltfPath,
+                TargetFile = targetFile,
             };
 
-            var initialText = gltfPath == null ? $"Decompiling {contentPath}" : $"Exporting {contentPath} to \"{Path.GetFileName(gltfPath)}\"";
+            var initialText = targetFile == null ? $"Decompiling {contentPath}" : $"Exporting {contentPath} to \"{Path.GetFileName(targetFile)}\"";
 
             RunInDialog(cancellationToken =>
             {
-                var exporter = CreateContentExporter(outputRoot, confirmedFile: gltfPath);
+                var exporter = CreateContentExporter(folder, [contentPath], confirmedFile: targetFile);
                 exporter.Export([exportItem], cancellationToken);
             }, initialText, out var workCompletion);
 
@@ -270,13 +279,22 @@ namespace GUI.Types.Exporter
             ErrorReport.ShowDialog("Some files failed to export", text.ToString().TrimEnd(), report.ToString());
         }
 
-        private DialogResult ShowTypesDialog(bool canSkip)
+        /// <summary>
+        /// Picks the output type of each queued file type and the export settings, from the options dialog or, when it
+        /// is turned off, from the last ones picked.
+        /// </summary>
+        /// <returns>False when the dialog was cancelled.</returns>
+        private bool AskForExportOptions(bool canSkip)
         {
-            using var typesDialog = new ExtractOutputTypesForm
+            exportSettings = new ContentExportSettings();
+
+            foreach (var (id, value) in Settings.Config.DecompileOptions)
             {
-                IncludeDependencies = Settings.Config.DecompileDependencies,
-            };
-            typesDialog.ChangeTypeEvent += OnTypesDialogSelectedValueChanged;
+                ContentExportOption.Find(id)?.TrySetValue(exportSettings, value);
+            }
+
+            using var optionsDialog = new ExportOptionsForm(exportSettings, GetRelevantOptions, new HashSet<ContentExportOption> { TextureExtract.ImagesOnlyOption });
+            optionsDialog.ChangeTypeEvent += OnTypesDialogSelectedValueChanged;
 
             var hasVmap = fileTypesToExtract.ContainsKey("vmap_c");
             var rememberedTypes = Settings.Config.DecompileOutputTypes;
@@ -320,29 +338,55 @@ namespace GUI.Types.Exporter
                 }
 
                 type.Value.OutputFormat = outputTypes[selectedIndex] == DoNotExport ? null : outputTypes[selectedIndex];
-                typesDialog.AddTypeToTable(type.Key, type.Value.Count, outputTypes, selectedIndex);
+                optionsDialog.AddTypeToTable(type.Key, type.Value.Count, outputTypes, selectedIndex);
             }
 
-            var result = typesDialog.ShowDialog();
-            typesDialog.ChangeTypeEvent -= OnTypesDialogSelectedValueChanged;
-
-            if (result != DialogResult.Continue)
+            if (!Settings.Config.DecompileSkipOptionsDialog)
             {
-                return result;
-            }
-
-            includeDependencies = typesDialog.IncludeDependencies;
-            Settings.Config.DecompileDependencies = includeDependencies;
-
-            foreach (var (type, fileType) in fileTypesToExtract)
-            {
-                if (!IsSkippedForMap(type))
+                if (optionsDialog.ShowDialog() != DialogResult.Continue)
                 {
-                    rememberedTypes[type] = fileType.OutputFormat ?? string.Empty;
+                    return false;
+                }
+
+                Settings.Config.DecompileSkipOptionsDialog = optionsDialog.DoNotShowAgain;
+
+                foreach (var option in ContentExportOption.All)
+                {
+                    if (option.Kind != ContentExportOptionKind.Notice)
+                    {
+                        Settings.Config.DecompileOptions[option.Id] = option.GetValue(exportSettings);
+                    }
+                }
+
+                foreach (var (type, fileType) in fileTypesToExtract)
+                {
+                    if (!IsSkippedForMap(type))
+                    {
+                        rememberedTypes[type] = fileType.OutputFormat ?? string.Empty;
+                    }
                 }
             }
 
-            return result;
+            exportSettings.ExtractOptions = exportSettings.ExtractOptions with
+            {
+                TextureImagesOnly = fileTypesToExtract.TryGetValue(TextureTypeName, out var textureType) && textureType.OutputFormat == ImageOutputType,
+            };
+
+            return true;
+        }
+
+        /// <summary>
+        /// Gets the options that apply to the queued file types with the output types picked for them.
+        /// </summary>
+        private IEnumerable<ContentExportOption> GetRelevantOptions()
+        {
+            var exported = fileTypesToExtract.Where(static type => type.Value.OutputFormat != null).ToList();
+            var gltf = exported.Exists(static type => GetOutput(type.Value.OutputFormat) != ContentExportOutput.Decompile);
+            var decompiledTypes = exported
+                .Where(static type => GetOutput(type.Value.OutputFormat) == ContentExportOutput.Decompile)
+                .Select(static type => "." + type.Key);
+
+            return ContentExportOption.GetRelevant(decompiledTypes, gltf);
         }
 
         private void OnTypesDialogSelectedValueChanged(object? sender, EventArgs e)
@@ -400,7 +444,7 @@ namespace GUI.Types.Exporter
                 });
             }
 
-            var exporter = CreateContentExporter(ContentPaths.ResolveOutputRoot(folder, items.Select(static item => item.ContentPath)));
+            var exporter = CreateContentExporter(folder, items.Select(static item => item.ContentPath));
 
             progress.SetBarValue(processed);
             exporter.Export(items, cancellationToken);
@@ -426,26 +470,25 @@ namespace GUI.Types.Exporter
         /// <summary>
         /// Creates the exporter that writes the files of one export.
         /// </summary>
-        /// <param name="outputRoot">The folder content paths are relative to.</param>
+        /// <param name="folder">The picked folder, the output root is resolved from it.</param>
+        /// <param name="contentPaths">The content paths of the exported files.</param>
         /// <param name="confirmedFile">
         /// A file the user already chose to overwrite. When it is the first file of the export that already exists, every
         /// existing file is overwritten without asking.
         /// </param>
-        private ContentExporter CreateContentExporter(string outputRoot, string? confirmedFile = null)
+        private ContentExporter CreateContentExporter(string folder, IEnumerable<string> contentPaths, string? confirmedFile = null)
         {
             Debug.Assert(progress != null);
 
+            var outputRoot = ContentPaths.ResolveOutputRoot(folder, contentPaths);
             Log.Info(nameof(PackageExporter), $"Writing files to \"{outputRoot}\"");
 
             var dialog = progress;
 
             return exporter = new ContentExporter(outputRoot)
             {
-                IncludeDependencies = includeDependencies,
-                ExtractOptions = new FileExtractOptions
-                {
-                    TextureImagesOnly = fileTypesToExtract.TryGetValue(TextureTypeName, out var textureType) && textureType.OutputFormat == ImageOutputType,
-                },
+                Settings = exportSettings,
+                TargetFolder = exportSettings.Layout != ContentExportLayout.ContentPaths ? folder : null,
                 Progress = dialog,
                 ConfirmExistingFiles = path => path.Equals(confirmedFile, StringComparison.OrdinalIgnoreCase) ? ExistingFileAction.Overwrite : ConfirmExistingFiles(path),
                 FileWritten = path => dialog.SetProgress($"+ {ContentPaths.GetRelativePath(outputRoot, path)}"),

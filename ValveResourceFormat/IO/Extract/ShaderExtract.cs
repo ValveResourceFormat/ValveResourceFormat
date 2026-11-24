@@ -78,6 +78,38 @@ public sealed class ShaderExtract
         };
     }
 
+    /// <summary>
+    /// Gets the options of decompiled shaders, the parameters of <see cref="ShaderExtractParams"/>, which default to
+    /// <see cref="ShaderExtractParams.Export"/>.
+    /// </summary>
+    public static IReadOnlyList<ContentExportOption> ExportOptions { get; } =
+    [
+        ParamsOption("shader_collapse_buffers_in_include", "Collapse buffers in include", "Write collapsed constant buffers into an include file.",
+            static options => options.CollapseBuffers_InInclude, static (options, value) => options with { CollapseBuffers_InInclude = value }),
+        ParamsOption("shader_collapse_buffers_in_place", "Collapse buffers in place", "Write collapsed constant buffers where they are used.",
+            static options => options.CollapseBuffers_InPlace, static (options, value) => options with { CollapseBuffers_InPlace = value }),
+        ParamsOption("shader_collapse_all_buffers", "Collapse all buffers", "Collapse every constant buffer, not only the known ones.",
+            static options => options.CollapseAllBuffers, static (options, value) => options with { CollapseAllBuffers = value }),
+        ParamsOption("shader_uncertain_enums_as_ints", "Uncertain enums as integers", "Write enum values whose names are not certain as integers.",
+            static options => options.ForceWrite_UncertainEnumsAsInts, static (options, value) => options with { ForceWrite_UncertainEnumsAsInts = value }),
+        ParamsOption("shader_no_type_guessing", "No type guessing", "Do not guess parameter types from the prefix of their names.",
+            static options => options.NoHungarianTypeGuessing, static (options, value) => options with { NoHungarianTypeGuessing = value }),
+        ParamsOption("shader_raw_parameters", "Raw parameters", "Write parameters in their raw form.",
+            static options => options.WriteParametersRaw, static (options, value) => options with { WriteParametersRaw = value }),
+        ParamsOption("shader_read_static_combos", "Read static combos", "Read every static combo to recover combo attributes.",
+            static options => options.CanReadStaticCombos, static (options, value) => options with { CanReadStaticCombos = value }),
+        ParamsOption("shader_combo_attributes_no_separate_globals", "No separate global combo attributes", "Do not write attributes shared by every static combo separately.",
+            static options => options.StaticComboAttributes_NoSeparateGlobals, static (options, value) => options with { StaticComboAttributes_NoSeparateGlobals = value }),
+        ParamsOption("shader_combo_attributes_no_conditional_reduce", "No conditional reduction", "Do not reduce the conditions of static combo attributes.",
+            static options => options.StaticComboAttributes_NoConditionalReduce, static (options, value) => options with { StaticComboAttributes_NoConditionalReduce = value }),
+    ];
+
+    private static ContentExportOption ParamsOption(string id, string label, string description,
+        Func<ShaderExtractParams, bool> get, Func<ShaderExtractParams, bool, ShaderExtractParams> set)
+        => ContentExportOption.Toggle(id, label, "Shaders (advanced)", description, ["vcs"],
+            settings => get(settings.ExtractOptions.ShaderParams),
+            (settings, value) => settings.ExtractOptions = settings.ExtractOptions with { ShaderParams = set(settings.ExtractOptions.ShaderParams, value) });
+
     /// <summary>Gets the shader collection.</summary>
     public ShaderCollection Shaders { get; init; }
 
@@ -130,9 +162,10 @@ public sealed class ShaderExtract
     /// Converts the shader to a content file with extracted shader code.
     /// </summary>
     /// <param name="fileName">Content path of the vfx file, its includes go in a folder next to it. Defaults to <see cref="GetVfxFileName"/>.</param>
-    public ContentFile ToContentFile(string? fileName = null)
+    /// <param name="options">The parameters to decompile with. Defaults to <see cref="ShaderExtractParams.Export"/>.</param>
+    public ContentFile ToContentFile(string? fileName = null, ShaderExtractParams? options = null)
     {
-        var vfx = ToVFX(ShaderExtractParams.Export);
+        var vfx = ToVFX(options ?? ShaderExtractParams.Export);
 
         fileName = ContentPaths.Normalize(fileName ?? GetVfxFileName());
         var folder = Path.GetDirectoryName(fileName);

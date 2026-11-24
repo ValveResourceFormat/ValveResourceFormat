@@ -32,7 +32,7 @@ With **Preview files after selecting** and **Auto play sounds** turned on in **S
 
     ![Context menu on ak47_01.vsnd_c with Decompile & export highlighted](./images/exporting-sounds-export-menu.webp)
 
-2. Click **Continue** in the output types dialog, choose a folder and click **Select Folder**. The sound is written at its path in the game below that folder, as WAV or MP3 as the game stores it, with a `.vsnd` file of its settings and, for lip-synced voice lines, a `.txt` file.
+2. Click **Continue** in the decompile dialog, choose a folder and click **Select Folder**. The sound is written at its path in the game below that folder, as WAV or MP3 as the game stores it, with a `.vsnd` file of its settings and, for lip-synced voice lines, a `.txt` file.
 
 3. A window shows when the export is done.
 

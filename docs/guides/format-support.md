@@ -206,7 +206,7 @@ physics geometry for collision that has no matching render mesh.
 Pieces that only the compiled map has are not written: the world, world nodes, `vrman`,
 `vvis`, world physics, entity lumps `.vents`, and the baked lightmaps, cubemaps and light
 probes. Prop models and materials from outside the map's folder (`maps/<map>/`) are only
-written with **Include dependencies** or `--decompile_dependencies`. They only come from the
+written with **Dependencies** or `--dependencies`. They only come from the
 same package.
 
 Data that was already destroyed by the map compiler, and therefore cannot come back:

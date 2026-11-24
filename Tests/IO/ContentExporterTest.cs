@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ValveResourceFormat.IO;
@@ -110,7 +111,7 @@ namespace Tests.IO
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
             await File.WriteAllTextAsync(path, "hand made");
-            new ContentExporter(temp.FullName) { ExistingFileAction = ExistingFileAction.Skip }.WriteFile("materials/crate.vmat", "decompiled"u8.ToArray());
+            new ContentExporter(temp.FullName) { Settings = new ContentExportSettings { ExistingFiles = ExistingFileAction.Skip } }.WriteFile("materials/crate.vmat", "decompiled"u8.ToArray());
             var afterSkip = await File.ReadAllTextAsync(path);
 
             var prompts = 0;
@@ -159,6 +160,48 @@ namespace Tests.IO
                 await Assert.That(File.Exists(Path.Join(temp.FullName, "models", "crate_body.dmx"))).IsTrue();
                 await Assert.That(File.Exists(Path.Join(temp.FullName, "models", "crate.vmdl"))).IsFalse();
                 await Assert.That(await File.ReadAllTextAsync(Path.Join(temp.FullName, "picked", "image.png"))).IsEqualTo("png");
+            }
+        }
+
+        [Test]
+        public async Task OptionsRoundTripThroughText()
+        {
+            var defaults = new ContentExportSettings();
+            var changed = new ContentExportSettings();
+
+            foreach (var option in ContentExportOption.All)
+            {
+                if (option.Kind == ContentExportOptionKind.Notice)
+                {
+                    await Assert.That(option.TrySetValue(changed, "true")).IsFalse();
+                    continue;
+                }
+
+                var other = option.Kind == ContentExportOptionKind.Toggle
+                    ? (option.DefaultValue == "true" ? "FALSE" : "True")
+                    : option.Choices[^1].Value;
+
+                await Assert.That(option.TrySetValue(changed, other)).IsTrue();
+                await Assert.That(option.TrySetValue(changed, "not a value")).IsFalse();
+            }
+
+            var restored = new ContentExportSettings();
+
+            foreach (var option in ContentExportOption.All)
+            {
+                option.TrySetValue(restored, option.GetValue(changed));
+            }
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(ContentExportOption.All.Select(static option => option.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count()).IsEqualTo(ContentExportOption.All.Count);
+                await Assert.That(restored.ToString()).IsEqualTo(changed.ToString());
+                await Assert.That(changed.ToString()).IsNotEqualTo(defaults.ToString());
+
+                foreach (var option in ContentExportOption.All.Where(static option => option.Kind != ContentExportOptionKind.Notice))
+                {
+                    await Assert.That(option.GetValue(changed)).IsNotEqualTo(option.DefaultValue);
+                }
             }
         }
     }

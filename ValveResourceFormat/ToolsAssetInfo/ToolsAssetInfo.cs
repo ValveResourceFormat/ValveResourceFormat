@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using ValveKeyValue;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -13,6 +14,15 @@ namespace ValveResourceFormat.ToolsAssetInfo
     /// </summary>
     public class ToolsAssetInfo
     {
+        /// <summary>Gets the options of extracted tools asset info files.</summary>
+        public static IReadOnlyList<ContentExportOption> ExportOptions { get; } =
+        [
+            ContentExportOption.Toggle("tools_asset_info_paths_only", "Paths only", "Tools asset info",
+                "List only the paths of the assets, without their dependencies.", ["bin"],
+                static settings => settings.ExtractOptions.ToolsAssetInfoPathsOnly,
+                static (settings, value) => settings.ExtractOptions = settings.ExtractOptions with { ToolsAssetInfoPathsOnly = value }),
+        ];
+
         /// <summary>
         /// The root an asset path is relative to.
         /// </summary>

@@ -118,7 +118,7 @@ partial class ModelExtract
                 }
             }
 
-            if (model != null)
+            if (model != null && !HighestLodOnly)
             {
                 // LOD groups. m_refLODGroupMasks says which level each mesh belongs to (bit N => level N) and
                 // m_lodGroupSwitchDistances gives each level's switch value. Emit one LODGroup per declared

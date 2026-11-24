@@ -96,6 +96,31 @@ public sealed class TextureExtract
     private readonly bool isSliced;
 
     // Options
+    /// <summary>Gets the option for <see cref="FileExtractOptions.TextureImagesOnly"/>.</summary>
+    public static ContentExportOption ImagesOnlyOption { get; } = ContentExportOption.Toggle("texture_images_only", "Images only", "Textures",
+        "Write only the images of textures, without a vtex file.", ["vtex_c"],
+        static settings => settings.ExtractOptions.TextureImagesOnly,
+        static (settings, value) => settings.ExtractOptions = settings.ExtractOptions with { TextureImagesOnly = value });
+
+    /// <summary>Gets the options of decompiled textures.</summary>
+    public static IReadOnlyList<ContentExportOption> ExportOptions { get; } =
+    [
+        ContentExportOption.Toggle("texture_force_ldr", "Force LDR", "Textures",
+            "Decode HDR textures to 8-bit images instead of EXR.", ["vtex_c"],
+            static settings => settings.ExtractOptions.TextureDecodeFlags.HasFlag(TextureCodec.ForceLDR),
+            static (settings, value) => settings.ExtractOptions = settings.ExtractOptions with
+            {
+                TextureDecodeFlags = value
+                    ? settings.ExtractOptions.TextureDecodeFlags | TextureCodec.ForceLDR
+                    : settings.ExtractOptions.TextureDecodeFlags & ~TextureCodec.ForceLDR,
+            }),
+        ImagesOnlyOption,
+        ContentExportOption.Toggle("texture_latlong_cubemap", "Combine HDR cubemaps", "Textures",
+            "Write HDR cubemaps exported as images only as one lat-long EXR image instead of six faces.", ["vtex_c"],
+            static settings => settings.ExtractOptions.TextureLatLongCombineCubemap,
+            static (settings, value) => settings.ExtractOptions = settings.ExtractOptions with { TextureLatLongCombineCubemap = value }),
+    ];
+
     /// <summary>
     /// Gets or sets the decode flags for texture extraction.
     /// </summary>

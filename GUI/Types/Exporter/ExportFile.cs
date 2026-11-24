@@ -46,11 +46,6 @@ namespace GUI.Types.Exporter
         {
             try
             {
-                if (decompile && !await PreExportDisclaimer(Path.GetExtension(item.ContentPath)).ConfigureAwait(true))
-                {
-                    return;
-                }
-
                 if (decompile && item.CanDecompile())
                 {
                     using var fileContext = new VrfGuiContext(item.ContentPath, vrfGuiContext);
@@ -96,11 +91,11 @@ namespace GUI.Types.Exporter
             {
                 var exporter = new PackageExporter(vrfGuiContext, decompile);
                 exporter.QueueFiles(selectedNode);
-                await exporter.ExecuteMultipleFileExtractAsync().ConfigureAwait(true);
+                exporter.ExecuteMultipleFileExtract();
             }
         }
 
-        public static async Task ExtractFilesFromListViewNodes(List<ListViewItem> items, VrfGuiContext vrfGuiContext, bool decompile)
+        public static void ExtractFilesFromListViewNodes(List<ListViewItem> items, VrfGuiContext vrfGuiContext, bool decompile)
         {
             var exporter = new PackageExporter(vrfGuiContext, decompile);
 
@@ -109,42 +104,7 @@ namespace GUI.Types.Exporter
                 exporter.QueueFiles(item);
             }
 
-            await exporter.ExecuteMultipleFileExtractAsync().ConfigureAwait(true);
-        }
-
-        public static async Task<bool> PreExportDisclaimer(string fileExtension)
-        {
-            var messageString = "";
-
-            switch (fileExtension)
-            {
-                case ".vmap_c":
-
-                    messageString =
-                    """
-                    Decompiling Source2 maps is a difficult process, as such the output will be messy and imperfect, and will not resemble how
-                    real .vmap files are made!
-
-                    - Models will be merged by material across the map.
-                    - Parts of the skybox mesh might be missing.
-                    - The collision of the map will be merged into one mesh using special materials.
-                    - The map will lack lightmap resolution volumes.
-                    - Hammer meshes will be triangulated.
-
-                    It is NOT ADVISED to work on decompiled maps as your first map if you are new to mapping!
-                    """;
-                    break;
-
-                default:
-                    break;
-            }
-
-            if (!string.IsNullOrEmpty(messageString))
-            {
-                return await AppMessageDialogs.ConfirmAsync(messageString, "Decompile warning", MessageIcon.Warning).ConfigureAwait(true);
-            }
-
-            return true;
+            exporter.ExecuteMultipleFileExtract();
         }
     }
 }

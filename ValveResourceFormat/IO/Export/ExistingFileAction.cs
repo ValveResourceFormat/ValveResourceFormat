@@ -5,6 +5,12 @@ namespace ValveResourceFormat.IO;
 /// </summary>
 public enum ExistingFileAction
 {
+    /// <summary>
+    /// Ask <see cref="ContentExporter.ConfirmExistingFiles"/> once, at the first file that exists, or replace the files
+    /// when it is not set.
+    /// </summary>
+    Ask,
+
     /// <summary>Replace the existing file.</summary>
     Overwrite,
 

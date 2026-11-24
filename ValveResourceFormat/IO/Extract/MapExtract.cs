@@ -19,6 +19,23 @@ namespace ValveResourceFormat.IO;
 /// </summary>
 public sealed partial class MapExtract
 {
+    /// <summary>Gets the options of decompiled maps.</summary>
+    public static IReadOnlyList<ContentExportOption> ExportOptions { get; } =
+    [
+        ContentExportOption.Notice("map_decompile_notice", "Decompiled maps may not recompile", "Maps",
+            """
+            Decompiling Source 2 maps is a difficult process, the output is messy and imperfect, and does not resemble how
+            real .vmap files are made.
+
+            - Models are merged by material across the map.
+            - Parts of the skybox mesh might be missing.
+            - The collision of the map is merged into one mesh using special materials.
+            - The map lacks lightmap resolution volumes.
+
+            Working on a decompiled map is NOT ADVISED as your first map if you are new to mapping.
+            """, ["vmap_c"]),
+    ];
+
     /// <summary>Gets the folder containing map lumps.</summary>
     public string LumpFolder { get; private set; } = string.Empty;
 

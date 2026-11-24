@@ -461,7 +461,7 @@ namespace GUI
                 if (selectedItems.Count > 1)
                 {
                     // We're selecting multiple files
-                    await ExportFile.ExtractFilesFromListViewNodes(selectedItems, listView.VrfGuiContext, decompile).ConfigureAwait(true);
+                    ExportFile.ExtractFilesFromListViewNodes(selectedItems, listView.VrfGuiContext, decompile);
                 }
                 else if (selectedItems.Count == 1)
                 {

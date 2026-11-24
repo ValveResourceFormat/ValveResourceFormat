@@ -54,7 +54,7 @@ The **Animation** list at the top of the sidebar holds all animations of the mod
 
     ![Context menu of roshan.vmdl_c in the file list with Decompile & export highlighted](./images/exporting-models-export-menu.webp)
 
-2. Choose **gltf** or **glb** in the output types dialog and click **Continue**.
+2. Choose **gltf** or **glb** in the decompile dialog and click **Continue**.
 
 3. Choose an empty folder, as the export writes several files, and click **Save**.
 
@@ -68,11 +68,15 @@ Textures are named after their source texture plus a hash, such as `roshan_color
 
 ## Decompiling to .vmdl
 
-Choosing **vmdl** in the output types dialog asks for a folder instead of a file. The model is written at its path in the game below that folder, such as `models/creeps/roshan/roshan.vmdl`. A folder inside an addon or mod, either on the `content` or the `game` side, uses the root of that addon or mod. A folder such as `models/creeps` that already ends in the start of the model's path is not repeated.
+Choosing **vmdl** in the decompile dialog asks for a folder instead of a file. The model is written at its path in the game below that folder, such as `models/creeps/roshan/roshan.vmdl`. A folder inside an addon or mod, either on the `content` or the `game` side, uses the root of that addon or mod. A folder such as `models/creeps` that already ends in the start of the model's path is not repeated.
 
 The mesh, physics and animation DMX files are written where the `.vmdl` references them, which can be a different folder than the model. Animation clips and skeletons are written at the path they were authored at. A clip used by several models is written once.
 
-Check **Include dependencies** in the output types dialog to also decompile the materials, textures, animation clips, skeletons and graphs the model references from the same package. Base-game files stay referenced. With glTF output, the dependencies that can be exported to glTF are exported as glTF, and the others are decompiled. If files already exist, you are asked once whether to replace them all or skip them.
+Set **Dependencies** to **Direct** or **All** in the decompile dialog to also decompile the materials, textures, animation clips, skeletons and graphs the model references from the same package. Base-game files stay referenced. With glTF output, the dependencies that can be exported to glTF are exported as glTF, and the others are decompiled. If files already exist, you are asked once whether to replace them all or skip them.
+
+The **Models** options of the dialog leave the animations, the physics or the lower levels of detail out of the `.vmdl`.
+
+To copy a model under a new name, choose **Target folder** as the output layout. You then pick the new `.vmdl` file, and the meshes are written next to it. With **Target folder with rewritten references** (experimental), the files the export writes refer to each other at their new paths.
 
 ## Importing into Blender
 

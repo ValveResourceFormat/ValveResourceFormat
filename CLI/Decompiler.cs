@@ -60,9 +60,7 @@ namespace CLI
         private bool VerifyVPKChecksums;
         private bool CachedManifest;
         private bool Decompile;
-        private bool DecompileDependencies;
-        private bool SkipExisting;
-        private FileExtractOptions ExtractOptions = new();
+        private ContentExportSettings Settings = new();
         private string[] FileFilter = [];
         private string? LinkedFilePath; // The file inside of the package that a "vpk:" input link points to
         private bool HasPathFilter => FileFilter.Length > 0 || LinkedFilePath != null;
@@ -116,7 +114,29 @@ namespace CLI
 
             // https://github.com/Cysharp/ConsoleAppFramework
             // Go to definition on this method to see the generated source code
-            ConsoleApp.Run(args, decompiler.HandleArguments);
+            ConsoleApp.Run(MergeRepeatedOptions(args), decompiler.HandleArguments);
+        }
+
+        /// <summary>
+        /// Joins the values of every --option into one comma-separated value, since a repeated argument keeps only one.
+        /// </summary>
+        private static string[] MergeRepeatedOptions(string[] args)
+        {
+            var values = new List<string>();
+            var otherArgs = new List<string>(args.Length);
+
+            for (var i = 0; i < args.Length; i++)
+            {
+                if (args[i] == "--option" && i + 1 < args.Length)
+                {
+                    values.Add(args[++i]);
+                    continue;
+                }
+
+                otherArgs.Add(args[i]);
+            }
+
+            return values.Count > 1 ? [.. otherArgs, "--option", string.Join(',', values)] : args;
         }
 
         /// <summary>
@@ -136,7 +156,11 @@ namespace CLI
         /// <param name="block">-b, Print the content of specific block(s), example: "DATA" or "RERL,RED2".</param>
         /// <param name="decompile">-d|--vpk_decompile, Decompile supported resource files. Requires --output.</param>
         /// <param name="texture_decode_flags">Decompile textures with the specified decode flags, example: "none", "auto" (default), "ForceLDR" (on top of the automatic flags). Requires --output.</param>
-        /// <param name="decompile_dependencies">When decompiling, also decompile every file the input uses, directly or through other files, that is in the same VPK, addon or mod. Files from elsewhere, such as the base game, stay referenced. Requires --output.</param>
+        /// <param name="dependencies">When decompiling, also decompile the files the input uses that are in the same VPK, addon or mod: "none" (default), "direct" (the files the input references) or "all" (every file it uses, directly or through other files). Files from elsewhere, such as the base game, stay referenced. Requires --output.</param>
+        /// <param name="layout">Where decompiled files are written: "content" (default, at their content path below the addon or mod that --output is in), "folder" (into the --output folder or file name, without the folder the input files share, references are not changed) or "folder_rewrite" (as "folder", and references to files of the same export are rewritten, experimental). Requires --output.</param>
+        /// <param name="dependency_placement">With --layout folder or folder_rewrite, where dependencies are written: "with_main" (default, below the --output folder at their full content path) or "original" (at their content path below the addon or mod).</param>
+        /// <param name="option">Set a decompile option, example: "model_skip_animations=true". Can be repeated, or comma-separated. Use --list_options to list them.</param>
+        /// <param name="list_options">List every decompile option for --option with its values and default.</param>
         /// <param name="skip_existing">Keep files that already exist in the output folder instead of overwriting them. Requires --output.</param>
         /// <param name="skip_softbody_reconstruction">Skip reconstructing soft-body (cloth) physics when decompiling models.</param>
         /// <param name="vpk_list">-l, List all files in the given VPK or folder. File extension and path filters apply.</param>
@@ -168,7 +192,7 @@ namespace CLI
         /// <param name="test_shaders">When using --test, also decompile a few variants of every shader program and reconstruct each shader once.</param>
         /// <param name="test_entity_keys">When using --test, save all unknown entity key hashes to unknown_keys.txt.</param>
         private int HandleArguments(
-            string input,
+            [HideDefaultValue] string input = "",
             bool recursive = false,
             bool recursive_vpk = false,
             [HideDefaultValue] string? vpk_extensions = default,
@@ -183,7 +207,11 @@ namespace CLI
             [HideDefaultValue] string? block = default,
             bool decompile = false,
             [HideDefaultValue] string? texture_decode_flags = default,
-            bool decompile_dependencies = false,
+            [HideDefaultValue] string? dependencies = default,
+            [HideDefaultValue] string? layout = default,
+            [HideDefaultValue] string? dependency_placement = default,
+            [HideDefaultValue] string? option = default,
+            bool list_options = false,
             bool skip_existing = false,
             bool skip_softbody_reconstruction = false,
             bool vpk_list = false,
@@ -220,6 +248,92 @@ namespace CLI
         )
         {
             // When you modify the arguments, don't forget to update the command-line.md documentation file too.
+
+            // Options that only make sense together with another one turn it on
+            test |= test_loader || test_print_files || test_unique_deps || test_particles || test_vertex_attributes || test_gltf || test_shaders || test_entity_keys;
+            decompile |= gltf_export_format != null || output == "-";
+            gltf_export_animations |= gltf_animation_list != null;
+            gltf_export_materials |= gltf_textures_adapt;
+
+            var textureDecodeFlags = TextureCodec.Auto;
+
+            if (texture_decode_flags != null)
+            {
+                if (!Enum.TryParse(texture_decode_flags, ignoreCase: true, out textureDecodeFlags))
+                {
+                    Console.Error.WriteLine($"Unknown texture decode flags \"{texture_decode_flags}\", use any of: {string.Join(", ", Enum.GetNames<TextureCodec>())}.");
+                    return 1;
+                }
+
+                if (textureDecodeFlags == TextureCodec.ForceLDR)
+                {
+                    textureDecodeFlags |= TextureCodec.Auto;
+                }
+            }
+
+            Settings = new ContentExportSettings
+            {
+                ExistingFiles = skip_existing ? ExistingFileAction.Skip : ExistingFileAction.Overwrite,
+                ExtractOptions = new FileExtractOptions
+                {
+                    ReconstructSoftbody = !skip_softbody_reconstruction,
+                    ToolsAssetInfoPathsOnly = tools_asset_info_short,
+                    TextureDecodeFlags = textureDecodeFlags,
+                },
+                GltfExportAnimations = gltf_export_animations,
+                GltfExportMaterials = gltf_export_materials,
+                GltfAdaptTextures = gltf_textures_adapt,
+                GltfExportExtras = gltf_export_extras,
+                GltfComposeAdditiveAnimations = gltf_compose_additive,
+                GltfReduceAnimationKeyframes = !gltf_keep_all_keyframes,
+            };
+
+            var optionValues = new List<(string Name, ContentExportOption Option, string Value)>();
+
+            if (layout != null)
+            {
+                optionValues.Add(("--layout", ContentExportSettings.LayoutOption, layout));
+            }
+
+            if (dependencies != null)
+            {
+                optionValues.Add(("--dependencies", ContentExportSettings.DependenciesOption, dependencies));
+            }
+
+            if (dependency_placement != null)
+            {
+                optionValues.Add(("--dependency_placement", ContentExportSettings.DependencyPlacementOption, dependency_placement));
+            }
+
+            foreach (var optionValue in option?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [])
+            {
+                var separator = optionValue.IndexOf('=', StringComparison.Ordinal);
+                var id = separator < 0 ? optionValue : optionValue[..separator];
+
+                if (separator < 0 || ContentExportOption.Find(id.Trim()) is not { Kind: not ContentExportOptionKind.Notice } exportOption)
+                {
+                    Console.Error.WriteLine($"Unknown --option \"{optionValue}\", use id=value with an id from --list_options.");
+                    return 1;
+                }
+
+                optionValues.Add(($"--option {exportOption.Id}", exportOption, optionValue[(separator + 1)..]));
+            }
+
+            foreach (var (name, exportOption, value) in optionValues)
+            {
+                if (!exportOption.TrySetValue(Settings, value))
+                {
+                    Console.Error.WriteLine($"Unknown value \"{value}\" for {name}, use one of: {exportOption.GetValuesText()}.");
+                    return 1;
+                }
+            }
+
+            if (list_options)
+            {
+                PrintExportOptions();
+                return 0;
+            }
+
             if (string.IsNullOrWhiteSpace(input))
             {
                 Console.Error.WriteLine("--input is empty.");
@@ -279,21 +393,12 @@ namespace CLI
                 return 1;
             }
 
-            // Options that only make sense together with another one turn it on
-            test |= test_loader || test_print_files || test_unique_deps || test_particles || test_vertex_attributes || test_gltf || test_shaders || test_entity_keys;
-            decompile |= gltf_export_format != null || output == "-";
-            gltf_export_animations |= gltf_animation_list != null;
-            gltf_export_materials |= gltf_textures_adapt;
-
             var isSteamInput = input.Equals("steam", StringComparison.OrdinalIgnoreCase) && !Path.Exists(input);
             var hasFilters = vpk_extensions != null || vpk_filepath != null || LinkedFilePath != null;
 
             InputFile = isSteamInput ? "steam" : Path.GetFullPath(input);
             OutputFile = output;
             Decompile = decompile;
-            DecompileDependencies = decompile_dependencies;
-            SkipExisting = skip_existing;
-            ExtractOptions = new FileExtractOptions { ReconstructSoftbody = !skip_softbody_reconstruction, ToolsAssetInfoPathsOnly = tools_asset_info_short };
             RecursiveSearch = recursive;
             RecursiveSearchArchives = recursive_vpk;
             PrintAllBlocks = all;
@@ -367,17 +472,6 @@ namespace CLI
                 }
 
                 GamePath = Path.GetFullPath(game);
-            }
-
-            if (texture_decode_flags != null)
-            {
-                if (!Enum.TryParse(texture_decode_flags, ignoreCase: true, out TextureCodec decodeFlags))
-                {
-                    Console.Error.WriteLine($"Unknown texture decode flags \"{texture_decode_flags}\", use any of: {string.Join(", ", Enum.GetNames<TextureCodec>())}.");
-                    return 1;
-                }
-
-                ExtractOptions = ExtractOptions with { TextureDecodeFlags = decodeFlags == TextureCodec.ForceLDR ? decodeFlags | TextureCodec.Auto : decodeFlags };
             }
 
             var blockNames = Enum.GetNames<BlockType>().Where(name => name != nameof(BlockType.Undefined)).ToArray();
@@ -515,9 +609,9 @@ namespace CLI
                 return 1;
             }
 
-            if (OutputFile == null && (DecompileDependencies || SkipExisting))
+            if (OutputFile == null && (skip_existing || optionValues.Count > 0))
             {
-                Console.Error.WriteLine("--decompile_dependencies and --skip_existing require --output.");
+                Console.Error.WriteLine("--dependencies, --layout, --dependency_placement, --option and --skip_existing require --output.");
                 return 1;
             }
 
@@ -533,9 +627,10 @@ namespace CLI
                 return 1;
             }
 
-            if (OutputToConsole && (GltfExportFormat != null || CachedManifest || DecompileDependencies || SkipExisting))
+            if (OutputToConsole && (GltfExportFormat != null || CachedManifest || skip_existing || Settings.Dependencies != ContentExportDependencies.None
+                || Settings.Layout != ContentExportLayout.ContentPaths))
             {
-                Console.Error.WriteLine("--output - only prints decompiled files, use it without glTF exports, --vpk_cache, --decompile_dependencies or --skip_existing.");
+                Console.Error.WriteLine("--output - only prints decompiled files, use it without glTF exports, --vpk_cache, --dependencies, --layout or --skip_existing.");
                 return 1;
             }
 
@@ -1673,12 +1768,6 @@ namespace CLI
         {
             var gltfModelExporter = new GltfModelExporter(fileLoader)
             {
-                ExportAnimations = GltfExportAnimations,
-                ExportMaterials = GltfExportMaterials,
-                AdaptTextures = GltfExportAdaptTextures,
-                ExportExtras = GltfExportExtras,
-                ComposeAdditiveAnimations = GltfComposeAdditive,
-                ReduceAnimationKeyframes = !GltfKeepAllKeyframes,
                 ProgressReporter = ProgressReporter,
             };
 
@@ -1686,6 +1775,25 @@ namespace CLI
             gltfModelExporter.MeshFilter.UnionWith(GltfMeshFilter);
 
             return gltfModelExporter;
+        }
+
+        private void PrintExportOptions()
+        {
+            foreach (var exportOption in ContentExportOption.All)
+            {
+                if (exportOption.Kind == ContentExportOptionKind.Notice)
+                {
+                    continue;
+                }
+
+                Console.WriteLine($"{exportOption.Id}={exportOption.GetValuesText()} (default {exportOption.GetValue(Settings)})");
+                Console.WriteLine($"    {exportOption.Category}: {exportOption.Description}");
+
+                if (exportOption.FileExtensions.Count > 0)
+                {
+                    Console.WriteLine($"    Applies to: {string.Join(", ", exportOption.FileExtensions)}");
+                }
+            }
         }
 
         private void Warn(string message)

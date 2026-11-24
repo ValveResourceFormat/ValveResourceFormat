@@ -163,6 +163,7 @@ public partial class Decompiler
 
         var outputFolder = OutputIsDirectory ? OutputFile : Path.GetDirectoryName(OutputFile)!;
         var outputRoot = OutputToConsole ? outputFolder : ContentPaths.ResolveOutputRoot(outputFolder, items.Select(static item => item.ContentPath));
+        var targetFolder = Settings.Layout != ContentExportLayout.ContentPaths ? outputFolder : null;
 
         if (!OutputToConsole)
         {
@@ -171,9 +172,8 @@ public partial class Decompiler
 
         return new ContentExporter(outputRoot)
         {
-            IncludeDependencies = DecompileDependencies,
-            ExistingFileAction = SkipExisting ? ExistingFileAction.Skip : ExistingFileAction.Overwrite,
-            ExtractOptions = ExtractOptions,
+            Settings = Settings,
+            TargetFolder = targetFolder,
             Progress = ProgressReporter,
             FileWritten = path => PrintLine($"--- Dump written to \"{path}\""),
             FileSkipped = path => PrintLine($"--- Skipped \"{path}\", it already exists"),
@@ -205,13 +205,12 @@ public partial class Decompiler
     }
 
     /// <summary>
-    /// Gets the options that change what --vpk_cache records, other than those the exporter knows of.
+    /// Gets the options that change what --vpk_cache records, other than the settings the exporter knows of.
     /// </summary>
     private string GetManifestOptions()
     {
         return string.Create(CultureInfo.InvariantCulture,
-            $"decompile={Decompile} gltf={GltfExportFormat} materials={GltfExportMaterials} animations={GltfExportAnimations} adapt_textures={GltfExportAdaptTextures}" +
-            $" extras={GltfExportExtras} compose_additive={GltfComposeAdditive} keep_all_keyframes={GltfKeepAllKeyframes} meshes={string.Join(',', GltfMeshFilter)} animation_list={string.Join(',', GltfAnimationFilter)}");
+            $"decompile={Decompile} gltf={GltfExportFormat} meshes={string.Join(',', GltfMeshFilter)} animation_list={string.Join(',', GltfAnimationFilter)}");
     }
 
     /// <summary>

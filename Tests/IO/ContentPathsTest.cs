@@ -93,6 +93,25 @@ namespace Tests.IO
         }
 
         [Test]
+        public async Task TargetFolderLayoutRelocatesFilesIntoTheTarget()
+        {
+            const string Main = "models/heroes/haze";
+            const string Target = "models/heroes/haze_orig";
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(ContentPaths.Relocate("models/heroes/haze/haze_body.dmx", Main, Target, false, ContentDependencyPlacement.WithMain)).IsEqualTo("models/heroes/haze_orig/haze_body.dmx");
+                await Assert.That(ContentPaths.Relocate("models/heroes/haze/anims/idle.dmx", Main, Target, false, ContentDependencyPlacement.WithMain)).IsEqualTo("models/heroes/haze_orig/anims/idle.dmx");
+                await Assert.That(ContentPaths.Relocate("models/heroes/haze_other/a.dmx", Main, Target, false, ContentDependencyPlacement.WithMain)).IsEqualTo("models/heroes/haze_orig/models/heroes/haze_other/a.dmx");
+                await Assert.That(ContentPaths.Relocate("Models/Heroes/Haze/haze.vmdl", Main, Target, false, ContentDependencyPlacement.OriginalPaths)).IsEqualTo("models/heroes/haze_orig/haze.vmdl");
+                await Assert.That(ContentPaths.Relocate("materials/haze.vmat", Main, Target, true, ContentDependencyPlacement.WithMain)).IsEqualTo("models/heroes/haze_orig/materials/haze.vmat");
+                await Assert.That(ContentPaths.Relocate("materials/haze.vmat", Main, Target, true, ContentDependencyPlacement.OriginalPaths)).IsEqualTo("materials/haze.vmat");
+                await Assert.That(ContentPaths.Relocate("models/heroes/haze/haze.vmdl", Main, string.Empty, false, ContentDependencyPlacement.WithMain)).IsEqualTo("haze.vmdl");
+                await Assert.That(ContentPaths.Relocate("models/heroes/haze/haze.vmdl", string.Empty, Target, false, ContentDependencyPlacement.WithMain)).IsEqualTo("models/heroes/haze_orig/models/heroes/haze/haze.vmdl");
+            }
+        }
+
+        [Test]
         public async Task NormalizeResolvesDotsAndBringsEscapingPathsBackUnderTheRoot()
         {
             var absolutePath = Path.Join(Path.GetTempPath(), "materials", "crate.png");

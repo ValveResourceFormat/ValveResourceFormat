@@ -15,7 +15,9 @@ namespace ValveResourceFormat.IO;
 /// <para>
 /// Every file is written to <see cref="OutputRoot"/> at its content path (<see cref="ContentFile.FileName"/>,
 /// <see cref="SubFile.FileName"/>), except a main file given an explicit target. A path that would leave the root is
-/// brought back under it with a warning, see <see cref="ContentPaths.Normalize(string, out bool)"/>.
+/// brought back under it with a warning, see <see cref="ContentPaths.Normalize(string, out bool)"/>. The
+/// <see cref="ContentExportSettings.Layout"/> of <see cref="Settings"/> moves the files of an export into
+/// <see cref="TargetFolder"/>.
 /// </para>
 /// <para>
 /// One instance covers one export run and may be used from several threads. A path holds one file per run: of the files
@@ -84,11 +86,13 @@ public sealed class ContentExporter
     private readonly HashSet<string> ReservedPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, Lock> PathLocks = new(StringComparer.OrdinalIgnoreCase);
     private readonly AsyncLocal<int> CurrentItemOrder = new();
+    private readonly AsyncLocal<bool> CurrentItemIsDependency = new();
     private readonly HashSet<string> HandledFiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> NonGltfItems = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<IFileLoader, GltfModelExporter> GltfExporters = new(ReferenceEqualityComparer.Instance);
     private readonly NullFileLoader NullFileLoader = new();
     private ExistingFileAction? ConfirmedExistingFileAction;
+    private FileExtractOptions? extractOptions;
     private volatile bool Cancelled;
     private int FilesWritten;
     private int FilesFailed;
@@ -108,36 +112,54 @@ public sealed class ContentExporter
     public string OutputRoot { get; }
 
     /// <summary>
-    /// Gets whether exporting a resource also exports every resource it references, directly or through other
-    /// references, that is in the same <see cref="ContentExportSource"/>. Resources that only exist as part of another,
-    /// such as meshes, are not exported on their own but their references are followed. A file with no source gets a
-    /// warning that its dependencies are not exported.
+    /// Gets the settings of the export: the layout, which dependencies are exported, what happens to existing files and
+    /// the options of the decompilers and of glTF exports. They must not change while an export runs.
     /// </summary>
-    public bool IncludeDependencies { get; init; }
+    public ContentExportSettings Settings { get; init; } = new();
 
     /// <summary>
-    /// Gets what to do with files that existed before the export, when <see cref="ConfirmExistingFiles"/> is not set.
-    /// Defaults to <see cref="ExistingFileAction.Overwrite"/>.
+    /// Gets the full path of the folder the exported files go into with a target folder
+    /// <see cref="ContentExportSettings.Layout"/>, <see cref="OutputRoot"/> or a folder below it. Defaults to
+    /// <see cref="OutputRoot"/>.
     /// </summary>
-    public ExistingFileAction ExistingFileAction { get; init; }
+    public string? TargetFolder { get; init; }
 
     /// <summary>
     /// Gets a callback asked once, with the path of the first file that already exists, what to do with every existing
-    /// file of the export. It may be called from any thread the export runs on.
+    /// file of the export, when <see cref="ContentExportSettings.ExistingFiles"/> is <see cref="ExistingFileAction.Ask"/>.
+    /// It may be called from any thread the export runs on.
     /// </summary>
     public Func<string, ExistingFileAction>? ConfirmExistingFiles { get; init; }
 
-    /// <summary>Gets the options resources are decompiled with.</summary>
-    public FileExtractOptions ExtractOptions { get; init; } = new();
+    /// <summary>
+    /// Gets the options resources are decompiled with: those of <see cref="Settings"/>, with the
+    /// <see cref="FileExtractOptions.ReferenceMap"/> of the running export.
+    /// </summary>
+    internal FileExtractOptions ExtractOptions => extractOptions ?? Settings.ExtractOptions;
+
+    /// <summary>
+    /// Gets where the files of the running export are written, with a
+    /// <see cref="ContentExportLayout.TargetFolderRewriteReferences"/> layout.
+    /// </summary>
+    internal ContentPathMap? ReferenceMap { get; private set; }
+
+    /// <summary>
+    /// Gets or sets the content folder the items of the running export share, which a
+    /// <see cref="ContentExportLayout.TargetFolder"/> layout removes from their paths.
+    /// </summary>
+    internal string MainFolder { get; set; } = string.Empty;
+
+    /// <summary>Gets the content path of <see cref="TargetFolder"/>, empty for <see cref="OutputRoot"/>.</summary>
+    internal string TargetContentFolder => TargetFolder == null ? string.Empty : ContentPaths.Normalize(Path.GetRelativePath(OutputRoot, TargetFolder));
 
     /// <summary>Gets the reporter extractors send their progress messages to.</summary>
     public IProgress<string>? Progress { get; init; }
 
     /// <summary>
     /// Gets a function that creates the glTF exporter for the items with a glTF <see cref="ContentExportItem.Output"/>,
-    /// given the loader their dependencies are read through. It is called once per loader, and its
-    /// <see cref="GltfModelExporter.Exporter"/> is set to this exporter. When not set, a <see cref="GltfModelExporter"/>
-    /// with its default options that reports to <see cref="Progress"/> is used.
+    /// given the loader their dependencies are read through. It is called once per loader, its
+    /// <see cref="GltfModelExporter.Exporter"/> is set to this exporter and its options to those of <see cref="Settings"/>.
+    /// When not set, a <see cref="GltfModelExporter"/> that reports to <see cref="Progress"/> is used.
     /// </summary>
     public Func<IFileLoader, GltfModelExporter>? GltfExporterFactory { get; init; }
 
@@ -249,9 +271,38 @@ public sealed class ContentExporter
     }
 
     /// <summary>
-    /// Gets the full path a content path is written at.
+    /// Gets the full path a content path is written at, following the layout of <see cref="Settings"/>.
     /// </summary>
-    public string GetOutputPath(string contentPath) => Path.Join(OutputRoot, NormalizeContentPath(contentPath));
+    public string GetOutputPath(string contentPath) => GetFullPath(NormalizeContentPath(contentPath));
+
+    /// <summary>
+    /// Gets the full path a normalized content path is written at. A <see cref="ContentExportLayout.TargetFolder"/>
+    /// layout relocates it, see <see cref="ContentPaths.Relocate"/>.
+    /// </summary>
+    private string GetFullPath(string contentPath)
+    {
+        if (Settings.Layout == ContentExportLayout.TargetFolder)
+        {
+            contentPath = ContentPaths.Relocate(contentPath, MainFolder, TargetContentFolder, CurrentItemIsDependency.Value, Settings.DependencyPlacement);
+        }
+
+        return Path.Join(OutputRoot, contentPath);
+    }
+
+    /// <summary>
+    /// Gets the content path a file is written at with a <see cref="ContentExportLayout.TargetFolderRewriteReferences"/>
+    /// layout, or the path itself.
+    /// </summary>
+    internal string MapContentPath(string contentPath) => ReferenceMap?.Map(contentPath) ?? contentPath;
+
+    /// <summary>
+    /// Sets where the files of the running export are written, see <see cref="FileExtractOptions.ReferenceMap"/>.
+    /// </summary>
+    internal void SetReferenceMap(ContentPathMap referenceMap)
+    {
+        ReferenceMap = referenceMap;
+        extractOptions = Settings.ExtractOptions with { ReferenceMap = referenceMap };
+    }
 
     /// <summary>
     /// Claims a resource for export, so that it is exported once.
@@ -263,8 +314,8 @@ public sealed class ContentExporter
     /// </returns>
     internal bool TryBeginExport(string contentPath)
     {
-        var key = GetHandledKey(contentPath);
-        var generatingResource = GetGeneratingResource(key);
+        var key = GetClaimKey(contentPath);
+        var generatingResource = GetGeneratingResource(GetHandledKey(contentPath)) is { } generator ? GetClaimKey(generator) : null;
 
         lock (StateLock)
         {
@@ -290,10 +341,16 @@ public sealed class ContentExporter
     /// Resources the compiler generated from another one wait for it, and files in a map's folder wait for the map.
     /// </para>
     /// <para>
-    /// With <see cref="IncludeDependencies"/>, every resource an item references, directly or through other references,
-    /// that is in the item's <see cref="ContentExportItem.Source"/> is exported as an item of its own. Resources that
-    /// only exist as part of another, such as meshes, are not, but their references are followed. A dependency of a glTF
-    /// item that can be exported to glTF is exported to glTF too.
+    /// With <see cref="ContentExportSettings.Dependencies"/>, the resources an item references that are in the item's
+    /// <see cref="ContentExportItem.Source"/> are exported as items of their own. Resources that only exist as part of
+    /// another, such as meshes, are not, but their references are followed. A dependency of a glTF item that can be
+    /// exported to glTF is exported to glTF too. An item with no source gets a warning that its dependencies are not
+    /// exported.
+    /// </para>
+    /// <para>
+    /// With a <see cref="ContentExportLayout.TargetFolderRewriteReferences"/> layout, every resource is decompiled with
+    /// its <see cref="Resource.FileName"/> set to where it is written, and with a <see cref="FileExtractOptions.ReferenceMap"/>
+    /// of every file of the export.
     /// </para>
     /// <para>
     /// The files of a compiled shader in a package or a folder are decompiled together once, from the file of the highest
@@ -316,16 +373,15 @@ public sealed class ContentExporter
     }
 
     /// <summary>
-    /// Decompiles a resource and writes its files. With <see cref="IncludeDependencies"/>, its dependencies are then
-    /// exported in parallel.
+    /// Decompiles a resource and writes its files. Its dependencies are not exported, see
+    /// <see cref="Export(IEnumerable{ContentExportItem}, CancellationToken)"/>.
     /// </summary>
     /// <param name="resource">The resource, its <see cref="Resource.FileName"/> must be its content path.</param>
     /// <param name="fileLoader">The loader the resource's dependencies are read through while decompiling it.</param>
-    /// <param name="source">Where the resource came from, needed for <see cref="IncludeDependencies"/>.</param>
     /// <param name="targetFile">A full path to write the main file to instead of its content path.</param>
     /// <param name="cancellationToken">Stops the export between files.</param>
     /// <returns>Whether every file of the resource was written.</returns>
-    public bool Export(Resource resource, IFileLoader fileLoader, ContentExportSource? source = null, string? targetFile = null, CancellationToken cancellationToken = default)
+    public bool Export(Resource resource, IFileLoader fileLoader, string? targetFile = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(resource.FileName);
 
@@ -338,21 +394,8 @@ public sealed class ContentExporter
             Warning?.Invoke($"Extension '.{extension}' might be more suitable than the one provided '{targetExtension}'");
         }
 
-        bool written;
-
-        using (var contentFile = FileExtract.Extract(resource, fileLoader, Progress, ExtractOptions))
-        {
-            written = Export(contentFile, targetFile, cancellationToken);
-        }
-
-        if (IncludeDependencies && source != null)
-        {
-            var queue = new ContentExportQueue(this, []);
-            queue.AddDependenciesOf(resource, fileLoader, source);
-            queue.Run(cancellationToken);
-        }
-
-        return written;
+        using var contentFile = FileExtract.Extract(resource, fileLoader, Progress, ExtractOptions);
+        return Export(contentFile, targetFile, cancellationToken);
     }
 
     /// <summary>
@@ -376,7 +419,7 @@ public sealed class ContentExporter
         var files = new List<PlannedFile>();
         PlanContentFile(contentFile, targetFile, files);
 
-        if (ConfirmExistingFiles != null || ExistingFileAction == ExistingFileAction.Cancel)
+        if ((ConfirmExistingFiles != null && Settings.ExistingFiles == ExistingFileAction.Ask) || Settings.ExistingFiles == ExistingFileAction.Cancel)
         {
             ConfirmExistingFilesOf(files);
         }
@@ -420,8 +463,7 @@ public sealed class ContentExporter
             return;
         }
 
-        var normalizedPath = NormalizeContentPath(contentPath);
-        Write(targetFile ?? Path.Join(OutputRoot, normalizedPath), data);
+        Write(targetFile ?? GetFullPath(NormalizeContentPath(contentPath)), data);
     }
 
     /// <summary>
@@ -515,7 +557,7 @@ public sealed class ContentExporter
             foreach (var subFile in contentFile.SubFiles)
             {
                 var subFilePath = NormalizeContentPath(subFile.FileName);
-                files.Add(new PlannedFile(Path.Join(OutputRoot, subFilePath), subFilePath, subFile));
+                files.Add(new PlannedFile(GetFullPath(subFilePath), subFilePath, subFile));
             }
         }
 
@@ -529,7 +571,7 @@ public sealed class ContentExporter
             return;
         }
 
-        files.Add(new PlannedFile(targetFile ?? Path.Join(OutputRoot, contentPath), contentPath, Data: contentFile.Data));
+        files.Add(new PlannedFile(targetFile ?? GetFullPath(contentPath), contentPath, Data: contentFile.Data));
     }
 
     /// <returns>Whether the sub file was written or had nothing to write.</returns>
@@ -659,10 +701,15 @@ public sealed class ContentExporter
             return ExistingFileAction.Overwrite;
         }
 
-        var action = ExistingFileAction;
+        var action = Settings.ExistingFiles;
 
-        if (ConfirmExistingFiles != null)
+        if (action == ExistingFileAction.Ask)
         {
+            if (ConfirmExistingFiles == null)
+            {
+                return ExistingFileAction.Overwrite;
+            }
+
             lock (ExistingFilesLock)
             {
                 ConfirmedExistingFileAction ??= ConfirmExistingFiles(path);
@@ -680,9 +727,14 @@ public sealed class ContentExporter
     }
 
     /// <summary>
-    /// Sets the position in export order of the item that the files written on this thread, and the tasks it starts, belong to.
+    /// Sets the position in export order of the item that the files written on this thread, and the tasks it starts,
+    /// belong to, and whether it is a dependency.
     /// </summary>
-    internal void SetCurrentItemOrder(int order) => CurrentItemOrder.Value = order;
+    internal void SetCurrentItem(int order, bool isDependency)
+    {
+        CurrentItemOrder.Value = order;
+        CurrentItemIsDependency.Value = isDependency;
+    }
 
     internal void ThrowIfCancelled(CancellationToken cancellationToken)
     {
@@ -706,7 +758,7 @@ public sealed class ContentExporter
     /// <param name="contentPath">Content path of the resource, compiled or not.</param>
     internal void MarkHandled(string contentPath)
     {
-        var key = GetHandledKey(contentPath);
+        var key = GetClaimKey(contentPath);
 
         lock (StateLock)
         {
@@ -720,7 +772,7 @@ public sealed class ContentExporter
     /// <param name="contentPath">Content path of the resource, compiled or not.</param>
     internal void MarkIncludedInGltf(string contentPath)
     {
-        var key = GetHandledKey(contentPath);
+        var key = GetClaimKey(contentPath);
 
         lock (StateLock)
         {
@@ -737,7 +789,7 @@ public sealed class ContentExporter
     /// </summary>
     internal void AddNonGltfItems(IEnumerable<string> contentPaths)
     {
-        var keys = contentPaths.Select(GetHandledKey).ToList();
+        var keys = contentPaths.Select(GetClaimKey).ToList();
 
         lock (StateLock)
         {
@@ -758,6 +810,7 @@ public sealed class ContentExporter
                 ProgressReporter = Progress,
             };
 
+            Settings.ApplyTo(gltfExporter);
             gltfExporter.Exporter = this;
             return gltfExporter;
         });
@@ -781,6 +834,12 @@ public sealed class ContentExporter
 
     internal static string GetHandledKey(string contentPath)
         => ContentPaths.TrimCompiledSuffix(ContentPaths.Normalize(contentPath));
+
+    /// <summary>
+    /// Gets the key a resource is claimed by, its handled key where it is written, so a file whose name an extractor
+    /// already mapped claims the same resource.
+    /// </summary>
+    private string GetClaimKey(string contentPath) => GetHandledKey(MapContentPath(contentPath));
 
     private string NormalizeContentPath(string path)
     {

@@ -26,7 +26,7 @@ Characters exported to glTF arrive in Blender rigged, with their skeleton and an
 
     ![Context menu of haze.vmdl_c with Decompile & export highlighted](./images/characters-in-blender-context-menu.webp)
 
-2. Choose **gltf** in the output types dialog and click **Continue**.
+2. Choose **gltf** in the decompile dialog and click **Continue**.
 
 3. Choose an empty folder and click **Save**.
 

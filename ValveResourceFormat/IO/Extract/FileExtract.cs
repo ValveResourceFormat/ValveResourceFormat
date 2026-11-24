@@ -187,6 +187,21 @@ namespace ValveResourceFormat.IO
         public bool ReconstructSoftbody { get; init; } = true;
 
         /// <summary>
+        /// Gets whether a decompiled model leaves out its animations, see <see cref="ModelExtract.SkipAnimations"/>.
+        /// </summary>
+        public bool ModelSkipAnimations { get; init; }
+
+        /// <summary>
+        /// Gets whether a decompiled model leaves out its physics, see <see cref="ModelExtract.SkipPhysics"/>.
+        /// </summary>
+        public bool ModelSkipPhysics { get; init; }
+
+        /// <summary>
+        /// Gets whether a decompiled model keeps only its most detailed level of detail, see <see cref="ModelExtract.HighestLodOnly"/>.
+        /// </summary>
+        public bool ModelHighestLodOnly { get; init; }
+
+        /// <summary>
         /// Gets the flags textures are decoded with. Defaults to <see cref="TextureCodec.Auto"/>.
         /// </summary>
         public TextureCodec TextureDecodeFlags { get; init; } = TextureCodec.Auto;
@@ -197,9 +212,25 @@ namespace ValveResourceFormat.IO
         public bool TextureImagesOnly { get; init; }
 
         /// <summary>
+        /// Gets whether HDR cubemaps are written as one lat-long image, see <see cref="TextureExtract.LatLongCombineCubemap"/>. Defaults to true.
+        /// </summary>
+        public bool TextureLatLongCombineCubemap { get; init; } = true;
+
+        /// <summary>
         /// Gets whether tools asset info files list only the paths of their assets, without their dependencies.
         /// </summary>
         public bool ToolsAssetInfoPathsOnly { get; init; }
+
+        /// <summary>
+        /// Gets the parameters compiled shaders are decompiled with. Defaults to <see cref="ShaderExtract.ShaderExtractParams.Export"/>.
+        /// </summary>
+        public ShaderExtract.ShaderExtractParams ShaderParams { get; init; } = ShaderExtract.ShaderExtractParams.Export;
+
+        /// <summary>
+        /// Gets where the files of the current export are written, for references to them to be rewritten. Null when
+        /// references are kept as they are.
+        /// </summary>
+        public ContentPathMap? ReferenceMap { get; init; }
     }
 
     /// <summary>
@@ -246,7 +277,14 @@ namespace ValveResourceFormat.IO
                     return new MapExtract(resource, fileLoader) { ProgressReporter = progress, ReconstructSoftbody = options.ReconstructSoftbody }.ToContentFile();
 
                 case ResourceType.Model:
-                    return new ModelExtract(resource, fileLoader) { ProgressReporter = progress, ReconstructSoftbody = options.ReconstructSoftbody }.ToContentFile();
+                    return new ModelExtract(resource, fileLoader)
+                    {
+                        ProgressReporter = progress,
+                        ReconstructSoftbody = options.ReconstructSoftbody,
+                        SkipAnimations = options.ModelSkipAnimations,
+                        SkipPhysics = options.ModelSkipPhysics,
+                        HighestLodOnly = options.ModelHighestLodOnly,
+                    }.ToContentFile();
 
                 case ResourceType.AnimationGraph:
                 {
@@ -270,7 +308,12 @@ namespace ValveResourceFormat.IO
                     return ExtractSound(resource);
 
                 case ResourceType.Texture:
-                    return new TextureExtract(resource) { DecodeFlags = options.TextureDecodeFlags, IgnoreVtexFile = options.TextureImagesOnly }.ToContentFile();
+                    return new TextureExtract(resource)
+                    {
+                        DecodeFlags = options.TextureDecodeFlags,
+                        IgnoreVtexFile = options.TextureImagesOnly,
+                        LatLongCombineCubemap = options.TextureLatLongCombineCubemap,
+                    }.ToContentFile();
 
                 case ResourceType.Particle:
                     return CreateTextFile(resource.DataBlock!);

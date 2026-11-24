@@ -19,7 +19,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
 {
     private sealed record ResourceHeader(ResourceType Type, string[] References, string? LumpFolder);
 
-    private sealed record Dependency(string Key, ContentExportSource Source, IFileLoader FileLoader, ContentExportOutput Output);
+    private sealed record Dependency(string Key, ContentExportSource Source, IFileLoader FileLoader, ContentExportOutput Output, bool FromMainItem);
 
     private sealed class QueuedItem(ContentExportItem item)
     {
@@ -34,16 +34,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
 
     private readonly ContentExporter Exporter = exporter;
     private readonly List<ContentExportItem> Items = [.. items];
-    private readonly List<(ResourceHeader Header, ContentExportSource Source, IFileLoader FileLoader)> DependencyRoots = [];
     private readonly ConcurrentDictionary<string, Lazy<(bool Exists, ResourceHeader? Header)>> SourceHeaders = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// Adds the dependencies of a resource that was already exported.
-    /// </summary>
-    internal void AddDependenciesOf(Resource resource, IFileLoader fileLoader, ContentExportSource source)
-    {
-        DependencyRoots.Add((new ResourceHeader(resource.ResourceType, GetReferences(resource.ExternalReferences), null), source, fileLoader));
-    }
 
     public void Run(CancellationToken cancellationToken)
     {
@@ -80,7 +71,12 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
             Complete(queuedItem.ShaderFiles, ContentExportResult.Handled);
         }
 
-        if (Exporter.IncludeDependencies)
+        var settings = Exporter.Settings;
+        var rewritesReferences = settings.Layout == ContentExportLayout.TargetFolderRewriteReferences;
+
+        Exporter.MainFolder = ContentPaths.GetCommonDirectory(selected.Select(static queuedItem => queuedItem.Item.ContentPath));
+
+        if (settings.Dependencies != ContentExportDependencies.None)
         {
             foreach (var queuedItem in queued)
             {
@@ -89,8 +85,20 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
                     Exporter.Warning?.Invoke($"Dependencies of \"{queuedItem.Item.Origin ?? queuedItem.Item.ContentPath}\" are not exported, it is not in an addon or mod folder.");
                 }
             }
+        }
 
-            AddDependencies(queued, selected, parallelOptions);
+        var consumed = settings.Dependencies != ContentExportDependencies.None || rewritesReferences
+            ? AddDependencies(queued, selected, parallelOptions)
+            : [];
+
+        if (rewritesReferences)
+        {
+            if (ContentPaths.FindContentRoot(Exporter.TargetFolder ?? Exporter.OutputRoot) == null)
+            {
+                Exporter.Warning?.Invoke($"\"{Exporter.TargetFolder ?? Exporter.OutputRoot}\" is not in an addon or mod folder, rewritten references are relative to \"{Exporter.OutputRoot}\".");
+            }
+
+            Exporter.SetReferenceMap(CreateReferenceMap([.. selected.Union(queued)], consumed));
         }
 
         Exporter.AddNonGltfItems(queued
@@ -255,13 +263,20 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
         }
     }
 
+    /// <summary>
+    /// Follows the references of the items to the resources they consume, such as meshes, and adds the resources that
+    /// <see cref="ContentExportSettings.Dependencies"/> asks for as items.
+    /// </summary>
     /// <param name="queued">The items to export, dependencies are added to them.</param>
     /// <param name="selected">Every item of the export, including those that are not exported again.</param>
     /// <param name="parallelOptions">How headers are read.</param>
-    private void AddDependencies(List<QueuedItem> queued, List<QueuedItem> selected, ParallelOptions parallelOptions)
+    /// <returns>The resources the items consume, and whether an item that is not a dependency consumes them.</returns>
+    private List<(string Key, bool FromMainItem)> AddDependencies(List<QueuedItem> queued, List<QueuedItem> selected, ParallelOptions parallelOptions)
     {
+        var depth = Exporter.Settings.Dependencies;
         var known = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var pending = new List<Dependency>();
+        var consumed = new List<(string Key, bool FromMainItem)>();
 
         foreach (var queuedItem in selected)
         {
@@ -271,7 +286,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
             }
         }
 
-        void Follow(ResourceHeader? header, ContentExportSource? source, IFileLoader fileLoader, ContentExportOutput output)
+        void Follow(ResourceHeader? header, ContentExportSource? source, IFileLoader fileLoader, ContentExportOutput output, bool fromMainItem)
         {
             if (header == null || source == null)
             {
@@ -282,7 +297,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
             {
                 if (known.Add(GetDependencyKey(source, name)))
                 {
-                    pending.Add(new Dependency(name, source, fileLoader, output));
+                    pending.Add(new Dependency(name, source, fileLoader, output, fromMainItem));
                 }
             }
         }
@@ -290,12 +305,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
         foreach (var queuedItem in queued)
         {
             var item = queuedItem.Item;
-            Follow(queuedItem.Header, item.Source, Exporter.GetFileLoader(item), IsGltf(item.Output) ? item.Output : ContentExportOutput.Decompile);
-        }
-
-        foreach (var (header, source, fileLoader) in DependencyRoots)
-        {
-            Follow(header, source, fileLoader, ContentExportOutput.Decompile);
+            Follow(queuedItem.Header, item.Source, Exporter.GetFileLoader(item), IsGltf(item.Output) ? item.Output : ContentExportOutput.Decompile, fromMainItem: true);
         }
 
         while (pending.Count > 0)
@@ -317,7 +327,15 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
 
                 var dependency = dependencies[i];
 
-                if (header == null || !ContentExporter.ConsumedDependencyTypes.Contains(header.Type))
+                if (header != null && ContentExporter.ConsumedDependencyTypes.Contains(header.Type))
+                {
+                    consumed.Add((dependency.Key, dependency.FromMainItem));
+                }
+                else if (depth == ContentExportDependencies.None || (depth == ContentExportDependencies.Direct && !dependency.FromMainItem))
+                {
+                    continue;
+                }
+                else
                 {
                     var contentPath = dependency.Key + GameFileLoader.CompiledFileSuffix;
                     var item = new ContentExportItem
@@ -334,9 +352,48 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
                     queued.Add(new QueuedItem(item) { Header = header });
                 }
 
-                Follow(header, dependency.Source, dependency.FileLoader, dependency.Output);
+                Follow(header, dependency.Source, dependency.FileLoader, dependency.Output, dependency.FromMainItem && ContentExporter.ConsumedDependencyTypes.Contains(header?.Type ?? ResourceType.Unknown));
             }
         }
+
+        return consumed;
+    }
+
+    /// <summary>
+    /// Maps the content path of every item, every resource they consume and the folder of every map to where it is
+    /// written, see <see cref="ContentPaths.Relocate"/>. A main file with a target file takes its name.
+    /// </summary>
+    private ContentPathMap CreateReferenceMap(List<QueuedItem> exported, List<(string Key, bool FromMainItem)> consumed)
+    {
+        var map = new ContentPathMap();
+        var settings = Exporter.Settings;
+
+        string Relocate(string contentPath, bool isDependency)
+            => ContentPaths.Relocate(contentPath, Exporter.MainFolder, Exporter.TargetContentFolder, isDependency, settings.DependencyPlacement);
+
+        foreach (var queuedItem in exported)
+        {
+            var item = queuedItem.Item;
+            var relocated = item.TargetFile != null
+                ? ContentPaths.ChangeExtension(Path.GetRelativePath(Exporter.OutputRoot, item.TargetFile), Path.GetExtension(queuedItem.Key))
+                : Relocate(queuedItem.Key, item.IsDependency);
+
+            map.Add(queuedItem.Key, relocated);
+
+            if (queuedItem.Header?.LumpFolder is { } lumpFolder)
+            {
+                map.AddFolder(lumpFolder, lumpFolder.Equals(ContentPaths.ChangeExtension(queuedItem.Key, null), StringComparison.OrdinalIgnoreCase)
+                    ? ContentPaths.ChangeExtension(relocated, null)
+                    : Relocate(lumpFolder, item.IsDependency));
+            }
+        }
+
+        foreach (var (key, fromMainItem) in consumed)
+        {
+            map.Add(key, Relocate(key, !fromMainItem));
+        }
+
+        return map;
     }
 
     /// <summary>
@@ -517,7 +574,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
 
                 try
                 {
-                    Exporter.SetCurrentItemOrder(next.Rank);
+                    Exporter.SetCurrentItem(next.Rank, next.Item.IsDependency);
                     Export(next.Item, cancellationToken);
                 }
                 finally
@@ -610,6 +667,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
         }
 
         using var stream = item.Open();
+        var contentPath = Exporter.MapContentPath(item.ContentPath);
 
         if (item.Output == ContentExportOutput.Raw)
         {
@@ -625,13 +683,13 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
                 }
             }
 
-            Exporter.WriteFile(item.ContentPath, data, item.TargetFile);
+            Exporter.WriteFile(contentPath, data, item.TargetFile);
             return true;
         }
 
         if (!ContentPaths.HasCompiledSuffix(item.ContentPath) && !IsResource(stream))
         {
-            return ExportNonResource(item, stream, cancellationToken);
+            return ExportNonResource(item, contentPath, stream, cancellationToken);
         }
 
         using var resource = new Resource
@@ -648,34 +706,40 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
             gameFileLoader.FindGameFromResource(resource);
         }
 
+        resource.FileName = contentPath;
+
         if (IsGltf(item.Output) && GltfModelExporter.CanExport(resource))
         {
-            Exporter.GetGltfExporter(fileLoader).Export(resource, GetGltfPath(item), cancellationToken);
+            Exporter.GetGltfExporter(fileLoader).Export(resource, GetGltfPath(item, contentPath), cancellationToken);
             return true;
         }
 
         return Exporter.Export(resource, fileLoader, targetFile: item.TargetFile, cancellationToken: cancellationToken);
     }
 
-    private bool ExportNonResource(ContentExportItem item, Stream stream, CancellationToken cancellationToken)
+    /// <param name="item">The item.</param>
+    /// <param name="contentPath">The content path the item is written at.</param>
+    /// <param name="stream">The contents of the item.</param>
+    /// <param name="cancellationToken">Stops the export between files.</param>
+    private bool ExportNonResource(ContentExportItem item, string contentPath, Stream stream, CancellationToken cancellationToken)
     {
         if (IsGltf(item.Output) && FileExtract.PeekMagic(stream) == NavMeshFile.MAGIC)
         {
             var navMesh = new NavMeshFile();
             navMesh.Read(stream);
 
-            Exporter.GetGltfExporter(Exporter.GetFileLoader(item)).Export(navMesh, item.ContentPath, GetGltfPath(item), cancellationToken);
+            Exporter.GetGltfExporter(Exporter.GetFileLoader(item)).Export(navMesh, contentPath, GetGltfPath(item, contentPath), cancellationToken);
             return true;
         }
 
-        using var contentFile = FileExtract.ExtractNonResource(stream, item.ContentPath, Exporter.ExtractOptions);
+        using var contentFile = FileExtract.ExtractNonResource(stream, contentPath, Exporter.ExtractOptions);
 
         if (contentFile != null)
         {
             return Exporter.Export(contentFile, item.TargetFile, cancellationToken);
         }
 
-        Exporter.WriteFile(item.ContentPath, ReadToEnd(stream), item.TargetFile);
+        Exporter.WriteFile(contentPath, ReadToEnd(stream), item.TargetFile);
         return true;
     }
 
@@ -685,11 +749,12 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
     /// </summary>
     private bool ExportShader(ContentExportItem item, CancellationToken cancellationToken)
     {
-        var vfxFileName = ContentPaths.Join(ContentPaths.GetDirectoryName(item.ContentPath), ShaderCollection.GetCollectionName(item.ContentPath) + ".vfx");
+        var contentPath = Exporter.MapContentPath(item.ContentPath);
+        var vfxFileName = ContentPaths.Join(ContentPaths.GetDirectoryName(contentPath), ShaderCollection.GetCollectionName(contentPath) + ".vfx");
         var package = item.Source?.Package;
 
         using var collection = ShaderCollection.GetShaderCollection(package != null ? item.ContentPath : item.DiskPath!, package);
-        using var contentFile = new ShaderExtract(collection).ToContentFile(vfxFileName);
+        using var contentFile = new ShaderExtract(collection).ToContentFile(vfxFileName, Exporter.ExtractOptions.ShaderParams);
 
         return Exporter.Export(contentFile, item.TargetFile, cancellationToken);
     }
@@ -697,14 +762,14 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
     private static bool IsGltf(ContentExportOutput output) => output is ContentExportOutput.Gltf or ContentExportOutput.Glb;
 
     /// <summary>
-    /// Gets the path a glTF export is written to: the target file or the item's content path, with the extension of
-    /// its format.
+    /// Gets the path a glTF export is written to: the target file or where the item's content path is written, with the
+    /// extension of its format.
     /// </summary>
-    private string GetGltfPath(ContentExportItem item)
+    private string GetGltfPath(ContentExportItem item, string contentPath)
     {
         var extension = item.Output == ContentExportOutput.Glb ? ".glb" : ".gltf";
 
-        return Path.ChangeExtension(item.TargetFile ?? Exporter.GetOutputPath(item.ContentPath), extension);
+        return Path.ChangeExtension(item.TargetFile ?? Exporter.GetOutputPath(contentPath), extension);
     }
 
     /// <summary>

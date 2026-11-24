@@ -32,7 +32,7 @@ internal sealed class ContentExportManifest
         var manifest = new ContentExportManifest(
             package,
             Path.Join(exporter.OutputRoot, string.Concat(Path.GetFileName(packagePath), ".manifest.txt")),
-            string.Create(CultureInfo.InvariantCulture, $"// s2v_version={version} package={packagePath} dependencies={exporter.IncludeDependencies} {exporter.ExtractOptions} {exporter.ManifestOptions}"));
+            string.Create(CultureInfo.InvariantCulture, $"// s2v_version={version} package={packagePath} {exporter.Settings} target={exporter.TargetContentFolder} {exporter.ManifestOptions}"));
 
         if (!File.Exists(manifest.FilePath))
         {

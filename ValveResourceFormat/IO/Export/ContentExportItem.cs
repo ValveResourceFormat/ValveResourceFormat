@@ -81,7 +81,7 @@ public sealed class ContentExportItem
 
     /// <summary>
     /// Gets where the file came from, its dependencies are exported from there with
-    /// <see cref="ContentExporter.IncludeDependencies"/>.
+    /// <see cref="ContentExportSettings.Dependencies"/>.
     /// </summary>
     public ContentExportSource? Source { get; init; }
 
@@ -105,7 +105,7 @@ public sealed class ContentExportItem
 
     /// <summary>
     /// Gets whether the export added the file as a dependency of another, see
-    /// <see cref="ContentExporter.IncludeDependencies"/>.
+    /// <see cref="ContentExportSettings.Dependencies"/>.
     /// </summary>
     public bool IsDependency { get; internal init; }
 

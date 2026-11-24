@@ -67,7 +67,7 @@ Right-click a file to export it:
     - Materials: `.vmat`
     - Other files: their text format
 
-Pick the format in the output types dialog. For a model, **gltf** or **glb** gives a file you can open in Blender, which you then save where you choose. Every other format asks for a folder, and the file is written at its path in the game below it, such as `weapons/models/ak47/weapon_rif_ak47.vmdl`. For a map, a warning about what decompiled maps lack comes first.
+Pick the format in the decompile dialog. For a model, **gltf** or **glb** gives a file you can open in Blender, which you then save where you choose. Every other format asks for a folder, and the file is written at its path in the game below it, such as `weapons/models/ak47/weapon_rif_ak47.vmdl`. The same dialog sets where files go, which dependencies are exported too and the options of each file type, and for a map it shows what decompiled maps lack. Check **Do not show again** to reuse the choices without asking, **Ask how to decompile every time** in the settings brings it back.
 
 A window shows the progress and tells you when the export is done.
 

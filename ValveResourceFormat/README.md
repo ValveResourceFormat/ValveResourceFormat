@@ -63,3 +63,12 @@ exporter.Export(package.Entries!.Values.SelectMany(entries => entries).Select(en
     Output = ContentExportOutput.Decompile, // or Gltf, Glb, Raw
 }));
 ```
+
+`Settings` holds how an export is laid out, which dependencies it also exports, what happens to existing files and the options of each decompiler. Every setting is also a `ContentExportOption` that reads and writes it as text, and `ContentExportOption.GetRelevant` returns the ones that apply to the files of an export, so a user interface can list them and store their values:
+
+```csharp
+var settings = new ContentExportSettings { Dependencies = ContentExportDependencies.All };
+ContentExportOption.Find("model_skip_animations")!.TrySetValue(settings, "true");
+
+var exporter = new ContentExporter("dump") { Settings = settings };
+```

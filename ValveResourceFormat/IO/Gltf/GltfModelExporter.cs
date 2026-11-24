@@ -91,6 +91,37 @@ namespace ValveResourceFormat.IO
         public bool ReduceAnimationKeyframes { get; set; } = true;
 
         /// <summary>
+        /// Gets or sets a value indicating whether the physics of models and maps is exported to a separate
+        /// <c>_physics</c> file.
+        /// </summary>
+        public bool ExportPhysics { get; set; } = true;
+
+        /// <summary>Gets the options of glTF exports.</summary>
+        public static IReadOnlyList<ContentExportOption> ExportOptions { get; } =
+        [
+            GltfOption("gltf_animations", "Animations", "Export model animations.",
+                static settings => settings.GltfExportAnimations, static (settings, value) => settings.GltfExportAnimations = value),
+            GltfOption("gltf_materials", "Materials", "Export materials and their textures.",
+                static settings => settings.GltfExportMaterials, static (settings, value) => settings.GltfExportMaterials = value),
+            GltfOption("gltf_adapt_textures", "Adapt textures", "Convert textures to the channels glTF expects, such as a split metallic map.",
+                static settings => settings.GltfAdaptTextures, static (settings, value) => settings.GltfAdaptTextures = value),
+            GltfOption("gltf_satellite_images", "Separate images", "Write textures as image files next to the glTF file instead of inside it.",
+                static settings => settings.GltfSatelliteImages, static (settings, value) => settings.GltfSatelliteImages = value),
+            GltfOption("gltf_extras", "Extras", "Export entity properties into node extras.",
+                static settings => settings.GltfExportExtras, static (settings, value) => settings.GltfExportExtras = value),
+            GltfOption("gltf_compose_additive", "Compose additive animations", "Compose additive animations over the bind pose instead of exporting their delta tracks.",
+                static settings => settings.GltfComposeAdditiveAnimations, static (settings, value) => settings.GltfComposeAdditiveAnimations = value),
+            GltfOption("gltf_reduce_keyframes", "Reduce keyframes", "Drop animation keys that linear interpolation reproduces.",
+                static settings => settings.GltfReduceAnimationKeyframes, static (settings, value) => settings.GltfReduceAnimationKeyframes = value),
+            GltfOption("gltf_physics", "Physics", "Export the physics of models and maps to a separate _physics file.",
+                static settings => settings.GltfExportPhysics, static (settings, value) => settings.GltfExportPhysics = value),
+        ];
+
+        private static ContentExportOption GltfOption(string id, string label, string description,
+            Func<ContentExportSettings, bool> get, Action<ContentExportSettings, bool> set)
+            => ContentExportOption.Toggle(id, label, "glTF", description, [], get, set, gltfOnly: true);
+
+        /// <summary>
         /// Gets the set of animation names to filter during export. An entry matches an animation by its
         /// full name or, for animation graph clips named by resource path, by its leaf name (e.g. "idle_knife"
         /// matches "animation/anims/.../idle_knife"). Empty means export every animation.
@@ -144,6 +175,7 @@ namespace ValveResourceFormat.IO
             ExportExtras = settings.ExportExtras;
             ComposeAdditiveAnimations = settings.ComposeAdditiveAnimations;
             ReduceAnimationKeyframes = settings.ReduceAnimationKeyframes;
+            ExportPhysics = settings.ExportPhysics;
             AnimationFilter = settings.AnimationFilter;
             MeshFilter = settings.MeshFilter;
             CancellationToken = cancellationToken;
@@ -389,7 +421,7 @@ namespace ValveResourceFormat.IO
 
         private void ExportPhysicsIfAny(string resourceName, string? fileName)
         {
-            if (PhysicsToExport.Count == 0 || !TryReserveFile(GetPhysicsFileName(fileName), out var physFileName))
+            if (!ExportPhysics || PhysicsToExport.Count == 0 || !TryReserveFile(GetPhysicsFileName(fileName), out var physFileName))
             {
                 return;
             }
@@ -423,7 +455,7 @@ namespace ValveResourceFormat.IO
 
             WriteModelFile(exportedModel, fileName);
 
-            var phys = GetModelPhysics(model);
+            var phys = ExportPhysics ? GetModelPhysics(model) : null;
             if (phys != null && TryReserveFile(GetPhysicsFileName(fileName), out var physFileName))
             {
                 ExportToFile(resourceName, physFileName, phys);

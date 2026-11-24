@@ -44,6 +44,42 @@ public partial class ModelExtract
     public bool ReconstructSoftbody { get; init; } = true;
 
     /// <summary>
+    /// Gets whether animations are left out: no animation DMX files, no animation graph clips and no <c>AnimationList</c>.
+    /// </summary>
+    public bool SkipAnimations { get; init; }
+
+    /// <summary>
+    /// Gets whether physics is left out: no physics shapes, bodies, joints or their DMX files.
+    /// </summary>
+    public bool SkipPhysics { get; init; }
+
+    /// <summary>
+    /// Gets whether only the meshes of the most detailed level of detail are written, without LOD groups.
+    /// </summary>
+    public bool HighestLodOnly { get; init; }
+
+    /// <summary>Gets the options of decompiled models.</summary>
+    public static IReadOnlyList<ContentExportOption> ExportOptions { get; } =
+    [
+        ContentExportOption.Toggle("model_reconstruct_softbody", "Reconstruct cloth", "Models",
+            "Rebuild soft-body (cloth) physics of models and of the models in maps.", ["vmdl_c", "vmap_c"],
+            static settings => settings.ExtractOptions.ReconstructSoftbody,
+            static (settings, value) => settings.ExtractOptions = settings.ExtractOptions with { ReconstructSoftbody = value }),
+        ContentExportOption.Toggle("model_skip_animations", "Skip animations", "Models",
+            "Leave out animation files, animation graph clips and the animation list.", ["vmdl_c"],
+            static settings => settings.ExtractOptions.ModelSkipAnimations,
+            static (settings, value) => settings.ExtractOptions = settings.ExtractOptions with { ModelSkipAnimations = value }),
+        ContentExportOption.Toggle("model_skip_physics", "Skip physics", "Models",
+            "Leave out physics shapes, bodies and joints.", ["vmdl_c"],
+            static settings => settings.ExtractOptions.ModelSkipPhysics,
+            static (settings, value) => settings.ExtractOptions = settings.ExtractOptions with { ModelSkipPhysics = value }),
+        ContentExportOption.Toggle("model_highest_lod_only", "Highest LOD only", "Models",
+            "Only write the meshes of the most detailed level of detail, without LOD groups.", ["vmdl_c"],
+            static settings => settings.ExtractOptions.ModelHighestLodOnly,
+            static (settings, value) => settings.ExtractOptions = settings.ExtractOptions with { ModelHighestLodOnly = value }),
+    ];
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ModelExtract"/> class.
     /// </summary>
     public ModelExtract(Resource modelResource, IFileLoader fileLoader)
@@ -151,23 +187,31 @@ public partial class ModelExtract
             );
         }
 
-        foreach (var physHull in PhysHullsToExtract)
+        if (!SkipPhysics)
         {
-            vmdl.AddSubFile(
-                physHull.FileName,
-                () => ToDmxMesh(physHull.Hull, physHull.BindPose)
-            );
-        }
+            foreach (var physHull in PhysHullsToExtract)
+            {
+                vmdl.AddSubFile(
+                    physHull.FileName,
+                    () => ToDmxMesh(physHull.Hull, physHull.BindPose)
+                );
+            }
 
-        foreach (var physMesh in PhysMeshesToExtract)
-        {
-            vmdl.AddSubFile(
-                physMesh.FileName,
-                () => ToDmxMesh(physMesh.Mesh, physMesh.BindPose)
-            );
+            foreach (var physMesh in PhysMeshesToExtract)
+            {
+                vmdl.AddSubFile(
+                    physMesh.FileName,
+                    () => ToDmxMesh(physMesh.Mesh, physMesh.BindPose)
+                );
+            }
         }
 
         Cloth.AddSubFiles(vmdl);
+
+        if (SkipAnimations)
+        {
+            return vmdl;
+        }
 
         foreach (var anim in AnimationsToExtract)
         {

@@ -27,7 +27,11 @@ The binary name is `Source2Viewer-CLI`.
 | `--all` (or `-a`)                | Print the content of each resource block in the file.                                                                                                                                                                                                                                                            |
 | `--block` (or `-b`)              | Print the content of specific block(s), example: `"DATA"` or `"RERL,RED2"`.                                                                                                                                                                                                                                      |
 | `--vpk_decompile` (or `-d`)      | Decompile supported resource files. Requires `--output`.                                                                                                                                                                                                                                                         |
-| `--decompile_dependencies`       | When decompiling, also decompile the files the input references (materials, textures, models, animation clips, skeletons, ...) from the same package or addon, each at its own path. Requires `--output`.                                                                                                        |
+| `--dependencies`                 | When decompiling, also decompile the files the input uses that are in the same VPK, addon or mod: `none` (default), `direct` (the files the input references, such as the materials of a model) or `all` (every file it uses, directly or through other files). Base-game files stay referenced. Requires `--output`. |
+| `--layout`                       | Where decompiled files are written: `content` (default), `folder` or `folder_rewrite` (experimental), see [output layouts](#output-layouts). Requires `--output`.                                                                                                                                |
+| `--dependency_placement`         | With `--layout folder` or `folder_rewrite`, where dependencies are written: `with_main` (default, below the `--output` folder at their full content path) or `original` (at their content path below the addon or mod).                                                                          |
+| `--option`                       | Set a decompile option as `id=value`, such as `model_skip_animations=true`. Can be repeated or comma-separated. Requires `--output`.                                                                                                                                                             |
+| `--list_options`                 | List every option `--option` takes with its values, its default and the file types it applies to.                                                                                                                                                                                                |
 | `--skip_existing`                | Keep files that already exist in the output instead of overwriting them. Requires `--output`.                                                                                                                                                                                                                    |
 | `--texture_decode_flags`         | Decompile textures with the specified decode flags, example: `"none"`, `"auto"` (default), `"ForceLDR"` (on top of the automatic flags). Requires `--output`.                                                                                                                                                    |
 | `--skip_softbody_reconstruction` | Skip reconstructing soft-body (cloth) physics when decompiling models.                                                                                                                                                                                                                                           |
@@ -86,9 +90,36 @@ Decompiled files are written to `<root>/<content path>`. The content path is the
 - A file on disk that is in no addon or mod gets the path from its first asset folder, such as `models` or `materials`.
 - With `--output` naming a file, that file is the decompiled input, and every other file is written below the root of its folder.
 - Each path is written once. A path that is in several input VPKs is taken from the VPK the game loads first. When two files write the same path, the one earlier in the export is kept.
-- Existing files are overwritten unless `--skip_existing` is given.
+- Existing files are overwritten unless `--skip_existing` or `--option existing_files=skip` is given.
 - A map is written as `maps/<map>_d.vmap`. The files only the compiled map has (world, world nodes, entity lumps, baked lightmaps, cubemaps and light probes) are not written.
 - A glTF export is written at the content path with the `.gltf` or `.glb` extension, or to the `--output` file. Its buffers, textures and `_physics` file are next to it. A glTF path that another file of the export already took gets a numbered name.
+
+### Output layouts
+
+`--layout content` is the default described above. The other layouts write into the `--output` folder itself, which suits a copy of a file under a new name:
+
+- `--layout folder` writes the input files into the `--output` folder without the content folder they share, and `--output` naming a file renames the decompiled input. Files it writes from another folder keep their full content path below the `--output` folder. References inside the files are not changed, so they still point at the original paths.
+- Dependencies go below the `--output` folder at their full content path, or with `--dependency_placement original` at their content path below the addon or mod.
+- `--layout folder_rewrite` places files the same way, and rewrites references to files of the same export to where they are written. It is experimental. The files a decompiled file names after itself, such as the meshes of a model, take its new name. The `--output` folder should be inside an addon or mod, otherwise references are relative to the root the [output paths](#output-paths) rules give.
+
+For `models/heroes/haze/haze.vmdl_c` with `-o <addon>/models/heroes/haze_orig/haze_orig.vmdl --dependencies direct`:
+
+| Layout                                          | Model                                    | Mesh                                         | Material                                                  |
+| ----------------------------------------------- | ---------------------------------------- | -------------------------------------------- | --------------------------------------------------------- |
+| `content`                                       | `models/heroes/haze_orig/haze_orig.vmdl` | `models/heroes/haze/haze_body.dmx`           | `materials/heroes/haze/haze.vmat`                         |
+| `folder`                                        | `models/heroes/haze_orig/haze_orig.vmdl` | `models/heroes/haze_orig/haze_body.dmx`      | `models/heroes/haze_orig/materials/heroes/haze/haze.vmat` |
+| `folder` with `--dependency_placement original` | `models/heroes/haze_orig/haze_orig.vmdl` | `models/heroes/haze_orig/haze_body.dmx`      | `materials/heroes/haze/haze.vmat`                         |
+| `folder_rewrite`                                | `models/heroes/haze_orig/haze_orig.vmdl` | `models/heroes/haze_orig/haze_orig_body.dmx` | `models/heroes/haze_orig/materials/heroes/haze/haze.vmat` |
+
+### Decompile options
+
+Each decompiler has options that `--option id=value` sets, `--list_options` prints them all. Among them:
+
+- `model_skip_animations`, `model_skip_physics` and `model_highest_lod_only` leave the animations, the physics or the lower levels of detail out of a decompiled model.
+- `model_reconstruct_softbody`, `texture_force_ldr` and `tools_asset_info_paths_only` are the same as `--skip_softbody_reconstruction`, `--texture_decode_flags ForceLDR` and `--tools_asset_info_short`.
+- `texture_images_only` writes only the images of textures, and `texture_latlong_cubemap=false` writes HDR cubemaps as six faces instead of one lat-long image.
+- `shader_*` set how compiled shaders are decompiled.
+- `gltf_*` set the options of glTF exports, `gltf_physics=false` leaves out the `_physics` file.
 
 ### Cached VPK Manifest
 
@@ -182,7 +213,15 @@ Or decompile the entities of every map:
 Also decompile the materials, textures and animation files of the model that come from the same VPK, each at its content path:
 
 ```powershell
-./Source2Viewer-CLI.exe -i "<game>/pak01_dir.vpk" -f "models/chicken/chicken.vmdl_c" -d -o "my_addon" --decompile_dependencies
+./Source2Viewer-CLI.exe -i "<game>/pak01_dir.vpk" -f "models/chicken/chicken.vmdl_c" -d -o "my_addon" --dependencies all
+```
+
+### Copy a model under a new name
+
+Decompile a model with its materials into a new folder of an addon, under a new name, without its animations:
+
+```powershell
+./Source2Viewer-CLI.exe -i "<game>/pak01_dir.vpk" -f "models/chicken/chicken.vmdl_c" -d -o "my_addon/models/my_chicken/my_chicken.vmdl" --layout folder --dependencies direct --option model_skip_animations=true
 ```
 
 ### Print a file copied from Source 2 Viewer
