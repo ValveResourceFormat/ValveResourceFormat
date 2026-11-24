@@ -102,9 +102,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
             Exporter.SetReferenceMap(CreateReferenceMap([.. selected.Union(queued)], consumed, rewritesReferences));
         }
 
-        Exporter.AddNonGltfItems(queued
-            .Where(static queuedItem => queuedItem.Item.Output == ContentExportOutput.Decompile)
-            .Select(static queuedItem => queuedItem.Item.ContentPath));
+        Exporter.AddItems(queued.Select(static queuedItem => queuedItem.Item));
 
         var rank = 0;
 

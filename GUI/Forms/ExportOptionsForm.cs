@@ -21,6 +21,7 @@ namespace GUI.Forms
         private readonly IReadOnlySet<ContentExportOption> hiddenOptions;
         private readonly TableLayoutPanel typesTable;
         private readonly FlowLayoutPanel optionsPanel;
+        private readonly Panel scrollPanel;
         private readonly ThemedComboBox placementComboBox;
         private readonly ThemedTextBox suffixTextBox;
         private readonly CheckBox doNotShowAgainCheckBox;
@@ -56,6 +57,7 @@ namespace GUI.Forms
 
             var content = new FlowLayoutPanel
             {
+                Dock = DockStyle.Top,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 FlowDirection = FlowDirection.TopDown,
@@ -66,6 +68,7 @@ namespace GUI.Forms
             content.Controls.Add(new Label
             {
                 Text = "Choose how to extract & decompile",
+                UseMnemonic = false,
                 AutoSize = true,
                 Font = new Font(Font.FontFamily, 13F, FontStyle.Bold),
                 Margin = new Padding(0, 0, 0, 12),
@@ -96,6 +99,8 @@ namespace GUI.Forms
             content.Controls.Add(MakeChoiceRow(ContentExportSettings.DependencyPlacementOption, out placementComboBox));
             content.Controls.Add(MakeTextRow(ContentExportSettings.DependencySuffixOption, out suffixTextBox));
             content.Controls.Add(MakeChoiceRow(ContentExportSettings.ExistingFilesOption, out _));
+
+            suffixTextBox.PlaceholderText = "Empty: from new name, else _copy";
 
             placementComboBox.SelectionChangeCommitted += (_, _) => placementPicked = true;
             placementComboBox.SelectedIndexChanged += (_, _) => UpdatePlacementEnabled();
@@ -129,7 +134,7 @@ namespace GUI.Forms
             };
             content.Controls.Add(doNotShowAgainCheckBox);
 
-            var scrollPanel = new Panel
+            scrollPanel = new Panel
             {
                 Dock = DockStyle.Fill,
                 AutoScroll = true,
@@ -167,13 +172,8 @@ namespace GUI.Forms
             var row = typesTable.RowCount;
             typesTable.RowCount = row + 1;
 
-            var dropdown = new ThemedComboBox
-            {
-                Tag = type,
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Width = 200,
-                Anchor = AnchorStyles.Left,
-            };
+            var dropdown = MakeDropdown(200);
+            dropdown.Tag = type;
             dropdown.Items.AddRange([.. outputTypes]);
             dropdown.SelectedIndex = selectedIndex;
             dropdown.SelectedIndexChanged += (sender, e) =>
@@ -199,6 +199,7 @@ namespace GUI.Forms
             {
                 typesTable.Dispose();
                 optionsPanel.Dispose();
+                scrollPanel.Dispose();
                 placementComboBox.Dispose();
                 suffixTextBox.Dispose();
                 doNotShowAgainCheckBox.Dispose();
@@ -312,12 +313,7 @@ namespace GUI.Forms
 
         private FlowLayoutPanel MakeChoiceRow(ContentExportOption option, out ThemedComboBox comboBox)
         {
-            var dropdown = new ThemedComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Width = 240,
-                Anchor = AnchorStyles.Left,
-            };
+            var dropdown = MakeDropdown(240);
 
             var selected = option.GetValue(settings);
 
@@ -371,6 +367,33 @@ namespace GUI.Forms
             return MakeRow(option, input);
         }
 
+        private ThemedComboBox MakeDropdown(int width)
+        {
+            var dropdown = new ThemedComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Width = width,
+                Anchor = AnchorStyles.Left,
+            };
+            dropdown.MouseWheel += OnDropdownMouseWheel;
+
+            return dropdown;
+        }
+
+        /// <summary>
+        /// Scrolls the dialog instead of changing the value of a closed dropdown.
+        /// </summary>
+        private void OnDropdownMouseWheel(object? sender, MouseEventArgs e)
+        {
+            if (sender is not ComboBox { DroppedDown: false } || e is not HandledMouseEventArgs handledEvent)
+            {
+                return;
+            }
+
+            handledEvent.Handled = true;
+            scrollPanel.AutoScrollPosition = new Point(0, -scrollPanel.AutoScrollPosition.Y - e.Delta);
+        }
+
         private FlowLayoutPanel MakeRow(ContentExportOption option, Control input)
         {
             var label = MakeLabel(option.Label);
@@ -421,7 +444,7 @@ namespace GUI.Forms
         {
             Text = text,
             AutoSize = true,
-            MaximumSize = new Size(ContentWidth, 0),
+            MaximumSize = new Size(ContentWidth - margin.Horizontal, 0),
             Margin = margin,
         };
 

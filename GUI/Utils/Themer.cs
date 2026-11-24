@@ -124,6 +124,11 @@ namespace GUI.Utils
             ThemeControl(Form);
         }
 
+        /// <summary>Gets the color an enabled control draws with as it is drawn while the control is disabled.</summary>
+        public static Color GetDisabledColor(Color color) => CurrentThemeColors.ColorMode == SystemColorMode.Classic
+            ? ControlPaint.Light(color, 0.6f)
+            : ControlPaint.Dark(color, 0.2f);
+
         /// <summary>Recursively apply the Colors from <see cref="ThemeColors"/> to the Control and all its children.</summary>
         public static void ThemeControl(Control control)
         {
@@ -266,7 +271,8 @@ namespace GUI.Utils
             }
             if (control is TextBox textBox)
             {
-                textBox.BackColor = textBox.Parent?.BackColor ?? CurrentThemeColors.AppMiddle;
+                var backColor = textBox.Parent?.BackColor ?? CurrentThemeColors.AppMiddle;
+                textBox.BackColor = textBox.Enabled ? backColor : GetDisabledColor(backColor);
                 textBox.ForeColor = CurrentThemeColors.Contrast;
             }
             if (control is CodeTextBox console)

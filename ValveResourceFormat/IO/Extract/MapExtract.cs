@@ -24,8 +24,7 @@ public sealed partial class MapExtract
     [
         ContentExportOption.Notice("map_decompile_notice", "Decompiled maps may not recompile", "Maps",
             """
-            Decompiling Source 2 maps is a difficult process, the output is messy and imperfect, and does not resemble how
-            real .vmap files are made.
+            Decompiling Source 2 maps is a difficult process, the output is messy and imperfect, and does not resemble how real .vmap files are made.
 
             - Models are merged by material across the map.
             - Parts of the skybox mesh might be missing.

@@ -87,7 +87,7 @@ public sealed class ContentExporter
     private readonly ConcurrentDictionary<string, Lock> PathLocks = new(StringComparer.OrdinalIgnoreCase);
     private readonly AsyncLocal<int> CurrentItemOrder = new();
     private readonly HashSet<string> HandledFiles = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> NonGltfItems = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ContentExportOutput> ItemOutputs = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<IFileLoader, GltfModelExporter> GltfExporters = new(ReferenceEqualityComparer.Instance);
     private readonly NullFileLoader NullFileLoader = new();
     private ExistingFileAction? ConfirmedExistingFileAction;
@@ -346,7 +346,8 @@ public sealed class ContentExporter
     /// </para>
     /// <para>
     /// A resource that a glTF export includes, such as a mesh of a model, is skipped as handled unless it is an item
-    /// whose output is not glTF.
+    /// whose output is not glTF. A resource that a decompiled file includes, such as a world node of a map, is skipped
+    /// as handled unless it is an item whose output is glTF.
     /// </para>
     /// </remarks>
     /// <param name="items">The files to export.</param>
@@ -534,7 +535,7 @@ public sealed class ContentExporter
     private void PlanContentFile(ContentFile contentFile, string? targetFile, List<PlannedFile> files)
     {
         var contentPath = NormalizeContentPath(contentFile.FileName);
-        MarkHandled(contentPath);
+        MarkIncludedInDecompiled(contentPath);
 
         if (targetFile != null && contentFile.MainSubFile is { } mainSubFile)
         {
@@ -763,7 +764,7 @@ public sealed class ContentExporter
 
         lock (StateLock)
         {
-            if (!NonGltfItems.Contains(key))
+            if (!ItemOutputs.TryGetValue(key, out var output) || output != ContentExportOutput.Decompile)
             {
                 HandledFiles.Add(key);
             }
@@ -771,16 +772,36 @@ public sealed class ContentExporter
     }
 
     /// <summary>
-    /// Records the items of an export whose output is not glTF, so a glTF export that includes them leaves them to be
-    /// exported, see <see cref="MarkIncludedInGltf"/>.
+    /// Marks a resource a decompiled file includes as handled, unless it is an item of an export whose output is glTF.
     /// </summary>
-    internal void AddNonGltfItems(IEnumerable<string> contentPaths)
+    /// <param name="contentPath">Content path of the resource, compiled or not.</param>
+    private void MarkIncludedInDecompiled(string contentPath)
     {
-        var keys = contentPaths.Select(GetClaimKey).ToList();
+        var key = GetClaimKey(contentPath);
 
         lock (StateLock)
         {
-            NonGltfItems.UnionWith(keys);
+            if (!ItemOutputs.TryGetValue(key, out var output) || output is not (ContentExportOutput.Gltf or ContentExportOutput.Glb))
+            {
+                HandledFiles.Add(key);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Records the output of each item of an export, so a file that includes an item exported to another output leaves
+    /// it to be exported, see <see cref="MarkIncludedInGltf"/> and <see cref="MarkIncludedInDecompiled"/>.
+    /// </summary>
+    internal void AddItems(IEnumerable<ContentExportItem> items)
+    {
+        var outputs = items.Select(item => (Key: GetClaimKey(item.ContentPath), item.Output)).ToList();
+
+        lock (StateLock)
+        {
+            foreach (var (key, output) in outputs)
+            {
+                ItemOutputs[key] = output;
+            }
         }
     }
 
