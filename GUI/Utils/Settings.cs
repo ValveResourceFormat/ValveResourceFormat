@@ -65,6 +65,12 @@ namespace GUI.Utils
             public string OpenDirectory { get; set; } = string.Empty;
             /// <summary>Gets or sets the last directory used when saving files.</summary>
             public string SaveDirectory { get; set; } = string.Empty;
+            /// <summary>Gets or sets the last folder files were decompiled to.</summary>
+            public string DecompileDirectory { get; set; } = string.Empty;
+            /// <summary>Gets or sets whether decompiling also exports the dependencies of each file.</summary>
+            public bool DecompileDependencies { get; set; }
+            /// <summary>Gets or sets the output type last picked for each decompiled file type, empty when that type was not exported.</summary>
+            public Dictionary<string, string> DecompileOutputTypes { get; set; } = [];
             /// <summary>Gets or sets the list of bookmarked file paths.</summary>
             public List<string> BookmarkedFiles { get; set; } = [];
             /// <summary>Gets or sets the list of recently opened file paths.</summary>

@@ -32,9 +32,7 @@ With **Preview files after selecting** and **Auto play sounds** turned on in **S
 
     ![Context menu on ak47_01.vsnd_c with Decompile & export highlighted](./images/exporting-sounds-export-menu.webp)
 
-2. Choose a folder and click **Save**. The sound is saved as WAV or MP3, as the game stores it, with a `.vsnd` file of its settings and, for lip-synced voice lines, a `.txt` file.
-
-    ![The save dialog in a folder named Sounds, with the file name ak47_01.wav and the Save as type list open, showing wav file](./images/exporting-sounds-save-dialog.webp)
+2. Click **Continue** in the output types dialog, choose a folder and click **Select Folder**. The sound is written at its path in the game below that folder, as WAV or MP3 as the game stores it, with a `.vsnd` file of its settings and, for lip-synced voice lines, a `.txt` file.
 
 3. A window shows when the export is done.
 
@@ -46,7 +44,7 @@ With **Preview files after selecting** and **Auto play sounds** turned on in **S
 
     ![Context menu on the sounds/weapons/ak47 folder with Decompile & export highlighted](./images/exporting-sounds-folder-menu.webp)
 
-2. Keep **sound** for `vsnd_c`.
+2. Keep **vsnd** for `vsnd_c`.
 
     ![Select output file types window for the ak47 sounds folder, with the list for vsnd_c open, showing Do not export, sound and vsnd](./images/exporting-sounds-folder-types.webp)
 

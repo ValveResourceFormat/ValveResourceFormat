@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
@@ -33,16 +32,7 @@ public class NmSkeletonExtract
         var kv = KVObject.Collection();
         var skel = Skeleton.FromSkeletonData(kvSkeleton);
 
-        var dmxFile = Path.ChangeExtension(resource.FileName, "dmx");
-        Debug.Assert(dmxFile != null);
-        var sourceFileName = dmxFile.Replace('\\', '/');
-        var dmxSubFileName = Path.GetFileName(dmxFile);
-
-        if (FindAuthoredSourceFile() is var (documentFileName, authoredFileName))
-        {
-            sourceFileName = authoredFileName;
-            dmxSubFileName = ContentFile.GetSubFileName(documentFileName, authoredFileName);
-        }
+        var sourceFileName = FindAuthoredSourceFile()?.SourceFileName ?? ContentPaths.ChangeExtension(resource.FileName!, "dmx");
 
         kv.Add("_class", "CNmSkeletonDocument");
         kv.Add("m_nVersion", 0L);
@@ -72,7 +62,7 @@ public class NmSkeletonExtract
         {
             Data = kv.ToKV3Bytes()
         };
-        contentFile.AddSubFile(dmxSubFileName, () =>
+        contentFile.AddSubFile(sourceFileName, () =>
         {
             return ModelExtract.ToDmxSkeleton(skel, nmSkelAxisFixup: true, nmLowLodBoneCount: numLowLODBones);
         });
@@ -94,7 +84,7 @@ public class NmSkeletonExtract
 
         foreach (var dependency in resource.EditInfo.InputDependencies)
         {
-            var file = dependency.ContentRelativeFilename.Replace('\\', '/');
+            var file = ContentPaths.Normalize(dependency.ContentRelativeFilename);
 
             if (file.EndsWith(".vnmskel", StringComparison.OrdinalIgnoreCase))
             {

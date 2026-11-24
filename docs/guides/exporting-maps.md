@@ -42,11 +42,11 @@ Click the 3D view, then:
 
 2. Click **OK** in the warning about decompiling maps.
 
-3. Choose an empty folder, set **Save as type** to **glTF** and click **Save**.
+3. Choose **gltf** in the output types dialog and click **Continue**.
 
-    ![Save dialog in the folder Dust2 glTF with the file name de_dust2_d.vmap and the Save as type list open, offering vmap file, glTF and glTF Binary](./images/exporting-maps-save-dialog.webp)
+4. Choose an empty folder and click **Save**.
 
-4. When the window says **Export completed**, click **Close**.
+5. When the window says **Export completed**, click **Close**.
 
     ![Export progress window saying Export completed in 0:10](./images/exporting-maps-export-completed.webp)
 
@@ -83,11 +83,9 @@ To fly through the map, select **View > Navigation > Walk Navigation** and move 
 Hammer comes with the game's Workshop Tools. In Steam, enable them under the game's **Properties > DLC**, launch them and create an addon.
 
 1. Right-click `de_dust2.vmap_c`, select **Decompile & export** and click **OK** in the warning.
-2. Go to the `maps` folder of your addon's content folder, keep **Save as type** at **vmap file** and click **Save**.
-
-    ![Save dialog in the folder my_addon > maps with the file name de_dust2_d.vmap and Save as type vmap file](./images/exporting-maps-vmap-save-dialog.webp)
-
-3. When the export is done, open `de_dust2_d.vmap` in Hammer.
+2. Keep **vmap** in the output types dialog and click **Continue**.
+3. Choose the content folder of your addon and click **Select Folder**. The map is written to its `maps` folder.
+4. When the export is done, open `de_dust2_d.vmap` in Hammer.
 
 The export writes a `de_dust2` folder next to the `.vmap`, with the models and materials made from the map:
 
@@ -99,6 +97,12 @@ Counter-Strike Global Offensive/content/csgo_addons/my_addon/
 ```
 
 The 3D skybox is a separate map and is not decompiled with it.
+
+Every file is written at its path in the game below the folder you choose, so the map is in `maps/`. A folder inside an addon or mod, on the `content` or the `game` side, uses the root of that addon or mod, and choosing its `maps` folder works too. Very large maps are split into additional `_d_autosplit_partN.vmap` files in `maps/`, which the main map references.
+
+Files that exist only because the map was compiled are not written: the world, world nodes, resource manifest, visibility, world physics, entity lumps, and the baked lightmaps, cubemaps and light probes. Models compiled into the map's folder are always written. Prop models and materials from outside the map's folder are only written with **Include dependencies** checked in the output types dialog, and only from the same package. Base-game files stay referenced.
+
+If files already exist, you are asked once whether to replace them all or skip them.
 
 ::: danger
 Do not use a decompiled map as your first mapping project if you are new to mapping! Decompiled output is messy and does not resemble how real `.vmap` files are made. Learn the basics of Hammer Editor first.

@@ -7,6 +7,12 @@ namespace GUI.Forms
     {
         public event EventHandler? ChangeTypeEvent;
 
+        public bool IncludeDependencies
+        {
+            get => includeDependenciesCheckBox.Checked;
+            set => includeDependenciesCheckBox.Checked = value;
+        }
+
         public ExtractOutputTypesForm()
         {
             InitializeComponent();

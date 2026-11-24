@@ -26,28 +26,40 @@ var bytes = TextureExtract.ToPngImage(bitmap);
 ```
 
 
-Or use file extract helper which works for various resource types:
+Or decompile it with `ContentExporter`, which writes the decompiled file and every file it is made of below a folder at their content paths. The resource's `FileName` is its content path, and the file loader finds the files it references:
 
 ```csharp
-using var contentFile = FileExtract.Extract(resource, null);
-var outFilePath = "dump";
+using var fileLoader = new GameFileLoader(null, file);
+var exporter = new ContentExporter("dump");
 
-DumpContentFile(outFilePath, contentFile);
+exporter.Export(resource, fileLoader);
+```
 
-void DumpContentFile(string path, ContentFile contentFile)
+A model, mesh or map resource can also be exported to glTF through the same exporter, which writes the buffers and textures next to the `.gltf`:
+
+```csharp
+var gltfExporter = new GltfModelExporter(fileLoader)
 {
-    DumpFile(path, contentFile.Data);
+    Exporter = exporter,
+};
 
-    foreach (var contentSubFile in contentFile.SubFiles)
-    {
-        DumpFile(Path.Combine(Path.GetDirectoryName(path), contentSubFile.FileName), contentSubFile.Extract.Invoke());
-    }
-}
+gltfExporter.Export(resource, exporter.GetOutputPath("models/props/crate.gltf"));
+```
 
-void DumpFile(string path, ReadOnlySpan<byte> data)
+Without `Exporter`, the glTF export writes its files through an exporter of its own rooted at the folder of the `.gltf`.
+
+To export many files at once, such as the files of a package, pass them as items. They are exported in parallel and in an order where a model claims its meshes before they come up on their own, and the files of a compiled shader are decompiled together into one `.vfx`:
+
+```csharp
+using var package = new Package();
+package.Read("pak01_dir.vpk");
+
+using var packageLoader = new GameFileLoader(package, package.FileName);
+var exporter = new ContentExporter("dump");
+
+exporter.Export(package.Entries!.Values.SelectMany(entries => entries).Select(entry => new ContentExportItem(package, entry)
 {
-    Directory.CreateDirectory(Path.GetDirectoryName(path));
-
-    File.WriteAllBytes(path, data.ToArray());
-}
+    FileLoader = packageLoader,
+    Output = ContentExportOutput.Decompile, // or Gltf, Glb, Raw
+}));
 ```

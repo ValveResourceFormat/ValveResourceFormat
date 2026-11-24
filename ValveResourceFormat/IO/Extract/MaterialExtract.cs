@@ -94,11 +94,20 @@ public sealed class MaterialExtract
             if (inputs.FirstOrDefault(static input => input.IsPrimary) is { Image.FileName: { } primaryFileName }
                 && textureExtract.GetImageSettings() is { } settings)
             {
-                vtex.AddSubFile(Path.GetFileNameWithoutExtension(primaryFileName) + ".txt", () => Encoding.UTF8.GetBytes(settings));
+                vtex.AddSubFile(ContentPaths.ChangeExtension(primaryFileName, ".txt"), () => Encoding.UTF8.GetBytes(settings));
             }
 
-            vtex.KeepFullPath = true;
             vmat.AdditionalFiles.Add(vtex);
+        }
+
+        var handledTextures = vmat.AdditionalFiles.Select(static file => file.FileName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var texturePath in material.TextureParams.Values)
+        {
+            if (handledTextures.Add(texturePath))
+            {
+                vmat.AdditionalFiles.Add(new ContentFile { FileName = texturePath });
+            }
         }
 
         return vmat;

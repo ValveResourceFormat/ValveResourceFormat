@@ -25,7 +25,7 @@ public sealed partial class MapExtract
     /// </summary>
     private void AddClutter(WorldNode.ClutterSceneObject clutter, MapNode parent)
     {
-        FolderExtractFilter.Add(clutter.RenderableModel);
+        CompiledMapPieces.Add(clutter.RenderableModel);
 
         if (!ResolvedClutterModels.TryGetValue((clutter.RenderableModel, clutter.MaterialGroup), out var model))
         {

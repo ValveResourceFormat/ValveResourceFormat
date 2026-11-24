@@ -65,7 +65,7 @@ public static class AppMessageDialogs
         };
     }
 
-    public static ReplaceFilesChoice AskToReplaceFiles(string heading, string message, string title)
+    public static ReplaceFilesChoice AskToReplaceFiles(string heading, string message, string title, IWin32Window? owner = null)
     {
         var replaceButton = new TaskDialogButton("Replace");
         var skipButton = new TaskDialogButton("Skip");
@@ -79,7 +79,7 @@ public static class AppMessageDialogs
             DefaultButton = replaceButton,
         };
 
-        var result = TaskDialog.ShowDialog(Program.MainForm, page);
+        var result = TaskDialog.ShowDialog(owner ?? Program.MainForm, page);
 
         if (result == replaceButton)
         {
