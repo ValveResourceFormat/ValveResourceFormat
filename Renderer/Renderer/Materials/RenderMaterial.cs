@@ -438,18 +438,31 @@ namespace ValveResourceFormat.Renderer.Materials
             public uint InputsVersion { get; set; }
             public uint AttributesVersion { get; set; }
             public float EvaluatedTime { get; set; }
+            public uint EvaluatedGlobalAttributesVersion { get; set; }
             public bool ExpressionsConstant { get; set; }
         }
+
+        // Node attributes holding a buffer baked from this material
+        internal HashSet<RenderAttributes> BakedInto { get; } = [];
 
         // The material's own buffer, or the one baked with node attributes
         private Globals EnsureGlobals(Shader shader, RenderAttributes? attributes = null)
         {
-            var state = attributes == null
-                ? globals ??= new GlobalsState(new Globals(GetGlobalsName(shader)))
-                : CollectionsMarshal.GetValueRefOrAddDefault(attributes.Baked, this, out _) ??= new GlobalsState(new Globals(GetGlobalsName(shader)));
+            GlobalsState state;
+
+            if (attributes == null)
+            {
+                state = globals ??= new GlobalsState(new Globals(GetGlobalsName(shader)));
+            }
+            else
+            {
+                state = CollectionsMarshal.GetValueRefOrAddDefault(attributes.Baked, this, out _) ??= new GlobalsState(new Globals(GetGlobalsName(shader)));
+                BakedInto.Add(attributes);
+            }
 
             var layout = shader.GlobalsLayout;
             var attributesVersion = attributes?.Version ?? 0;
+            var globalAttributesVersion = Context?.GlobalRenderAttributes.Version ?? 0;
             var buffer = state.Buffer;
 
             if (state.Layout != layout || state.InputsVersion != InputsVersion || state.AttributesVersion != attributesVersion)
@@ -461,7 +474,8 @@ namespace ValveResourceFormat.Renderer.Materials
                 buffer.BeginFill(layout);
                 SetParams(shader, buffer);
             }
-            else if (state.ExpressionsConstant || state.EvaluatedTime == expressionContext.Time)
+            else if (state.ExpressionsConstant
+                || (state.EvaluatedTime == expressionContext.Time && state.EvaluatedGlobalAttributesVersion == globalAttributesVersion))
             {
                 return buffer;
             }
@@ -472,6 +486,7 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             state.EvaluatedTime = expressionContext.Time;
+            state.EvaluatedGlobalAttributesVersion = globalAttributesVersion;
             state.ExpressionsConstant = EvaluateExpressions(shader, buffer, attributes);
 
             // Attributes go last so they beat derived constants
@@ -598,6 +613,16 @@ namespace ValveResourceFormat.Renderer.Materials
         {
             globals?.Buffer.Delete();
             globals = null;
+
+            foreach (var attributes in BakedInto)
+            {
+                if (attributes.Baked.Remove(this, out var baked))
+                {
+                    baked.Buffer.Delete();
+                }
+            }
+
+            BakedInto.Clear();
 
             depthMaterial?.Delete();
             depthMaterial = null;
@@ -949,8 +974,21 @@ namespace ValveResourceFormat.Renderer.Materials
                     ? (int)material.IntParams.GetValueOrDefault(features.StaticComboArray[index].Name)
                     : 0;
 
+            public bool TryGetMaterialParamName(int index, out StringToken name)
+            {
+                name = default;
+
+                if (expressions?.Shader.Features?.VariableDescriptions is not { } variables || (uint)index >= variables.Length)
+                {
+                    return false;
+                }
+
+                name = StringToken.Lookup(variables[index].Name);
+                return true;
+            }
+
             public Vector4 GetTextureSize(StringToken textureName)
-                => TryGetTexture(textureName, out var texture) ? new Vector4(texture.Width, texture.Height, texture.Depth, 0f) : Vector4.Zero;
+                => TryGetTexture(textureName, out var texture) ? new Vector4(texture.Width, texture.Height, texture.Depth, texture.NumMipLevels) : Vector4.Zero;
 
             public Vector4 GetTextureAverageColor(StringToken textureName)
                 => TryGetTexture(textureName, out var texture) ? new Vector4(texture.Reflectivity.AsVector3(), 1f) : Vector4.One;
