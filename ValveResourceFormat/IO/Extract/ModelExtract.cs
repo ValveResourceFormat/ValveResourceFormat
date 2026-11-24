@@ -16,6 +16,7 @@ public partial class ModelExtract
     private readonly Model? model;
     private readonly PhysAggregateData? physAggregateData;
     private readonly IFileLoader? fileLoader;
+    private readonly ContentPathMap? referenceMap;
     private readonly string fileName;
     private ClothExtract? cloth;
 
@@ -44,9 +45,51 @@ public partial class ModelExtract
     public bool ReconstructSoftbody { get; init; } = true;
 
     /// <summary>
+    /// Gets whether animations are left out: no animation DMX files, no animation graph clips and no <c>AnimationList</c>.
+    /// </summary>
+    public bool SkipAnimations { get; init; }
+
+    /// <summary>
+    /// Gets whether physics is left out: no physics shapes, bodies, joints or their DMX files.
+    /// </summary>
+    public bool SkipPhysics { get; init; }
+
+    /// <summary>
+    /// Gets whether only the meshes of the most detailed level of detail are written, without LOD groups.
+    /// </summary>
+    public bool HighestLodOnly { get; init; }
+
+    /// <summary>Gets the options of decompiled models.</summary>
+    public static IReadOnlyList<ContentExportOption> ExportOptions { get; } =
+    [
+        ContentExportOption.Toggle("model_reconstruct_softbody", "Reconstruct cloth", "Models",
+            "Rebuild soft-body (cloth) physics of models and of the models in maps.", ["vmdl_c", "vmap_c"],
+            static settings => settings.ExtractOptions.ReconstructSoftbody,
+            static (settings, value) => settings.ExtractOptions = settings.ExtractOptions with { ReconstructSoftbody = value }),
+        ContentExportOption.Toggle("model_skip_animations", "Skip animations", "Models",
+            "Leave out animation files, animation graph clips and the animation list.", ["vmdl_c"],
+            static settings => settings.ExtractOptions.ModelSkipAnimations,
+            static (settings, value) => settings.ExtractOptions = settings.ExtractOptions with { ModelSkipAnimations = value }),
+        ContentExportOption.Toggle("model_skip_physics", "Skip physics", "Models",
+            "Leave out physics shapes, bodies and joints.", ["vmdl_c"],
+            static settings => settings.ExtractOptions.ModelSkipPhysics,
+            static (settings, value) => settings.ExtractOptions = settings.ExtractOptions with { ModelSkipPhysics = value }),
+        ContentExportOption.Toggle("model_highest_lod_only", "Highest LOD only", "Models",
+            "Only write the meshes of the most detailed level of detail, without LOD groups.", ["vmdl_c"],
+            static settings => settings.ExtractOptions.ModelHighestLodOnly,
+            static (settings, value) => settings.ExtractOptions = settings.ExtractOptions with { ModelHighestLodOnly = value }),
+    ];
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ModelExtract"/> class.
     /// </summary>
-    public ModelExtract(Resource modelResource, IFileLoader fileLoader)
+    /// <param name="modelResource">The model resource.</param>
+    /// <param name="fileLoader">Loads the meshes, physics and animations the model references.</param>
+    /// <param name="referenceMap">
+    /// The map of exported content paths to the paths they are written at, which references to them and the files
+    /// written for referenced meshes follow. Null writes them as they are.
+    /// </param>
+    public ModelExtract(Resource modelResource, IFileLoader fileLoader, ContentPathMap? referenceMap = null)
     {
         ArgumentNullException.ThrowIfNull(fileLoader);
         ArgumentNullException.ThrowIfNull(modelResource);
@@ -57,6 +100,7 @@ public partial class ModelExtract
         }
 
         this.fileLoader = fileLoader;
+        this.referenceMap = referenceMap;
         this.modelResource = modelResource;
         model = modelData;
 
@@ -75,28 +119,31 @@ public partial class ModelExtract
             physAggregateData = model.GetEmbeddedPhys();
         }
 
-        fileName = Path.ChangeExtension(modelResource.FileName ?? "model", ".vmdl");
+        fileName = modelResource.FileName != null ? ContentPaths.ChangeExtension(modelResource.FileName, ".vmdl") : modelData.Name;
         EnqueueMeshes();
         EnqueueAnimations();
         morphSetForControlNodes = new(FindMorphSetForControlNodes);
     }
 
-    /// <inheritdoc cref="ModelExtract(Resource, IFileLoader)"/>
+    /// <inheritdoc cref="ModelExtract(Resource, IFileLoader, ContentPathMap)"/>
     /// <summary>
     /// Extract a single mesh to vmdl+dmx.
     /// </summary>
     /// <param name="mesh">Mesh data</param>
     /// <param name="meshFileName">File name of the mesh e.g. "models/my_mesh.vmesh"</param>
-    public ModelExtract(Mesh mesh, string meshFileName)
+    /// <param name="referenceMap">The map of exported content paths to the paths they are written at, which references to them follow.</param>
+    public ModelExtract(Mesh mesh, string meshFileName, ContentPathMap? referenceMap = null)
     {
         ArgumentNullException.ThrowIfNull(mesh);
         ArgumentNullException.ThrowIfNull(meshFileName);
+
+        this.referenceMap = referenceMap;
 
         RenderMeshesToExtract.Add(new(mesh, "unnamed", 0, GetDmxFileName_ForReferenceMesh(meshFileName)));
         fileName = Path.ChangeExtension(meshFileName, ".vmdl");
     }
 
-    /// <inheritdoc cref="ModelExtract(Resource, IFileLoader)"/>
+    /// <inheritdoc cref="ModelExtract(Resource, IFileLoader, ContentPathMap)"/>
     public ModelExtract(PhysAggregateData physAggregateData, string physFileName)
     {
         ArgumentNullException.ThrowIfNull(physAggregateData);
@@ -143,31 +190,40 @@ public partial class ModelExtract
                 ClothSurface = Cloth.RenderBindingSurface,
                 ReconstructCloth = ReconstructsCloth,
                 SkipEmptyMorphSet = skipEmptyMorphSets,
+                ReferenceMap = referenceMap,
             };
 
             vmdl.AddSubFile(
-                Path.GetFileName(renderMesh.FileName),
+                renderMesh.FileName,
                 () => ToDmxMesh(renderMesh.Mesh, Path.GetFileNameWithoutExtension(renderMesh.FileName), options)
             );
         }
 
-        foreach (var physHull in PhysHullsToExtract)
+        if (!SkipPhysics)
         {
-            vmdl.AddSubFile(
-                Path.GetFileName(physHull.FileName),
-                () => ToDmxMesh(physHull.Hull, physHull.BindPose)
-            );
-        }
+            foreach (var physHull in PhysHullsToExtract)
+            {
+                vmdl.AddSubFile(
+                    physHull.FileName,
+                    () => ToDmxMesh(physHull.Hull, physHull.BindPose)
+                );
+            }
 
-        foreach (var physMesh in PhysMeshesToExtract)
-        {
-            vmdl.AddSubFile(
-                Path.GetFileName(physMesh.FileName),
-                () => ToDmxMesh(physMesh.Mesh, physMesh.BindPose)
-            );
+            foreach (var physMesh in PhysMeshesToExtract)
+            {
+                vmdl.AddSubFile(
+                    physMesh.FileName,
+                    () => ToDmxMesh(physMesh.Mesh, physMesh.BindPose)
+                );
+            }
         }
 
         Cloth.AddSubFiles(vmdl);
+
+        if (SkipAnimations)
+        {
+            return vmdl;
+        }
 
         foreach (var anim in AnimationsToExtract)
         {
@@ -177,7 +233,7 @@ public partial class ModelExtract
             }
 
             vmdl.AddSubFile(
-                Path.GetFileName(anim.FileName),
+                anim.FileName,
                 () =>
                 {
                     Debug.Assert(model is not null, "model should not be null when AnimationsToExtract has items");
@@ -192,9 +248,9 @@ public partial class ModelExtract
     }
 
     /// <summary>
-    /// Gets the model name from either the model resource or the file name.
+    /// Gets the content path the model is written at: the path of its resource, or else the name the model was compiled with.
     /// </summary>
-    public string ModelName => model?.Name ?? fileName;
+    public string ModelName => fileName;
 
     /// <summary>Gets the model's cloth reconstruction, empty when <see cref="ReconstructsCloth"/> is false.</summary>
     internal ClothExtract Cloth

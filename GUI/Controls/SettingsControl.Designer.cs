@@ -61,6 +61,7 @@ namespace GUI.Controls
             textViewerFontSizeLabel = new System.Windows.Forms.Label();
             textViewerFontSize = new ThemedIntNumeric() { MaxValue = 24, MinValue = 8 };
             openExplorerOnStartCheckbox = new System.Windows.Forms.CheckBox();
+            decompileOptionsDialogCheckbox = new System.Windows.Forms.CheckBox();
             themeComboBox = new ThemedComboBox();
             themeLabel = new System.Windows.Forms.Label();
             groupBox4 = new ThemedGroupBox();
@@ -275,7 +276,7 @@ namespace GUI.Controls
             installButton.CornerRadius = 5;
             installButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             installButton.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
-            installButton.Location = new System.Drawing.Point(15, 174);
+            installButton.Location = new System.Drawing.Point(15, 196);
             installButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             installButton.Name = "installButton";
             installButton.Size = new System.Drawing.Size(208, 30);
@@ -397,6 +398,7 @@ namespace GUI.Controls
             groupBox3.Controls.Add(installButton);
             groupBox3.Controls.Add(textViewerFontSize);
             groupBox3.Controls.Add(openExplorerOnStartCheckbox);
+            groupBox3.Controls.Add(decompileOptionsDialogCheckbox);
             groupBox3.Controls.Add(themeComboBox);
             groupBox3.Controls.Add(themeLabel);
             groupBox3.CornerRadius = 5;
@@ -440,6 +442,17 @@ namespace GUI.Controls
             openExplorerOnStartCheckbox.Text = "Open explorer on start";
             openExplorerOnStartCheckbox.UseVisualStyleBackColor = true;
             openExplorerOnStartCheckbox.CheckedChanged += OnOpenExplorerOnStartValueChanged;
+            //
+            // decompileOptionsDialogCheckbox
+            //
+            decompileOptionsDialogCheckbox.AutoSize = true;
+            decompileOptionsDialogCheckbox.Location = new System.Drawing.Point(15, 158);
+            decompileOptionsDialogCheckbox.Name = "decompileOptionsDialogCheckbox";
+            decompileOptionsDialogCheckbox.Size = new System.Drawing.Size(229, 23);
+            decompileOptionsDialogCheckbox.TabIndex = 17;
+            decompileOptionsDialogCheckbox.Text = "Ask how to decompile every time";
+            decompileOptionsDialogCheckbox.UseVisualStyleBackColor = true;
+            decompileOptionsDialogCheckbox.CheckedChanged += OnDecompileOptionsDialogValueChanged;
             // 
             // themeComboBox
             // 
@@ -630,6 +643,7 @@ namespace GUI.Controls
         private System.Windows.Forms.CheckBox quickPreviewCheckbox;
         private System.Windows.Forms.CheckBox quickPreviewSoundsCheckbox;
         private System.Windows.Forms.CheckBox openExplorerOnStartCheckbox;
+        private System.Windows.Forms.CheckBox decompileOptionsDialogCheckbox;
         private System.Windows.Forms.Label shadowResolutionLabel;
         private ThemedComboBox shadowQualityComboBox;
         private System.Windows.Forms.Label themeLabel;

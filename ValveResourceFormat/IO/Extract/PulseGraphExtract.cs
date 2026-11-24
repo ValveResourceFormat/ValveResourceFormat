@@ -18,6 +18,12 @@ public sealed class PulseGraphExtract
     /// <summary>Receives diagnostics about parts of the graph that could not be reconstructed exactly.</summary>
     public IProgress<string>? ProgressReporter { get; init; }
 
+    /// <summary>
+    /// Gets the map of exported content paths to the paths they are written at, which references to them follow.
+    /// Null writes them as they are.
+    /// </summary>
+    public ContentPathMap? ReferenceMap { get; init; }
+
     private readonly KVObject graph;
 
     /// <summary>
@@ -47,7 +53,7 @@ public sealed class PulseGraphExtract
     /// Builds the <c>.vpulse</c> document as KV3 text.
     /// </summary>
     /// <exception cref="InvalidDataException">A chunk has no debug info for some of its instructions.</exception>
-    public string ToDocumentString() => BuildDocument().ToKV3String(KV3IDLookup.Get("vpulse17"));
+    public string ToDocumentString() => ReferenceMap.MapReferences(BuildDocument()).ToKV3String(KV3IDLookup.Get("vpulse17"));
 
     private KVObject BuildDocument()
     {

@@ -133,12 +133,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         {
             base.Read(reader);
 
-            Name = Resource.FileName ?? string.Empty;
-
-            if (Name.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.OrdinalIgnoreCase))
-            {
-                Name = Name[..^GameFileLoader.CompiledFileSuffix.Length];
-            }
+            Name = ContentPaths.TrimCompiledSuffix(Resource.FileName ?? string.Empty);
 
             ReadClip(Data);
             Data = null;

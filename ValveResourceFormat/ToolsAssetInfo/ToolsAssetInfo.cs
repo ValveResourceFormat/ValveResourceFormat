@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using ValveKeyValue;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -13,6 +14,15 @@ namespace ValveResourceFormat.ToolsAssetInfo
     /// </summary>
     public class ToolsAssetInfo
     {
+        /// <summary>Gets the options of extracted tools asset info files.</summary>
+        public static IReadOnlyList<ContentExportOption> ExportOptions { get; } =
+        [
+            ContentExportOption.Toggle("tools_asset_info_paths_only", "Paths only", "Tools asset info",
+                "List only the paths of the assets, without their dependencies.", ["bin"],
+                static settings => settings.ExtractOptions.ToolsAssetInfoPathsOnly,
+                static (settings, value) => settings.ExtractOptions = settings.ExtractOptions with { ToolsAssetInfoPathsOnly = value }),
+        ];
+
         /// <summary>
         /// The root an asset path is relative to.
         /// </summary>
@@ -849,6 +859,99 @@ namespace ValveResourceFormat.ToolsAssetInfo
             }
 
             return output;
+        }
+
+        /// <summary>
+        /// Lists every asset by its path, each followed by its dependencies, search paths, references and sub assets.
+        /// </summary>
+        /// <param name="pathsOnly">Whether to list only the paths of the assets.</param>
+        public string ToDependencyText(bool pathsOnly = false)
+        {
+            var str = new StringBuilder();
+
+            if (pathsOnly)
+            {
+                foreach (var file in Files)
+                {
+                    str.AppendLine(file.Key);
+                }
+
+                return str.ToString();
+            }
+
+            foreach (var file in Files)
+            {
+                str.AppendLine(file.Key);
+
+                foreach (var dep in file.Value.SearchPathsGameRoot)
+                {
+                    str.AppendLine(CultureInfo.InvariantCulture, $"- GAME: {dep.Filename}");
+                }
+
+                foreach (var dep in file.Value.SearchPathsContentRoot)
+                {
+                    str.AppendLine(CultureInfo.InvariantCulture, $"- CONTENT: {dep.Filename}");
+                }
+
+                foreach (var dep in file.Value.InputDependencies)
+                {
+                    str.AppendLine(CultureInfo.InvariantCulture, $"- INPUT: {dep.Filename} (crc {dep.FileCRC})");
+                }
+
+                foreach (var dep in file.Value.AdditionalInputDependencies)
+                {
+                    str.AppendLine(CultureInfo.InvariantCulture, $"- INPUT: {dep.Filename} (crc {dep.FileCRC})");
+                }
+
+                foreach (var dep in file.Value.ExternalReferences)
+                {
+                    str.AppendLine(CultureInfo.InvariantCulture, $"- REF: {dep}");
+                }
+
+                foreach (var dep in file.Value.ChildResources)
+                {
+                    str.AppendLine(CultureInfo.InvariantCulture, $"- CHILD: {dep}");
+                }
+
+                foreach (var dep in file.Value.AdditionalRelatedFiles)
+                {
+                    str.AppendLine(CultureInfo.InvariantCulture, $"- RELATED: {dep}");
+                }
+
+                foreach (var dep in file.Value.WeakReferences)
+                {
+                    str.AppendLine(CultureInfo.InvariantCulture, $"- WEAK REF: {dep}");
+                }
+
+                foreach (var dep in file.Value.SpecialDependencies)
+                {
+                    str.AppendLine(CultureInfo.InvariantCulture, $"- SPECIAL DEPENDENCY: {dep.String} \"{dep.CompilerIdentifier}\"");
+                }
+
+                foreach (var dep in file.Value.SubassetDefinitions)
+                {
+                    str.AppendLine(CultureInfo.InvariantCulture, $"- SUBASSET DEF: {dep.Key}");
+
+                    foreach (var val in dep.Value)
+                    {
+                        str.AppendLine(CultureInfo.InvariantCulture, $" - {val}");
+                    }
+                }
+
+                foreach (var dep in file.Value.SubassetReferences)
+                {
+                    str.AppendLine(CultureInfo.InvariantCulture, $"- SUBASSET REF: {dep.Key}");
+
+                    foreach (var val in dep.Value)
+                    {
+                        str.AppendLine(CultureInfo.InvariantCulture, $" - {val.Key} {val.Value}");
+                    }
+                }
+
+                str.AppendLine();
+            }
+
+            return str.ToString();
         }
 
         /// <inheritdoc/>

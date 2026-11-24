@@ -48,9 +48,7 @@ HDR textures, such as this sky, export as EXR with their full brightness range.
 
     ![Context menu on the magazine cover texture with Decompile & export highlighted](./images/exporting-textures-export-menu.webp)
 
-2. Choose a folder and click **Save**.
-
-    ![The save dialog in a folder named Textures, with the file name shoots_magazine_color_psd_c0170b69.png and the Save as type list open, showing png file](./images/exporting-textures-save-dialog.webp)
+2. Click **Continue** in the decompile dialog, choose a folder and click **Select Folder**. The texture is written at its path in the game below that folder, such as `materials/...`.
 
 3. A window shows when the export is done.
 
@@ -58,7 +56,7 @@ HDR textures, such as this sky, export as EXR with their full brightness range.
 
 Textures are written as PNG, HDR textures as EXR, and textures stored as JPEG, PNG or WebP keep that format. Every other texture is also saved as a `.vtex`, with the image next to it. The exported image keeps the alpha channel.
 
-**Decompile & export** on a material writes the `.vmat` and its textures named after the compiled textures, with textures that pack several maps split into one image each.
+**Decompile & export** on a material writes the `.vmat` and its textures named after the compiled textures, with textures that pack several maps split into one image each. The images are written at the paths the `.vmat` refers to. Set **Dependencies** to **Direct** or **All** in the decompile dialog to also decompile the textures of a material or model from the same package.
 
 ## Exporting a Folder
 

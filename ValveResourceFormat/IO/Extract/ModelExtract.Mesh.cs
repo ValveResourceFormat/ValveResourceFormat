@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -79,6 +80,11 @@ partial class ModelExtract
         /// rules as <c>MorphControl</c> and <c>MorphRule</c> nodes.
         /// </summary>
         internal bool SkipEmptyMorphSet { get; init; }
+
+        /// <summary>
+        /// The map of exported content paths to the paths they are written at, which the material names follow.
+        /// </summary>
+        internal ContentPathMap? ReferenceMap { get; init; }
     }
 
     /// <summary>
@@ -95,20 +101,10 @@ partial class ModelExtract
     );
 
     string GetDmxFileName_ForEmbeddedMesh(string subString, int number = 0)
-    {
-        var fileName = ModelName;
-        return (Path.GetDirectoryName(fileName)
-            + Path.DirectorySeparatorChar
-            + Path.GetFileNameWithoutExtension(fileName)
-            + "_"
-            + subString
-            + (number > 0 ? number : string.Empty)
-            + ".dmx")
-            .Replace('\\', '/');
-    }
+        => ContentPaths.AppendToFileName(ModelName, number > 0 ? string.Create(CultureInfo.InvariantCulture, $"_{subString}{number}") : "_" + subString, ".dmx");
 
     static string GetDmxFileName_ForReferenceMesh(string fileName)
-        => Path.ChangeExtension(fileName, ".dmx").Replace('\\', '/');
+        => ContentPaths.ChangeExtension(fileName, ".dmx");
 
     private void EnqueueMeshes()
     {
@@ -167,7 +163,7 @@ partial class ModelExtract
             var remapTable = model.GetRemapTable(reference.MeshIndex);
             var meshKey = Path.GetFileNameWithoutExtension(reference.MeshName);
 
-            RenderMeshesToExtract.Add(new(mesh, meshKey, reference.MeshIndex, GetDmxFileName_ForReferenceMesh(reference.MeshName), remapTable, model.Skeleton));
+            RenderMeshesToExtract.Add(new(mesh, meshKey, reference.MeshIndex, GetDmxFileName_ForReferenceMesh(referenceMap.MapPath(reference.MeshName)), remapTable, model.Skeleton));
         }
     }
 
@@ -185,9 +181,14 @@ partial class ModelExtract
     /// <summary>
     /// Extracts content files from an aggregate model resource, splitting by draw calls.
     /// </summary>
-    public static IEnumerable<ContentFile> GetContentFiles_DrawCallSplit(Resource aggregateModelResource, IFileLoader fileLoader, Vector3[] drawOrigins, int drawCallCount)
+    /// <param name="aggregateModelResource">The aggregate model resource.</param>
+    /// <param name="fileLoader">Loads the meshes the model references.</param>
+    /// <param name="drawOrigins">The center of each draw call, which its model is moved by.</param>
+    /// <param name="drawCallCount">The number of draw calls.</param>
+    /// <param name="referenceMap">The map of exported content paths to the paths they are written at, which references to them follow.</param>
+    public static IEnumerable<ContentFile> GetContentFiles_DrawCallSplit(Resource aggregateModelResource, IFileLoader fileLoader, Vector3[] drawOrigins, int drawCallCount, ContentPathMap? referenceMap = null)
     {
-        var extract = new ModelExtract(aggregateModelResource, fileLoader) { Type = ModelExtractType.Map_AggregateSplit, ReconstructSoftbody = false };
+        var extract = new ModelExtract(aggregateModelResource, fileLoader, referenceMap) { Type = ModelExtractType.Map_AggregateSplit, ReconstructSoftbody = false };
         Debug.Assert(extract.RenderMeshesToExtract.Count == 1);
 
         if (extract.RenderMeshesToExtract.Count == 0)
@@ -204,6 +205,7 @@ partial class ModelExtract
             BoneRemapTable = boneRemapTable,
             Skeleton = skeleton,
             SkipEmptyMorphSet = extract.MorphSetForControlNodes != null,
+            ReferenceMap = referenceMap,
         };
 
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
@@ -233,7 +235,7 @@ partial class ModelExtract
 
             if (i == 0)
             {
-                vmdl.AddSubFile(Path.GetFileName(fileName), sharedDmxExtractMethod);
+                vmdl.AddSubFile(fileName, sharedDmxExtractMethod);
             }
 
             yield return vmdl;
@@ -255,6 +257,8 @@ partial class ModelExtract
     public static byte[] ToDmxMesh(Mesh mesh, string name, DatamodelRenderMeshExtractOptions options = default)
     {
         using var dmx = ConvertMeshToDatamodelMesh(mesh, name, options);
+        options.ReferenceMap.MapReferences(dmx);
+
         using var stream = new MemoryStream();
         dmx.Save(stream, "binary", 9);
 

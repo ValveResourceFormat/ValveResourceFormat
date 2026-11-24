@@ -28,6 +28,12 @@ public partial class AnimationGraphExtract : IDisposable
     private Resource? modelResourceCache;
     private bool modelResourceLoaded;
 
+    /// <summary>
+    /// Gets the map of exported content paths to the paths they are written at, which references to them follow.
+    /// Null writes them as they are.
+    /// </summary>
+    public ContentPathMap? ReferenceMap { get; init; }
+
     private Resource? ModelResource
     {
         get
@@ -445,9 +451,7 @@ public partial class AnimationGraphExtract : IDisposable
 
         if (resource.FileName is not null)
         {
-            outputFileName = resource.FileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal)
-                ? resource.FileName[..^2]
-                : resource.FileName;
+            outputFileName = ContentPaths.TrimCompiledSuffix(resource.FileName);
         }
     }
 
@@ -467,7 +471,7 @@ public partial class AnimationGraphExtract : IDisposable
         var contentFile = new ContentFile
         {
             Data = Encoding.UTF8.GetBytes(isUncompiledAnimationGraph
-                ? resourceData.Data.ToKV3String()
+                ? new KVDocument(resourceData.Data.Header, resourceData.Data.Name, ReferenceMap.MapReferences(Graph)).ToKV3String()
                 : ToEditableAnimGraphVersion19()),
             FileName = outputFileName ?? "animgraph",
         };
@@ -921,7 +925,7 @@ public partial class AnimationGraphExtract : IDisposable
 
         RelayoutEditorGraph(kv);
 
-        return kv.ToKV3String(format: KV3IDLookup.Get("animgraph19"));
+        return ReferenceMap.MapReferences(kv).ToKV3String(format: KV3IDLookup.Get("animgraph19"));
     }
 
     private KVObject ConvertClipDataManager(IReadOnlyList<KVObject> sequenceTagSpans)

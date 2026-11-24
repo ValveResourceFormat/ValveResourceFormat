@@ -33,7 +33,7 @@ namespace ValveResourceFormat.IO
             return new ContentFile
             {
                 Data = Encoding.UTF8.GetBytes(closedCaptions.ToString()),
-                FileName = Path.GetFileName(fileName),
+                FileName = fileName,
             };
         }
     }

@@ -13,14 +13,14 @@ namespace ValveResourceFormat.IO;
 /// </summary>
 partial class ModelExtract
 {
-    private static void AddModelConfigNodes(Model model, ModelDocLists lists)
+    private void AddModelConfigNodes(Model model, ModelDocLists lists)
     {
         if (model.Data.GetSubCollection("m_pModelConfigList") is not { ValueType: KVValueType.Collection } configList)
         {
             return;
         }
 
-        new ModelConfigNodeWriter(configList, lists).Write();
+        new ModelConfigNodeWriter(referenceMap.MapReferences(configList), lists).Write();
     }
 
     private sealed class ModelConfigNodeWriter(KVObject configList, ModelDocLists lists)

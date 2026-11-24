@@ -52,6 +52,7 @@ namespace GUI.Controls
             vsyncCheckBox.Checked = Settings.Config.Vsync != 0;
             displayFpsCheckBox.Checked = Settings.Config.DisplayFps != 0;
             openExplorerOnStartCheckbox.Checked = Settings.Config.OpenExplorerOnStart != 0;
+            decompileOptionsDialogCheckbox.Checked = !Settings.Config.DecompileSkipOptionsDialog;
             textViewerFontSize.Value = Settings.Config.TextViewerFontSize;
 
             themeComboBox.Items.AddRange(Enum.GetNames<Themer.AppTheme>());
@@ -216,6 +217,16 @@ namespace GUI.Controls
             }
 
             Settings.Config.OpenExplorerOnStart = openExplorerOnStartCheckbox.Checked ? 1 : 0;
+        }
+
+        private void OnDecompileOptionsDialogValueChanged(object sender, EventArgs e)
+        {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
+            Settings.Config.DecompileSkipOptionsDialog = !decompileOptionsDialogCheckbox.Checked;
         }
 
         private void OnAntiAliasingValueChanged(object sender, EventArgs e)

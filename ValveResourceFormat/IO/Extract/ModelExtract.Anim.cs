@@ -115,7 +115,7 @@ partial class ModelExtract
         {
             if (animation is ClipAnimation { Clip: var clip })
             {
-                clips.Add((animation.Name, new NmClipExtract(clip.Resource, fileLoader)));
+                clips.Add((animation.Name, new NmClipExtract(clip.Resource, fileLoader) { ReferenceMap = referenceMap }));
             }
         }
 
@@ -125,20 +125,14 @@ partial class ModelExtract
         {
             var clipContent = extract.ToContentFile();
             clipContent.FileName = name;
-            clipContent.KeepFullPath = true;
             vmdl.AdditionalFiles.Add(clipContent);
         }
     }
 
     string GetDmxFileName_ForAnimation(string animationName)
     {
-        var fileName = ModelName;
-        var baseName = (Path.GetDirectoryName(fileName)
-            + Path.DirectorySeparatorChar
-            + Path.GetFileNameWithoutExtension(fileName) // so models in the same directory do not override each other's anims
-            + "_"
-            + animationName)
-            .Replace('\\', '/');
+        // Prefixed with the model name so models in the same directory do not override each other's anims
+        var baseName = ContentPaths.AppendToFileName(ModelName, "_" + animationName, string.Empty);
 
         // A mesh and an animation can share a name, and then one dmx would overwrite the other.
         var candidate = baseName + ".dmx";

@@ -1586,7 +1586,7 @@ namespace GUI.Types.GLViewers
                 // Add ag2 folders
                 foreach (var anim in animations)
                 {
-                    animationToFolder.TryAdd(anim, (Path.GetDirectoryName(anim) ?? string.Empty).Replace('\\', '/'));
+                    animationToFolder.TryAdd(anim, ContentPaths.GetDirectoryName(anim));
                 }
 
                 if (animationToFolder.Count > 0)

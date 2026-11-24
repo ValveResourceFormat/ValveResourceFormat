@@ -96,6 +96,31 @@ public sealed class TextureExtract
     private readonly bool isSliced;
 
     // Options
+    /// <summary>Gets the option for <see cref="FileExtractOptions.TextureImagesOnly"/>.</summary>
+    public static ContentExportOption ImagesOnlyOption { get; } = ContentExportOption.Toggle("texture_images_only", "Images only", "Textures",
+        "Write only the images of textures, without a vtex file.", ["vtex_c"],
+        static settings => settings.ExtractOptions.TextureImagesOnly,
+        static (settings, value) => settings.ExtractOptions = settings.ExtractOptions with { TextureImagesOnly = value });
+
+    /// <summary>Gets the options of decompiled textures.</summary>
+    public static IReadOnlyList<ContentExportOption> ExportOptions { get; } =
+    [
+        ContentExportOption.Toggle("texture_force_ldr", "Force LDR", "Textures",
+            "Decode HDR textures to 8-bit images instead of EXR.", ["vtex_c"],
+            static settings => settings.ExtractOptions.TextureDecodeFlags.HasFlag(TextureCodec.ForceLDR),
+            static (settings, value) => settings.ExtractOptions = settings.ExtractOptions with
+            {
+                TextureDecodeFlags = value
+                    ? settings.ExtractOptions.TextureDecodeFlags | TextureCodec.ForceLDR
+                    : settings.ExtractOptions.TextureDecodeFlags & ~TextureCodec.ForceLDR,
+            }),
+        ImagesOnlyOption,
+        ContentExportOption.Toggle("texture_latlong_cubemap", "Combine HDR cubemaps", "Textures",
+            "Write HDR cubemaps exported as images only as one lat-long EXR image instead of six faces.", ["vtex_c"],
+            static settings => settings.ExtractOptions.TextureLatLongCombineCubemap,
+            static (settings, value) => settings.ExtractOptions = settings.ExtractOptions with { TextureLatLongCombineCubemap = value }),
+    ];
+
     /// <summary>
     /// Gets or sets the decode flags for texture extraction.
     /// </summary>
@@ -173,7 +198,7 @@ public sealed class TextureExtract
 
                 if (!isCubeMap)
                 {
-                    contentFile.AddSubFile(GetSliceImageFileName(depth), () =>
+                    contentFile.AddSubFile(GetContentPath(GetSliceImageFileName(depth)), () =>
                     {
                         using var bitmap = texture.GenerateBitmap(depth: currentDepth, decodeFlags: ImageDecodeFlags);
                         return ImageEncode(bitmap);
@@ -188,7 +213,7 @@ public sealed class TextureExtract
                 {
                     Func<SKPixmap[], SKBitmap> combine = writeVtex ? CreateCubemapStrip : CreateLatLongFromCubemapFaces;
 
-                    contentFile.AddSubFile(cubeName + ImageOutputExtension, () =>
+                    contentFile.AddSubFile(GetContentPath(cubeName + ImageOutputExtension), () =>
                     {
                         using var combined = CombineCubemapFaces(currentDepth, combine);
                         return ImageEncode(combined);
@@ -201,7 +226,7 @@ public sealed class TextureExtract
                 {
                     var currentFace = face;
 
-                    contentFile.AddSubFile($"{cubeName}_{CubemapNames[face]}{ImageOutputExtension}", () =>
+                    contentFile.AddSubFile(GetContentPath($"{cubeName}_{CubemapNames[face]}{ImageOutputExtension}"), () =>
                     {
                         using var bitmap = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)currentFace, decodeFlags: ImageDecodeFlags);
                         return ImageEncode(bitmap);
@@ -223,23 +248,23 @@ public sealed class TextureExtract
 
         if (TryGetMksData(out var sprites, out var mks))
         {
-            vtex.AddSubFile(Path.GetFileName(GetMksFileName()), () => Encoding.UTF8.GetBytes(mks));
+            vtex.AddSubFile(GetMksFileName(), () => Encoding.UTF8.GetBytes(mks));
 
             var packed = sprites.Keys.Select(static sprite => sprite.Pixels).ToArray();
 
             foreach (var (sprite, spriteFileName) in sprites)
             {
-                vtex.AddImageSubFile(Path.GetFileName(spriteFileName), (bitmap) => SpriteToPngImage(bitmap, sprite, packed));
+                vtex.AddImageSubFile(GetContentPath(spriteFileName), (bitmap) => SpriteToPngImage(bitmap, sprite, packed));
             }
 
             return vtex;
         }
 
-        vtex.AddImageSubFile(Path.GetFileName(GetImageFileName()), ImageEncode);
+        vtex.AddImageSubFile(GetImageFileName(), ImageEncode);
 
         if (writeVtex && GetRoughnessImageFileName() is { } roughnessFileName)
         {
-            vtex.AddImageSubFile(Path.GetFileName(roughnessFileName), bitmap => ToPngImageChannels(bitmap, ChannelMapping.A));
+            vtex.AddImageSubFile(roughnessFileName, bitmap => ToPngImageChannels(bitmap, ChannelMapping.A));
         }
 
         return vtex;
@@ -319,7 +344,7 @@ public sealed class TextureExtract
 
                 if (firstUnpackInfo.FileName != null)
                 {
-                    vtexContent.SubFiles[0].FileName = Path.GetFileName(firstUnpackInfo.FileName);
+                    vtexContent.SubFiles[0].FileName = firstUnpackInfo.FileName;
                 }
             }
 
@@ -347,7 +372,7 @@ public sealed class TextureExtract
 
             if (firstUnpackInfo.FileName != null)
             {
-                vtex.AddImageSubFile(Path.GetFileName(firstUnpackInfo.FileName), ToExrImage);
+                vtex.AddImageSubFile(firstUnpackInfo.FileName, ToExrImage);
             }
 
             return vtex;
@@ -355,7 +380,7 @@ public sealed class TextureExtract
 
         foreach (var unpackInfo in mapsToUnpack)
         {
-            vtex.AddImageSubFile(Path.GetFileName(unpackInfo.FileName), (bitmap) => ToPngImageChannels(bitmap, unpackInfo.Channel));
+            vtex.AddImageSubFile(unpackInfo.FileName, (bitmap) => ToPngImageChannels(bitmap, unpackInfo.Channel));
         }
 
         return vtex;
@@ -383,7 +408,7 @@ public sealed class TextureExtract
                 var channel = unpackInfo.Channel;
                 var sliceFileName = isCubeMap ? unpackInfo.FileName : GetSliceFileName(unpackInfo.FileName, slice);
 
-                contentFile.AddSubFile(Path.GetFileName(sliceFileName), () => contentFile.EncodeSlice(
+                contentFile.AddSubFile(sliceFileName, () => contentFile.EncodeSlice(
                     currentSlice,
                     () => isCubeMap ? CombineCubemapFaces(0, CreateCubemapStrip) : texture.GenerateBitmap(depth: currentSlice, decodeFlags: DecodeFlags),
                     bitmap => ExportExr ? ToExrImage(bitmap) : ToPngImageChannels(bitmap, channel)));
@@ -522,10 +547,13 @@ public sealed class TextureExtract
         => isArray ? string.Create(CultureInfo.InvariantCulture, $"{ImageBaseName}_f{depth:D2}") : ImageBaseName;
 
     private string GetImageFileName()
-        => Path.ChangeExtension(fileName, ImageOutputExtension);
+        => GetContentPath(ImageBaseName + ImageOutputExtension);
 
+    /// <summary>
+    /// Gets the content path of a file next to the texture.
+    /// </summary>
     private string GetContentPath(string name)
-        => Path.Join(Path.GetDirectoryName(GetContentFileName()), name).Replace(Path.DirectorySeparatorChar, '/');
+        => ContentPaths.Join(Path.GetDirectoryName(GetContentFileName()), name);
 
     private SKBitmap CombineCubemapFaces(uint depth, Func<SKPixmap[], SKBitmap> combine)
     {
@@ -568,7 +596,7 @@ public sealed class TextureExtract
     }
 
     private string GetMksFileName()
-        => Path.ChangeExtension(fileName, "mks");
+        => GetContentPath(ImageBaseName + ".mks");
 
     /// <summary>
     /// Converts a bitmap to PNG image bytes.
@@ -1138,11 +1166,7 @@ public sealed class TextureExtract
     }
 
     private string GetInputFileNameForVtex()
-    {
-        var extension = isSpriteSheet ? ".mks" : ImageOutputExtension;
-
-        return Path.ChangeExtension(GetContentFileName(), extension).Replace(Path.DirectorySeparatorChar, '/');
-    }
+        => isSpriteSheet ? GetMksFileName() : GetImageFileName();
 
     /// <summary>
     /// Converts the texture to a Valve texture (vtex) configuration string.
@@ -1196,7 +1220,7 @@ public sealed class TextureExtract
 
         // The roughness mip algorithms read a normal and a roughness input and store one minus the roughness. A texture
         // that holds roughness alone gets a flat normal.
-        var roughnessFileName = colorMip == "AnisoRoughness_RG" ? fileNames[0] : GetRoughnessImageFileName()?.Replace(Path.DirectorySeparatorChar, '/');
+        var roughnessFileName = colorMip == "AnisoRoughness_RG" ? fileNames[0] : GetRoughnessImageFileName();
 
         if (roughnessFileName != null)
         {
@@ -1333,7 +1357,7 @@ public sealed class TextureExtract
     private string? GetRoughnessImageFileName()
         => isCubeMap || isSliced || isSpriteSheet || !ImageDecodeFlags.HasFlag(TextureCodec.BlueToAlpha)
             ? null
-            : Path.ChangeExtension(fileName, null) + "_roughness.png";
+            : GetContentPath(ImageBaseName + "_roughness.png");
 
     /// <summary>
     /// Gets whether the color channels were compiled from sRGB input, by which of the raw and the linearized mean of

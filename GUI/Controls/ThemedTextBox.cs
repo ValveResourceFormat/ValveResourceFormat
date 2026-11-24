@@ -21,6 +21,13 @@ namespace GUI.Controls
             ForeColor = Themer.CurrentThemeColors.Contrast;
         }
 
+        protected override void OnEnabledChanged(EventArgs e)
+        {
+            base.OnEnabledChanged(e);
+
+            Themer.ThemeControl(this);
+        }
+
         public event EventHandler? CustomTextChanged;
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]

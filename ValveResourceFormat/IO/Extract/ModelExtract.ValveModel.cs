@@ -68,6 +68,12 @@ partial class ModelExtract
 
         var lists = new ModelDocLists(root.Children);
 
+        if (HighestLodOnly && model != null)
+        {
+            var lodInfo = model.LodInfo;
+            RenderMeshesToExtract.RemoveAll(mesh => !lodInfo.IsMeshInLevel(mesh.Index, lodInfo.LowestLevel));
+        }
+
         var boneMarkupList = MakeListNode("BoneMarkupList");
         root.Children.Add(boneMarkupList.Node);
         boneMarkupList.Node.Add("bone_cull_type", "None");
@@ -75,7 +81,12 @@ partial class ModelExtract
         AddRenderMeshNodes(lists);
         AddMaterialGroupNodes(lists);
         AddSequenceMarkupNodes(lists, Sequences);
-        AddAnimationNodes(lists, Sequences);
+
+        if (!SkipAnimations)
+        {
+            AddAnimationNodes(lists, Sequences);
+        }
+
         AddPhysicsShapeFileNodes(lists);
 
         if (model != null)
@@ -99,7 +110,11 @@ partial class ModelExtract
             }
         }
 
-        AddPhysicsBodyNodes(lists);
+        if (!SkipPhysics)
+        {
+            AddPhysicsBodyNodes(lists);
+        }
+
         Cloth.AddToValveModel(root.Children);
 
         if (Translation != Vector3.Zero)
@@ -109,7 +124,7 @@ partial class ModelExtract
 
         AddVsnapNodes(lists);
 
-        return kv.ToKV3String(format: KV3IDLookup.Get(writesClothStiffenSpeedInOut ? "modeldoc30" : "modeldoc28"));
+        return referenceMap.MapReferences(kv).ToKV3String(format: KV3IDLookup.Get(writesClothStiffenSpeedInOut ? "modeldoc30" : "modeldoc28"));
     }
 
     /// <summary>

@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using ValveKeyValue;
 using ValveKeyValue.KeyValues3;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -119,6 +120,6 @@ namespace ValveResourceFormat.ResourceTypes
             BackingData.WriteText(writer);
         }
 
-        internal override byte[] ToUtf8Text() => BackingData.ToUtf8Text();
+        internal override byte[] ToUtf8Text(ContentPathMap? referenceMap) => BackingData.ToUtf8Text(referenceMap);
     }
 }

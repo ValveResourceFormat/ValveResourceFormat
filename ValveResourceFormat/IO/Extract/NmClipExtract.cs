@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using ValveKeyValue;
@@ -39,6 +38,13 @@ public class NmClipExtract
     private ClipSources Sources => sources ??= LoadSources();
 
     /// <summary>
+    /// Gets the map of exported content paths to the paths they are written at, which references to them and the
+    /// animation written for the clip follow. An animation the clip was authored from that the map does not move is
+    /// written next to the clip instead, and not shared with other clips. Null writes them as they are.
+    /// </summary>
+    public ContentPathMap? ReferenceMap { get; init; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="NmClipExtract"/> class.
     /// </summary>
     public NmClipExtract(Resource resource, IFileLoader fileLoader)
@@ -60,17 +66,9 @@ public class NmClipExtract
 
         var (skeleton, secondaryAnimations, documentFileName, sourceFileName) = Sources;
 
-        var dmxFileName = Path.ChangeExtension(resource.FileName, ".dmx");
-        Debug.Assert(dmxFileName != null);
-        var dmxSubFileName = Path.GetFileName(dmxFileName);
-
-        if (documentFileName != null && sourceFileName != null && !separateFromSharedSource)
+        if (documentFileName == null || sourceFileName == null || separateFromSharedSource)
         {
-            dmxSubFileName = ContentFile.GetSubFileName(documentFileName, sourceFileName);
-        }
-        else
-        {
-            sourceFileName = NormalizeContentPath(dmxFileName);
+            sourceFileName = ContentPaths.ChangeExtension(ReferenceMap.MapPath(resource.FileName!), ".dmx");
         }
 
         kv.Add("_class", "CNmClipDocument");
@@ -105,7 +103,7 @@ public class NmClipExtract
             if (sharedSourceStartFrame == null)
             {
                 contentFile.AddSubFile(
-                    dmxSubFileName,
+                    sourceFileName,
                     () => ModelExtract.ToDmxAnim(skeleton, [], animation, secondaryAnimations, nmSkelAxisFixup: true, keepClothProxyBones: true, composeAdditive)
                 );
             }
@@ -151,7 +149,7 @@ public class NmClipExtract
         }
 
         kv.Add("m_eventTracks", docEventTracks);
-        contentFile.Data = kv.ToKV3Bytes();
+        contentFile.Data = ReferenceMap.MapReferences(kv).ToKV3Bytes();
         return contentFile;
     }
 
@@ -347,6 +345,9 @@ public class NmClipExtract
         }
 
         var (documentFileName, sourceFileName) = FindAuthoredSourceFiles(skeletonSourceFiles, skeletonSourcesKnown);
+
+        sourceFileName = sourceFileName != null && ReferenceMap.TryMapSourceFile(sourceFileName, out var mappedSourceFileName) ? mappedSourceFileName : null;
+
         return new ClipSources(skeleton, secondaryAnimations, documentFileName, sourceFileName);
     }
 
@@ -367,7 +368,7 @@ public class NmClipExtract
         {
             foreach (var dependency in skeletonResource.EditInfo.InputDependencies)
             {
-                skeletonSourceFiles.Add(NormalizeContentPath(dependency.ContentRelativeFilename));
+                skeletonSourceFiles.Add(ContentPaths.Normalize(dependency.ContentRelativeFilename));
             }
         }
 
@@ -396,7 +397,7 @@ public class NmClipExtract
 
         foreach (var dependency in resource.EditInfo.InputDependencies)
         {
-            var file = NormalizeContentPath(dependency.ContentRelativeFilename);
+            var file = ContentPaths.Normalize(dependency.ContentRelativeFilename);
 
             if (file.EndsWith(".vnmclip", StringComparison.OrdinalIgnoreCase))
             {
@@ -504,8 +505,6 @@ public class NmClipExtract
 
         return smallestDeviation <= IdentityTolerance ? baseFrame : -1;
     }
-
-    private static string NormalizeContentPath(string path) => path.Replace('\\', '/');
 
     /// <summary>
     /// Rebuilds the doc event track a compiled float curve came from. The compiler bakes a

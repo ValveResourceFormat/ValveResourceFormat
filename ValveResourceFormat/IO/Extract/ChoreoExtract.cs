@@ -1,4 +1,3 @@
-using System.IO;
 using System.Text;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -12,6 +11,12 @@ public class ChoreoExtract
 {
     private readonly Resource vcdlistResource;
     private readonly ChoreoSceneFileData choreoDataList;
+
+    /// <summary>
+    /// Gets the map of exported content paths to the paths they are written at, which references to them follow.
+    /// Null writes them as they are.
+    /// </summary>
+    public ContentPathMap? ReferenceMap { get; init; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ChoreoExtract"/> class.
@@ -39,19 +44,25 @@ public class ChoreoExtract
         var vcdlist = new ContentFile
         {
             Data = Encoding.UTF8.GetBytes(indentedTextWriter.ToString()),
-            FileName = Path.GetFileName(vcdlistResource.FileName) ?? "scene.vcdlist",
+            FileName = vcdlistResource.FileName ?? "scenes/scene.vcdlist",
         };
 
         foreach (var scene in choreoDataList.Scenes)
         {
-            var kv = scene.ToKeyValues();
+            var kv = ReferenceMap.MapReferences(scene.ToKeyValues());
 
             vcdlist.AddSubFile(
-                Path.GetFileName(scene.Name) ?? "choreo_scene.vcd",
+                GetScenePath(scene.Name),
                 () => kv.ToKV3Bytes()
             );
         }
 
         return vcdlist;
     }
+
+    /// <summary>
+    /// Gets the content path of a scene, whose name is relative to the scenes folder.
+    /// </summary>
+    private static string GetScenePath(string? sceneName)
+        => string.IsNullOrEmpty(sceneName) ? "scenes/choreo_scene.vcd" : $"scenes/{sceneName}";
 }

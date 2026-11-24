@@ -78,6 +78,12 @@ public class ThemedComboBox : ComboBox
 
         var foreColor = DropDownForeColor;
 
+        if (!Enabled)
+        {
+            backColor = Themer.GetDisabledColor(backColor);
+            foreColor = Themer.GetDisabledColor(foreColor);
+        }
+
         using (var brush = new SolidBrush(backColor))
         {
             e.Graphics.FillRectangle(brush, e.Bounds);

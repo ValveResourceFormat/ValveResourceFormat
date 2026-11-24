@@ -86,8 +86,8 @@ namespace GUI.Controls
 
             if (!Enabled)
             {
-                backColor = isLight ? ControlPaint.Light(backColor, 0.6f) : ControlPaint.Dark(backColor, 0.2f);
-                foreColor = isLight ? ControlPaint.Light(foreColor, 0.6f) : ControlPaint.Dark(foreColor, 0.2f);
+                backColor = Themer.GetDisabledColor(backColor);
+                foreColor = Themer.GetDisabledColor(foreColor);
             }
             else if (Clicked)
             {
