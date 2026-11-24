@@ -12,7 +12,7 @@ public sealed class RenderAttributes
 
     internal bool IsEmpty => Values.Count == 0;
 
-    // Filled by the material, freed with the node or the material
+    // Filled by the material, freed with the node
     internal Dictionary<RenderMaterial, RenderMaterial.GlobalsState> Baked { get; } = [];
 
     /// <summary>Gets or sets an attribute.</summary>
@@ -72,9 +72,8 @@ public sealed class RenderAttributes
 
     internal void Delete()
     {
-        foreach (var (material, baked) in Baked)
+        foreach (var baked in Baked.Values)
         {
-            material.BakedInto.Remove(this);
             baked.Buffer.Delete();
         }
 

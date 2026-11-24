@@ -441,23 +441,12 @@ namespace ValveResourceFormat.Renderer.Materials
             public bool ExpressionsConstant { get; set; }
         }
 
-        // Node attributes holding a buffer baked from this material
-        internal HashSet<RenderAttributes> BakedInto { get; } = [];
-
         // The material's own buffer, or the one baked with node attributes
         private Globals EnsureGlobals(Shader shader, RenderAttributes? attributes = null)
         {
-            GlobalsState state;
-
-            if (attributes == null)
-            {
-                state = globals ??= new GlobalsState(new Globals(GetGlobalsName(shader)));
-            }
-            else
-            {
-                state = CollectionsMarshal.GetValueRefOrAddDefault(attributes.Baked, this, out _) ??= new GlobalsState(new Globals(GetGlobalsName(shader)));
-                BakedInto.Add(attributes);
-            }
+            var state = attributes == null
+                ? globals ??= new GlobalsState(new Globals(GetGlobalsName(shader)))
+                : CollectionsMarshal.GetValueRefOrAddDefault(attributes.Baked, this, out _) ??= new GlobalsState(new Globals(GetGlobalsName(shader)));
 
             var layout = shader.GlobalsLayout;
             var attributesVersion = attributes?.Version ?? 0;
@@ -612,16 +601,6 @@ namespace ValveResourceFormat.Renderer.Materials
         {
             globals?.Buffer.Delete();
             globals = null;
-
-            foreach (var attributes in BakedInto)
-            {
-                if (attributes.Baked.Remove(this, out var baked))
-                {
-                    baked.Buffer.Delete();
-                }
-            }
-
-            BakedInto.Clear();
 
             depthMaterial?.Delete();
             depthMaterial = null;
