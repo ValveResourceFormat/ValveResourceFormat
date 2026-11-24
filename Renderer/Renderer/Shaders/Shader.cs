@@ -59,7 +59,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         public required HashSet<string> SamplerUserConfigUniforms { get; init; }
 
         /// <summary>Gets the compiled expressions of the uniforms the <c>/* Expressions</c> blocks assign, used where game shader files do not provide them.</summary>
-        public IReadOnlyDictionary<string, byte[]> Expressions { get; internal set; } = new Dictionary<string, byte[]>();
+        public Dictionary<string, byte[]> Expressions { get; internal set; } = [];
 
         /// <summary>Gets the sampler uniform that holds the color of a material, annotated with <c>// RepresentativeTexture</c>, or <see langword="null"/> when the shader has none.</summary>
         public string? RepresentativeTexture { get; init; }

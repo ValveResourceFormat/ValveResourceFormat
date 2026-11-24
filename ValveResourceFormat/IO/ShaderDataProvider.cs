@@ -64,7 +64,7 @@ namespace ValveResourceFormat.IO
     }
 
     /// <summary>The variables with compiled expressions in a shader variant.</summary>
-    public sealed record ShaderExpressions(IReadOnlyDictionary<string, VfxVariableDescription> Variables, ShaderCollection Shader);
+    public sealed record ShaderExpressions(Dictionary<string, VfxVariableDescription> Variables, ShaderCollection Shader);
 
     /// <summary>
     /// Provides shader data by querying compiled shader files, with optional fallback to basic hardcoded mappings.

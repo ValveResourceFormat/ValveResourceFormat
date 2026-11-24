@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -876,7 +875,7 @@ namespace ValveResourceFormat.Renderer.Materials
             private const int MaxDepth = 8;
             private int depth;
 
-            public IReadOnlyDictionary<string, VfxVariableDescription> Variables { get; } = expressions?.Variables ?? ReadOnlyDictionary<string, VfxVariableDescription>.Empty;
+            public Dictionary<string, VfxVariableDescription> Variables { get; } = expressions?.Variables ?? [];
 
             private bool TryGetVariable(StringToken name, [NotNullWhen(true)] out VfxVariableDescription? variable)
             {
