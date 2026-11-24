@@ -53,7 +53,7 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
 
     /// <summary>Gets the variables of all programs by the tokens dynamic expressions refer to them with.</summary>
     public IReadOnlyDictionary<StringToken, VfxVariableDescription> VariablesByToken
-        => LazyInitializer.EnsureInitialized(ref variablesByToken, CreateVariablesByToken);
+        => variablesByToken ??= CreateVariablesByToken();
 
     private Dictionary<StringToken, VfxVariableDescription> CreateVariablesByToken()
     {
