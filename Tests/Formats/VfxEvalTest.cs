@@ -890,6 +890,12 @@ namespace Tests.Formats
         [Arguments("21 00 00 00 00 00 00 80 3F 00 00 00 00 00 00 80 3F 21 00 00 00 00 00 00 00 00 00 00 80 3F 00 00 80 3F 0A 00", 0f, 1f, 1f, 1f)]
         // float4(0, 1, 0, 1) AND float4(0, 0, 1, 1)
         [Arguments("21 00 00 00 00 00 00 80 3F 00 00 00 00 00 00 80 3F 21 00 00 00 00 00 00 00 00 00 00 80 3F 00 00 80 3F 0B 00", 0f, 0f, 0f, 1f)]
+        // float2(1, 2)
+        [Arguments("07 00 00 80 3F 07 00 00 00 40 06 1A 00 00", 1f, 2f, 0f, 0f)]
+        // float3(1, 2, 3)
+        [Arguments("07 00 00 80 3F 07 00 00 00 40 07 00 00 40 40 06 19 00 00", 1f, 2f, 3f, 0f)]
+        // float4(0, 1, 1, 1) ? 1 : 2, which tests x only
+        [Arguments("21 00 00 00 00 00 00 80 3F 00 00 80 3F 00 00 80 3F 04 16 00 1C 00 07 00 00 80 3F 00 07 00 00 00 40 00", 2f, 2f, 2f, 2f)]
         public async Task TestRuntimeEvaluatesTo(string exampleStr, float x, float y, float z, float w)
         {
             await Assert.That(VfxEvalRuntime.TryEvaluate(ParseString(exampleStr), new RuntimeContext(), out var value, out _)).IsTrue();
@@ -905,6 +911,12 @@ namespace Tests.Formats
         [Arguments("07 00 00 80 3F 14 00")]
         // ret without a call
         [Arguments("05 00")]
+        // Jump to itself
+        [Arguments("02 00 00")]
+        // Third feature table that does not exist
+        [Arguments("1C 00 00")]
+        // Param index that does not resolve
+        [Arguments("20 00 00 00 00 00")]
         public async Task TestRuntimeFailsToEvaluate(string exampleStr)
         {
             await Assert.That(VfxEvalRuntime.TryEvaluate(ParseString(exampleStr), new RuntimeContext(), out _, out _)).IsFalse();

@@ -125,10 +125,10 @@ namespace ValveResourceFormat.Serialization.VfxEval
             /// <summary>Pushes the feature whose byte index follows.</summary>
             Feature = 0x1A,
 
-            /// <summary>A feature read of unknown operands.</summary>
+            /// <summary>Pushes the value at the byte index that follows in the second feature table.</summary>
             Feature2 = 0x1B,
 
-            /// <summary>A feature read of unknown operands.</summary>
+            /// <summary>Pushes the value at the byte index that follows in the third feature table, not constant.</summary>
             Feature3 = 0x1C,
 
             /// <summary>Pushes the material parameter whose uint token follows.</summary>
@@ -511,6 +511,18 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         : $"FEAT[{featureId}]");
                     return;
                 }
+
+                case OpCode.Feature2:
+                    Push($"FEAT2[{dataReader.ReadByte()}]");
+                    return;
+
+                case OpCode.Feature3:
+                    Push($"FEAT3[{dataReader.ReadByte()}]");
+                    return;
+
+                case OpCode.MaterialParamByIndex:
+                    Push($"MATERIAL_PARAM[{dataReader.ReadInt32()}]");
+                    return;
 
                 case OpCode.SystemValue:
                 {

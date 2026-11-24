@@ -28,7 +28,23 @@ namespace ValveResourceFormat.Serialization.VfxEval
         /// <summary>Gets the value of a feature by its index in the features file.</summary>
         public int GetFeature(int index) => 0;
 
-        /// <summary>Gets the size of a texture parameter.</summary>
+        /// <summary>Gets a value of the second feature table by index.</summary>
+        public int GetFeature2(int index) => 0;
+
+        /// <summary>Gets a value of the third feature table by index, or null to fail without that table.</summary>
+        public int? GetFeature3(int index) => null;
+
+        /// <summary>Gets a system value by its static combo source index.</summary>
+        public int GetSystemValue(int index) => 0;
+
+        /// <summary>Gets the name of a material parameter by its index in the features file.</summary>
+        public bool TryGetMaterialParamName(int index, out StringToken name)
+        {
+            name = default;
+            return false;
+        }
+
+        /// <summary>Gets the width, height, depth and mip count of a texture parameter.</summary>
         public Vector4 GetTextureSize(StringToken textureName) => Vector4.Zero;
 
         /// <summary>Gets the average color of a texture parameter.</summary>
@@ -71,6 +87,9 @@ namespace ValveResourceFormat.Serialization.VfxEval
         }
 
         private const int MaxStackDepth = 32;
+
+        // Jumps back would otherwise loop forever
+        private const int MaxSteps = 65536;
 
         private ref struct ValueStack(Span<Vector4> items)
         {
@@ -115,10 +134,16 @@ namespace ValveResourceFormat.Serialization.VfxEval
             Span<int> callStack = stackalloc int[32];
             var callStackTop = 0;
             var offset = 0;
+            var steps = 0;
 
             while (offset < bytecode.Length && !stack.Failed)
             {
                 var opcode = (OpCode)bytecode[offset++];
+
+                if (++steps > MaxSteps)
+                {
+                    return false;
+                }
 
                 switch (opcode)
                 {
@@ -155,7 +180,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     {
                         var whenTrue = BinaryPrimitives.ReadUInt16LittleEndian(bytecode[offset..]);
                         var whenFalse = BinaryPrimitives.ReadUInt16LittleEndian(bytecode[(offset + 2)..]);
-                        offset = stack.Pop() != Vector4.Zero ? whenTrue : whenFalse;
+                        offset = stack.Pop().X != 0f ? whenTrue : whenFalse;
                         break;
                     }
 
@@ -268,9 +293,17 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         break;
 
                     case OpCode.MaterialParam:
+                    case OpCode.MaterialParamByIndex:
                     {
-                        StringToken name = BinaryPrimitives.ReadUInt32LittleEndian(bytecode[offset..]);
+                        var operand = BinaryPrimitives.ReadUInt32LittleEndian(bytecode[offset..]);
                         offset += 4;
+
+                        StringToken name = operand;
+
+                        if (opcode == OpCode.MaterialParamByIndex && !context.TryGetMaterialParamName((int)operand, out name))
+                        {
+                            return false;
+                        }
 
                         if (context.IsTextureParam(name))
                         {
@@ -292,6 +325,23 @@ namespace ValveResourceFormat.Serialization.VfxEval
                         stack.Push(new Vector4(context.GetFeature(bytecode[offset++])));
                         break;
 
+                    case OpCode.Feature2:
+                        stack.Push(new Vector4(context.GetFeature2(bytecode[offset++])));
+                        break;
+
+                    case OpCode.Feature3:
+                    {
+                        isConstant = false;
+
+                        if (context.GetFeature3(bytecode[offset++]) is not { } feature)
+                        {
+                            return false;
+                        }
+
+                        stack.Push(new Vector4(feature));
+                        break;
+                    }
+
                     case OpCode.Swizzle:
                     {
                         var swizzle = bytecode[offset++];
@@ -301,8 +351,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     }
 
                     case OpCode.SystemValue:
-                        offset++;
-                        stack.Push(Vector4.Zero);
+                        stack.Push(new Vector4(context.GetSystemValue(bytecode[offset++])));
                         break;
 
                     default:
@@ -310,7 +359,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 }
             }
 
-            return false;
+            // Running off the end returns
+            return !stack.Failed;
         }
 
         private static float Compare(OpCode opcode, float a, float b)
@@ -418,13 +468,13 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 {
                     var z = stack.Pop().X;
                     var y = stack.Pop().X;
-                    stack.Push(new Vector4(stack.Pop().X, y, z, z));
+                    stack.Push(new Vector4(stack.Pop().X, y, z, 0f));
                     break;
                 }
                 case ExpressionFunction.Float2:
                 {
                     var y = stack.Pop().X;
-                    stack.Push(new Vector4(stack.Pop().X, y, y, y));
+                    stack.Push(new Vector4(stack.Pop().X, y, 0f, 0f));
                     break;
                 }
                 case ExpressionFunction.Time: stack.Push(new Vector4(context.Time)); break;
