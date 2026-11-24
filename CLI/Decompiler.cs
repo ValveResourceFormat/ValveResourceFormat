@@ -130,7 +130,7 @@ namespace CLI
         /// <param name="vpk_list">-l, List all files in the given VPK or folder. File extension and path filters apply.</param>
         /// <param name="vpk_dir">Same as --vpk_list, but also print the archive index, offset and metadata size of each file.</param>
         /// <param name="vpk_search">Print the paths of files in the given VPK, or in the VPKs of the given folder, whose contents contain this text (case-insensitive), with compiled files searched in their decompressed KV3 data. File extension and path filters apply.</param>
-        /// <param name="vpk_search_options">Options for --vpk_search, comma-separated: "case" (letter case has to match), "word" (whole words only), "regex" (the text is a regular expression), or "hex" alone (the text is bytes, such as "56 42 4B 56", searched in the stored files).</param>
+        /// <param name="vpk_search_options">Options for --vpk_search, comma-separated: "case" (letter case has to match), "word" (whole words only), "regex" (the text is a regular expression), "words" (all space-separated words, in any order), or "hex" alone (the text is bytes, such as "56 42 4B 56", searched in the stored files).</param>
         /// <param name="kv_flatten">Print a KeyValues1 or KeyValues3 text file as one "path = value" line per value, for comparing two versions of a file with a line diff. Use "-i -" to read from stdin.</param>
         /// <param name="gltf_export_format">Export meshes and models in the given glTF format, "gltf" or "glb". Implies --vpk_decompile.</param>
         /// <param name="gltf_export_materials">Export materials during glTF exports.</param>

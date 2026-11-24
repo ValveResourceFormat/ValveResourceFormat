@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -41,7 +42,8 @@ public enum PackageSearchType
 /// <param name="MatchCase">Whether letter case has to match.</param>
 /// <param name="WholeWord">Whether the match has to be a whole word.</param>
 /// <param name="UseRegex">Whether <paramref name="Text"/> is a regular expression.</param>
-public readonly record struct PackageSearchQuery(string Text, PackageSearchType Type, bool MatchCase = false, bool WholeWord = false, bool UseRegex = false);
+/// <param name="AllWords">Whether every whitespace separated word of <paramref name="Text"/> has to match, in any order. Ignored with <paramref name="UseRegex"/>.</param>
+public readonly record struct PackageSearchQuery(string Text, PackageSearchType Type, bool MatchCase = false, bool WholeWord = false, bool UseRegex = false, bool AllWords = false);
 
 /// <summary>
 /// Finds package files by name, path or contents.
@@ -78,7 +80,7 @@ public static class PackageSearch
             return e.Message;
         }
 
-        return query is { Type: PackageSearchType.FileContents, UseRegex: false } && Encoding.UTF8.GetByteCount(query.Text) < 3
+        return query is { Type: PackageSearchType.FileContents, UseRegex: false } && GetTerms(query, query.Text).Any(term => Encoding.UTF8.GetByteCount(term) < 3)
             ? "Enter at least 3 characters to search file contents"
             : null;
     }
@@ -108,6 +110,7 @@ public static class PackageSearch
         var text = query.UseRegex ? query.Text : query.Text.Replace('\\', Package.DirectorySeparatorChar);
         var fullPath = query.Type == PackageSearchType.FullPath || (!query.UseRegex && text.Contains(Package.DirectorySeparatorChar, StringComparison.Ordinal));
         var regex = query.UseRegex || query.WholeWord ? CreateRegex(query, text, TimeSpan.FromMilliseconds(100)) : null;
+        var terms = GetTerms(query, text);
         var comparison = query.MatchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         var matches = new List<PackageEntry>();
         var notSearched = 0;
@@ -124,7 +127,7 @@ public static class PackageSearch
 
             try
             {
-                if (regex?.IsMatch(value) ?? value.Contains(text, comparison))
+                if (regex?.IsMatch(value) ?? terms.All(term => value.Contains(term, comparison)))
                 {
                     matches.Add(entry);
                 }
@@ -227,23 +230,52 @@ public static class PackageSearch
             return data => data.IndexOf(bytes) >= 0;
         }
 
-        var pattern = Encoding.UTF8.GetBytes(query.Text);
-        var prefilter = !query.UseRegex && (query.MatchCase || Ascii.IsValid(pattern));
+        var patterns = GetTerms(query, query.Text).Select(Encoding.UTF8.GetBytes).ToArray();
+        var prefilter = !query.UseRegex && (query.MatchCase || patterns.All(pattern => Ascii.IsValid(pattern)));
         var regex = !prefilter || query.WholeWord ? CreateRegex(query, query.Text, TimeSpan.FromSeconds(3)) : null;
         usesRegex = regex != null;
 
-        return data => (!prefilter || (query.MatchCase ? data.IndexOf(pattern) >= 0 : ContainsIgnoreAsciiCase(data, pattern)))
+        return data => (!prefilter || ContainsAll(data, patterns, query.MatchCase))
             && (regex == null || IsTextMatch(regex, data));
+    }
+
+    private static bool ContainsAll(ReadOnlySpan<byte> data, byte[][] patterns, bool matchCase)
+    {
+        foreach (var pattern in patterns)
+        {
+            if (!(matchCase ? data.IndexOf(pattern) >= 0 : ContainsIgnoreAsciiCase(data, pattern)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static string[] GetTerms(PackageSearchQuery query, string text)
+    {
+        if (!query.AllWords || query.UseRegex)
+        {
+            return [text];
+        }
+
+        var words = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        return words.Length > 0 ? words : [text];
     }
 
     private static Regex CreateRegex(PackageSearchQuery query, string text, TimeSpan matchTimeout)
     {
-        var pattern = query.UseRegex ? text : Regex.Escape(text);
+        var terms = GetTerms(query, text).Select(term => query.UseRegex ? term : Regex.Escape(term));
 
         if (query.WholeWord)
         {
-            pattern = string.Concat(@"(?<!\w)(?:", pattern, @")(?!\w)");
+            terms = terms.Select(term => string.Concat(@"(?<!\w)(?:", term, @")(?!\w)"));
         }
+
+        var termPatterns = terms.ToArray();
+        var pattern = termPatterns.Length == 1
+            ? termPatterns[0]
+            : string.Concat(@"\A", string.Concat(termPatterns.Select(term => string.Concat(@"(?=[\s\S]*?", term, ")"))));
 
         var options = RegexOptions.CultureInvariant | RegexOptions.Multiline | (query.MatchCase ? RegexOptions.None : RegexOptions.IgnoreCase);
 

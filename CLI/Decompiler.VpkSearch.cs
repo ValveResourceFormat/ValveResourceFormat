@@ -23,18 +23,19 @@ namespace CLI
             var matchCase = options.Remove("case");
             var wholeWord = options.Remove("word");
             var useRegex = options.Remove("regex");
+            var allWords = options.Remove("words");
 
             if (options.Count > 0)
             {
-                return $"Unknown search option \"{options.First()}\", use any of: case, word, regex, hex.";
+                return $"Unknown search option \"{options.First()}\", use any of: case, word, regex, words, hex.";
             }
 
-            if (hex && (matchCase || wholeWord || useRegex))
+            if (hex && (matchCase || wholeWord || useRegex || allWords))
             {
                 return "The hex search option can not be combined with the other search options.";
             }
 
-            var query = new PackageSearchQuery(text, hex ? PackageSearchType.FileContentsHex : PackageSearchType.FileContents, matchCase, wholeWord, useRegex);
+            var query = new PackageSearchQuery(text, hex ? PackageSearchType.FileContentsHex : PackageSearchType.FileContents, matchCase, wholeWord, useRegex, allWords);
 
             if (PackageSearch.GetError(query) is { } error)
             {

@@ -33,7 +33,7 @@ namespace GUI.Forms
         /// Gets the search as entered by the user.
         /// </summary>
         public SearchRequest Request => new(
-            new(findTextBox.Text, (PackageSearchType)searchTypeComboBox.SelectedIndex, matchCaseCheckBox.Checked, wholeWordCheckBox.Checked, regexCheckBox.Checked),
+            new(findTextBox.Text, (PackageSearchType)searchTypeComboBox.SelectedIndex, matchCaseCheckBox.Checked, wholeWordCheckBox.Checked, regexCheckBox.Checked, allWordsCheckBox.Checked),
             onlyInFolderCheckBox.Checked ? folder : null,
             extensionComboBox.SelectedIndex > 0 ? (string)extensionComboBox.SelectedItem! : null,
             filterKeyComboBox.SelectedItem is FilterKeyEntry entry ? entry.Key : null,
@@ -55,6 +55,7 @@ namespace GUI.Forms
             matchCaseCheckBox.CheckedChanged += (_, _) => UpdateState();
             wholeWordCheckBox.CheckedChanged += (_, _) => UpdateState();
             regexCheckBox.CheckedChanged += (_, _) => UpdateState();
+            allWordsCheckBox.CheckedChanged += (_, _) => UpdateState();
             onlyInFolderCheckBox.CheckedChanged += (_, _) => UpdateState();
             extensionComboBox.SelectedIndexChanged += (_, _) => UpdateState();
         }
@@ -65,6 +66,7 @@ namespace GUI.Forms
             var error = PackageSearch.GetError(request.Query);
 
             matchCaseCheckBox.Enabled = wholeWordCheckBox.Enabled = regexCheckBox.Enabled = request.Query.Type != PackageSearchType.FileContentsHex;
+            allWordsCheckBox.Enabled = regexCheckBox.Enabled && !regexCheckBox.Checked;
             hintLabel.Text = error;
             findButton.Enabled = error == null && request is not { Query.Text: "", Folder: null, Extension: null, FilterKey: null };
 

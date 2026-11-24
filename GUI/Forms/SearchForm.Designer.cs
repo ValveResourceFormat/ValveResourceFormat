@@ -40,6 +40,7 @@ namespace GUI.Forms
             matchCaseCheckBox = new System.Windows.Forms.CheckBox();
             wholeWordCheckBox = new System.Windows.Forms.CheckBox();
             regexCheckBox = new System.Windows.Forms.CheckBox();
+            allWordsCheckBox = new System.Windows.Forms.CheckBox();
             onlyInFolderCheckBox = new System.Windows.Forms.CheckBox();
             extensionLabel = new System.Windows.Forms.Label();
             extensionComboBox = new ThemedComboBox();
@@ -61,7 +62,7 @@ namespace GUI.Forms
             findButton.Name = "findButton";
             findButton.Size = new System.Drawing.Size(88, 31);
             findButton.Style = true;
-            findButton.TabIndex = 12;
+            findButton.TabIndex = 13;
             findButton.Text = "Find";
             findButton.UseVisualStyleBackColor = false;
             // 
@@ -80,7 +81,7 @@ namespace GUI.Forms
             cancelButton.Name = "cancelButton";
             cancelButton.Size = new System.Drawing.Size(88, 31);
             cancelButton.Style = true;
-            cancelButton.TabIndex = 13;
+            cancelButton.TabIndex = 14;
             cancelButton.Text = "Cancel";
             cancelButton.UseVisualStyleBackColor = false;
             // 
@@ -114,7 +115,7 @@ namespace GUI.Forms
             filterKeyLabel.Location = new System.Drawing.Point(13, 210);
             filterKeyLabel.Name = "filterKeyLabel";
             filterKeyLabel.Size = new System.Drawing.Size(103, 19);
-            filterKeyLabel.TabIndex = 8;
+            filterKeyLabel.TabIndex = 9;
             filterKeyLabel.Text = "Asset info filter:";
             // 
             // filterKeyComboBox
@@ -131,7 +132,7 @@ namespace GUI.Forms
             filterKeyComboBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             filterKeyComboBox.Name = "filterKeyComboBox";
             filterKeyComboBox.Size = new System.Drawing.Size(400, 26);
-            filterKeyComboBox.TabIndex = 9;
+            filterKeyComboBox.TabIndex = 10;
             // 
             // filterValueComboBox
             // 
@@ -147,7 +148,7 @@ namespace GUI.Forms
             filterValueComboBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             filterValueComboBox.Name = "filterValueComboBox";
             filterValueComboBox.Size = new System.Drawing.Size(400, 26);
-            filterValueComboBox.TabIndex = 10;
+            filterValueComboBox.TabIndex = 11;
             filterValueComboBox.Visible = false;
             // 
             // matchCaseCheckBox
@@ -165,7 +166,7 @@ namespace GUI.Forms
             // 
             wholeWordCheckBox.AutoSize = true;
             wholeWordCheckBox.FlatStyle = System.Windows.Forms.FlatStyle.System;
-            wholeWordCheckBox.Location = new System.Drawing.Point(130, 86);
+            wholeWordCheckBox.Location = new System.Drawing.Point(125, 86);
             wholeWordCheckBox.Name = "wholeWordCheckBox";
             wholeWordCheckBox.TabIndex = 3;
             wholeWordCheckBox.Text = "Whole word";
@@ -176,12 +177,23 @@ namespace GUI.Forms
             // 
             regexCheckBox.AutoSize = true;
             regexCheckBox.FlatStyle = System.Windows.Forms.FlatStyle.System;
-            regexCheckBox.Location = new System.Drawing.Point(247, 86);
+            regexCheckBox.Location = new System.Drawing.Point(242, 86);
             regexCheckBox.Name = "regexCheckBox";
             regexCheckBox.TabIndex = 4;
             regexCheckBox.Text = "Regex";
             regexCheckBox.UseMnemonic = false;
             regexCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // allWordsCheckBox
+            // 
+            allWordsCheckBox.AutoSize = true;
+            allWordsCheckBox.FlatStyle = System.Windows.Forms.FlatStyle.System;
+            allWordsCheckBox.Location = new System.Drawing.Point(322, 86);
+            allWordsCheckBox.Name = "allWordsCheckBox";
+            allWordsCheckBox.TabIndex = 5;
+            allWordsCheckBox.Text = "All words";
+            allWordsCheckBox.UseMnemonic = false;
+            allWordsCheckBox.UseVisualStyleBackColor = true;
             // 
             // onlyInFolderCheckBox
             // 
@@ -189,7 +201,7 @@ namespace GUI.Forms
             onlyInFolderCheckBox.Location = new System.Drawing.Point(13, 116);
             onlyInFolderCheckBox.Name = "onlyInFolderCheckBox";
             onlyInFolderCheckBox.Size = new System.Drawing.Size(400, 24);
-            onlyInFolderCheckBox.TabIndex = 5;
+            onlyInFolderCheckBox.TabIndex = 6;
             onlyInFolderCheckBox.Text = "Search only in: no folder selected";
             onlyInFolderCheckBox.UseMnemonic = false;
             onlyInFolderCheckBox.UseVisualStyleBackColor = true;
@@ -200,7 +212,7 @@ namespace GUI.Forms
             extensionLabel.Location = new System.Drawing.Point(13, 148);
             extensionLabel.Name = "extensionLabel";
             extensionLabel.Size = new System.Drawing.Size(70, 19);
-            extensionLabel.TabIndex = 6;
+            extensionLabel.TabIndex = 7;
             extensionLabel.Text = "Extension:";
             // 
             // extensionComboBox
@@ -217,7 +229,7 @@ namespace GUI.Forms
             extensionComboBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             extensionComboBox.Name = "extensionComboBox";
             extensionComboBox.Size = new System.Drawing.Size(400, 26);
-            extensionComboBox.TabIndex = 7;
+            extensionComboBox.TabIndex = 8;
             // 
             // hintLabel
             // 
@@ -225,7 +237,7 @@ namespace GUI.Forms
             hintLabel.Location = new System.Drawing.Point(13, 304);
             hintLabel.Name = "hintLabel";
             hintLabel.Size = new System.Drawing.Size(400, 22);
-            hintLabel.TabIndex = 11;
+            hintLabel.TabIndex = 12;
             hintLabel.UseMnemonic = false;
             // 
             // SearchForm
@@ -239,6 +251,7 @@ namespace GUI.Forms
             Controls.Add(extensionComboBox);
             Controls.Add(extensionLabel);
             Controls.Add(onlyInFolderCheckBox);
+            Controls.Add(allWordsCheckBox);
             Controls.Add(regexCheckBox);
             Controls.Add(wholeWordCheckBox);
             Controls.Add(matchCaseCheckBox);
@@ -276,6 +289,7 @@ namespace GUI.Forms
         private System.Windows.Forms.CheckBox matchCaseCheckBox;
         private System.Windows.Forms.CheckBox wholeWordCheckBox;
         private System.Windows.Forms.CheckBox regexCheckBox;
+        private System.Windows.Forms.CheckBox allWordsCheckBox;
         private System.Windows.Forms.CheckBox onlyInFolderCheckBox;
         private System.Windows.Forms.Label extensionLabel;
         private ThemedComboBox extensionComboBox;

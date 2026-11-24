@@ -14,7 +14,7 @@ Recipes to read game files. For all options, read `docs/guides/command-line.md`,
 ```powershell
 & $cli -i $vpk -l -f "*chicken*" -e vmdl_c       # -f matches the start of the path. Use * for a substring
 & $cli -i $vpk --vpk_search "C_OP_RenderSprites" -e vpcf_c   # files whose contents contain the text
-& $cli -i $vpk --vpk_search "C_OP_Render(Sprites|Trails)" --vpk_search_options regex   # also "case", "word", or "hex" for bytes
+& $cli -i $vpk --vpk_search "C_OP_Render(Sprites|Trails)" --vpk_search_options regex   # also "case", "word", "words", or "hex" for bytes
 & $cli -i <game>/maps --recursive_vpk -l -e vents_c          # folder input looks inside VPKs only with --recursive_vpk
 ```
 

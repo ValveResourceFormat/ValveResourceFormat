@@ -77,7 +77,7 @@ Press <kbd>Ctrl</kbd>+<kbd>F</kbd> in a package tab to search it, or right-click
 - **File contents** finds files that contain the text. In compiled files it also searches their decompressed data, such as particle operators and material parameters, but not geometry. It reads every file, so it is slower.
 - **File contents hex bytes** finds files that contain the bytes, such as `56 42 4B 56`.
 
-**Match case**, **Whole word** and **Regex** change how the text matches. With **Regex**, `^weapon_.*\.vmdl_c$` matches whole names.
+**Match case**, **Whole word** and **Regex** change how the text matches. With **Regex**, `^weapon_.*\.vmdl_c$` matches whole names. With **All words**, `brick wet` finds files that contain both words in any order.
 
 Three filters narrow the search: **Search only in** to the folder selected in the tree and its subfolders, **Extension** to one file type, and **Asset info filter** to files with a searchable user data key from the tools asset info, and optionally its value. With no text, every file the filters allow is listed.
 
