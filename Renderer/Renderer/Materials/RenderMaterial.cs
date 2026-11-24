@@ -755,47 +755,42 @@ namespace ValveResourceFormat.Renderer.Materials
             // Game shader files compile the same expressions, with constants folded per static combo
             foreach (var (name, expression) in shader.Expressions)
             {
-                if (!variables.TryGetValue(name, out var variable) || !Evaluate(shader, buffer, members, name, variable.CompiledExpression))
+                if (!members.TryGetValue(name, out var constant) || Matrices.ContainsKey(name))
                 {
-                    Evaluate(shader, buffer, members, name, expression);
+                    continue;
+                }
+
+                if (!variables.TryGetValue(name, out var variable) || !Evaluate(shader, buffer, constant, name, variable.CompiledExpression))
+                {
+                    Evaluate(shader, buffer, constant, name, expression);
                 }
             }
 
             // Other game expressions mostly convert a raw parameter our shaders already convert, matrices are final
             foreach (var (name, variable) in variables)
             {
-                if (variable.VfxType == VfxVariableType.Float4x4 && !shader.Expressions.ContainsKey(name))
+                if (variable.VfxType == VfxVariableType.Float4x4 && !shader.Expressions.ContainsKey(name)
+                    && members.TryGetValue(name, out var constant) && !Matrices.ContainsKey(name))
                 {
-                    Evaluate(shader, buffer, members, name, variable.CompiledExpression);
+                    Evaluate(shader, buffer, constant, name, variable.CompiledExpression);
                 }
             }
 
             foreach (var (name, expression) in Material.DynamicParams)
             {
-                if (!IsOverridden(name) && members.TryGetValue(name, out var constant) && expressionContext.TryEvaluate(expression, out var value))
+                if (!IsOverridden(name) && members.TryGetValue(name, out var constant))
                 {
-                    SetEvaluated(shader, buffer, constant, name, value);
+                    Evaluate(shader, buffer, constant, name, expression);
                 }
             }
 
             return expressionContext.IsConstant;
         }
 
-        // Returns false only when the expression fails to evaluate
-        private bool Evaluate(Shader shader, Globals buffer, IReadOnlyDictionary<string, GlobalsMember> members, string name, byte[] expression)
+        private bool Evaluate(Shader shader, Globals buffer, in GlobalsMember constant, string name, byte[] expression)
         {
-            if (!members.TryGetValue(name, out var constant))
-            {
-                return true;
-            }
-
             if (constant.Type == GlobalsType.Mat4)
             {
-                if (Matrices.ContainsKey(name))
-                {
-                    return true;
-                }
-
                 if (!expressionContext.TryEvaluateMatrix(expression, out var matrix))
                 {
                     return false;
