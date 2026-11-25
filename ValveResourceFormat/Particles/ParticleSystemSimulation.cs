@@ -465,7 +465,6 @@ namespace ValveResourceFormat.Particles
         public bool SetNamedValue(string name, Vector3 value) => SetNamedValue(name, ParticleNamedValue.FromVector(value));
 
         /// <inheritdoc cref="SetNamedValue(string, float)"/>
-        /// <param name="name">The named value, as the definition's <c>m_NamedValueLocals</c> or its inputs name it.</param>
         /// <param name="position">The transform's position.</param>
         /// <param name="rotation">The transform's rotation. A vector named value takes only the position.</param>
         public bool SetNamedValue(string name, Vector3 position, Quaternion rotation)
