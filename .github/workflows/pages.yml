@@ -22,11 +22,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish-docs:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
+  build-docs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -64,6 +60,14 @@ jobs:
       with:
         path: 'docs/.vitepress/dist'
 
+  publish-docs:
+    needs: build-docs
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    steps:
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v5
