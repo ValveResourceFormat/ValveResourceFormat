@@ -5,6 +5,7 @@ on:
     branches:
       - master
     paths:
+      - .github/workflows/pages.yml
       - docs/**
       - Renderer/**
       - ValveResourceFormat/**
