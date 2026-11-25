@@ -68,6 +68,8 @@ Standard Microsoft C# conventions, plus:
 - Expression bodies for properties, indexers, and accessors; block bodies for methods and constructors
 - No `this.` unless disambiguating
 - Prefer early returns
+- Plain control flow, one idea per statement: no nested ternaries, no conditionals inside arguments or collection expressions, and no LINQ or lambdas over a few fixed indices or cases; write the cases out or use a plain loop
+- No guards or fallbacks for cases that cannot happen
 - `MathF` over `(float)Math` casts; use `MathUtils` helpers instead of inline formulas, and add new general-purpose math there
 - Parse text values with `ValueParsing` and read KV values with the `KVObjectExtensions` getters; never add a parse, conversion or wrapper helper elsewhere
 - Format and parse numbers with `CultureInfo.InvariantCulture`, including interpolation (`string.Create(CultureInfo.InvariantCulture, $"...")`), concatenation and `string.Join`, which CA1305 does not catch
