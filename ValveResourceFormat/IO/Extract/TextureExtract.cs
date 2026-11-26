@@ -115,12 +115,24 @@ public sealed class TextureExtract
     private bool writesMaterialMaps;
 
     /// <summary>
+    /// Whether extracted textures are written with a vtex config. Only Debug builds write one.
+    /// </summary>
+    private static bool VtexWritingEnabled =>
+#if DEBUG
+        true;
+#else
+        false;
+#endif
+
+    private bool WritesVtex => VtexWritingEnabled && !IgnoreVtexFile && !writesMaterialMaps;
+
+    /// <summary>
     /// Gets the flags the images are decoded with. Next to a vtex config, normal maps keep their stored channels
     /// instead of the swizzle and Z the decode reconstructs.
     /// </summary>
-    private TextureCodec ImageDecodeFlags => IgnoreVtexFile || writesMaterialMaps
-        ? DecodeFlags
-        : texture.ResolveDecodeFlags(DecodeFlags, TextureCodec.Dxt5nm | TextureCodec.NormalizeNormals);
+    private TextureCodec ImageDecodeFlags => WritesVtex
+        ? texture.ResolveDecodeFlags(DecodeFlags, TextureCodec.Dxt5nm | TextureCodec.NormalizeNormals)
+        : DecodeFlags;
 
     /// <summary>
     /// Gets whether the texture should be exported as EXR format.
@@ -150,7 +162,7 @@ public sealed class TextureExtract
     /// </summary>
     public ContentFile ToContentFile()
     {
-        var writeVtex = !IgnoreVtexFile && !writesMaterialMaps;
+        var writeVtex = WritesVtex;
         var rawImage = texture.ReadRawImageData();
         if (rawImage != null)
         {
