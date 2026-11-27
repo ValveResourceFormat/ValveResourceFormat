@@ -154,7 +154,6 @@ namespace GUI.Forms
             // matchCaseCheckBox
             // 
             matchCaseCheckBox.AutoSize = true;
-            matchCaseCheckBox.FlatStyle = System.Windows.Forms.FlatStyle.System;
             matchCaseCheckBox.Location = new System.Drawing.Point(13, 86);
             matchCaseCheckBox.Name = "matchCaseCheckBox";
             matchCaseCheckBox.TabIndex = 2;
@@ -165,7 +164,6 @@ namespace GUI.Forms
             // wholeWordCheckBox
             // 
             wholeWordCheckBox.AutoSize = true;
-            wholeWordCheckBox.FlatStyle = System.Windows.Forms.FlatStyle.System;
             wholeWordCheckBox.Location = new System.Drawing.Point(125, 86);
             wholeWordCheckBox.Name = "wholeWordCheckBox";
             wholeWordCheckBox.TabIndex = 3;
@@ -176,7 +174,6 @@ namespace GUI.Forms
             // regexCheckBox
             // 
             regexCheckBox.AutoSize = true;
-            regexCheckBox.FlatStyle = System.Windows.Forms.FlatStyle.System;
             regexCheckBox.Location = new System.Drawing.Point(242, 86);
             regexCheckBox.Name = "regexCheckBox";
             regexCheckBox.TabIndex = 4;
@@ -187,7 +184,6 @@ namespace GUI.Forms
             // allWordsCheckBox
             // 
             allWordsCheckBox.AutoSize = true;
-            allWordsCheckBox.FlatStyle = System.Windows.Forms.FlatStyle.System;
             allWordsCheckBox.Location = new System.Drawing.Point(322, 86);
             allWordsCheckBox.Name = "allWordsCheckBox";
             allWordsCheckBox.TabIndex = 5;
